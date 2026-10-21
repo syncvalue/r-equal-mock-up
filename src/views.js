@@ -4,7 +4,7 @@ import { approvalState, latestApproval } from './store.js';
 import { themeToggleHtml } from './theme.js';
 import { roleLabel, userById } from './dashboard.js';
 import { eventById } from './schedule.js';
-import { unreadCount } from './messages.js';
+import { messagesFor, unreadCount } from './messages.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '買取明細', '取捨選択', 'シール紐づけ', 'GMOサイン送信・訪問終了'];
@@ -653,6 +653,16 @@ export function modalView(s) {
         <button class="btn btn-secondary text-rose-600 !min-h-[48px] !py-2" data-action="remove-item" data-id="${i.id}">削除</button>
         <button class="btn btn-primary flex-1 !min-h-[48px] !py-2" data-action="close-modal">完了</button></div>`,
       { wide: true },
+    );
+  }
+  if (m.type === 'message') {
+    const msg = messagesFor(userById(s.user)).find((x) => x.id === m.id);
+    if (!msg) return '';
+    return modalShell(
+      `${msg.important ? '<span class="text-xs font-bold rounded bg-rose-600 text-white px-2 py-0.5 mr-2 align-middle">重要</span>' : '<span class="text-xs font-bold rounded bg-slate-200 text-slate-600 px-2 py-0.5 mr-2 align-middle">お知らせ</span>'}${esc(msg.title)}`,
+      `<div class="text-xs text-slate-500">${esc(msg.sender)}${msg.target !== 'all' ? `（グループ${esc(msg.target)}宛）` : ''} ／ ${fmtDateTime(msg.sentAt)}</div>
+       <p class="text-lg whitespace-pre-wrap leading-relaxed">${esc(msg.body)}</p>
+       <button class="btn btn-primary w-full" data-action="close-modal">閉じる</button>`,
     );
   }
   if (m.type === 'eval') return evalModalView(s);

@@ -21,7 +21,6 @@ function callInfoOf(ev, userId) {
 const initialState = () => ({
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
   view: 'dashboard',
-  msgOpen: null,
   user: 'u01',
   dash: { period: 'month', scope: 'me', member: null },
   menuOpen: false,
@@ -122,7 +121,7 @@ function render() {
     V.headerView(state) +
     `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
-    (state.view === 'visit' ? V.modalView(state) : '') +
+    V.modalView(state) +
     V.scanView(state) +
     V.menuView(state);
   document.querySelectorAll('[data-scroll]').forEach((e) => { e.scrollTop = scrolls[e.dataset.scroll] ?? 0; });
@@ -197,11 +196,10 @@ const actions = {
     const { [el.dataset.key]: _removed, ...rest } = state.labels;
     set({ labels: rest, labelError: null });
   },
-  // 本社からのメッセージ: タップで本文を開閉し、開いたものは既読にする
-  'msg-toggle': (el) => {
-    const id = el.dataset.id;
-    set({ msgOpen: state.msgOpen === id ? null : id });
-    markRead(state.user, [id]);
+  // 本社からのメッセージ: タップで詳細をモーダルで開き、既読にする
+  'msg-open': (el) => {
+    set({ modal: { type: 'message', id: el.dataset.id } });
+    markRead(state.user, [el.dataset.id]);
   },
   'msg-read-all': () => markRead(state.user, messagesFor(userById(state.user)).map((m) => m.id)),
   'dash-period': (el) => set({ dash: { ...state.dash, period: el.dataset.value } }),

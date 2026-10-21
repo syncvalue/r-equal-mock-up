@@ -65,28 +65,25 @@ function memberTable(s, members, range, now) {
   <p class="text-xs text-slate-500">行をタップすると、そのメンバーの詳細を見られます。目標達成の縦線は、今日までの経過に応じた目安です。</p>`;
 }
 
-// 本社からのメッセージ。タップで本文を開き、開いたものは既読になる
-function messagesCard(s, user) {
+// 本社からのメッセージ。一覧は2件分の高さに固定し、3件目以降は一覧内でスクロールする。詳細はモーダルで開く
+function messagesCard(user) {
   const msgs = messagesFor(user);
   const read = new Set(loadReadIds(user.id));
   const unread = msgs.filter((m) => !read.has(m.id)).length;
   return `
-  <div class="card !p-3 space-y-2">
+  <div class="card !p-3 space-y-1.5">
     <div class="flex items-center justify-between">
-      <h3 class="font-bold">📢 本社からのメッセージ ${unread ? `<span class="ml-1 text-xs rounded-full bg-rose-600 text-white px-2 py-0.5">未読 ${unread}</span>` : '<span class="ml-1 text-xs text-slate-400">すべて既読</span>'}</h3>
+      <h3 class="font-bold">📢 本社からのメッセージ ${unread ? `<span class="ml-1 text-xs rounded-full bg-rose-600 text-white px-2 py-0.5">未読 ${unread}</span>` : '<span class="ml-1 text-xs text-slate-400">すべて既読</span>'}
+        <span class="text-xs font-normal text-slate-400">全${msgs.length}件</span></h3>
       ${unread ? '<button class="text-xs underline text-slate-500" data-action="msg-read-all">すべて既読にする</button>' : ''}</div>
-    <div class="space-y-1.5 max-h-[188px] overflow-y-auto" data-scroll="msgs">
+    <div class="space-y-1.5 max-h-[102px] overflow-y-auto" data-scroll="msgs">
       ${msgs.length ? msgs.map((m) => {
         const isRead = read.has(m.id);
-        const open = s.msgOpen === m.id;
-        return `<button class="w-full text-left rounded-xl border-2 px-3 py-2 ${m.important ? 'border-rose-300' : 'border-slate-200'} ${isRead ? '' : 'bg-amber-50'}" data-action="msg-toggle" data-id="${m.id}">
-          <span class="flex items-center gap-2">
-            ${isRead ? '' : '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>'}
-            ${m.important ? '<span class="text-xs font-bold rounded bg-rose-600 text-white px-1.5 py-0.5 shrink-0">重要</span>' : '<span class="text-xs font-bold rounded bg-slate-200 text-slate-600 px-1.5 py-0.5 shrink-0">お知らせ</span>'}
-            <span class="font-bold flex-1 ${open ? '' : 'truncate'}">${esc(m.title)}</span>
-            <span class="text-xs text-slate-400 shrink-0">${fmtDateTime(m.sentAt).replace(/:\d+$/, '')}</span></span>
-          ${open ? `<span class="block mt-1 text-sm whitespace-pre-wrap">${esc(m.body)}</span><span class="block mt-1 text-xs text-slate-500">${esc(m.sender)}${m.target !== 'all' ? `（グループ${esc(m.target)}宛）` : ''}</span>` : ''}
-        </button>`;
+        return `<button class="w-full h-12 flex items-center gap-2 text-left rounded-xl border-2 px-3 ${m.important ? 'border-rose-300' : 'border-slate-200'} ${isRead ? '' : 'bg-amber-50'}" data-action="msg-open" data-id="${m.id}">
+          ${isRead ? '<span class="w-2.5 shrink-0"></span>' : '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>'}
+          ${m.important ? '<span class="text-xs font-bold rounded bg-rose-600 text-white px-1.5 py-0.5 shrink-0">重要</span>' : '<span class="text-xs font-bold rounded bg-slate-200 text-slate-600 px-1.5 py-0.5 shrink-0">お知らせ</span>'}
+          <span class="font-bold flex-1 truncate ${isRead ? 'font-normal' : ''}">${esc(m.title)}</span>
+          <span class="text-xs text-slate-400 shrink-0">${fmtDateTime(m.sentAt).replace(/:\d+$/, '')}</span></button>`;
       }).join('') : '<p class="text-slate-400 text-center py-3">メッセージはありません</p>'}
     </div>
   </div>`;
@@ -112,7 +109,7 @@ export function dashboardView(s) {
 
   return `
   <section class="h-full min-h-0 overflow-y-auto p-4 space-y-3" data-scroll="dash">
-    ${messagesCard(s, userById(s.user))}
+    ${messagesCard(userById(s.user))}
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div><h2 class="text-2xl font-bold">📊 業績ダッシュボード</h2>
         <p class="text-sm text-slate-500">${esc(subject)} ／ ${range.start.getMonth() + 1}/${range.start.getDate()}${range.start.getTime() === range.end.getTime() ? '' : `〜${range.end.getMonth() + 1}/${range.end.getDate()}`}</p></div>
