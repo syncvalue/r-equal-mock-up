@@ -6,7 +6,7 @@ import {
 import { RANKS } from '../src/data.js';
 import { DEPOSIT_KEY, WORKDAY_KEY } from '../src/store.js';
 import { USERS, APPRAISERS } from '../src/dashboard.js';
-import { eventsOfDay, toMin } from '../src/schedule.js';
+import { eventsOfDay } from '../src/schedule.js';
 import { addDeposit, todayRows, newId } from '../src/workday.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
@@ -51,13 +51,11 @@ const apStatus = (aps) =>
   : aps.some((a) => a.status === '依頼中') ? '<span class="rounded bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-bold">依頼中</span>'
   : '<span class="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-bold">回答済み</span>';
 
-// 担当する営業の、今日の予定（時系列）と訪問状況。ダミーの営業は、現在時刻から状況を擬似的に決める
+// 担当する営業の、今日の予定（時系列）と訪問状況。ダミーの営業は、予定ごとの見本の状況（demoStatus）を使う
 const ST = {
   done: ['完了', 'bg-slate-200 text-slate-600'], visiting: ['訪問中', 'bg-emerald-100 text-emerald-800'], notyet: ['まだ訪問していない', 'bg-white border border-dashed border-slate-300 text-slate-400'],
 };
 function scheduleRows(visits) {
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
   const latest = {};
   visits.forEach((v) => { if (v.eventId && (!latest[v.eventId] || v.updatedAt > latest[v.eventId].updatedAt)) latest[v.eventId] = v; });
   const events = scopeUsers().flatMap((u) => eventsOfDay(0, u.id)).sort((a, b) => a.start.localeCompare(b.start));
@@ -65,7 +63,7 @@ function scheduleRows(visits) {
     const v = latest[e.id] ?? null;
     let key = 'notyet';
     if (v) key = v.endedAt ? 'done' : 'visiting';
-    else if (e.dummy) key = nowMin >= toMin(e.end) ? 'done' : nowMin >= toMin(e.start) ? 'visiting' : 'notyet';
+    else if (e.dummy) key = e.demoStatus;
     return { e, v, key, label: v?.outcome ? v.outcome.label : ST[key][0] };
   });
   const matched = new Set(rows.map((r) => r.v?.visitId));
