@@ -34,12 +34,13 @@ export const legsOf = (origin, stops) =>
     return { from, to: s, km, min: minutesFor(km) };
   });
 
-const pt = (o) => (o.lat != null ? `${o.lat},${o.lng}` : o.address);
+// 住所の文字列は、番地・建物名の表記ゆれで検索に失敗することがあるため、座標で指定する（座標が無い場合のみ住所）
+const pt = (o) => (o.lat != null ? `${o.lat},${o.lng}` : o.address ?? o.customer?.address);
 
 // 埋め込み用: 現在地 → 訪問先1 → 訪問先2 → … の順に結ぶ
 export function mapEmbedUrl(origin, stops) {
   if (!stops.length) return '';
-  const dest = stops.map((s) => encodeURIComponent(s.customer.address)).join('+to:');
+  const dest = stops.map((s) => encodeURIComponent(pt(s))).join('+to:');
   return `https://www.google.com/maps?output=embed&hl=ja&saddr=${encodeURIComponent(pt(origin))}&daddr=${dest}`;
 }
 
@@ -47,6 +48,6 @@ export function mapEmbedUrl(origin, stops) {
 export function mapOpenUrl(origin, stops) {
   if (!stops.length) return '';
   const last = stops[stops.length - 1];
-  const via = stops.slice(0, -1).map((s) => s.customer.address).join('|');
-  return `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(pt(origin))}&destination=${encodeURIComponent(last.customer.address)}${via ? `&waypoints=${encodeURIComponent(via)}` : ''}`;
+  const via = stops.slice(0, -1).map(pt).join('|');
+  return `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(pt(origin))}&destination=${encodeURIComponent(pt(last))}${via ? `&waypoints=${encodeURIComponent(via)}` : ''}`;
 }
