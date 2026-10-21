@@ -5,6 +5,7 @@ import {
 } from '../src/store.js';
 import { RANKS } from '../src/data.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
+import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
 import { yen, fmtTime, fmtElapsed, esc } from '../src/format.js';
 
 const $ = (s) => document.querySelector(s);
@@ -96,8 +97,8 @@ function sendForm(itemId, item) {
     ${item ? `
     <div class="border-t pt-2 space-y-2">
       ${item.price > 0 ? `<button class="w-full rounded border-2 border-emerald-600 text-emerald-700 font-bold py-2 hover:bg-emerald-50" data-fillprice="${item.price}" data-fillrank="${item.rank}">営業の査定額 ${yen(item.price)}（ランク${item.rank}）をそのまま入力</button>` : ''}
-      <label class="block text-sm font-bold">提案する査定額（円・個数分の合計・任意）
-        <input class="w-full border rounded px-3 py-2 mt-1 text-lg text-right" type="number" min="0" step="100" data-f="price" value="${esc(draft.price)}" placeholder="入力すると、営業が買取金額に反映できます" /></label>
+      <div class="text-sm font-bold">提案する査定額（円・個数分の合計・任意）
+        <div class="mt-1">${moneyInputHtml({ attrs: 'data-f="price"', value: Number(draft.price) || 0, placeholder: '入力すると、営業が買取金額に反映できます', cls: 'w-full border rounded px-3 py-2 text-lg' })}</div></div>
       ${draft.price ? `<div class="flex flex-wrap gap-1">${RANKS.map((r) => `<button class="px-2 py-1 rounded border text-sm font-bold ${r.value === rank ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-white'}" data-rank="${r.value}">${r.label}</button>`).join('')}</div>` : ''}
     </div>` : ''}
     <button class="w-full bg-indigo-700 text-white font-bold rounded py-3" data-send="${itemId ?? ''}">営業に送信</button>
@@ -273,7 +274,12 @@ document.addEventListener('click', (e) => {
   render();
 });
 document.addEventListener('input', (e) => {
-  if (e.target.dataset.f) draft = { ...draft, [e.target.dataset.f]: e.target.value };
+  if (e.target.dataset.f === 'price') {
+    // 金額は3桁区切りで表示し、内部では数字のみ保持する（ランク選択欄の出し入れのため、入力有無が変わる時だけ再描画）
+    const had = Boolean(draft.price);
+    draft = { ...draft, price: String(formatMoneyInput(e.target) || '') };
+    if (had !== Boolean(draft.price)) { const pos = e.target.selectionStart; render(); const el = document.querySelector('[data-f=price]'); el?.focus(); el?.setSelectionRange(pos, pos); }
+  } else if (e.target.dataset.f) draft = { ...draft, [e.target.dataset.f]: e.target.value };
 });
 
 // 営業側の更新を即時反映。入力中なら、入力欄から離れたときに反映する

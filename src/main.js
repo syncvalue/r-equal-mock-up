@@ -8,6 +8,7 @@ import {
 import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
 import { initTheme } from './theme.js';
+import { formatMoneyInput } from './moneyInput.js';
 
 const initialState = () => ({
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
@@ -347,14 +348,7 @@ document.addEventListener('input', (e) => {
     $('#master').innerHTML = V.masterBodyView(state);
     $('#search-clear')?.classList.toggle('hidden', !state.search);
   } else if (el.dataset.itemField === 'price') {
-    // 全角数字も受け付け、3桁区切りで表示（カーソル位置は桁数で保持）
-    const digits = el.value.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/\D/g, '').slice(0, 10);
-    const price = Number(digits) || 0;
-    const before = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/\D/g, '').length;
-    el.value = price ? price.toLocaleString('ja-JP') : '';
-    let pos = 0;
-    for (let seen = 0; pos < el.value.length && seen < before; pos += 1) if (/\d/.test(el.value[pos])) seen += 1;
-    el.setSelectionRange(pos, pos);
+    const price = formatMoneyInput(el);
     updateItems(el.dataset.id, { price });
     const item = state.items.find((i) => i.id === el.dataset.id);
     const box = $('#range-box');
