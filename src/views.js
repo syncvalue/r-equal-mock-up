@@ -132,6 +132,7 @@ export function headerView(s) {
         <span class="${st.cls} rounded-full px-3 py-0.5 font-bold text-sm">${st.label}</span>
       </div>
       <div class="flex items-center gap-3 text-sm">
+        <button class="text-xs underline text-slate-300 hover:text-white" data-action="reset-all">（デモ用）データ初期化</button>
         ${themeToggleHtml()}
         ${commentBadge(s)}
         <span>開始 ${fmtTime(s.visitStartedAt)} ／ 終了 ${fmtTime(s.visitEndedAt)}</span>
@@ -199,7 +200,6 @@ export function startView(s) {
     <p class="text-slate-500">ボタンを押すと訪問開始時刻が記録されます。</p>
     <button class="btn btn-primary text-3xl px-16 py-8" data-action="start">訪問開始</button>
     <button class="text-sm underline text-slate-400" data-action="nav" data-value="schedule">今日の予定に戻る</button>
-    <button class="text-sm underline text-slate-400" data-action="reset-all">（デモ用）データを初期化</button>
   </section>`;
 }
 
