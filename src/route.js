@@ -15,18 +15,6 @@ export function distanceKm(a, b) {
 export const roadKm = (a, b) => distanceKm(a, b) * 1.35;
 export const minutesFor = (km) => Math.max(1, Math.round((km / 28) * 60));
 
-function permutations(arr) {
-  if (arr.length <= 1) return [arr];
-  return arr.flatMap((x, i) => permutations([...arr.slice(0, i), ...arr.slice(i + 1)]).map((p) => [x, ...p]));
-}
-const pathKm = (origin, stops) => stops.reduce((sum, s, i) => sum + distanceKm(i === 0 ? origin : stops[i - 1], s), 0);
-
-// 現在地から全訪問先を回る、総距離が最短の順番（訪問先は少数のため全探索）
-export function shortestOrder(origin, stops) {
-  if (stops.length <= 1) return stops;
-  return permutations(stops).reduce((best, p) => (pathKm(origin, p) < pathKm(origin, best) ? p : best));
-}
-
 export const legsOf = (origin, stops) =>
   stops.map((s, i) => {
     const from = i === 0 ? origin : stops[i - 1];

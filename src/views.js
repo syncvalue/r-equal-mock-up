@@ -56,8 +56,7 @@ const itemWarn = (s, itemId) =>
 
 // ---- メインメニュー（開閉式ドロワー）。機能の中身は準備中 -------------------------------
 export const MENU = [
-  { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・訪問開始' },
-  { key: 'move', icon: '🚗', label: '移動', sub: 'ルート確認（Googleマップ）' },
+  { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
   { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
   { key: 'dashboard', icon: '📊', label: 'ダッシュボード', sub: '業績の確認（個人・グループ）' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: 'ガソリン代・買取用の現金',
@@ -759,4 +758,4 @@ function appraisalComposeView(s, m) {
 export { yen, total } from './format.js';
 export { masterBodyView } from './masterView.js';
 export { dashboardView } from './dashboardView.js';
-export { scheduleView, moveView } from './scheduleView.js';
+export { scheduleView } from './scheduleView.js';

@@ -1,7 +1,7 @@
 // 今日の予定（Googleカレンダー風の3日表示）と、訪問先までのルート確認（Googleマップ）。
 import { esc } from './format.js';
 import { EVENTS, OFFICE, eventById, eventsOfDay, dayDate, toMin } from './schedule.js';
-import { legsOf, mapEmbedUrl, mapOpenUrl, shortestOrder } from './route.js';
+import { legsOf, mapEmbedUrl, mapOpenUrl } from './route.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const HOUR_FROM = 8;
@@ -48,16 +48,16 @@ function detailPanel(s) {
   </div>`;
 }
 
-export function scheduleView(s) {
+function calendarBody(s) {
   const now = new Date();
   const days = [0, 1, 2].map((n) => ({ n, date: dayDate(n, now), events: eventsOfDay(n) }));
   const hours = Array.from({ length: HOUR_TO - HOUR_FROM }, (_, i) => HOUR_FROM + i);
   const nowTop = ((now.getHours() * 60 + now.getMinutes() - HOUR_FROM * 60) / 60) * HOUR_H;
   return `
-  <section class="h-full min-h-0 p-4 flex gap-3">
+  <div class="flex gap-3 flex-1 min-h-0">
     <div class="card !p-0 flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
       <div class="flex items-center justify-between px-4 py-2 border-b">
-        <h2 class="text-xl font-bold">📅 今日の予定</h2>
+        <h2 class="text-xl font-bold">今日の予定</h2>
         <span class="text-sm text-slate-500">${days[0].date.getMonth() + 1}/${days[0].date.getDate()}〜${days[2].date.getMonth() + 1}/${days[2].date.getDate()}（3日間）</span></div>
       <div class="grid grid-cols-[3.2rem_repeat(3,1fr)] border-b">
         <div></div>
@@ -77,26 +77,25 @@ export function scheduleView(s) {
       </div>
     </div>
     <div class="w-80 shrink-0 overflow-y-auto min-h-0" data-scroll="schedDetail">${detailPanel(s)}</div>
-  </section>`;
+  </div>`;
 }
 
 // ---- ルート確認 -------------------------------------------------------------
-export function moveView(s) {
+function routeBody(s) {
   const day = s.route.day;
   const stops = eventsOfDay(day);
   const origin = s.geo?.ok ? { lat: s.geo.lat, lng: s.geo.lng } : { lat: OFFICE.lat, lng: OFFICE.lng, address: OFFICE.address };
   const originLabel = s.geo?.ok ? '現在地' : s.geo?.pending ? '現在地を取得中…（取得できない場合は営業所）' : `営業所（現在地を取得できないため）`;
-  const sorted = s.route.order === 'shortest' ? shortestOrder(origin, stops) : stops;
-  const reordered = sorted.some((e, i) => e.id !== stops[i].id);
+  // 訪問の順番は予定の時刻順（決まっているため、並べ替えはしない）
+  const sorted = stops;
   const legs = legsOf(origin, sorted);
   const totalKm = legs.reduce((n, l) => n + l.km, 0);
   const totalMin = legs.reduce((n, l) => n + l.min, 0);
   const d = dayDate(day);
 
   return `
-  <section class="h-full min-h-0 p-4 flex gap-3">
+  <div class="flex gap-3 flex-1 min-h-0">
     <div class="card !p-3 w-[22rem] shrink-0 flex flex-col gap-2 min-h-0">
-      <h2 class="text-xl font-bold">🚗 ルート確認</h2>
       <div class="flex gap-1">${[0, 1, 2].map((n) => { const dd = dayDate(n); return `<button class="flex-1 py-2 rounded-lg font-bold text-sm ${day === n ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="route-day" data-value="${n}">${n === 0 ? '今日' : n === 1 ? '明日' : '明後日'}<span class="block text-[11px] font-normal">${dd.getMonth() + 1}/${dd.getDate()}（${WEEK[dd.getDay()]}）</span></button>`; }).join('')}</div>
       <div class="overflow-y-auto min-h-0 flex-1 space-y-1" data-scroll="route">
         <div class="flex items-start gap-2 rounded-lg bg-slate-50 p-2"><span class="w-7 h-7 rounded-full bg-sky-600 text-white flex items-center justify-center text-sm font-bold shrink-0">●</span>
@@ -109,8 +108,6 @@ export function moveView(s) {
           || '<p class="text-slate-400 text-center py-6">この日の訪問予定はありません。</p>'}
         ${stops.length ? `<div class="rounded-lg bg-teal-50 p-2 text-sm font-bold">合計 約${totalKm.toFixed(1)}km・移動 約${totalMin}分<div class="text-xs font-normal text-slate-500">直線距離からの概算です（実際の道のりはマップが計算します）</div></div>` : ''}
       </div>
-      ${stops.length > 1 ? `<button class="btn btn-secondary !py-2 !min-h-[48px]" data-action="route-order" data-value="${s.route.order === 'shortest' ? 'schedule' : 'shortest'}">${s.route.order === 'shortest' ? '↩ 予定の時刻順に戻す' : '⚡ 最短ルートの順に並べ替える'}</button>
-        ${s.route.order === 'shortest' && reordered ? '<p class="text-xs text-amber-700 font-bold">予定の時刻順と異なります。お客様との約束の時刻にご注意ください。</p>' : ''}` : ''}
       ${stops.length ? `<a class="btn btn-primary !py-2 !min-h-[48px] text-center flex items-center justify-center" target="_blank" rel="noopener" href="${esc(mapOpenUrl(origin, sorted))}">🗺 Googleマップで開く（ナビ）</a>` : ''}
     </div>
     <div class="card !p-0 flex-1 min-w-0 min-h-0 overflow-hidden relative">
@@ -119,5 +116,15 @@ export function moveView(s) {
            <div class="absolute bottom-2 left-2 right-2 text-center pointer-events-none"><span class="inline-block rounded-full bg-black/60 text-white text-xs px-3 py-1">現在地 → ${sorted.map((e) => esc(e.customer.name)).join(' → ')}　／　地図が表示されない場合は「Googleマップで開く」をご利用ください</span></div>`
         : '<div class="h-full flex items-center justify-center text-slate-400">訪問予定がありません</div>'}
     </div>
+  </div>`;
+}
+
+// 今日の予定。「予定表」と「ルート（地図）」を切り替える
+export function scheduleView(s) {
+  const tab = (key, label) => `<button class="flex-1 py-2 rounded-lg font-bold ${s.sched.tab === key ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="sched-tab" data-value="${key}">${label}</button>`;
+  return `
+  <section class="h-full min-h-0 p-4 flex flex-col gap-2">
+    <div class="flex gap-2 w-80 shrink-0">${tab('calendar', '📅 予定表')}${tab('route', '🚗 ルート確認')}</div>
+    ${s.sched.tab === 'route' ? routeBody(s) : calendarBody(s)}
   </section>`;
 }

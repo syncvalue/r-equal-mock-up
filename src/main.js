@@ -19,7 +19,7 @@ function callInfoOf(ev, userId) {
 
 const initialState = () => ({
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
-  view: 'visit',
+  view: 'schedule',
   user: 'u01',
   dash: { period: 'month', scope: 'me', member: null },
   menuOpen: false,
@@ -27,8 +27,8 @@ const initialState = () => ({
   visitStartedAt: null,
   visitEndedAt: null,
   visitEventId: EVENTS[0].id,
-  sched: { sel: EVENTS[0].id },
-  route: { day: 0, order: 'schedule' },
+  sched: { sel: EVENTS[0].id, tab: 'calendar' },
+  route: { day: 0 },
   geo: null,
   callInfo: callInfoOf(EVENTS[0], 'u01'),
   customer: { ...EVENTS[0].customer },
@@ -66,8 +66,8 @@ function requestGeo() {
   if (state.geo || !navigator.geolocation) { if (!state.geo) set({ geo: { ok: false } }); return; }
   set({ geo: { ok: false, pending: true } });
   navigator.geolocation.getCurrentPosition(
-    (pos) => { set({ geo: { ok: true, lat: pos.coords.latitude, lng: pos.coords.longitude } }); if (state.view === 'move') rerenderKeepScroll(); },
-    () => { set({ geo: { ok: false } }); if (state.view === 'move') rerenderKeepScroll(); },
+    (pos) => { set({ geo: { ok: true, lat: pos.coords.latitude, lng: pos.coords.longitude } }); if (state.view === 'schedule' && state.sched.tab === 'route') rerenderKeepScroll(); },
+    () => { set({ geo: { ok: false } }); if (state.view === 'schedule' && state.sched.tab === 'route') rerenderKeepScroll(); },
     { timeout: 6000, maximumAge: 60000 },
   );
 }
@@ -118,7 +118,7 @@ function render() {
   const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
   $('#app').innerHTML =
     V.headerView(state) +
-    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'move' ? V.moveView(state) : V.placeholderView(state)}</main>` +
+    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
     (state.view === 'visit' ? V.modalView(state) : '') +
     V.scanView(state) +
@@ -200,14 +200,11 @@ const actions = {
   'dash-member': (el) => set({ dash: { ...state.dash, scope: 'member', member: el.dataset.id } }),
   'open-menu': () => set({ menuOpen: true }),
   'close-menu': () => set({ menuOpen: false }),
-  nav: (el) => {
-    set({ view: el.dataset.value, menuOpen: false, modal: null });
-    if (el.dataset.value === 'move') requestGeo();
-  },
-  'sched-select': (el) => set({ sched: { sel: el.dataset.id } }),
+  nav: (el) => set({ view: el.dataset.value, menuOpen: false, modal: null }),
+  'sched-select': (el) => set({ sched: { ...state.sched, sel: el.dataset.id } }),
+  'sched-tab': (el) => { set({ sched: { ...state.sched, tab: el.dataset.value } }); if (el.dataset.value === 'route') requestGeo(); },
   'route-day': (el) => set({ route: { ...state.route, day: Number(el.dataset.value) } }),
-  'route-order': (el) => set({ route: { ...state.route, order: el.dataset.value } }),
-  'route-for': (el) => { set({ view: 'move', route: { day: Number(el.dataset.day), order: 'schedule' } }); requestGeo(); },
+  'route-for': (el) => { set({ view: 'schedule', sched: { ...state.sched, tab: 'route' }, route: { day: Number(el.dataset.day) } }); requestGeo(); },
   // 予定から現地買取へ。訪問先の情報を引き継いだ、新しい訪問を始める
   'start-from-event': (el) => {
     const ev = eventById(el.dataset.id);
