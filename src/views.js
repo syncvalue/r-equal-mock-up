@@ -83,22 +83,27 @@ export const briefingDone = (s) => BRIEFING_CHECKS.every((c) => s.briefing.check
 
 // ---- メインメニュー（開閉式ドロワー）。機能の中身は準備中 -------------------------------
 export const MENU = [
-  { key: 'workday', icon: '⏰', label: '始業・終業', sub: '始業点検・終業の現金締めと日報' },
   { key: 'dashboard', icon: '📊', label: 'ダッシュボード', sub: '本社からのお知らせ・業績の確認' },
+  { key: 'start', view: 'workday', icon: '☀', label: '始業', sub: '始業点検をして、業務を開始' },
   { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
   { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: '所持金・経費の計上（レシート撮影）' },
   { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品のQR読取・倉庫への入庫' },
+  { key: 'end', view: 'workday', icon: '🌙', label: '終業・日報', sub: '現金の締めと、日報の提出' },
 ];
+const viewOf = (m) => m.view ?? m.key;
+// 画面の見出し。始業・終業は同じ画面で、状況によって中身が変わる
+export const viewTitle = (s) => (s.view === 'workday' ? (s.phase === 'before' ? '始業' : '終業・日報') : MENU.find((m) => viewOf(m) === s.view)?.label);
 
 const menuBadge = (s) =>
   s.visitStartedAt && !s.visitEndedAt && s.view !== 'visit'
     ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900"></span>'
     : '';
 
-// 始業するまで（終業後も）、現地買取は使えない。他の機能は、始業前・終業後も使える
-const WORKDAY_SUB = { before: '始業点検をして、業務を開始します', open: '終業の現金締めと、日報の提出', closed: '本日の日報' };
-const isLocked = (s, m) => s.phase !== 'open' && m.key === 'visit';
+// 始業するまで（終業後も）、現地買取は使えない。他の機能は、始業前・終業後も使える。
+// 始業は始業前だけ、終業・日報は始業後だけ使える
+const isDisabled = (s, m) => (m.key === 'visit' ? s.phase !== 'open' : m.key === 'start' ? s.phase !== 'before' : m.key === 'end' ? s.phase === 'before' : false);
+const isActive = (s, m) => s.view === viewOf(m) && (m.key === 'start' ? s.phase === 'before' : m.key === 'end' ? s.phase !== 'before' : true);
 
 export function menuView(s) {
   if (!s.menuOpen) return '';
@@ -113,11 +118,13 @@ export function menuView(s) {
       </div>
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
         ${MENU.map((m) => `
-        <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[68px] ${s.view === m.key ? 'bg-teal-600' : 'hover:bg-white/10 active:bg-white/20'} ${isLocked(s, m) ? 'opacity-40' : ''}" data-action="nav" data-value="${m.key}" ${isLocked(s, m) ? 'disabled' : ''}>
-          <span class="text-3xl">${m.key === 'workday' ? { before: '☀', open: '🌙', closed: '📝' }[s.phase] : m.icon}</span>
-          <span class="flex-1"><span class="block font-bold text-lg leading-tight">${m.key === 'workday' ? { before: '始業', open: '終業・日報', closed: '本日の日報' }[s.phase] : m.label}</span><span class="text-xs text-slate-300">${m.key === 'workday' ? WORKDAY_SUB[s.phase] : m.sub}</span></span>
-          ${m.key === 'workday' && s.phase === 'before' ? '<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">未実施</span>' : ''}
-          ${isLocked(s, m) ? '<span class="text-lg">🔒</span>' : ''}
+        <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[68px] ${isActive(s, m) ? 'bg-teal-600' : 'hover:bg-white/10 active:bg-white/20'} ${isDisabled(s, m) ? 'opacity-40' : ''}" data-action="nav" data-value="${viewOf(m)}" data-menu="${m.key}" ${isDisabled(s, m) ? 'disabled' : ''}>
+          <span class="text-3xl">${m.icon}</span>
+          <span class="flex-1"><span class="block font-bold text-lg leading-tight">${m.label}</span><span class="text-xs text-slate-300">${m.sub}</span></span>
+          ${m.key === 'start' && s.phase !== 'before' ? '<span class="text-xs font-bold rounded-full bg-white/20 px-2 py-0.5">実施済み</span>' : ''}
+          ${m.key === 'start' && s.phase === 'before' ? '<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">未実施</span>' : ''}
+          ${(m.key === 'end' && s.phase === 'before') || (m.key === 'visit' && s.phase !== 'open') ? '<span class="text-lg">🔒</span>' : ''}
+          ${m.key === 'end' && s.phase === 'closed' ? '<span class="text-xs font-bold rounded-full bg-white/20 px-2 py-0.5">提出済み</span>' : ''}
           ${m.key === 'visit' && visiting ? `<span class="text-xs font-bold rounded-full bg-emerald-500 px-2 py-0.5">訪問中</span>` : ''}
           ${m.key === 'dashboard' && unreadCount(userById(s.user)) ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5">未読 ${unreadCount(userById(s.user))}</span>` : ''}
           ${m.key === 'return' && pendingCount(s) ? `<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">入庫待ち ${pendingCount(s)}</span>` : ''}
@@ -131,7 +138,7 @@ export function menuView(s) {
 
 // 準備中の画面（機能の中身は今後）
 export function placeholderView(s) {
-  const m = MENU.find((x) => x.key === s.view);
+  const m = MENU.find((x) => viewOf(x) === s.view);
   const visiting = s.visitStartedAt && !s.visitEndedAt;
   return `
   <section class="${SEC} flex items-center justify-center">
@@ -154,7 +161,7 @@ export function headerView(s) {
       <div class="flex items-center gap-2">
         <button class="relative w-10 h-10 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-action="open-menu" aria-label="メニューを開く">☰${menuBadge(s)}</button>
         <span class="font-bold text-lg">出張買取</span>
-        ${s.view !== 'visit' ? `<span class="text-slate-300">›</span><span class="font-bold">${esc(MENU.find((m) => m.key === s.view)?.label)}</span>` : ''}
+        ${s.view !== 'visit' ? `<span class="text-slate-300">›</span><span class="font-bold">${esc(viewTitle(s))}</span>` : ''}
         <span class="${st.cls} rounded-full px-3 py-0.5 font-bold text-sm">${st.label}</span>
       </div>
       <div class="flex items-center gap-3 text-sm">
