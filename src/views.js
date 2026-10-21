@@ -135,8 +135,8 @@ export function headerView(s) {
         <button class="text-xs underline text-slate-300 hover:text-white" data-action="reset-all">（デモ用）データ初期化</button>
         ${themeToggleHtml()}
         ${commentBadge(s)}
-        <span>開始 ${fmtTime(s.visitStartedAt)} ／ 終了 ${fmtTime(s.visitEndedAt)}</span>
-        <span class="text-2xl font-mono font-bold" id="timer">${s.visitStartedAt ? fmtElapsed(s.visitStartedAt, s.visitEndedAt ?? Date.now()) : '00:00:00'}</span>
+        ${s.visitStartedAt && !s.visitEndedAt ? `<span>開始 ${fmtTime(s.visitStartedAt)}</span>
+        <span class="text-2xl font-mono font-bold" id="timer">${fmtElapsed(s.visitStartedAt)}</span>` : ''}
       </div>
     </div>
     ${s.view !== 'visit' ? '' : `<ol class="flex bg-slate-800 text-xs">
