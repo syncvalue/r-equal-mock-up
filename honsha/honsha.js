@@ -1,11 +1,12 @@
 // 本社 査定部デスク画面（ダミー・PC想定）。営業の買取明細をリアルタイムで見て、依頼への回答や提案を行う。
 import {
-  AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, COMMENT_TAGS, LIVE_KEY, clearEndedLive, loadAppraisals, loadComments, loadLive, newAppraisalId,
+  AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, COMMENT_TAGS, LIVE_KEY, loadAppraisals, loadComments, loadLive, newAppraisalId,
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
 import { RANKS } from '../src/data.js';
 import { DEPOSIT_KEY, WORKDAY_KEY } from '../src/store.js';
-import { USERS } from '../src/dashboard.js';
+import { USERS, APPRAISERS } from '../src/dashboard.js';
+import { eventsOfDay, toMin } from '../src/schedule.js';
 import { addDeposit, todayRows, newId } from '../src/workday.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
@@ -15,6 +16,12 @@ const $ = (s) => document.querySelector(s);
 let visitId = null;
 let sel = null; // { type: 'item' | 'req', id }
 let draft = { tag: '', text: '', price: '', rank: null, reason: '' }; // 営業への送信内容（コメント＋任意で提案査定額）
+const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 保存できなくても動作は継続（モック） */ } };
+let appraiserId = pref('rq-mock-hq-appraiser', APPRAISERS[0].id); // 画面を使っている査定部の担当者（デモ用に切り替え可）
+let hideDone = pref('rq-mock-hq-hidedone', '0') === '1'; // 訪問完了した予定を一覧から隠す
+const appraiser = () => APPRAISERS.find((a) => a.id === appraiserId) ?? APPRAISERS[0];
+const scopeUsers = () => USERS.filter((u) => appraiser().groups.includes(u.group));
 let cash = null; // 営業への入金・日報の確認画面（開いているときだけ { userId, amount, memo }）
 let compose = null; // 営業へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
@@ -23,7 +30,7 @@ const TEMPLATES = ['状態良好のため上限で査定しました。', '傷�
 const sum = (items) => items.filter((i) => i.sell).reduce((n, i) => n + i.price, 0);
 
 const visitsSorted = () =>
-  Object.values(loadLive()).sort((a, b) => Number(Boolean(a.endedAt)) - Number(Boolean(b.endedAt)) || b.updatedAt - a.updatedAt);
+  Object.values(loadLive()).filter((v) => scopeUsers().some((u) => u.id === (v.userId ?? 'u01'))).sort((a, b) => Number(Boolean(a.endedAt)) - Number(Boolean(b.endedAt)) || b.updatedAt - a.updatedAt);
 
 const commentMark = (list) =>
   !list.length ? '<span class="text-slate-300">-</span>'
@@ -44,20 +51,49 @@ const apStatus = (aps) =>
   : aps.some((a) => a.status === '依頼中') ? '<span class="rounded bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-bold">依頼中</span>'
   : '<span class="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-bold">回答済み</span>';
 
+// 担当する営業の、今日の予定（時系列）と訪問状況。ダミーの営業は、現在時刻から状況を擬似的に決める
+const ST = {
+  done: ['完了', 'bg-slate-200 text-slate-600'], visiting: ['訪問中', 'bg-emerald-100 text-emerald-800'], notyet: ['まだ訪問していない', 'bg-white border border-dashed border-slate-300 text-slate-400'],
+};
+function scheduleRows(visits) {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const latest = {};
+  visits.forEach((v) => { if (v.eventId && (!latest[v.eventId] || v.updatedAt > latest[v.eventId].updatedAt)) latest[v.eventId] = v; });
+  const events = scopeUsers().flatMap((u) => eventsOfDay(0, u.id)).sort((a, b) => a.start.localeCompare(b.start));
+  const rows = events.map((e) => {
+    const v = latest[e.id] ?? null;
+    let key = 'notyet';
+    if (v) key = v.endedAt ? 'done' : 'visiting';
+    else if (e.dummy) key = nowMin >= toMin(e.end) ? 'done' : nowMin >= toMin(e.start) ? 'visiting' : 'notyet';
+    return { e, v, key, label: v?.outcome ? v.outcome.label : ST[key][0] };
+  });
+  const matched = new Set(rows.map((r) => r.v?.visitId));
+  return { rows, extras: visits.filter((v) => !matched.has(v.visitId)) };
+}
+
 function sidebar(visits, aps, approvals) {
-  if (!visits.length) return '<p class="p-6 text-slate-400">進行中の訪問はありません。<br>買取アプリで「訪問開始」を押すと表示されます。</p>';
-  return visits.map((v) => {
+  const { rows, extras } = scheduleRows(visits);
+  const doneN = rows.filter((r) => r.key === 'done').length;
+  const shown = rows.filter((r) => !(hideDone && r.key === 'done'));
+  const visitCard = (v) => {
     const pending = aps.filter((a) => a.visitId === v.visitId && a.status === '依頼中').length;
-    return `
-    <button class="w-full text-left p-3 border-b hover:bg-indigo-50 ${v.visitId === visitId ? 'bg-indigo-50' : ''}" data-visit="${v.visitId}">
-      <div class="flex justify-between items-center">
-        <span class="font-bold">${esc(v.customerName)} 様</span>
-        <span class="text-xs rounded px-2 py-0.5 ${v.outcome ? 'bg-amber-100 text-amber-800' : v.endedAt ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'}">${v.outcome ? esc(v.outcome.label) : v.endedAt ? '完了' : '訪問中'}</span></div>
-      <div class="text-xs text-slate-500">${esc(v.staff)} ／ 開始 ${fmtTime(v.startedAt)}</div>
-      <div class="flex justify-between text-sm mt-1"><span>${v.items.length}点 ／ ${yen(sum(v.items))}</span>
-        <span>${pending ? `<span class="rounded-full bg-rose-600 text-white text-xs px-2 py-0.5">依頼${pending}</span>` : ''}${pendingApprovals(v, approvals).length ? `<span class="ml-1 rounded-full bg-amber-500 text-white text-xs px-2 py-0.5">未承認${pendingApprovals(v, approvals).length}</span>` : ''}</span></div>
-    </button>`;
-  }).join('');
+    return `<div class="flex justify-between text-sm mt-1"><span>${v.items.length}点 ／ ${yen(sum(v.items))}</span>
+      <span>${pending ? `<span class="rounded-full bg-rose-600 text-white text-xs px-2 py-0.5">依頼${pending}</span>` : ''}${pendingApprovals(v, approvals).length ? `<span class="ml-1 rounded-full bg-amber-500 text-white text-xs px-2 py-0.5">未承認${pendingApprovals(v, approvals).length}</span>` : ''}</span></div>`;
+  };
+  const row = ({ e, v, key, label }) => {
+    const inner = `
+      <div class="flex justify-between items-center gap-2"><span class="font-bold">${e.start}–${e.end}　${esc(e.customer.name)} 様</span>
+        <span class="text-xs rounded px-2 py-0.5 shrink-0 ${v?.outcome ? 'bg-amber-100 text-amber-800' : ST[key][1]}">${esc(label)}</span></div>
+      <div class="text-xs text-slate-500">営業 ${esc(USERS.find((u) => u.id === e.userId)?.name ?? '')} ／ ${esc(e.items)}${v ? ` ／ 開始 ${fmtTime(v.startedAt)}` : ''}</div>
+      ${v ? visitCard(v) : ''}`;
+    return v
+      ? `<button class="w-full text-left p-3 border-b hover:bg-indigo-50 ${v.visitId === visitId ? 'bg-indigo-50' : ''}" data-visit="${v.visitId}">${inner}</button>`
+      : `<div class="p-3 border-b ${key === 'done' ? 'opacity-60' : ''}">${inner}</div>`;
+  };
+  const extra = extras.filter((v) => !(hideDone && v.endedAt)).map((v) => row({ e: { start: fmtTime(v.startedAt).slice(0, 5), end: '', customer: { name: v.customerName }, userId: v.userId ?? 'u01', items: '予定外・別日の訪問' }, v, key: v.endedAt ? 'done' : 'visiting', label: v.outcome ? v.outcome.label : v.endedAt ? '完了' : '訪問中' }));
+  if (!shown.length && !extra.length) return `<p class="p-6 text-slate-400">${rows.length ? '表示する予定はありません（完了分を隠しています）' : '担当する営業の、今日の予定はありません'}</p>`;
+  return shown.map(row).join('') + (extra.length ? `<div class="px-3 py-1 text-xs font-bold text-slate-500 bg-slate-50 border-b">予定外・別日の訪問</div>${extra.join('')}` : '');
 }
 
 // 営業が記録した、お客様の評価（次の営業活動用の記録）
@@ -263,11 +299,13 @@ function render() {
   $('#root').innerHTML = `
   <header class="bg-indigo-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">本社 査定部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <button class="ml-2 rounded bg-white/20 px-3 py-1 font-bold" data-cash-open>💴 入金・日報</button> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
+    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <button class="ml-2 rounded bg-white/20 px-3 py-1 font-bold" data-cash-open>💴 入金・日報</button> <label class="ml-3 text-xs text-white/80">担当 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${APPRAISERS.map((a) => `<option class="text-slate-800" value="${a.id}" ${a.id === appraiserId ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
   <div class="grid grid-cols-[19rem_1fr_26rem] h-[calc(100vh-52px)]">
     <aside class="bg-white border-r overflow-y-auto">
-      <div class="p-3 flex justify-between items-center border-b bg-slate-50"><b>訪問一覧</b><button class="text-xs underline text-slate-500" data-clear>完了分を消す</button></div>
+      <div class="p-3 border-b bg-slate-50 space-y-1"><div class="flex justify-between items-center"><b>今日の予定・訪問状況</b><span class="text-xs text-slate-500">完了 ${scheduleRows(visits).rows.filter((r) => r.key === 'done').length} / ${scheduleRows(visits).rows.length}件</span></div>
+        <div class="text-xs text-slate-500">担当：${scopeUsers().map((u) => esc(u.name)).join('、')}</div>
+        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="w-4 h-4" data-hidedone ${hideDone ? 'checked' : ''} />訪問完了を隠す</label></div>
       ${sidebar(visits, aps, approvals)}
     </aside>
     <main class="p-5 overflow-y-auto space-y-4">
@@ -362,12 +400,13 @@ document.addEventListener('click', (e) => {
     const v = loadLive()[visitId];
     pendingApprovals(v, loadApprovals()).forEach((i) => decideItem(i.id, true));
   }
-  else if ('clear' in t.dataset) clearEndedLive();
   else if ('reset' in t.dataset) { if (!confirm(RESET_CONFIRM)) return; clearTransactions(); visitId = null; sel = null; }
   else return;
   render();
 });
 document.addEventListener('change', (e) => {
+  if (e.target.matches('[data-hidedone]')) { hideDone = e.target.checked; setPref('rq-mock-hq-hidedone', hideDone ? '1' : '0'); render(); return; }
+  if (e.target.matches('[data-appraiser]')) { appraiserId = e.target.value; setPref('rq-mock-hq-appraiser', appraiserId); visitId = null; sel = null; render(); return; }
   if (cash && e.target.dataset.c === 'userId') cash = { ...cash, userId: e.target.value };
   if (compose && e.target.matches('[data-m-important]')) compose = { ...compose, important: e.target.checked };
   if (compose && e.target.dataset.m === 'target') compose = { ...compose, target: e.target.value };

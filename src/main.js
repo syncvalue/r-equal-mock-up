@@ -128,6 +128,8 @@ function publish() {
     staff: `営業 ${userById(state.user).name}`,
     startedAt: state.visitStartedAt,
     endedAt: state.visitEndedAt,
+    userId: state.user,
+    eventId: state.visitEventId,
     step: state.step,
     briefing: { propose: state.briefing.propose },
     customerName: state.customer.name,
@@ -532,7 +534,7 @@ document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.dataset.dashuser !== undefined) {
     // デモ用: ログインユーザーの切り替え。一般の営業に切り替えると、閲覧範囲は自分のみになる
-    set({ user: el.value, dash: { ...state.dash, scope: 'me', member: null } });
+    set({ user: el.value, dash: { ...state.dash, scope: 'me', member: null }, sched: { ...state.sched, sel: null }, route: { day: 0, sel: 'all', origin: 'prev' } });
     rerenderKeepScroll();
   }
   if (el.dataset.action === 'wd-check') {

@@ -54,7 +54,7 @@ function detailPanel(s) {
 
 function calendarBody(s) {
   const now = new Date();
-  const days = [0, 1, 2].map((n) => ({ n, date: dayDate(n, now), events: eventsOfDay(n) }));
+  const days = [0, 1, 2].map((n) => ({ n, date: dayDate(n, now), events: eventsOfDay(n, s.user) }));
   const hours = Array.from({ length: HOUR_TO - HOUR_FROM }, (_, i) => HOUR_FROM + i);
   const nowTop = ((now.getHours() * 60 + now.getMinutes() - HOUR_FROM * 60) / 60) * HOUR_H;
   return `
@@ -96,7 +96,7 @@ function arrivalNote(depMin, travelMin, startHHMM) {
 
 function routeBody(s) {
   const day = s.route.day;
-  const stops = eventsOfDay(day); // 訪問の順番は予定の時刻順で固定
+  const stops = eventsOfDay(day, s.user); // 訪問の順番は予定の時刻順で固定
   const cur = s.geo?.ok ? { lat: s.geo.lat, lng: s.geo.lng } : { lat: OFFICE.lat, lng: OFFICE.lng, address: OFFICE.address };
   const curLabel = s.geo?.ok ? '現在地' : s.geo?.pending ? '現在地を取得中…' : '営業所（現在地を取得できないため）';
   const d = dayDate(day);

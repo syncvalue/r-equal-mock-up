@@ -19,6 +19,12 @@ export const USERS = [
   { id: 'u08', name: '渡辺 蓮', group: 'B', role: 'member', target: 3500000, skill: 0.58, base: 175000 },
 ];
 
+// 本社 査定部の担当者。担当するグループの営業の予定・訪問を、本社画面で見る
+export const APPRAISERS = [
+  { id: 'a1', name: '査定部 青木', groups: ['A'] },
+  { id: 'a2', name: '査定部 井上', groups: ['B'] },
+];
+
 export const userById = (id) => USERS.find((u) => u.id === id) ?? USERS[0];
 export const isLeader = (u) => u.role === 'leader';
 export const roleLabel = (u) => (isLeader(u) ? 'グループリーダー' : '営業');
