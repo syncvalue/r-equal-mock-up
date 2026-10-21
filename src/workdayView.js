@@ -260,7 +260,7 @@ export function expenseView(s) {
   <section class="${SEC} flex flex-col gap-3">
     <div class="flex gap-3">
       ${stat('前日繰越金', yen(sm.opening))}${stat('本日の入金', `+${yen(sm.depositTotal)}`, 'text-emerald-700')}${stat('経費（買取代金を含む）', `−${yen(sm.expenseTotal)}`, 'text-rose-600')}
-      <div class="card !p-3 flex-1 !bg-teal-600 text-white"><div class="text-xs text-teal-100">現在の所持金（帳簿）</div><div class="text-3xl font-bold">${yen(sm.balance)}</div>${sm.balance < 0 ? '<div class="text-xs font-bold text-amber-200">⚠ 残高がマイナスです。入金・計上を確認してください</div>' : ''}</div>
+      <div class="card !p-3 flex-1 text-right !bg-teal-600 text-white"><div class="text-xs text-teal-100">現在の所持金（帳簿）</div><div class="text-3xl font-bold">${yen(sm.balance)}</div>${sm.balance < 0 ? '<div class="text-xs font-bold text-amber-200">⚠ 残高がマイナスです。入金・計上を確認してください</div>' : ''}</div>
     </div>
     <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
       <div class="card !p-3 flex-1 min-w-0 flex flex-col min-h-0"><h2 class="font-bold text-lg mb-2">📒 今日の入出金</h2>
