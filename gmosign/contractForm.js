@@ -50,7 +50,8 @@ function itemRows(items, start) {
 
 function pageHtml(c, copy, pageIdx, pages) {
   const last = pageIdx === pages - 1;
-  const at = new Date(c.signedAt ?? c.sentAt);
+  // 契約日時は印刷時点。チェック項目・署名・引渡場所は、紙にお客様がボールペンで記入する
+  const at = new Date(c.printedAt ?? Date.now());
   const w = wareki(at);
   const cooling = wareki(new Date(at.getTime() + 7 * 86400000));
   const cu = c.customer;
@@ -77,7 +78,7 @@ function pageHtml(c, copy, pageIdx, pages) {
         <div><span class="k">訪問先<br>住 所</span><span class="v">〒 ${esc(cu.zip)}<br>${esc(cu.address)}</span></div>
         <div><span class="k">生年月日</span><span class="v"><span>${bw ? `${bw.era} ${bw.year} 年 ${bw.month} 月 ${bw.day} 日生（満 ${age(b, at)} 歳）` : ''}</span></span></div>
         <div><span class="k">電話番号</span><span class="v">${esc(cu.phone)}</span></div>
-        <div><span class="k">引渡場所</span><span class="v"><span>${circle(c.deliveryPlace !== 'その他', '自宅')}・${circle(c.deliveryPlace === 'その他', 'その他')}（${c.deliveryPlace === 'その他' ? esc(c.deliveryOther ?? '') : ''}）</span></span></div>
+        <div><span class="k">引渡場所</span><span class="v"><span>自宅・その他（　　　　　　　　　　）</span></span></div>
         <div><span class="k">身分証<br>住 所</span><span class="v">〒 ${esc(cu.zip)}<br>${esc(cu.address)}<small style="align-self:flex-end">訪問先住所と同一</small></span></div>
       </div>
     </div>`

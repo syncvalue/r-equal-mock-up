@@ -422,25 +422,59 @@ export function labelView(s) {
   </section>`;
 }
 
+// 訪問終了前（お客様宅を出る前）のチェックリスト。システムで確認できるものは自動、他は営業が確認してチェックする
+export const LEAVE_CHECKS = [
+  { key: 'kyc', text: '本人確認書類を確認し、GMOサインで登録した' },
+  { key: 'paper', text: '契約書を印刷し、お客様がチェック項目・署名を記入した' },
+  { key: 'copy', text: '契約書の会社控えを回収し、お客様控えをお渡しした' },
+  { key: 'cooling', text: 'クーリング・オフについて説明し、満了日をお伝えした' },
+  { key: 'pay', text: '買取代金をお支払いし、お客様の受領を確認した' },
+  { key: 'pack', text: '買取商品をすべて梱包し、持ち帰り用にまとめた' },
+  { key: 'count', text: '商品の数が、シール・契約書と一致している' },
+  { key: 'lost', text: '忘れ物がない（書類・端末・お客様のお預かり品）' },
+];
+export const leaveRemaining = (s) => LEAVE_CHECKS.filter((c) => !s.leaveChecks[c.key]).length;
+
 export function endView(s) {
   const done = Boolean(s.visitEndedAt);
+  const left = leaveRemaining(s);
+  const auto = [
+    ['GMOサインへの送信が完了している', Boolean(s.contract)],
+    ['買取商品すべてに、シールのQRコードを紐づけ済み', labelSlots(s).every((x) => s.labels[x.key])],
+  ];
   return `
   <section class="${SEC} flex items-center justify-center">
-    <div class="card w-full max-w-2xl space-y-4">
-      <div class="text-center space-y-1">
-        <div class="text-5xl">${done ? '🎉' : '📨'}</div>
-        <div class="font-bold text-xl">GMOサインに送信しました</div>
-        <div class="text-slate-600">契約No. ${esc(s.contract.id)}　買取合計 ${yen(total(selectedItems(s)))}</div>
+    <div class="w-full max-w-5xl grid md:grid-cols-[2fr_3fr] gap-4 items-stretch max-h-full">
+      <div class="card space-y-3 flex flex-col justify-between !p-4">
+        <div class="text-center space-y-1">
+          <div class="text-5xl">${done ? '🎉' : '📨'}</div>
+          <div class="font-bold text-lg">GMOサインに送信しました</div>
+          <div class="text-slate-600 text-sm">契約No. ${esc(s.contract.id)}<br>買取合計 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
+        </div>
+        <div class="rounded-xl bg-sky-50 border border-sky-200 p-2 text-xs text-sky-900">本人確認書類の登録・契約書の印刷は、GMOサイン管理画面で行います。</div>
+        <button class="btn w-full bg-sky-600 text-white !min-h-[48px] !py-2" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
+        ${
+          done
+            ? `<div class="rounded-xl bg-slate-100 p-3 text-center text-sm">訪問時間 ${fmtTime(s.visitStartedAt)} 〜 ${fmtTime(s.visitEndedAt)}（${fmtElapsed(s.visitStartedAt, s.visitEndedAt)}）
+               <button class="btn btn-secondary block mx-auto mt-2 !min-h-[44px] !py-1" data-action="reset">新しい訪問を開始</button></div>`
+            : `<button class="btn btn-primary w-full text-xl !py-3" data-action="finish" ${left ? 'disabled' : ''}>${left ? `あと${left}項目のチェックが必要です` : '訪問終了'}</button>`
+        }
       </div>
-      <div class="rounded-xl bg-sky-50 border border-sky-200 p-3 text-sm text-sky-900">
-        本人確認書類の登録・署名・契約締結・書類の印刷は、GMOサイン管理画面で行います。</div>
-      <button class="btn w-full bg-sky-600 text-white" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
-      ${
-        done
-          ? `<div class="rounded-xl bg-slate-100 p-4 text-center">訪問時間 ${fmtTime(s.visitStartedAt)} 〜 ${fmtTime(s.visitEndedAt)}（${fmtElapsed(s.visitStartedAt, s.visitEndedAt)}）
-             <button class="btn btn-secondary block mx-auto mt-3" data-action="reset">新しい訪問を開始</button></div>`
-          : `<button class="btn btn-primary w-full text-2xl py-5" data-action="finish">訪問終了</button>`
-      }
+      <div class="card !p-4 flex flex-col gap-2 min-h-0">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold">🚪 お客様宅を出る前の確認</h2>
+          <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${LEAVE_CHECKS.length - left} / ${LEAVE_CHECKS.length}</span></div>
+        <p class="text-xs text-slate-500">すべて確認してチェックすると、訪問を終了できます。</p>
+        <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="leave">
+          ${auto.map(([t, ok]) => `<div class="flex items-center gap-3 rounded-xl border-2 ${ok ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300'} px-3 py-2 min-h-[48px]">
+              <span class="w-7 h-7 rounded-md flex items-center justify-center text-white font-bold ${ok ? 'bg-emerald-600' : 'bg-rose-500'}">${ok ? '✓' : '!'}</span>
+              <span class="flex-1">${t}</span><span class="text-xs text-slate-500">自動確認</span></div>`).join('')}
+          ${LEAVE_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-2 min-h-[48px] ${s.leaveChecks[c.key] ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'} ${done ? 'opacity-60' : 'cursor-pointer'}">
+              <input type="checkbox" class="w-7 h-7 shrink-0" data-action="leave-check" data-key="${c.key}" ${s.leaveChecks[c.key] ? 'checked' : ''} ${done ? 'disabled' : ''} />
+              <span class="flex-1 ${s.leaveChecks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`).join('')}
+        </div>
+        ${done ? '' : '<button class="text-xs underline text-slate-400 self-end" data-action="leave-all">（デモ用）すべてチェック</button>'}
+      </div>
     </div>
   </section>`;
 }

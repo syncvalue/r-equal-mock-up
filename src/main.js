@@ -38,6 +38,7 @@ const initialState = () => ({
   appraisals: [],
   comments: [],
   scan: null,
+  leaveChecks: {},
   approvals: [],
   apMode: 'hq',
   aiBusy: false,
@@ -279,7 +280,9 @@ const actions = {
     upsertComment({ ...c, adopted: true });
     showToast('提案された査定額を買取金額に反映しました');
   },
-  finish: () => set({ visitEndedAt: Date.now() }),
+  // 訪問終了は、お客様宅を出る前のチェックリストがすべて完了している場合のみ
+  finish: () => V.leaveRemaining(state) === 0 && set({ visitEndedAt: Date.now() }),
+  'leave-all': () => set({ leaveChecks: Object.fromEntries(V.LEAVE_CHECKS.map((c) => [c.key, true])) }),
   reset: () => { state = initialState(); },
   'reset-all': () => { if (confirm(RESET_CONFIRM)) { clearTransactions(); state = initialState(); showToast('データを初期化しました'); } },
 };
@@ -295,6 +298,10 @@ document.addEventListener('click', (e) => {
 });
 document.addEventListener('change', (e) => {
   const el = e.target;
+  if (el.dataset.action === 'leave-check') {
+    set({ leaveChecks: { ...state.leaveChecks, [el.dataset.key]: el.checked } });
+    rerenderKeepScroll();
+  }
   if (el.dataset.action === 'ack-comment') {
     const c = loadComments().find((x) => x.id === el.dataset.id);
     if (c) upsertComment({ ...c, ack: el.checked, ackAt: el.checked ? Date.now() : null });

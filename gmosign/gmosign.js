@@ -1,14 +1,13 @@
 // GMOサイン管理画面（ダミー）。実サービスとは無関係のモックです。
 import { RESET_CONFIRM, clearTransactions, loadContracts, upsertContract } from '../src/store.js';
-import { mountSignaturePad } from '../src/signature.js';
 import { ID_TYPES } from '../src/data.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
-import { CHECK_ITEMS, contractFormHtml, wareki } from './contractForm.js';
+import { contractFormHtml } from './contractForm.js';
 import { yen, fmtDateTime, esc } from '../src/format.js';
 
 const $ = (s) => document.querySelector(s);
 const authed = () => sessionStorage.getItem('gmo-auth') === '1';
-const STATUS_CLS = { 本人確認待ち: 'bg-amber-100 text-amber-800', 署名待ち: 'bg-sky-100 text-sky-800', 締結済み: 'bg-emerald-100 text-emerald-800' };
+const STATUS_CLS = { 本人確認待ち: 'bg-amber-100 text-amber-800', 印刷待ち: 'bg-sky-100 text-sky-800', 印刷済み: 'bg-emerald-100 text-emerald-800' };
 const badge = (st) => `<span class="rounded px-2 py-0.5 text-sm font-bold ${STATUS_CLS[st]}">${st}</span>`;
 
 const topbar = () => `
@@ -55,7 +54,7 @@ function listView() {
 
 function detailView(c) {
   if (!c) return `${topbar()}<main class="p-6">契約が見つかりません。<a class="underline" href="#list">一覧へ</a></main>`;
-  const done = c.status === '締結済み';
+  const printed = c.status === '印刷済み';
   return `${topbar()}
   <main class="max-w-5xl mx-auto p-6 space-y-5">
     <a class="text-sky-700 underline" href="#list">← 契約一覧</a>
@@ -75,45 +74,20 @@ function detailView(c) {
           : `<select class="inp" id="kyc-type">${ID_TYPES.map((t) => `<option>${t}</option>`).join('')}</select>
              <div class="flex gap-2"><label class="b b-sec cursor-pointer flex-1 text-center">ファイル選択<input type="file" accept="image/*" class="hidden" id="kyc-file" /></label>
              <button class="b b-pri" data-act="kyc-dummy">ダミー画像で登録</button></div>`}
-        <h2 class="font-bold text-lg pt-2">② 契約者確認（チェック項目）</h2>
+        <h2 class="font-bold text-lg pt-2">② 契約書の印刷</h2>
         ${!c.kyc
-          ? '<p class="text-slate-400">本人確認書類の登録後に確認できます。</p>'
-          : done
-            ? '<p class="text-emerald-700 font-bold">✅ 全項目確認済み</p>'
-            : `<div class="space-y-2">${CHECK_ITEMS.map((q) => `<label class="flex gap-2 items-start text-sm">
-                <input type="checkbox" class="mt-1 w-5 h-5" data-chk="${q.key}" /><span>${q.section ? `<b class="text-rose-600">[${q.section[0]}]</b> ` : ''}${esc(q.text).replace('{cooling}', coolingText())}</span></label>`).join('')}
-              <div class="flex gap-2 items-center text-sm font-bold pt-1">引渡場所
-                <select class="inp !w-28" id="dp"><option>自宅</option><option>その他</option></select>
-                <input class="inp" id="dpo" placeholder="その他の場合の場所" /></div></div>`}
-        <h2 class="font-bold text-lg pt-2">③ お客様署名・契約締結</h2>
-        ${!c.kyc
-          ? '<p class="text-slate-400">本人確認書類の登録後に署名できます。</p>'
-          : done
-            ? `<p class="text-emerald-700 font-bold">✅ 締結済み（${fmtDateTime(c.signedAt)}）</p><img src="${c.signature}" alt="署名" class="h-24 border rounded bg-white" />
-               <button class="b b-pri" data-act="preview">契約書PDFを表示・印刷</button>`
-            : `<canvas id="sign" class="w-full h-44 border border-slate-400 rounded bg-white touch-none"></canvas>
-               <div class="flex gap-2"><button class="b b-sec" data-act="clear-sign">クリア</button>
-               <button class="b b-pri flex-1" id="sign-btn" data-act="sign" disabled>署名して契約を締結</button></div>
-               <p class="text-xs text-slate-500">すべてのチェック項目にチェックし、署名すると締結できます。</p>`}
+          ? '<p class="text-slate-400">本人確認書類の登録後に印刷できます。</p>'
+          : `<p class="text-sm text-slate-600">印刷した契約書に、お客様がボールペンで<b>チェック項目への記入</b>と<b>署名</b>をします（この画面では行いません）。</p>
+             ${printed ? `<p class="text-emerald-700 font-bold">✅ 印刷済み（${fmtDateTime(c.printedAt)}）</p>` : ''}
+             <div class="flex gap-2"><button class="b b-sec flex-1" data-act="preview">プレビュー</button>
+             <button class="b b-pri flex-1" data-act="print">${printed ? '再印刷' : '印刷（会社控え・お客様控え）'}</button></div>`}
       </section>
     </div>
   </main>`;
 }
 
 const COPIES = ['会社控え', 'お客様控え'];
-let clearSign = null;
-let pendingSig = null;
-let checks = {};
 let previewOpen = false;
-
-const coolingText = () => {
-  const w = wareki(new Date(Date.now() + 7 * 86400000));
-  return `令和 ${w.year} 年 ${w.month} 月 ${w.day} 日`;
-};
-const refreshSign = () => {
-  const btn = $('#sign-btn');
-  if (btn) btn.disabled = !(pendingSig && CHECK_ITEMS.every((q) => checks[q.key]));
-};
 
 const previewView = (c) => `
   <div class="fixed inset-0 z-50 bg-slate-700/90 overflow-auto p-4">
@@ -127,12 +101,8 @@ function render() {
   const [route, id] = hash.slice(1).split('/');
   if (route !== 'login' && !authed()) return void (location.hash = '#login');
   const c = loadContracts().find((x) => x.id === id);
-  $('#root').innerHTML = (route === 'login' ? loginView() : route === 'detail' ? detailView(c) : listView()) + (previewOpen && c?.signature ? previewView(c) : '');
-  $('#print-area').innerHTML = c?.signature ? contractFormHtml(c, COPIES) : '';
-  pendingSig = null;
-  if (!c?.signature) checks = {};
-  const canvas = $('#sign');
-  if (canvas) clearSign = mountSignaturePad(canvas, null, (sig) => { pendingSig = sig; refreshSign(); });
+  $('#root').innerHTML = (route === 'login' ? loginView() : route === 'detail' ? detailView(c) : listView()) + (previewOpen && c?.kyc ? previewView(c) : '');
+  $('#print-area').innerHTML = c?.kyc ? contractFormHtml(c, COPIES) : '';
 }
 
 const current = () => loadContracts().find((x) => x.id === location.hash.split('/')[1]);
@@ -143,15 +113,16 @@ const acts = {
   logout: () => { sessionStorage.removeItem('gmo-auth'); location.hash = '#login'; },
   reload: render,
   'reset-all': () => { if (confirm(RESET_CONFIRM)) { clearTransactions(); location.hash = '#login'; render(); } },
-  'kyc-dummy': () => update({ kyc: { type: $('#kyc-type').value, photo: DUMMY }, status: '署名待ち' }),
-  'clear-sign': () => clearSign?.(),
-  sign: () => pendingSig && update({
-    signature: pendingSig, signedAt: Date.now(), status: '締結済み', checks: { ...checks },
-    deliveryPlace: $('#dp').value, deliveryOther: $('#dpo').value,
-  }),
+  'kyc-dummy': () => update({ kyc: { type: $('#kyc-type').value, photo: DUMMY }, status: '印刷待ち' }),
   preview: () => { previewOpen = true; render(); },
   'close-preview': () => { previewOpen = false; render(); },
-  print: () => window.print(),
+  // 印刷時刻を契約日として記録してから印刷する（紙には契約日時が印字される）
+  print: () => {
+    const c = current();
+    if (c && c.status !== '印刷済み') upsertContract({ ...c, printedAt: Date.now(), status: '印刷済み' });
+    render();
+    window.print();
+  },
 };
 
 document.addEventListener('click', (e) => {
@@ -167,11 +138,10 @@ document.addEventListener('submit', (e) => {
   location.hash = '#list';
 });
 document.addEventListener('change', (e) => {
-  if (e.target.dataset.chk) { checks = { ...checks, [e.target.dataset.chk]: e.target.checked }; refreshSign(); return; }
   if (e.target.id !== 'kyc-file' || !e.target.files[0]) return;
   const type = $('#kyc-type').value;
   const r = new FileReader();
-  r.onload = () => update({ kyc: { type, photo: r.result }, status: '署名待ち' });
+  r.onload = () => update({ kyc: { type, photo: r.result }, status: '印刷待ち' });
   r.readAsDataURL(e.target.files[0]);
 });
 window.addEventListener('hashchange', () => { previewOpen = false; render(); });
