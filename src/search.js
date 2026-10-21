@@ -1,4 +1,4 @@
-// 商品マスターの検索。ひらがな／カタカナ・全角／半角・大文字／小文字・区切り記号の違いを吸収する。
+// 商品マスタの検索。ひらがな／カタカナ・全角／半角・大文字／小文字・区切り記号の違いを吸収する。
 import { PRODUCTS } from './data.js';
 
 const toHira = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));

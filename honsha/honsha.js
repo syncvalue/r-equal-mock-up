@@ -153,7 +153,7 @@ function sendForm(itemId, item) {
     ${item ? `
     <div class="border-t pt-2 space-y-2">
       ${item.price > 0 ? `<button class="w-full rounded border-2 border-emerald-600 text-emerald-700 font-bold py-2 hover:bg-emerald-50" data-fillprice="${item.price}" data-fillrank="${item.rank}">営業の査定額 ${yen(item.price)}（ランク${item.rank}）をそのまま入力</button>` : ''}
-      <div class="text-sm font-bold">提案する査定額（円・個数分の合計・任意）
+      <div class="text-sm font-bold">提案する査定額（円・数量分の合計・任意）
         <div class="mt-1">${moneyInputHtml({ attrs: 'data-f="price"', value: Number(draft.price) || 0, placeholder: '入力すると、営業が買取金額に反映できます', cls: 'w-full border rounded px-3 py-2 text-lg' })}</div></div>
       ${draft.price ? `<div class="flex flex-wrap gap-1">${RANKS.map((r) => `<button class="px-2 py-1 rounded border text-sm font-bold ${r.value === rank ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-white'}" data-rank="${r.value}">${r.label}</button>`).join('')}</div>` : ''}
     </div>` : ''}
@@ -202,8 +202,8 @@ function approvalBlock(v, item, approvals) {
   return `
   <div class="rounded-lg border-2 ${canDecide ? 'border-amber-400' : 'border-slate-200'} bg-white p-3 space-y-2">
     <div class="flex justify-between items-center"><b>✅ 買取の承認</b>${item.price > 0 ? apvBadge(st) : '<span class="text-xs text-slate-400">金額未入力</span>'}</div>
-    <div class="text-sm">営業の査定：<b>${item.price > 0 ? yen(item.price) : '未入力'}</b>（${item.qty}個分の合計） ／ ランク${item.rank}${item.sell ? '' : '<span class="ml-2 text-slate-500">（売らない）</span>'}</div>
-    ${st === 'stale' ? `<div class="text-sm text-orange-700 font-bold">前回の判断（${yen(rec.price)}・ランク${rec.rank}・${rec.qty}個）から変更されています。</div>` : ''}
+    <div class="text-sm">営業の査定：<b>${item.price > 0 ? yen(item.price) : '未入力'}</b>（${item.qty}点分の合計） ／ ランク${item.rank}${item.sell ? '' : '<span class="ml-2 text-slate-500">（売らない）</span>'}</div>
+    ${st === 'stale' ? `<div class="text-sm text-orange-700 font-bold">前回の判断（${yen(rec.price)}・ランク${rec.rank}・${rec.qty}点）から変更されています。</div>` : ''}
     ${st === 'ok' ? `<div class="text-sm text-emerald-700 font-bold">承認済み（${fmtTime(rec.decidedAt)}）</div>` : ''}
     ${st === 'ng' ? `<div class="text-sm text-rose-700"><b>差戻し済み：</b>${esc(rec.comment)}（営業の見直しを待っています）</div>` : ''}
     ${canDecide ? `
@@ -225,7 +225,7 @@ function detailPanel(v, aps, cs, approvals) {
   return `
   <div class="space-y-3">
     <div><div class="text-xl font-bold">${esc(item?.name ?? orphan?.name ?? '')}</div>
-      ${item ? `<div class="text-sm text-slate-500">ランク${item.rank} ／ ${item.qty}個 ／ 営業の査定（合計） ${yen(item.price)}</div>` : ''}</div>
+      ${item ? `<div class="text-sm text-slate-500">ランク${item.rank} ／ ${item.qty}点 ／ 営業の査定（合計） ${yen(item.price)}</div>` : ''}</div>
     ${mine.map(requestCard).join('')}
     ${item ? aiCard(item) : ''}
     ${item ? approvalBlock(v, item, approvals) : ''}
@@ -273,7 +273,7 @@ function cashModal() {
         <label class="text-sm font-bold flex-1 min-w-[10rem]">メモ<input class="inp mt-1 font-normal" data-c="memo" value="${esc(cash.memo)}" placeholder="例: 買取資金の追加" /></label>
         <button class="b b-pri" data-cash-send>入金する</button>
       </div>
-      <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>営業</th><th>状況</th><th class="text-right">繰越</th><th class="text-right">入金</th><th class="text-right">経費</th><th class="text-right">帳簿残高</th><th class="text-right">実際の所持金</th><th class="text-right">過不足</th><th>日報</th></tr></thead><tbody>
+      <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>営業</th><th>状況</th><th class="text-right">前日繰越金</th><th class="text-right">入金</th><th class="text-right">経費</th><th class="text-right">帳簿残高</th><th class="text-right">実際の所持金</th><th class="text-right">過不足</th><th>日報</th></tr></thead><tbody>
         ${rows.map(({ user, day, phase, summary: sm }) => `<tr class="border-b">
           <td class="font-bold">${esc(user.name)}</td><td><span class="rounded px-2 py-0.5 text-xs font-bold ${PHASE[phase][1]}">${PHASE[phase][0]}</span></td>
           <td class="text-right">${sm ? yen(sm.opening) : '-'}</td><td class="text-right">${sm ? yen(sm.depositTotal) : '-'}</td><td class="text-right">${sm ? yen(sm.expenseTotal) : '-'}</td>

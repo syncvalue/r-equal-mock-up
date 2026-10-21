@@ -1,4 +1,4 @@
-// 商品マスター選択パネル（探す／人気／最近）。膨大なマスターから、最短で目的の商品にたどり着くためのUI。
+// 商品マスタ選択パネル（探す／人気／最近）。膨大なマスタから、最短で目的の商品にたどり着くためのUI。
 import { PRODUCTS, CATEGORIES } from './data.js';
 import { esc } from './format.js';
 import { countBy, highlight, popularProducts, searchProducts, tokensOf } from './search.js';

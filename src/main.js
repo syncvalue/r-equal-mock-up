@@ -39,7 +39,7 @@ const firstEventOf = (userId) => (userId && eventsOfDay(0, userId)[0]) || EVENTS
 const initialState = () => ({
   auth: blankAuth(),
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
-  view: phaseOf(loadDay(loadSession() ?? '')) === 'before' ? 'workday' : 'dashboard', // 初期画面: 未ログイン→ログイン、始業前→始業開始、始業済み→ダッシュボード
+  view: phaseOf(loadDay(loadSession() ?? '')) === 'before' ? 'workday' : 'dashboard', // 初期画面: 未ログイン→ログイン、始業前→始業、始業済み→ダッシュボード
   user: loadSession(), // 未ログインなら null（ログイン画面を表示）
   day: null,
   phase: 'before',
@@ -400,7 +400,7 @@ const actions = {
     const item = state.items.find((i) => i.id === el.dataset.id);
     const qty = Math.max(1, item.qty + Number(el.dataset.delta));
     updateItems(item.id, { qty });
-    // 個数を減らしたら、なくなる分のシールの紐づけも外す
+    // 数量を減らしたら、なくなる分のシールの紐づけも外す
     set({ labels: Object.fromEntries(Object.entries(state.labels).filter(([k]) => !k.startsWith(`${item.id}-`) || Number(k.slice(item.id.length + 1)) <= qty)) });
   },
   'toggle-sell': (el) =>
@@ -649,7 +649,7 @@ function applySlider(track, clientX) {
   const step = Number(track.dataset.step);
   const cur = state.items.find((i) => i.id === track.dataset.id);
   const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-  // バーは「1個あたり」の金額。買取金額（個数分の合計）＝ 1個あたり × 個数
+  // バーは「1点あたり」の金額。買取金額（数量分の合計）＝ 1点あたり × 数量
   const unit = Math.max(step, Math.round((lo + ratio * (hi - lo)) / step) * step);
   const price = unit * cur.qty;
   updateItems(cur.id, { price });

@@ -109,7 +109,7 @@ export const clearTransactions = () => {
 
 export const RESET_CONFIRM = '契約・査定依頼・コメント・訪問状況・始業終業・経費・持ち帰りのデータをすべて初期化します。よろしいですか？（商品マスタは消えません）';
 
-// 買取承認（本社査定部が、商品が登録された時点から随時 承認／差戻し）。承認時点の金額・ランク・個数のスナップショットを持つ
+// 買取承認（本社査定部が、商品が登録された時点から随時 承認／差戻し）。承認時点の金額・ランク・数量のスナップショットを持つ
 export const APPROVAL_KEY = 'rq-mock-approvals';
 
 export const loadApprovals = () => {

@@ -23,7 +23,7 @@ export const approvalOf = (s, item) => {
 };
 export const allApproved = (s) => selectedItems(s).every((i) => approvalOf(s, i).state === 'ok');
 
-// 実物1点ごとのシール枠（個数分に展開）
+// 実物1点ごとのシール枠（数量分に展開）
 export const labelSlots = (s) =>
   selectedItems(s).flatMap((i) =>
     Array.from({ length: i.qty }, (_, k) => ({ key: `${i.id}-${k + 1}`, item: i, n: k + 1 })),
@@ -115,7 +115,7 @@ export function menuView(s) {
         ${MENU.map((m) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[68px] ${s.view === m.key ? 'bg-teal-600' : 'hover:bg-white/10 active:bg-white/20'} ${isLocked(s, m) ? 'opacity-40' : ''}" data-action="nav" data-value="${m.key}" ${isLocked(s, m) ? 'disabled' : ''}>
           <span class="text-3xl">${m.key === 'workday' ? { before: '☀', open: '🌙', closed: '📝' }[s.phase] : m.icon}</span>
-          <span class="flex-1"><span class="block font-bold text-lg leading-tight">${m.key === 'workday' ? { before: '始業開始', open: '終業・日報', closed: '本日の日報' }[s.phase] : m.label}</span><span class="text-xs text-slate-300">${m.key === 'workday' ? WORKDAY_SUB[s.phase] : m.sub}</span></span>
+          <span class="flex-1"><span class="block font-bold text-lg leading-tight">${m.key === 'workday' ? { before: '始業', open: '終業・日報', closed: '本日の日報' }[s.phase] : m.label}</span><span class="text-xs text-slate-300">${m.key === 'workday' ? WORKDAY_SUB[s.phase] : m.sub}</span></span>
           ${m.key === 'workday' && s.phase === 'before' ? '<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">未実施</span>' : ''}
           ${isLocked(s, m) ? '<span class="text-lg">🔒</span>' : ''}
           ${m.key === 'visit' && visiting ? `<span class="text-xs font-bold rounded-full bg-emerald-500 px-2 py-0.5">訪問中</span>` : ''}
@@ -285,7 +285,7 @@ function sealSection(s, item) {
 }
 
 export function itemsListView(s) {
-  if (!s.items.length) return '<p class="text-slate-400 text-center py-10">左の商品マスターか、AIカメラから追加してください</p>';
+  if (!s.items.length) return '<p class="text-slate-400 text-center py-10">左の商品マスタか、AIカメラから追加してください</p>';
   const btn = 'rounded-lg border-2 px-2 min-h-[44px] min-w-[58px] text-sm font-bold leading-tight';
   return s.items
     .map(
@@ -293,7 +293,7 @@ export function itemsListView(s) {
     <div class="flex items-center gap-2 rounded-xl border-2 border-slate-200 pl-3 pr-2 py-1">
       <div class="flex-1 min-w-0 leading-tight">
         <div class="font-bold text-[15px] line-clamp-2">${esc(i.name)}${itemWarn(s, i.id)}</div>
-        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}個${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
+        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}点${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
       </div>
       ${i.price ? `<div class="font-bold text-right whitespace-nowrap">${yen(i.price)}</div>` : '<div class="font-bold text-rose-600 text-sm text-right leading-tight">金額<br>未入力</div>'}
       <button class="${btn} border-slate-300 bg-white text-slate-700" data-action="open-item" data-id="${i.id}" aria-label="詳細を編集">✎<br>編集</button>
@@ -370,7 +370,7 @@ export function aiView(s) {
       ${ai.photo ? `<img src="${ai.photo}" alt="撮影画像" class="h-16 w-16 object-cover rounded-lg border" />` : ''}
       <label class="btn btn-primary flex-1 text-center cursor-pointer">📷 撮影して判定
         <input type="file" accept="image/*" capture="environment" class="hidden" data-ai-photo /></label>
-      <button class="btn btn-secondary" data-action="ai-dummy">ダミー</button>
+      <button class="btn btn-secondary" data-action="ai-dummy">（デモ用）ダミー</button>
     </div>
     ${body}`;
 }
@@ -412,8 +412,8 @@ export function selectView(s) {
   <section class="${SEC} cust flex flex-col">
     <div class="card flex flex-col min-h-0 flex-1 !p-4 gap-2">
       <div class="flex items-start justify-between gap-3">
-        <div><h2 class="text-2xl font-bold">お買取り商品のご確認</h2>
-          <p class="text-slate-600">${esc(s.customer.name)} 様、以下の内容でお買取りいたします。ご売却いただく商品をご確認ください。</p></div>
+        <div><h2 class="text-2xl font-bold">買取商品のご確認</h2>
+          <p class="text-slate-600">${esc(s.customer.name)} 様、以下の内容で買取いたします。ご売却いただく商品をご確認ください。</p></div>
         <button class="shrink-0 text-xs underline ${staff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 担当者用の情報を隠す' : '担当者用の情報を表示'}</button>
       </div>
       ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-900 font-bold">担当者用の表示です。お客様にはお見せしないでください（査定部の承認 ${okCount} / ${chosen.length} 点）。</div>` : ''}
@@ -432,15 +432,15 @@ export function selectView(s) {
           <button class="btn w-40 !py-2 ${i.sell ? 'btn-primary' : 'btn-secondary'}" data-action="toggle-sell" data-id="${i.id}">${i.sell ? '✓ 売却する' : '今回は見送る'}</button>
         </div>
         ${staff && a?.state === 'ng' ? `<p class="text-sm text-rose-700 font-bold mt-1">差戻し理由：${esc(a.rec.comment)}（買取明細で金額を見直してください）</p>` : ''}
-        ${staff && a?.state === 'stale' ? '<p class="text-sm text-orange-700 font-bold mt-1">承認後に金額・ランク・個数が変更されたため、査定部の再承認が必要です。</p>' : ''}
+        ${staff && a?.state === 'stale' ? '<p class="text-sm text-orange-700 font-bold mt-1">承認後に金額・ランク・数量が変更されたため、査定部の再承認が必要です。</p>' : ''}
       </div>`;
         })
         .join('')}
       </div>
       <div class="border-t-2 pt-2 flex justify-between items-end gap-3">
         <div class="space-y-1">${staff ? `<div class="text-slate-500 text-sm">査定合計 ${yen(all)} ／ 除外 −${yen(all - sel)}</div>` : ''}
-          <div class="text-sm font-bold ${ready ? 'text-emerald-700' : 'text-amber-700'}">${ready ? '✓ 内容のご確認が整いました' : staff ? `承認待ち ${chosen.length - okCount}点（承認されると自動で更新されます）` : 'ただいま、最終の確認をしております。少々お待ちください…'}</div></div>
-        <span class="text-right"><span class="mr-3 text-lg">お買取り金額（${chosen.length}点）</span><span class="text-5xl font-bold text-teal-700">${yen(sel)}</span></span>
+          <div class="text-sm font-bold ${ready ? 'text-emerald-700' : 'text-amber-700'}">${ready ? '✓ 確認が完了しました' : staff ? `承認待ち ${chosen.length - okCount}点（承認されると自動で更新されます）` : 'ただいま、最終の確認をしております。少々お待ちください…'}</div></div>
+        <span class="text-right"><span class="mr-3 text-lg">買取金額（${chosen.length}点）</span><span class="text-5xl font-bold text-teal-700">${yen(sel)}</span></span>
       </div>
     </div>
   </section>`;
@@ -482,7 +482,7 @@ export function scanView(s) {
       <div class="flex items-center gap-3"><span class="inline-block w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span><span class="font-bold">カメラ起動中</span></div>
       <div class="text-center leading-tight">${stock
         ? `<div class="font-bold">入庫 ${s.scan.stored} 点／残り ${s.scan.left} 点</div><div class="text-xs text-slate-300">保管場所: ${esc(s.scan.location)}</div>`
-        : `<div class="font-bold">${esc(slot?.item.name ?? '')}${slot && slot.item.qty > 1 ? `（${slot.n}/${slot.item.qty}個目）` : ''}</div><div class="text-xs text-slate-300">貼付したシールのQRコードを読み取ります</div>`}</div>
+        : `<div class="font-bold">${esc(slot?.item.name ?? '')}${slot && slot.item.qty > 1 ? `（${slot.n}/${slot.item.qty}点目）` : ''}</div><div class="text-xs text-slate-300">貼付したシールのQRコードを読み取ります</div>`}</div>
       <button class="rounded-xl border-2 border-white/50 px-5 min-h-[44px] font-bold" data-action="scan-cancel">${stock ? '完了' : 'キャンセル'}</button>
     </div>
     <div class="relative flex-1 overflow-hidden">
@@ -517,7 +517,7 @@ export function labelView(s) {
       <div class="flex justify-between items-end">
         <div><h2 class="text-xl font-bold">商品へのシール貼付・QR紐づけ</h2>
           <p class="text-slate-500 text-sm">QRコードを読み取ってください（${done} / ${slots.length} 点）</p></div>
-        <button class="btn btn-secondary !py-2 !min-h-[44px]" data-action="dummy-scan-all">残りを一括ダミー読取</button>
+        <button class="btn btn-secondary !py-2 !min-h-[44px]" data-action="dummy-scan-all">（デモ用）残りを一括で読み取る</button>
       </div>
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="labels">
       ${slots
@@ -614,7 +614,7 @@ export function endView(s) {
         <div class="text-center space-y-1">
           <div class="text-5xl">${done ? '🎉' : '📨'}</div>
           <div class="font-bold text-lg">GMOサインに送信しました</div>
-          <div class="text-slate-600 text-sm">契約No. ${esc(s.contract.id)}<br>買取合計 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
+          <div class="text-slate-600 text-sm">契約No. ${esc(s.contract.id)}<br>買取金額 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
         </div>
         <div class="rounded-xl bg-sky-50 border border-sky-200 p-2 text-xs text-sky-900">本人確認書類の登録・契約書の印刷は、GMOサイン管理画面で行います。</div>
         <button class="btn w-full bg-sky-600 text-white !min-h-[48px] !py-2" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
@@ -654,10 +654,10 @@ const modalShell = (title, body, { wide = false } = {}) => `
     </div>
   </div>`;
 
-// 1個あたりの買取額（買取金額は個数分の合計で入力するため、参考値との比較は1個あたりで行う）
+// 1点あたりの買取額（買取金額は数量分の合計で入力するため、参考値との比較は1点あたりで行う）
 export const unitPrice = (item) => (item.price && item.qty ? Math.round(item.price / item.qty) : 0);
 
-// 金額バーの目盛り（入力額に依存しない固定軸）と、操作の刻み幅。いずれも1個あたりの金額
+// 金額バーの目盛り（入力額に依存しない固定軸）と、操作の刻み幅。いずれも1点あたりの金額
 export function priceAxis(m) {
   const lo = Math.min(m.range.min, m.history.min) * 0.8;
   const hi = Math.max(m.range.max, m.history.max) * 1.15;
@@ -665,24 +665,24 @@ export function priceAxis(m) {
   return { lo: Math.floor(lo / step) * step, hi: Math.ceil(hi / step) * step, step };
 }
 
-// 個数2以上の場合は「1個あたり」の算出と、レンジ内かどうかの判定を出す
+// 数量2以上の場合は「1点あたり」の算出と、レンジ内かどうかの判定を出す
 export function rangeWarn(item) {
   const master = PRODUCTS.find((p) => p.id === item.id);
   if (!item.price) return '';
   const u = unitPrice(item);
   const unitLine = item.qty > 1
-    ? `<div class="rounded-lg bg-white border px-2 py-1 text-sm">${yen(item.price)} ÷ ${item.qty}個 ＝ <b class="text-base">1個あたり ${yen(u)}</b></div>`
+    ? `<div class="rounded-lg bg-white border px-2 py-1 text-sm">${yen(item.price)} ÷ ${item.qty}点 ＝ <b class="text-base">1点あたり ${yen(u)}</b></div>`
     : '';
   if (!master) return unitLine;
   const { range, history } = master;
-  const who = item.qty > 1 ? '1個あたりの金額が' : '';
+  const who = item.qty > 1 ? '1点あたりの金額が' : '';
   let verdict = '<p class="text-sm font-bold text-emerald-700">✓ マスタ登録レンジ内です</p>';
   if (u < range.min || u > range.max) verdict = `<p class="text-sm font-bold text-rose-600">⚠ ${who}マスタ登録レンジの範囲外です（${u < range.min ? '安すぎ' : '高すぎ'}）</p>`;
   else if (u < history.min || u > history.max) verdict = `<p class="text-sm font-bold text-amber-600">レンジ内ですが、${who}過去実績の範囲外です</p>`;
   return unitLine + verdict;
 }
 
-// 参考値（マスタのレンジ幅・過去実績。いずれも1個あたり）と、ドラッグで金額を決められるバー
+// 参考値（マスタのレンジ幅・過去実績。いずれも1点あたり）と、ドラッグで金額を決められるバー
 export function rangeView(item) {
   const m = PRODUCTS.find((p) => p.id === item.id);
   if (!m) return `<div class="space-y-2"><p class="text-sm text-slate-500">商品マスタに登録のない商品です（参考値なし）。</p><div data-warn>${rangeWarn(item)}</div></div>`;
@@ -695,7 +695,7 @@ export function rangeView(item) {
   const out = u && (u < range.min || u > range.max);
   return `
   <div class="rounded-xl bg-slate-50 border p-2.5 space-y-1.5">
-    <div class="font-bold text-sm">参考値（1個あたり） <span class="font-normal text-xs text-slate-500">${item.qty > 1 ? 'バー＝1個あたり' : 'バーで金額を設定'}</span></div>
+    <div class="font-bold text-sm">参考値（1点あたり） <span class="font-normal text-xs text-slate-500">${item.qty > 1 ? 'バー＝1点あたり' : 'バーで金額を設定'}</span></div>
     <div class="grid grid-cols-2 gap-2 text-sm">
       <div><div class="text-slate-500">マスタ登録レンジ</div><div class="font-bold">${yen(range.min)} 〜 ${yen(range.max)}</div></div>
       <div><div class="text-slate-500">過去実績（${history.count}件）</div><div class="font-bold">最安 ${yen(history.min)} 〜 最高 ${yen(history.max)}</div></div>
@@ -707,10 +707,10 @@ export function rangeView(item) {
       </div>
       <div data-thumb class="${item.price ? '' : 'hidden'} absolute top-1/2 w-8 h-8 -mt-4 -ml-4 rounded-full border-4 border-white shadow-lg pointer-events-none ${out ? 'bg-rose-600' : 'bg-slate-900'}" style="left:${pos(u || lo)}"></div>
     </div>
-    <div class="flex gap-3 text-[11px] text-slate-500"><span><span class="inline-block w-3 h-2 bg-sky-300 rounded"></span> マスタレンジ</span><span><span class="inline-block w-3 h-2 bg-teal-600 rounded"></span> 過去実績</span><span><span class="inline-block w-3 h-3 bg-slate-900 rounded-full"></span> 1個あたりの入力額</span></div>
+    <div class="flex gap-3 text-[11px] text-slate-500"><span><span class="inline-block w-3 h-2 bg-sky-300 rounded"></span> マスタレンジ</span><span><span class="inline-block w-3 h-2 bg-teal-600 rounded"></span> 過去実績</span><span><span class="inline-block w-3 h-3 bg-slate-900 rounded-full"></span> 1点あたりの入力額</span></div>
     <div data-warn class="space-y-1">${rangeWarn(item)}</div>
     <div class="flex gap-2 flex-wrap items-center">
-      <span class="text-xs text-slate-500">1個あたりを</span>
+      <span class="text-xs text-slate-500">1点あたりを</span>
       <button class="chip !min-h-[36px] !py-0 !px-3 text-sm" data-action="price-set" data-id="${item.id}" data-value="${history.min * item.qty}">実績最安</button>
       <button class="chip !min-h-[36px] !py-0 !px-3 text-sm" data-action="price-set" data-id="${item.id}" data-value="${Math.round((history.min + history.max) / 2 / step) * step * item.qty}">実績中間</button>
       <button class="chip !min-h-[36px] !py-0 !px-3 text-sm" data-action="price-set" data-id="${item.id}" data-value="${history.max * item.qty}">実績最高</button>
@@ -743,14 +743,14 @@ export function modalView(s) {
       `${warn.length ? `<button class="w-full text-left rounded-xl bg-rose-50 border-2 border-rose-400 p-3 font-bold text-rose-700" data-action="open-comments">❗ 本社からのコメントが${warn.length}件あります（タップで確認）</button>` : ''}
       <div class="grid sm:grid-cols-2 gap-3 items-start">
         <div class="space-y-2">
-          <div class="font-bold text-sm">買取金額（円）<span class="font-normal text-xs text-slate-500">　${i.qty}個分の合計</span></div>
+          <div class="font-bold text-sm">買取金額（円）<span class="font-normal text-xs text-slate-500">　${i.qty}点分の合計</span></div>
           <div class="relative">
             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xl text-slate-400 pointer-events-none">¥</span>
             <input class="field !py-2 text-right text-2xl font-bold tracking-wide pl-8 pr-10" type="text" inputmode="numeric" autocomplete="off" value="${i.price ? i.price.toLocaleString('ja-JP') : ''}" placeholder="査定金額を入力" data-item-field="price" data-id="${i.id}" />
             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 pointer-events-none">円</span>
           </div>
           <div class="grid grid-cols-6 gap-1">${[-100, -10, -1, 1, 10, 100].map((d) => `<button class="btn btn-secondary !px-0 !py-0 !min-h-[40px] text-base ${d < 0 ? 'text-rose-700' : 'text-teal-700'}" data-action="price-add" data-id="${i.id}" data-delta="${d}">${d > 0 ? '＋' : '−'}${Math.abs(d)}</button>`).join('')}</div>
-          <div class="flex items-center gap-2"><span class="font-bold text-sm w-12">個数</span>
+          <div class="flex items-center gap-2"><span class="font-bold text-sm w-12">数量</span>
             <button class="btn btn-secondary !px-0 w-14 !min-h-[44px]" data-action="qty" data-id="${i.id}" data-delta="-1">−</button>
             <span class="text-2xl font-bold w-12 text-center">${i.qty}</span>
             <button class="btn btn-secondary !px-0 w-14 !min-h-[44px]" data-action="qty" data-id="${i.id}" data-delta="1">＋</button></div>
@@ -836,7 +836,7 @@ function aiResultView(s, item) {
   <div class="rounded-xl border-2 border-violet-300 bg-violet-50 p-3 space-y-2">
     <div class="flex justify-between items-center"><b>🤖 AI査定結果</b><span class="text-xs text-slate-500">${fmtTime(r.at)}</span></div>
     <div class="flex items-end justify-between gap-3">
-      <div><div class="text-sm text-slate-500">推定買取額（個数分の合計）</div><div class="text-3xl font-bold text-violet-800">${yen(r.price)}</div>
+      <div><div class="text-sm text-slate-500">推定買取額（数量分の合計）</div><div class="text-3xl font-bold text-violet-800">${yen(r.price)}</div>
         <div class="text-xs text-slate-500">目安 ${yen(r.min)} 〜 ${yen(r.max)}</div></div>
       <div class="text-right text-sm"><div>推定ランク <b class="text-xl">${r.rank}</b></div><div>信頼度 <b class="${r.confidence < 70 ? 'text-rose-600' : 'text-emerald-700'}">${r.confidence}%</b></div></div>
     </div>
@@ -866,7 +866,7 @@ function appraisalComposeView(s, m) {
         <label class="h-20 w-20 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-3xl cursor-pointer">📷
           <input type="file" accept="image/*" capture="environment" class="hidden" data-ap-photo /></label>
       </div>
-      <button class="btn btn-secondary !py-1 !min-h-[40px] mt-2" data-action="ap-dummy-photo">ダミー写真を追加</button></div>
+      <button class="btn btn-secondary !py-1 !min-h-[40px] mt-2" data-action="ap-dummy-photo">（デモ用）ダミー写真を追加</button></div>
     ${ai
       ? `${item ? aiResultView(s, item) : ''}
          <button class="btn w-full bg-violet-600 text-white" data-action="ai-run" ${d.photos.length && !s.aiBusy ? '' : 'disabled'}>${item?.aiAppraisal ? 'もう一度AI査定する' : 'AI査定を実行'}</button>`

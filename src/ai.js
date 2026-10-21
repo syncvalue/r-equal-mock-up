@@ -18,7 +18,7 @@ export function estimateByPhotos(item, photos) {
   const master = PRODUCTS.find((p) => p.id === item.id);
   const rank = ['S', 'A', 'A', 'B', 'B', 'C'][h % 6];
   const qty = item.qty || 1;
-  // 買取金額は個数分の合計。マスタ実績（1個あたり）を個数分に換算して推定する
+  // 買取金額は数量分の合計。マスタ実績（1点あたり）を数量分に換算して推定する
   const base = (master ? (master.history.min + master.history.max) / 2 : (item.price || 100000) / qty) * qty;
   const step = base < 50000 ? 100 : 1000;
   const price = Math.max(step, Math.round((base * RANK_FACTOR[rank]) / step) * step);
@@ -29,7 +29,7 @@ export function estimateByPhotos(item, photos) {
     max: Math.round((price * 1.1) / step) * step,
     rank,
     confidence,
-    reason: `${master ? `過去の買取実績${master.history.count}件の中央値を基準に、` : 'マスタ未登録のため入力額を基準に、'}画像から「${RANK_TEXT[rank]}」と判定して補正しました${qty > 1 ? `（${qty}個分の合計）` : ''}。${photos.length < 2 ? '写真が1枚のため、角度違い・刻印のアップの追加で精度が上がります。' : ''}`,
+    reason: `${master ? `過去の買取実績${master.history.count}件の中央値を基準に、` : 'マスタ未登録のため入力額を基準に、'}画像から「${RANK_TEXT[rank]}」と判定して補正しました${qty > 1 ? `（${qty}点分の合計）` : ''}。${photos.length < 2 ? '写真が1枚のため、角度違い・刻印のアップの追加で精度が上がります。' : ''}`,
     at: Date.now(),
   };
 }

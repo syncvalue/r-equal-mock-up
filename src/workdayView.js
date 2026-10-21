@@ -84,7 +84,7 @@ function startScreen(s) {
   <section class="${SEC} flex gap-3 portrait:flex-col">
     <div class="card !p-4 w-[28rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[52%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="wdStartL">
       <div><div class="text-sm text-slate-500">${dateLabel(dateKey())}</div>
-        <h2 class="text-2xl font-bold">☀ 始業開始</h2>
+        <h2 class="text-2xl font-bold">☀ 始業</h2>
         <p class="text-sm text-slate-600">${esc(u.name)} さん、おはようございます。始業点検を済ませると、現地買取を始められます。</p></div>
       <div class="rounded-xl border-2 p-3 space-y-2">
         <div class="font-bold">💴 前日からの繰越金の確認</div>
@@ -124,7 +124,7 @@ function reportCard(s, day) {
     <div class="grid md:grid-cols-2 gap-3">
       <div class="rounded-xl border p-3"><div class="font-bold mb-1">💴 現金の収支</div>
         <div class="text-sm divide-y">
-          ${row('前日繰越（始業時に確認）', yen(sm.opening))}
+          ${row('前日繰越金（始業時に確認）', yen(sm.opening))}
           ${row('本社からの入金', `<span class="text-emerald-700">+${yen(sm.depositTotal)}</span>`)}
           ${row('経費（買取代金を含む）', `<span class="text-rose-600">−${yen(sm.expenseTotal)}</span>`)}
           ${row('帳簿上の残高', yen(sm.balance), 'text-base')}
@@ -132,7 +132,7 @@ function reportCard(s, day) {
           ${closed ? row('過不足', `<span class="${day.close.diff ? 'text-rose-600' : 'text-emerald-700'}">${day.close.diff ? signed(day.close.diff) : '一致 ✓'}</span>`) : ''}
         </div>
         ${closed && day.close.diff ? `<div class="text-xs rounded bg-rose-50 p-2 mt-1">差異の理由: ${esc(day.close.note)}</div>` : ''}
-        ${day.start.diff ? `<div class="text-xs rounded bg-amber-50 p-2 mt-1">始業時の繰越差異 ${signed(day.start.diff)}: ${esc(day.start.note)}</div>` : ''}
+        ${day.start.diff ? `<div class="text-xs rounded bg-amber-50 p-2 mt-1">始業時の繰越金の差異 ${signed(day.start.diff)}: ${esc(day.start.note)}</div>` : ''}
       </div>
       <div class="rounded-xl border p-3"><div class="font-bold mb-1">🧾 経費の内訳</div>
         <div class="text-sm divide-y">
@@ -176,7 +176,7 @@ function closeScreen(s) {
       <div class="rounded-xl border-2 p-3 space-y-2">
         <div class="font-bold">💴 現金の締め</div>
         <div class="text-sm divide-y">
-          <div class="flex justify-between py-0.5"><span>前日繰越</span><span>${yen(sm.opening)}</span></div>
+          <div class="flex justify-between py-0.5"><span>前日繰越金</span><span>${yen(sm.opening)}</span></div>
           <div class="flex justify-between py-0.5"><span>＋ 入金</span><span>${yen(sm.depositTotal)}</span></div>
           <div class="flex justify-between py-0.5"><span>− 経費</span><span>${yen(sm.expenseTotal)}</span></div>
           <div class="flex justify-between py-1 font-bold text-lg"><span>帳簿上の残高</span><span>${yen(sm.balance)}</span></div></div>
@@ -220,7 +220,7 @@ function ledgerRows(s) {
     ...sm.deposits.map((d) => ({ at: d.at, kind: 'dep', d })),
     ...sm.expenses.map((e) => ({ at: e.at, kind: 'exp', e })),
   ].sort((a, b) => a.at - b.at);
-  const base = `<div class="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-lg text-sm"><span class="w-12 text-slate-500">始業</span><span class="flex-1 font-bold">前日繰越（始業時に確認）</span><b>${yen(sm.opening)}</b></div>`;
+  const base = `<div class="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-lg text-sm"><span class="w-12 text-slate-500">始業</span><span class="flex-1 font-bold">前日繰越金（始業時に確認）</span><b>${yen(sm.opening)}</b></div>`;
   const line = (r) => {
     if (r.kind === 'dep') return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50"><span class="w-12 text-xs text-slate-500">${fmtTime(r.at).slice(0, 5)}</span><span class="text-xl">🏦</span><span class="flex-1"><b>本社より入金</b><span class="block text-xs text-slate-500">${esc(r.d.memo || '')}</span></span><b class="text-emerald-700">+${yen(r.d.amount)}</b></div>`;
     const e = r.e;
@@ -239,15 +239,15 @@ export function expenseView(s) {
   if (s.phase !== 'open') {
     return `<section class="${SEC} flex items-center justify-center"><div class="card max-w-md text-center space-y-3"><div class="text-5xl">💴</div>
       <p class="font-bold text-lg">${s.phase === 'before' ? '始業登録後に、経費を計上できます' : '本日は終業済みです。経費の計上は、明日の始業後に行えます'}</p>
-      <p class="text-sm text-slate-500">所持金（繰越＋入金−経費）は、始業時の現金確認から始まります。</p>
-      <button class="btn btn-primary" data-action="nav" data-value="workday">${s.phase === 'before' ? '始業開始へ' : '本日の日報を見る'}</button></div></section>`;
+      <p class="text-sm text-slate-500">所持金（前日繰越金＋入金−経費）は、始業時の現金確認から始まります。</p>
+      <button class="btn btn-primary" data-action="nav" data-value="workday">${s.phase === 'before' ? '始業へ' : '本日の日報を見る'}</button></div></section>`;
   }
   const sm = summaryOf(s.day, s.user);
   const d = s.expDraft;
   return `
   <section class="${SEC} flex flex-col gap-3">
     <div class="flex gap-3">
-      ${stat('前日繰越', yen(sm.opening))}${stat('本日の入金', `+${yen(sm.depositTotal)}`, 'text-emerald-700')}${stat('経費（買取代金を含む）', `−${yen(sm.expenseTotal)}`, 'text-rose-600')}
+      ${stat('前日繰越金', yen(sm.opening))}${stat('本日の入金', `+${yen(sm.depositTotal)}`, 'text-emerald-700')}${stat('経費（買取代金を含む）', `−${yen(sm.expenseTotal)}`, 'text-rose-600')}
       <div class="card !p-3 flex-1 !bg-teal-600 text-white"><div class="text-xs text-teal-100">現在の所持金（帳簿）</div><div class="text-3xl font-bold">${yen(sm.balance)}</div>${sm.balance < 0 ? '<div class="text-xs font-bold text-amber-200">⚠ 残高がマイナスです。入金・計上漏れを確認してください</div>' : ''}</div>
     </div>
     <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
@@ -265,7 +265,7 @@ export function expenseView(s) {
             ? `<div class="flex items-center gap-3"><img src="${d.photo}" alt="レシート" class="h-24 rounded-lg border" /><button class="btn btn-secondary !min-h-[44px] !py-1 !px-3 text-sm" data-action="exp-photo-clear">撮り直す</button></div>`
             : `<div class="grid grid-cols-2 gap-2">
                 <label class="btn btn-secondary !min-h-[56px] !py-2 !px-2 text-center text-base cursor-pointer flex items-center justify-center">📷 撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-exp-photo /></label>
-                <button class="btn btn-secondary !min-h-[56px] !py-2 !px-2 text-base" data-action="exp-photo-dummy">（デモ）ダミー写真</button></div>`}</div>
+                <button class="btn btn-secondary !min-h-[56px] !py-2 !px-2 text-base" data-action="exp-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>
         <div id="exp-live">${expLiveView(s)}</div>
       </div>
     </div>
