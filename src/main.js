@@ -574,7 +574,7 @@ const actions = {
   'brief-propose': (el) => set({ briefing: { ...state.briefing, propose: el.dataset.value } }),
   'brief-all': () => set({ briefing: { checks: Object.fromEntries(V.BRIEFING_CHECKS.map((c) => [c.key, true])), propose: 'yes' } }),
   'leave-all': () => set({ leaveChecks: Object.fromEntries(V.LEAVE_CHECKS.map((c) => [c.key, true])) }),
-  reset: () => { state = initialState(); },
+  reset: () => { state = { ...initialState(), view: 'schedule' }; }, // 訪問完了後の「新しい訪問を開始」は、今日の予定へ
   'reset-all': () => { if (confirm(RESET_CONFIRM)) { clearTransactions(); state = initialState(); showToast('データを初期化しました'); } },
 };
 
