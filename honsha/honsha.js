@@ -52,7 +52,7 @@ function sidebar(visits, aps, approvals) {
     <button class="w-full text-left p-3 border-b hover:bg-indigo-50 ${v.visitId === visitId ? 'bg-indigo-50' : ''}" data-visit="${v.visitId}">
       <div class="flex justify-between items-center">
         <span class="font-bold">${esc(v.customerName)} 様</span>
-        <span class="text-xs rounded px-2 py-0.5 ${v.endedAt ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'}">${v.endedAt ? '完了' : '訪問中'}</span></div>
+        <span class="text-xs rounded px-2 py-0.5 ${v.outcome ? 'bg-amber-100 text-amber-800' : v.endedAt ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'}">${v.outcome ? esc(v.outcome.label) : v.endedAt ? '完了' : '訪問中'}</span></div>
       <div class="text-xs text-slate-500">${esc(v.staff)} ／ 開始 ${fmtTime(v.startedAt)}</div>
       <div class="flex justify-between text-sm mt-1"><span>${v.items.length}点 ／ ${yen(sum(v.items))}</span>
         <span>${pending ? `<span class="rounded-full bg-rose-600 text-white text-xs px-2 py-0.5">依頼${pending}</span>` : ''}${pendingApprovals(v, approvals).length ? `<span class="ml-1 rounded-full bg-amber-500 text-white text-xs px-2 py-0.5">未承認${pendingApprovals(v, approvals).length}</span>` : ''}</span></div>
@@ -277,6 +277,7 @@ function render() {
           <p class="text-sm text-slate-500">受付 ${esc(v.callInfo?.receptionNo ?? '')} ／ 開始 ${fmtTime(v.startedAt)} ／ 経過 <span data-elapsed="${v.startedAt}" data-end="${v.endedAt ?? ''}">${fmtElapsed(v.startedAt, v.endedAt ?? Date.now())}</span> ／ 最終更新 ${fmtTime(v.updatedAt)}</p></div>
         <div class="text-right">${pendingApprovals(v, approvals).length ? `<button class="mr-3 bg-emerald-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>未承認${pendingApprovals(v, approvals).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-600" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-indigo-800">${yen(sum(v.items))}</div></div>
       </div>
+      ${v.outcome ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3"><b>🚪 買取に至らず：${esc(v.outcome.label)}</b>${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}${v.outcome.memo ? `<div class="text-sm whitespace-pre-wrap">${esc(v.outcome.memo)}</div>` : ''}<div class="text-xs text-slate-500">訪問実績として扱い、営業の業績には影響しません。</div></div>` : ''}
       ${evalCard(loadEvals().find((e) => e.visitId === v.visitId))}
       ${itemsTable(v, aps, cs, approvals)}` : '<p class="text-slate-400 p-10 text-center">左の一覧から訪問を選択してください</p>'}
     </main>

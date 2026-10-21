@@ -4,6 +4,7 @@ import { approvalState, latestApproval } from './store.js';
 import { themeToggleHtml } from './theme.js';
 import { roleLabel, userById } from './dashboard.js';
 import { eventById } from './schedule.js';
+import { outcomeResultView } from './workdayView.js';
 import { messagesFor, unreadCount } from './messages.js';
 import { pendingCount } from './stockView.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
@@ -186,6 +187,7 @@ const field = (label, key, value, { type = 'text', placeholder = '', required = 
 const SEC = 'h-full min-h-0 p-4';
 
 export function startView(s) {
+  if (s.outcome) return outcomeResultView(s);
   const ev = eventById(s.visitEventId);
   return `
   <section class="h-full flex flex-col items-center justify-center gap-4 p-6">
@@ -199,6 +201,7 @@ export function startView(s) {
     </div>
     <p class="text-slate-500">ボタンを押すと訪問開始時刻が記録されます。</p>
     <button class="btn btn-primary text-3xl px-16 py-8" data-action="start">訪問開始</button>
+    <button class="btn btn-secondary !min-h-[48px] !py-2 text-base" data-action="oc-open">🚪 不在・日程変更など、訪問できなかった場合</button>
     <button class="text-sm underline text-slate-400" data-action="nav" data-value="schedule">今日の予定に戻る</button>
   </section>`;
 }
@@ -782,5 +785,5 @@ export { yen, total } from './format.js';
 export { masterBodyView } from './masterView.js';
 export { dashboardView } from './dashboardView.js';
 export { scheduleView } from './scheduleView.js';
-export { workdayView, expenseView, receiptModalView, wdLiveView, expLiveView } from './workdayView.js';
+export { workdayView, expenseView, receiptModalView, outcomeModalView, outcomeResultView, wdLiveView, expLiveView, ocLiveView } from './workdayView.js';
 export { stockView } from './stockView.js';

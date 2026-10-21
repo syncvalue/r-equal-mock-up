@@ -17,6 +17,17 @@ export const EXPENSE_TYPES = [
 export const PURCHASE_TYPE = { key: 'purchase', icon: '💰', label: '買取代金' };
 export const typeOf = (key) => [...EXPENSE_TYPES, PURCHASE_TYPE].find((t) => t.key === key) ?? EXPENSE_TYPES.at(-1);
 
+// 訪問したが、買取の手続きに進めなかった場合の記録。訪問実績には数え、営業の業績（成約率など）には影響させない
+export const VISIT_OUTCOMES = [
+  { key: 'absent', icon: '🚪', label: '不在', hint: 'インターホンや電話でも応答がなかった' },
+  { key: 'resched', icon: '📅', label: '日程変更の依頼', hint: '玄関口で、別の日時での訪問を希望された' },
+  { key: 'declined', icon: '🙅', label: 'お客様都合のキャンセル', hint: '玄関口で、売却をやめると言われた' },
+  { key: 'other', icon: '📝', label: 'その他', hint: '上記以外（理由をメモに記入）' },
+];
+export const outcomeOf = (key) => VISIT_OUTCOMES.find((o) => o.key === key) ?? VISIT_OUTCOMES.at(-1);
+export const blankOutcomeDraft = () => ({ type: '', memo: '', date: '', time: '' });
+export const outcomeReady = (d) => Boolean(d.type && (d.type !== 'other' || d.memo.trim()));
+
 // 始業時の点検項目（記録に残る）
 export const START_CHECKS = [
   { key: 'alcohol', icon: '🍺', text: '飲酒していない（前日の酒気が残っていない）' },

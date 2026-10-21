@@ -14,7 +14,7 @@ import { EVENTS, eventById } from './schedule.js';
 import { formatMoneyInput } from './moneyInput.js';
 import {
   START_CHECKS, END_CHECKS, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
-  newId, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, startReady, closeReady,
+  newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, startReady, closeReady,
 } from './workday.js';
 import {
   loadUnits, saveUnits, unitsFromVisit, addUnits, byUser, inScope, pendingOf, receive, markMissing, resultMessage, demoUnits,
@@ -35,6 +35,8 @@ const initialState = () => ({
   startForm: blankStartForm(),
   closeForm: blankCloseForm(),
   expDraft: blankExpenseDraft(),
+  outcome: null,
+  outcomeDraft: blankOutcomeDraft(),
   units: [],
   stock: { ...DEFAULT_STOCK },
   dash: { period: 'month', scope: 'me', member: null },
@@ -126,6 +128,7 @@ function publish() {
     step: state.step,
     customerName: state.customer.name,
     callInfo: state.callInfo,
+    outcome: state.outcome ? { ...state.outcome, label: outcomeOf(state.outcome.type).label } : null,
     items: state.items.map(({ id, name, category, rank, qty, price, sell, aiAppraisal }) => ({ id, name, category, rank, qty, price, sell, aiAppraisal })),
     updatedAt: Date.now(),
   });
@@ -147,6 +150,7 @@ function render() {
     (state.view === 'visit' ? V.footerView(state) : '') +
     V.modalView(state) +
     V.receiptModalView(state) +
+    V.outcomeModalView(state) +
     V.scanView(state) +
     V.menuView(state);
   document.querySelectorAll('[data-scroll]').forEach((e) => { e.scrollTop = scrolls[e.dataset.scroll] ?? 0; });
@@ -406,6 +410,21 @@ const actions = {
     const units = unitsFromVisit({ visitId: state.visitId, userId: state.user, customerName: state.customer.name, slots: V.labelSlots(state), labels: state.labels });
     if (!saveUnits(addUnits(loadUnits(), units))) showToast('持ち帰り商品を登録できませんでした（保存容量不足）');
   },
+  // 訪問できなかった（不在・日程変更の依頼など）場合の記録。訪問実績として残し、業績には影響させない
+  'oc-open': () => set({ modal: { type: 'outcome' }, outcomeDraft: blankOutcomeDraft() }),
+  'oc-type': (el) => set({ outcomeDraft: { ...state.outcomeDraft, type: el.dataset.value } }),
+  'oc-submit': () => {
+    const d = state.outcomeDraft;
+    if (!outcomeReady(d) || !state.day) return;
+    const now = Date.now();
+    const outcome = { type: d.type, memo: d.memo.trim(), date: d.date, time: d.time, at: now };
+    if (!saveDay(recordVisit(state.day, { visitId: state.visitId, customerName: state.customer.name, itemCount: 0, total: 0, outcome }, now))) {
+      showToast('記録できませんでした（保存容量不足）');
+      return;
+    }
+    set({ visitStartedAt: now, visitEndedAt: now, outcome, modal: null, outcomeDraft: blankOutcomeDraft() });
+    showToast('訪問の結果を記録しました');
+  },
   // 始業・終業
   'wd-start': () => {
     if (!startReady(state.startForm, state.user)) return;
@@ -599,10 +618,14 @@ document.addEventListener('input', (e) => {
       'close-comment': { closeForm: { ...state.closeForm, comment: el.value } },
       'exp-amount': { expDraft: { ...state.expDraft, amount } },
       'exp-memo': { expDraft: { ...state.expDraft, memo: el.value } },
+      'oc-memo': { outcomeDraft: { ...state.outcomeDraft, memo: el.value } },
+      'oc-date': { outcomeDraft: { ...state.outcomeDraft, date: el.value } },
+      'oc-time': { outcomeDraft: { ...state.outcomeDraft, time: el.value } },
     }[el.dataset.wd];
     set(patch);
     if ($('#wd-live')) $('#wd-live').innerHTML = V.wdLiveView(state);
     if ($('#exp-live')) $('#exp-live').innerHTML = V.expLiveView(state);
+    if ($('#oc-live')) $('#oc-live').innerHTML = V.ocLiveView(state);
     return;
   }
   if (el.dataset.evalmemo !== undefined) {

@@ -6,7 +6,7 @@ import { messagesFor } from './messages.js';
 import { loadReadIds } from './store.js';
 import { pendingCount } from './stockView.js';
 import {
-  START_CHECKS, END_CHECKS, EXPENSE_TYPES, typeOf, carryoverFor, summaryOf, closeDiff, startReady, closeReady, expenseReady, dateKey,
+  START_CHECKS, END_CHECKS, EXPENSE_TYPES, VISIT_OUTCOMES, outcomeOf, outcomeReady, typeOf, carryoverFor, summaryOf, closeDiff, startReady, closeReady, expenseReady, dateKey,
 } from './workday.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
@@ -144,8 +144,9 @@ function reportCard(s, day) {
       </div>
     </div>
 
-    <div class="rounded-xl border p-3"><div class="font-bold mb-1">🏠 訪問・買取　<span class="font-normal text-sm">${visits.length}件 ／ ${visits.reduce((n, v) => n + v.itemCount, 0)}点 ／ 買取金額 <b>${yen(visits.reduce((n, v) => n + v.total, 0))}</b></span></div>
-      <div class="text-sm divide-y">${visits.length ? visits.map((v) => row(`${fmtTime(v.at).slice(0, 5)}　${esc(v.customerName)} 様（${v.itemCount}点）`, yen(v.total))).join('') : '<div class="text-slate-400 py-2">完了した訪問はまだありません</div>'}</div></div>
+    <div class="rounded-xl border p-3"><div class="font-bold mb-1">🏠 訪問・買取　<span class="font-normal text-sm">訪問 ${visits.length}件${visits.some((v) => v.outcome) ? `（うち買取に至らず ${visits.filter((v) => v.outcome).length}件）` : ''} ／ ${visits.reduce((n, v) => n + v.itemCount, 0)}点 ／ 買取金額 <b>${yen(visits.reduce((n, v) => n + v.total, 0))}</b></span></div>
+      <div class="text-sm divide-y">${visits.length ? visits.map((v) => row(`${fmtTime(v.at).slice(0, 5)}　${esc(v.customerName)} 様${v.outcome ? `<span class="ml-1 text-xs rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">${outcomeOf(v.outcome.type).icon} ${outcomeOf(v.outcome.type).label}</span>${v.outcome.memo ? `<span class="block text-xs text-slate-500 font-normal">${esc(v.outcome.memo)}</span>` : ''}` : `（${v.itemCount}点）`}`, v.outcome ? '<span class="text-slate-400 font-normal">買取なし</span>' : yen(v.total))).join('') : '<div class="text-slate-400 py-2">完了した訪問はまだありません</div>'}</div></div>
+    ${visits.some((v) => v.outcome) ? '<p class="text-xs text-slate-500 -mt-1">※ 不在・日程変更などで買取に至らなかった訪問は、訪問実績として数えます。営業の責任ではないため、業績（成約率など）には影響しません。</p>' : ''}
 
     <div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">✅ 始業点検</div>
       ${START_CHECKS.length}項目すべて確認済み（${fmtTime(day.startedAt)}）${START_CHECKS.map((c) => `<span class="inline-block mr-1" title="${esc(c.text)}">${c.icon}</span>`).join('')}</div>
@@ -270,6 +271,55 @@ export function expenseView(s) {
         <div id="exp-live">${expLiveView(s)}</div>
       </div>
     </div>
+  </section>`;
+}
+
+// ---- 訪問できなかった場合の記録（不在・日程変更の依頼など） ------------------------------
+export function ocLiveView(s) {
+  const ok = outcomeReady(s.outcomeDraft);
+  return `<button class="btn btn-primary w-full !py-3" data-action="oc-submit" ${ok ? '' : 'disabled'}>${ok ? '記録して訪問を終了する' : s.outcomeDraft.type ? '理由をメモに入力してください' : '状況を選んでください'}</button>`;
+}
+
+export function outcomeModalView(s) {
+  if (s.modal?.type !== 'outcome') return '';
+  const d = s.outcomeDraft;
+  return `
+  <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
+    <div class="bg-white rounded-2xl w-full max-w-2xl p-5 max-h-[96dvh] flex flex-col gap-3">
+      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">🚪 訪問できなかった場合の記録</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
+      <div class="overflow-y-auto min-h-0 flex-1 space-y-3" data-scroll="outcome">
+        <p class="text-sm rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-emerald-900">訪問したこと自体は実績として記録されます。買取に至らなくても、営業の責任にはならず、業績（成約率など）には影響しません。</p>
+        <div class="grid grid-cols-2 gap-2">${VISIT_OUTCOMES.map((o) => `
+          <button class="rounded-xl border-2 p-3 text-left ${d.type === o.key ? 'border-teal-600 bg-teal-50' : 'border-slate-200'}" data-action="oc-type" data-value="${o.key}">
+            <span class="block font-bold text-lg">${o.icon} ${o.label}</span><span class="block text-xs text-slate-500">${o.hint}</span></button>`).join('')}</div>
+        ${d.type === 'resched' ? `<div class="grid grid-cols-2 gap-3 rounded-xl border p-3">
+          <div class="col-span-2 font-bold text-sm">お客様の希望日時<span class="font-normal text-xs text-slate-500">（わかる範囲で）</span></div>
+          <input type="date" class="field !py-2" data-wd="oc-date" value="${esc(d.date)}" aria-label="希望日" />
+          <input type="time" class="field !py-2" data-wd="oc-time" value="${esc(d.time)}" aria-label="希望時刻" /></div>` : ''}
+        <label class="block"><span class="font-bold text-sm">メモ${d.type === 'other' ? '<span class="text-rose-600 ml-1">必須</span>' : '<span class="font-normal text-xs text-slate-500">（任意）</span>'}</span>
+          <textarea class="field !py-2 mt-1" rows="3" data-wd="oc-memo" placeholder="状況・お客様のご様子・連絡した内容など（コールセンターや本社への申し送り）">${esc(d.memo)}</textarea></label>
+        <div id="oc-live">${ocLiveView(s)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// 記録後に、訪問画面に出す結果
+export function outcomeResultView(s) {
+  const o = s.outcome;
+  const t = outcomeOf(o.type);
+  return `
+  <section class="h-full flex flex-col items-center justify-center gap-4 p-6">
+    <div class="text-6xl">${t.icon}</div>
+    <h1 class="text-3xl font-bold">「${t.label}」として記録しました</h1>
+    <div class="card !p-4 w-full max-w-md space-y-1 text-sm">
+      <div class="font-bold text-lg">${esc(s.customer.name)} 様</div>
+      <div class="text-slate-500">${fmtTime(o.at)} 記録</div>
+      ${o.date || o.time ? `<div>希望日時：<b>${esc(o.date)} ${esc(o.time)}</b></div>` : ''}
+      ${o.memo ? `<div class="rounded bg-slate-50 p-2 whitespace-pre-wrap">${esc(o.memo)}</div>` : ''}
+    </div>
+    <p class="text-slate-500 text-sm max-w-md text-center">訪問実績として日報に反映されます。営業の責任ではないため、業績には影響しません。本社にも共有されます。</p>
+    <button class="btn btn-primary" data-action="nav" data-value="schedule">今日の予定に戻る</button>
   </section>`;
 }
 
