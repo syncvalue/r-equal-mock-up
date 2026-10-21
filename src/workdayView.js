@@ -65,7 +65,6 @@ function messagesCard(s) {
   <div class="card !p-4 flex-[2] flex flex-col gap-2 min-h-0">
     <div class="flex items-center justify-between"><h2 class="text-lg font-bold">📢 本社からのお知らせ・注意事項</h2>
       ${unread ? `<span class="text-xs font-bold rounded-full bg-rose-600 text-white px-2 py-0.5">未読 ${unread}</span>` : '<span class="text-xs text-emerald-700 font-bold">すべて確認済み</span>'}</div>
-    <p class="text-xs text-slate-500">タップで全文を確認できます。確認したうえで、下の点検にチェックしてください。</p>
     <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="wdMsgs">
       ${list.map((m) => `<button class="w-full text-left rounded-xl border-2 px-3 py-2 ${m.important ? 'border-rose-300' : 'border-slate-200'} ${read.has(m.id) ? '' : 'bg-amber-50'}" data-action="msg-open" data-id="${m.id}">
         <span class="flex items-center gap-2"><span class="text-xs font-bold rounded px-1.5 py-0.5 shrink-0 ${m.important ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-600'}">${m.important ? '重要' : 'お知らせ'}</span>
@@ -86,7 +85,7 @@ function startScreen(s) {
     <div class="card !p-4 w-[28rem] shrink-0 flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="wdStartL">
       <div><div class="text-sm text-slate-500">${dateLabel(dateKey())}</div>
         <h2 class="text-2xl font-bold">☀ 始業開始</h2>
-        <p class="text-sm text-slate-600">${esc(u.name)} さん、おはようございます。始業点検を行い、記録してから業務を開始します。始業するまで、他の機能は使えません。</p></div>
+        <p class="text-sm text-slate-600">${esc(u.name)} さん、おはようございます。始業点検を済ませると、現地買取を始められます。</p></div>
       <div class="rounded-xl border-2 p-3 space-y-2">
         <div class="font-bold">💴 前日からの繰越金の確認</div>
         <div class="flex justify-between items-baseline"><span class="text-sm text-slate-600">${carry.from ? `前日（${dateLabel(carry.from)}）の終業時の所持金` : '繰越金（初回のため初期値）'}</span><b class="text-2xl">${yen(carry.amount)}</b></div>
@@ -102,7 +101,6 @@ function startScreen(s) {
     <div class="card !p-4 flex-[3] flex flex-col gap-2 min-h-0">
       <div class="flex items-center justify-between"><h2 class="text-lg font-bold">✅ 始業点検</h2>
         <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${START_CHECKS.length - left} / ${START_CHECKS.length}</span></div>
-      <p class="text-xs text-slate-500">すべて確認してチェックしてください。点検した内容と時刻は、記録として残ります。</p>
       <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="wdChecks">${START_CHECKS.map((c) => checkRow(form, c, false)).join('')}</div>
       <div class="flex justify-end gap-3 text-xs text-slate-400"><button class="underline" data-action="wd-demo-start">（デモ用）すべてチェックして繰越金を一致させる</button></div>
     </div>
@@ -149,7 +147,7 @@ function reportCard(s, day) {
     ${visits.some((v) => v.outcome) ? '<p class="text-xs text-slate-500 -mt-1">※ 不在・日程変更などで買取に至らなかった訪問は、訪問実績として数えます。営業の責任ではないため、業績（成約率など）には影響しません。</p>' : ''}
 
     <div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">✅ 始業点検</div>
-      ${START_CHECKS.length}項目すべて確認済み（${fmtTime(day.startedAt)}）${START_CHECKS.map((c) => `<span class="inline-block mr-1" title="${esc(c.text)}">${c.icon}</span>`).join('')}</div>
+      ${START_CHECKS.length}項目すべて確認済み（${fmtTime(day.startedAt).slice(0, 5)}）</div>
     ${closed ? `<div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">💬 所感・連絡事項</div>${day.close.comment ? `<p class="whitespace-pre-wrap">${esc(day.close.comment)}</p>` : '<span class="text-slate-400">なし</span>'}</div>` : ''}
     ${closed ? `<div class="rounded-xl bg-emerald-50 border-2 border-emerald-400 p-4 text-center font-bold text-emerald-800">本日の業務は終了しました。お疲れさまでした。<div class="text-sm font-normal">明日の始業時の繰越金は ${yen(day.close.counted)} です。</div></div>` : ''}
   </div>`;

@@ -12,7 +12,7 @@ import { messagesFor, unreadCount } from './messages.js';
 import { pendingCount } from './stockView.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 
-export const STEPS = ['訪問開始', 'お客様確認', '説明事項', '買取明細', '買取商品の確認', 'シール紐づけ', 'GMOサイン送信・訪問終了'];
+export const STEPS = ['訪問開始', 'お客様確認', '説明事項', '買取明細', '買取商品の確認', 'シール紐づけ', '送信・終了'];
 
 export const selectedItems = (s) => s.items.filter((i) => i.sell);
 
@@ -160,7 +160,7 @@ export function headerView(s) {
         <button class="text-xs underline text-slate-300 hover:text-white" data-action="reset-all">（デモ用）データ初期化</button>
         ${themeToggleHtml()}
         ${isCustomerFacing(s) ? '' : commentBadge(s)}
-        ${s.visitStartedAt && !s.visitEndedAt ? `<span>開始 ${fmtTime(s.visitStartedAt)}</span>
+        ${s.visitStartedAt && !s.visitEndedAt ? `<span class="text-slate-300">開始 ${fmtTime(s.visitStartedAt).slice(0, 5)}</span>
         <span class="text-2xl font-mono font-bold" id="timer">${fmtElapsed(s.visitStartedAt)}</span>` : ''}
       </div>
     </div>
@@ -223,9 +223,7 @@ export function startView(s) {
       <div class="text-xs text-slate-500">${ev ? `予定 ${ev.start}–${ev.end}` : '訪問先'}</div>
       <div class="text-xl font-bold">${esc(s.customer.name)} 様</div>
       <div class="text-sm text-slate-600">📍 ${esc(s.customer.address)}</div>
-      ${ev ? `<div class="text-xs text-slate-500">予定の商材：${esc(ev.items)}</div>` : ''}
     </div>
-    <p class="text-slate-500">ボタンを押すと訪問開始時刻が記録されます。</p>
     <button class="btn btn-primary text-3xl px-16 py-8" data-action="start">訪問開始</button>
     <button class="btn btn-secondary !min-h-[48px] !py-2 text-base" data-action="oc-open">🚪 不在・日程変更など、訪問できなかった場合</button>
     <button class="text-sm underline text-slate-400" data-action="nav" data-value="schedule">今日の予定に戻る</button>
@@ -268,10 +266,9 @@ const sealChip = (s, i) => {
 function sealSection(s, item) {
   const slots = itemSlots(s, item);
   return `
-  <div class="rounded-xl border-2 border-slate-200 p-2.5 space-y-1.5">
-    <div class="flex items-center justify-between"><b class="text-sm">🏷 シール貼付・QR紐づけ <span class="font-normal text-xs text-slate-500">（任意）</span></b>
-      <span class="text-xs font-bold ${sealCount(s, item) === item.qty ? 'text-teal-700' : 'text-slate-500'}">${sealCount(s, item)} / ${item.qty}</span></div>
-    <p class="text-xs text-slate-500">この場でシールを貼る場合は、ここで読み取ります。貼付済みの分は、あとの「シール紐づけ」にそのまま引き継がれます。</p>
+  <details class="rounded-xl border-2 border-slate-200 p-2.5 space-y-1.5" ${sealCount(s, item) || s.labelError?.key?.startsWith(`${item.id}-`) ? 'open' : ''}>
+    <summary class="cursor-pointer flex items-center justify-between"><b class="text-sm">🏷 この場でシールを貼る <span class="font-normal text-xs text-slate-400">（任意）</span></b>
+      <span class="text-xs font-bold ${sealCount(s, item) === item.qty ? 'text-teal-700' : 'text-slate-500'}">${sealCount(s, item)} / ${item.qty}</span></summary>
     ${slots.map((x) => {
       const code = s.labels[x.key];
       const err = s.labelError?.key === x.key ? s.labelError.msg : '';
@@ -283,7 +280,7 @@ function sealSection(s, item) {
           : `<button class="btn btn-primary !py-1 !min-h-[40px] !px-3 text-sm" data-action="dummy-scan" data-key="${x.key}">📷 QR読取</button>`}</div>
         ${err ? `<p class="text-rose-600 font-bold text-xs">${esc(err)}</p>` : ''}</div>`;
     }).join('')}
-  </div>`;
+  </details>`;
 }
 
 export function itemsListView(s) {
@@ -295,7 +292,7 @@ export function itemsListView(s) {
     <div class="flex items-center gap-2 rounded-xl border-2 border-slate-200 pl-3 pr-2 py-1">
       <div class="flex-1 min-w-0 leading-tight">
         <div class="font-bold text-[15px] line-clamp-2">${esc(i.name)}${itemWarn(s, i.id)}</div>
-        <div class="text-xs text-slate-500 mt-0.5">ランク${i.rank}・${i.qty}個${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
+        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}個${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
       </div>
       ${i.price ? `<div class="font-bold text-right whitespace-nowrap">${yen(i.price)}</div>` : '<div class="font-bold text-rose-600 text-sm text-right leading-tight">金額<br>未入力</div>'}
       <button class="${btn} border-slate-300 bg-white text-slate-700" data-action="open-item" data-id="${i.id}" aria-label="詳細を編集">✎<br>編集</button>
@@ -313,7 +310,7 @@ export function briefingView(s) {
     <div class="card w-full max-w-4xl space-y-2 !p-4 max-h-full overflow-y-auto" data-scroll="briefing">
       <div class="flex justify-between items-baseline"><h2 class="text-2xl font-bold">査定前の説明事項</h2>
         <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${BRIEFING_CHECKS.length - left} / ${BRIEFING_CHECKS.length}</span></div>
-      <p class="text-slate-600 text-sm">お客様にご説明し、説明したものにチェックしてください。完了すると、査定に進めます。</p>
+      <p class="text-slate-500 text-sm">説明したものにチェックしてください。</p>
       <div class="space-y-1.5">
         ${BRIEFING_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-1.5 min-h-[46px] cursor-pointer ${b.checks[c.key] ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'}">
           <input type="checkbox" class="w-7 h-7 shrink-0" data-action="brief-check" data-key="${c.key}" ${b.checks[c.key] ? 'checked' : ''} />
@@ -388,6 +385,7 @@ const APV = {
 const apvTag = (s, item) => {
   if (!item.price) return '';
   const { state } = approvalOf(s, item);
+  if (state === 'none') return '';
   const [label, cls] = { none: ['承認待ち', 'bg-slate-100 text-slate-600'], stale: ['再承認待ち', 'bg-orange-100 text-orange-800'], ok: ['✓承認', 'bg-emerald-100 text-emerald-800'], ng: ['差戻し', 'bg-rose-100 text-rose-700'] }[state];
   return `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>`;
 };
@@ -517,7 +515,7 @@ export function labelView(s) {
     <div class="card flex flex-col min-h-0 flex-1 !p-4 gap-2">
       <div class="flex justify-between items-end">
         <div><h2 class="text-xl font-bold">商品へのシール貼付・QR紐づけ</h2>
-          <p class="text-slate-500 text-sm">シールを貼り、QRコードを読み取ってください（${done} / ${slots.length} 点）${done ? '　買取明細の段階で貼付済みのシールは、そのまま引き継がれています。' : ''}</p></div>
+          <p class="text-slate-500 text-sm">QRコードを読み取ってください（${done} / ${slots.length} 点）</p></div>
         <button class="btn btn-secondary !py-2 !min-h-[44px]" data-action="dummy-scan-all">残りを一括ダミー読取</button>
       </div>
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="labels">

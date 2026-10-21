@@ -35,12 +35,11 @@ function detailPanel(s) {
   <div class="card !p-4 space-y-3">
     <div><div class="text-xs text-slate-500">${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${e.start}–${e.end}</div>
       <h3 class="text-xl font-bold flex items-center gap-2 flex-wrap">${esc(e.customer.name)} 様 ${repeatBadge(h)}</h3></div>
-    ${h.isRepeat ? pastEvalView(h) : ''}
+    ${h.isRepeat ? `<details class="rounded-xl border border-indigo-200 bg-indigo-50/50 px-3 py-2"><summary class="cursor-pointer text-sm font-bold">⭐ 過去の評価を見る${h.latestEval ? `<span class="ml-1 text-amber-500">${'★'.repeat(h.latestEval.overall)}</span>` : ''}${(h.latestEval?.flags ?? []).includes('クレーム注意') ? '<span class="ml-1 text-xs rounded bg-rose-600 text-white px-1.5">クレーム注意</span>' : ''}</summary><div class="mt-2">${pastEvalView(h)}</div></details>` : ''}
     <dl class="text-sm space-y-1.5">
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">住所</dt><dd class="font-bold">${esc(e.customer.address)}</dd></div>
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">電話</dt><dd><a class="text-teal-700 underline font-bold" href="tel:${esc(e.customer.phone)}">${esc(e.customer.phone)}</a></dd></div>
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">商材</dt><dd>${esc(e.items)}</dd></div>
-      <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">受付</dt><dd class="text-slate-600">${esc(e.receptionNo)}（${esc(e.operator)}）</dd></div>
       ${e.memo ? `<div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">メモ</dt><dd class="rounded bg-amber-50 px-2 py-1">${esc(e.memo)}</dd></div>` : ''}
     </dl>
     ${visiting ? '<p class="text-xs text-amber-700 font-bold">現在、別の訪問中です。終了後に、新しい訪問を開始できます。</p>' : ''}

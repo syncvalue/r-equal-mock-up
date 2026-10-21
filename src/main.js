@@ -275,6 +275,7 @@ const actions = {
   'msg-read-all': () => markRead(state.user, messagesFor(userById(state.user)).map((m) => m.id)),
   // デモ用: ダッシュボードで表示するロール（メンバー／グループリーダー）の切り替え
   'dash-viewas': (el) => set({ dash: { ...state.dash, viewAs: el.dataset.value === (isLeader(userById(state.user)) ? 'leader' : 'member') ? null : el.dataset.value, scope: 'me', member: null } }),
+  'dash-demo': () => set({ dash: { ...state.dash, demoOpen: !state.dash.demoOpen } }),
   'dash-visits': (el) => set({ modal: { type: 'dashvisits', date: el.dataset.date || null } }),
   'dash-period': (el) => set({ dash: { ...state.dash, period: el.dataset.value } }),
   'dash-scope': (el) => set({ dash: { ...state.dash, scope: el.dataset.value, member: null } }),

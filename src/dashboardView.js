@@ -9,15 +9,16 @@ import {
 const PERIODS = [['today', '今日'], ['week', '今週'], ['month', '今月']];
 const pct = (n) => `${Math.round(n * 100)}%`;
 
-const delta = (cur, prev) => {
+const delta = (cur, prev, onDark = false) => {
   if (!prev) return '';
   const d = (cur - prev) / prev;
-  return `<span class="text-xs font-bold ${d >= 0 ? 'text-emerald-700' : 'text-rose-600'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(d * 100))}%</span>`;
+  return `<span class="text-xs font-bold ${onDark ? 'text-white' : d >= 0 ? 'text-emerald-700' : 'text-rose-600'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(d * 100))}%</span>`;
 };
 
-const kpi = (label, value, sub) => `
-  <div class="card !p-3 min-w-0"><div class="text-xs text-slate-500">${label}</div>
-    <div class="text-2xl font-bold leading-tight truncate">${value}</div><div class="min-h-[18px]">${sub ?? ''}</div></div>`;
+// 主役は買取金額。ほかの指標は小さめに
+const kpi = (label, value, sub, hero = false) => `
+  <div class="card !p-3 min-w-0 ${hero ? 'md:col-span-2 !bg-teal-600 text-white' : ''}"><div class="text-xs ${hero ? 'text-teal-100' : 'text-slate-500'}">${label}</div>
+    <div class="${hero ? 'text-4xl' : 'text-xl'} font-bold leading-tight truncate">${value}</div><div class="min-h-[18px]">${sub ?? ''}</div></div>`;
 
 function barChart(series, todayKey) {
   const max = Math.max(1, ...series.map((d) => d.amount));
@@ -74,7 +75,7 @@ function messagesCard(user) {
   <div class="card !p-3 space-y-1.5">
     <div class="flex items-center justify-between">
       <h3 class="font-bold">📢 本社からのメッセージ ${unread ? `<span class="ml-1 text-xs rounded-full bg-rose-600 text-white px-2 py-0.5">未読 ${unread}</span>` : '<span class="ml-1 text-xs text-slate-400">すべて既読</span>'}
-        <span class="text-xs font-normal text-slate-400">全${msgs.length}件</span></h3>
+</h3>
       ${unread ? '<button class="text-xs underline text-slate-500" data-action="msg-read-all">すべて既読にする</button>' : ''}</div>
     <div class="space-y-1.5 max-h-[102px] overflow-y-auto" data-scroll="msgs">
       ${msgs.length ? msgs.map((m) => {
@@ -121,32 +122,33 @@ export function dashboardView(s) {
         ? `<div class="flex gap-1 w-80">${tab('me', '自分')}${tab('group', 'グループ全体')}</div>`
         : '<span class="text-sm rounded-lg bg-slate-100 text-slate-600 px-3 py-1.5">🔒 あなたの業績のみ表示されます</span>'}
       ${scope === 'member' ? '<button class="text-teal-700 font-bold underline" data-action="dash-scope" data-value="group">← グループ全体に戻る</button>' : ''}
-      <div class="ml-auto flex items-center gap-1 text-xs text-slate-500">（デモ）表示するロール
+      <details class="ml-auto text-xs text-slate-500" ${s.dash.demoOpen ? 'open' : ''}><summary class="cursor-pointer text-right underline" data-action="dash-demo">デモ用の切り替え</summary><div class="mt-1 flex flex-wrap items-center justify-end gap-2">
+      <div class="flex items-center gap-1">表示するロール
         ${[['member', 'メンバー'], ['leader', 'グループリーダー']].map(([k, l]) => `<button class="rounded-lg px-3 py-1.5 font-bold ${(leader ? 'leader' : 'member') === k ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="dash-viewas" data-value="${k}">${l}</button>`).join('')}</div>
       <label class="text-xs text-slate-500 flex items-center gap-2">ログイン中のユーザー
         <select class="field !py-1 !px-2 !text-sm !w-auto" data-dashuser>
           ${GROUPS.map((g) => `<optgroup label="${esc(g.name)}">${USERS.filter((u) => u.group === g.id).map((u) => `<option value="${u.id}" ${u.id === user.id ? 'selected' : ''}>${esc(u.name)}（${roleLabel(u)}）</option>`).join('')}</optgroup>`).join('')}
-        </select></label>
+        </select></label></div></details>
     </div>
 
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
-      ${kpi('買取金額', yen(cur.amount), delta(cur.amount, prev.amount))}
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+      ${kpi('買取金額', yen(cur.amount), delta(cur.amount, prev.amount, true), true)}
       ${kpi('契約数', `${cur.contracts}<span class="text-sm font-normal">件</span>`, delta(cur.contracts, prev.contracts))}
       <button class="text-left" data-action="dash-visits" data-date="">${kpi('訪問数', `${cur.visits}<span class="text-sm font-normal">件</span>`, `${delta(cur.visits, prev.visits)} <span class="text-xs text-teal-700 underline">訪問ごとの結果</span>`)}</button>
       ${kpi('成約率', pct(cur.rate), `<span class="text-xs text-slate-500">前期間 ${pct(prev.rate)}</span>`)}
       ${kpi('平均買取額／契約', yen(cur.avg), delta(cur.avg, prev.avg))}
     </div>
-    <p class="text-xs text-slate-500 -mt-1">▲▼は、直前の同じ長さの期間との比較です。訪問数・成約率には、不在・日程変更の依頼（営業の責任ではないもの）は含みません。「訪問数」や日別のバーをタップすると、訪問ごとの結果を見られます。</p>
+    <p class="text-[11px] text-slate-400 -mt-1">▲▼は直前の同じ長さの期間との比較。訪問数・成約率に、不在・日程変更は含みません。</p>
 
     <div class="grid md:grid-cols-[3fr_2fr] gap-3 items-start">
       <div class="card !p-3"><div class="font-bold text-sm mb-1">日別の買取金額${s.dash.period === 'today' ? '（直近7日）' : ''}</div>${barChart(series, ymd(now))}
-        <div class="text-xs text-slate-500">橙色は今日です。バーをタップすると、その日の訪問ごとの結果を見られます。</div></div>
+        <div class="text-[11px] text-slate-400">バーをタップすると、その日の訪問ごとの結果を見られます。</div></div>
       <div class="card !p-3 space-y-2">
         <div class="font-bold text-sm">今月の目標達成</div>
         <div class="flex items-end justify-between"><span class="text-3xl font-bold ${prog.rate >= prog.pace ? 'text-emerald-700' : 'text-amber-700'}">${pct(prog.rate)}</span>
           <span class="text-xs text-slate-500 text-right">${yen(prog.amount)} / 目標 ${yen(prog.target)}</span></div>
         ${progressBar(prog)}
-        <div class="text-xs text-slate-500">縦線は、今日までの経過（${pct(prog.pace)}）に応じた目安です。${prog.rate >= prog.pace ? '目安を上回っています。' : '目安を下回っています。'}</div>
+        <div class="text-xs ${prog.rate >= prog.pace ? 'text-emerald-700' : 'text-amber-700'} font-bold">${prog.rate >= prog.pace ? '目安を上回っています' : '目安を下回っています'}<span class="font-normal text-slate-400">（縦線＝今日までの経過 ${pct(prog.pace)}）</span></div>
       </div>
     </div>
 
