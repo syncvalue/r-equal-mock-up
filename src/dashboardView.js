@@ -3,7 +3,7 @@ import { yen, esc, fmtDateTime } from './format.js';
 import { messagesFor } from './messages.js';
 import { loadReadIds } from './store.js';
 import {
-  GROUPS, USERS, userById, isLeader, roleLabel, groupMembers, visibleUsers, rangeOf, prevRange, dailySeries, stats, monthProgress, ymd,
+  GROUPS, USERS, RESULTS, userById, isLeader, roleLabel, groupMembers, visibleUsers, rangeOf, prevRange, dailySeries, stats, monthProgress, visitRecords, ymd,
 } from './dashboard.js';
 
 const PERIODS = [['today', '今日'], ['week', '今週'], ['month', '今月']];
@@ -31,7 +31,7 @@ function barChart(series, todayKey) {
       const h = Math.round((d.amount / max) * (H - 44));
       const x = pad + i * bw + bw * 0.15;
       const isToday = ymd(d.date) === todayKey;
-      return `<rect x="${x.toFixed(1)}" y="${H - 22 - h}" width="${(bw * 0.7).toFixed(1)}" height="${h}" rx="3" class="${isToday ? 'fill-amber-500' : 'fill-teal-600'}"><title>${d.date.getMonth() + 1}/${d.date.getDate()}　${yen(d.amount)}（契約${d.contracts}件）</title></rect>
+      return `<rect x="${x.toFixed(1)}" y="${H - 22 - h}" width="${(bw * 0.7).toFixed(1)}" height="${h}" rx="3" class="cursor-pointer ${isToday ? 'fill-amber-500' : 'fill-teal-600'}" data-action="dash-visits" data-date="${ymd(d.date)}"><title>${d.date.getMonth() + 1}/${d.date.getDate()}　${yen(d.amount)}（契約${d.contracts}件）</title></rect>
         ${i % step === 0 ? `<text x="${(x + bw * 0.35).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="11" class="fill-slate-500">${d.date.getDate()}</text>` : ''}`;
     })
     .join('');
@@ -92,10 +92,10 @@ function messagesCard(user) {
 export function dashboardView(s) {
   const now = new Date();
   const user = userById(s.user);
-  const leader = isLeader(user);
+  const leader = s.dash.viewAs ? s.dash.viewAs === 'leader' : isLeader(user); // デモ用に、メンバー表示／リーダー表示を切り替えられる
   const scope = leader ? s.dash.scope : 'me';
   const memberId = leader && scope === 'member' ? s.dash.member : null;
-  const users = visibleUsers(user, scope, memberId);
+  const users = visibleUsers(user, scope, memberId, leader);
   const range = rangeOf(s.dash.period, now);
   const cur = stats(users, range, now);
   const prev = stats(users, prevRange(range), now);
@@ -121,7 +121,9 @@ export function dashboardView(s) {
         ? `<div class="flex gap-1 w-80">${tab('me', '自分')}${tab('group', 'グループ全体')}</div>`
         : '<span class="text-sm rounded-lg bg-slate-100 text-slate-600 px-3 py-1.5">🔒 あなたの業績のみ表示されます</span>'}
       ${scope === 'member' ? '<button class="text-teal-700 font-bold underline" data-action="dash-scope" data-value="group">← グループ全体に戻る</button>' : ''}
-      <label class="ml-auto text-xs text-slate-500 flex items-center gap-2">（デモ）ログイン中のユーザー
+      <div class="ml-auto flex items-center gap-1 text-xs text-slate-500">（デモ）表示するロール
+        ${[['member', 'メンバー'], ['leader', 'グループリーダー']].map(([k, l]) => `<button class="rounded-lg px-3 py-1.5 font-bold ${(leader ? 'leader' : 'member') === k ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="dash-viewas" data-value="${k}">${l}</button>`).join('')}</div>
+      <label class="text-xs text-slate-500 flex items-center gap-2">ログイン中のユーザー
         <select class="field !py-1 !px-2 !text-sm !w-auto" data-dashuser>
           ${GROUPS.map((g) => `<optgroup label="${esc(g.name)}">${USERS.filter((u) => u.group === g.id).map((u) => `<option value="${u.id}" ${u.id === user.id ? 'selected' : ''}>${esc(u.name)}（${roleLabel(u)}）</option>`).join('')}</optgroup>`).join('')}
         </select></label>
@@ -130,15 +132,15 @@ export function dashboardView(s) {
     <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
       ${kpi('買取金額', yen(cur.amount), delta(cur.amount, prev.amount))}
       ${kpi('契約数', `${cur.contracts}<span class="text-sm font-normal">件</span>`, delta(cur.contracts, prev.contracts))}
-      ${kpi('訪問数', `${cur.visits}<span class="text-sm font-normal">件</span>`, delta(cur.visits, prev.visits))}
+      <button class="text-left" data-action="dash-visits" data-date="">${kpi('訪問数', `${cur.visits}<span class="text-sm font-normal">件</span>`, `${delta(cur.visits, prev.visits)} <span class="text-xs text-teal-700 underline">訪問ごとの結果</span>`)}</button>
       ${kpi('成約率', pct(cur.rate), `<span class="text-xs text-slate-500">前期間 ${pct(prev.rate)}</span>`)}
       ${kpi('平均買取額／契約', yen(cur.avg), delta(cur.avg, prev.avg))}
     </div>
-    <p class="text-xs text-slate-500 -mt-1">▲▼は、直前の同じ長さの期間との比較です。</p>
+    <p class="text-xs text-slate-500 -mt-1">▲▼は、直前の同じ長さの期間との比較です。訪問数・成約率には、不在・日程変更の依頼（営業の責任ではないもの）は含みません。「訪問数」や日別のバーをタップすると、訪問ごとの結果を見られます。</p>
 
     <div class="grid md:grid-cols-[3fr_2fr] gap-3 items-start">
       <div class="card !p-3"><div class="font-bold text-sm mb-1">日別の買取金額${s.dash.period === 'today' ? '（直近7日）' : ''}</div>${barChart(series, ymd(now))}
-        <div class="text-xs text-slate-500">橙色は今日です。バーを長押しすると、金額を確認できます。</div></div>
+        <div class="text-xs text-slate-500">橙色は今日です。バーをタップすると、その日の訪問ごとの結果を見られます。</div></div>
       <div class="card !p-3 space-y-2">
         <div class="font-bold text-sm">今月の目標達成</div>
         <div class="flex items-end justify-between"><span class="text-3xl font-bold ${prog.rate >= prog.pace ? 'text-emerald-700' : 'text-amber-700'}">${pct(prog.rate)}</span>
@@ -150,4 +152,38 @@ export function dashboardView(s) {
 
     ${scope === 'group' ? `<h3 class="font-bold">メンバー別の業績</h3>${memberTable(s, groupMembers(user), range, now)}` : ''}
   </section>`;
+}
+
+// 訪問ごとの結果（モーダル）。メンバー表示では自分の分、リーダーのグループ表示ではグループ全員の分
+export function dashVisitsModal(s) {
+  const now = new Date();
+  const user = userById(s.user);
+  const leader = s.dash.viewAs ? s.dash.viewAs === 'leader' : isLeader(user);
+  const scope = leader ? s.dash.scope : 'me';
+  const users = visibleUsers(user, scope, leader && scope === 'member' ? s.dash.member : null, leader);
+  const day = s.modal.date;
+  const range = day ? { start: new Date(`${day}T00:00:00`), end: new Date(`${day}T00:00:00`) } : rangeOf(s.dash.period, now);
+  const recs = visitRecords(users, range, now);
+  const count = (k) => recs.filter((r) => r.result === k).length;
+  const excluded = recs.filter((r) => RESULTS[r.result].excluded).length;
+  const showWho = users.length > 1;
+  const label = day ? `${range.start.getMonth() + 1}/${range.start.getDate()}` : `${range.start.getMonth() + 1}/${range.start.getDate()}${range.start.getTime() === range.end.getTime() ? '' : `〜${range.end.getMonth() + 1}/${range.end.getDate()}`}`;
+  return {
+    title: `🏠 訪問ごとの結果　${label}`,
+    body: `
+    <div class="flex flex-wrap gap-2 text-sm">
+      <span class="rounded-lg bg-slate-100 px-3 py-1">訪問実績 <b>${recs.length}件</b></span>
+      <span class="rounded-lg bg-emerald-100 text-emerald-800 px-3 py-1">成約 <b>${count('won')}</b></span>
+      <span class="rounded-lg bg-slate-200 text-slate-700 px-3 py-1">不成約 <b>${count('lost')}</b></span>
+      <span class="rounded-lg bg-amber-100 text-amber-800 px-3 py-1">業績対象外 <b>${excluded}</b>（不在・日程変更）</span></div>
+    <p class="text-xs text-slate-500">不在・日程変更の依頼は、訪問実績には数えますが、営業の責任ではないため、訪問数・成約率には含みません。</p>
+    ${recs.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm">
+      <thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">日時</th>${showWho ? '<th class="text-left">営業</th>' : ''}<th class="text-left">お客様</th><th class="text-left">商材</th><th class="text-left">結果</th><th class="text-right pr-3">買取金額</th></tr></thead>
+      <tbody>${recs.map((r) => `<tr class="border-t align-top">
+        <td class="p-2 whitespace-nowrap">${r.date.getMonth() + 1}/${r.date.getDate()} ${r.time}</td>${showWho ? `<td class="whitespace-nowrap">${esc(userById(r.userId).name)}</td>` : ''}
+        <td class="whitespace-nowrap">${esc(r.customer)} 様</td><td>${esc(r.items)}</td>
+        <td><span class="rounded px-2 py-0.5 text-xs font-bold whitespace-nowrap ${RESULTS[r.result].cls}">${RESULTS[r.result].label}</span>${r.note ? `<div class="text-xs text-slate-500">${esc(r.note)}</div>` : ''}</td>
+        <td class="text-right pr-3 font-bold whitespace-nowrap">${r.amount ? yen(r.amount) : '-'}</td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="text-slate-400 text-center py-8">この期間の訪問はありません</p>'}`,
+  };
 }

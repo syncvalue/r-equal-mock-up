@@ -30,9 +30,9 @@ export const isLeader = (u) => u.role === 'leader';
 export const roleLabel = (u) => (isLeader(u) ? 'グループリーダー' : '営業');
 export const groupMembers = (u) => USERS.filter((x) => x.group === u.group);
 
-// 閲覧できるユーザー: リーダーはグループ全員、一般は自分のみ
-export function visibleUsers(user, scope, memberId) {
-  if (!isLeader(user)) return [user];
+// 閲覧できるユーザー: リーダーはグループ全員、一般は自分のみ（asLeader で、表示するロールをデモ用に切り替えられる）
+export function visibleUsers(user, scope, memberId, asLeader = isLeader(user)) {
+  if (!asLeader) return [user];
   const members = groupMembers(user);
   if (scope === 'member') return members.filter((m) => m.id === memberId);
   return scope === 'group' ? members : [user];
@@ -60,21 +60,60 @@ const seeded = (str) => {
   return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 10000) / 10000;
 };
 
-function dummyDay(user, date, isToday) {
+// 訪問の結果。不在・日程変更の依頼は、営業の責任ではないため、訪問数・成約率には含めない（業績対象外）
+export const RESULTS = {
+  won: { label: '成約', cls: 'bg-emerald-100 text-emerald-800' },
+  lost: { label: '不成約', cls: 'bg-slate-200 text-slate-700' },
+  absent: { label: '不在', cls: 'bg-amber-100 text-amber-800', excluded: true },
+  resched: { label: '日程変更の依頼', cls: 'bg-amber-100 text-amber-800', excluded: true },
+};
+
+const SURNAMES = ['山口', '松田', '井上', '木下', '斉藤', '橋本', '前田', '石川', '中島', '原田', '小川', '後藤', '岡本', '長谷川', '村田', '近藤'];
+const GIVEN = ['太郎', '花子', '健', '美穂', '誠', '陽子', '修', '恵', '悟', '由美', '浩', '里美', '拓也', '千里'];
+const GOODS = ['ブランドバッグ', '腕時計', 'ジュエリー・貴金属', 'カメラ・家電', 'ゲーム・ホビー', 'ブランドバッグ・腕時計'];
+const LOST_REASONS = ['金額が合わず、見送り', '家族の同意が得られず、見送り', '今回は売却をやめる', '他社での売却を選択'];
+const SLOTS = ['09:30', '11:00', '13:00', '14:30', '16:00', '17:30'];
+const pick = (rnd, list) => list[Math.floor(rnd() * list.length)];
+
+// その日の訪問の記録（ダミー）。件数・契約・金額は、ユーザー×日付で固定
+function dummyVisits(user, date, isToday) {
   const rnd = seeded(`${user.id}-${ymd(date)}`);
-  const dow = date.getDay();
-  if (dow === 0) return { visits: 0, contracts: 0, amount: 0 };
-  let visits = 1 + Math.floor(rnd() * 4);
-  if (isToday) visits = Math.floor(rnd() * 3); // 当日は途中経過のため少なめ
-  let contracts = 0;
-  let amount = 0;
-  for (let i = 0; i < visits; i += 1) {
+  const rnd2 = seeded(`detail-${user.id}-${ymd(date)}`);
+  if (date.getDay() === 0) return [];
+  let attempts = 1 + Math.floor(rnd() * 4);
+  if (isToday) attempts = Math.floor(rnd() * 3); // 当日は途中経過のため少なめ
+  const times = [...SLOTS].sort(() => rnd2() - 0.5).slice(0, attempts).sort();
+  return times.map((time) => {
+    let result = 'lost';
+    let amount = 0;
     if (rnd() < user.skill) {
-      contracts += 1;
-      amount += Math.round((user.base * (0.3 + rnd() * 0.9)) / 1000) * 1000;
+      result = 'won';
+      amount = Math.round((user.base * (0.3 + rnd() * 0.9)) / 1000) * 1000;
     }
-  }
-  return { visits, contracts, amount };
+    const customer = `${pick(rnd2, SURNAMES)} ${pick(rnd2, GIVEN)}`;
+    const items = pick(rnd2, GOODS);
+    let note = '';
+    if (result === 'lost') {
+      const r = rnd2();
+      if (r < 0.25) { result = 'absent'; note = 'インターホン・電話ともに応答なし'; }
+      else if (r < 0.4) { result = 'resched'; note = '玄関口で、別の日時での訪問を希望'; }
+      else note = pick(rnd2, LOST_REASONS);
+    }
+    return { date, time, userId: user.id, customer, items, result, amount, note };
+  });
+}
+
+function dummyDay(user, date, isToday) {
+  const v = dummyVisits(user, date, isToday);
+  return { visits: v.filter((x) => !RESULTS[x.result].excluded).length, contracts: v.filter((x) => x.result === 'won').length, amount: v.reduce((n, x) => n + x.amount, 0) };
+}
+
+// 指定ユーザー・期間の、訪問ごとの結果（新しい順）
+export function visitRecords(users, range, now = new Date()) {
+  const todayKey = ymd(now);
+  return eachDay(range)
+    .flatMap((d) => users.flatMap((u) => dummyVisits(u, d, ymd(d) === todayKey)))
+    .sort((a, b) => b.date - a.date || b.time.localeCompare(a.time));
 }
 
 // 指定ユーザー・期間の日別データ

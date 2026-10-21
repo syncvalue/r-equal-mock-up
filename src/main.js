@@ -8,7 +8,7 @@ import {
 import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
 import { initTheme } from './theme.js';
-import { userById } from './dashboard.js';
+import { userById, isLeader } from './dashboard.js';
 import { messagesFor } from './messages.js';
 import { EVENTS, eventById } from './schedule.js';
 import { formatMoneyInput } from './moneyInput.js';
@@ -39,7 +39,7 @@ const initialState = () => ({
   outcomeDraft: blankOutcomeDraft(),
   units: [],
   stock: { ...DEFAULT_STOCK },
-  dash: { period: 'month', scope: 'me', member: null },
+  dash: { period: 'month', scope: 'me', member: null, viewAs: null },
   menuOpen: false,
   step: 0,
   visitStartedAt: null,
@@ -273,6 +273,9 @@ const actions = {
     markRead(state.user, [el.dataset.id]);
   },
   'msg-read-all': () => markRead(state.user, messagesFor(userById(state.user)).map((m) => m.id)),
+  // デモ用: ダッシュボードで表示するロール（メンバー／グループリーダー）の切り替え
+  'dash-viewas': (el) => set({ dash: { ...state.dash, viewAs: el.dataset.value === (isLeader(userById(state.user)) ? 'leader' : 'member') ? null : el.dataset.value, scope: 'me', member: null } }),
+  'dash-visits': (el) => set({ modal: { type: 'dashvisits', date: el.dataset.date || null } }),
   'dash-period': (el) => set({ dash: { ...state.dash, period: el.dataset.value } }),
   'dash-scope': (el) => set({ dash: { ...state.dash, scope: el.dataset.value, member: null } }),
   'dash-member': (el) => set({ dash: { ...state.dash, scope: 'member', member: el.dataset.id } }),
@@ -534,7 +537,7 @@ document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.dataset.dashuser !== undefined) {
     // デモ用: ログインユーザーの切り替え。一般の営業に切り替えると、閲覧範囲は自分のみになる
-    set({ user: el.value, dash: { ...state.dash, scope: 'me', member: null }, sched: { ...state.sched, sel: null }, route: { day: 0, sel: 'all', origin: 'prev' } });
+    set({ user: el.value, dash: { ...state.dash, scope: 'me', member: null, viewAs: null }, sched: { ...state.sched, sel: null }, route: { day: 0, sel: 'all', origin: 'prev' } });
     rerenderKeepScroll();
   }
   if (el.dataset.action === 'wd-check') {
