@@ -435,6 +435,51 @@ export const LEAVE_CHECKS = [
 ];
 export const leaveRemaining = (s) => LEAVE_CHECKS.filter((c) => !s.leaveChecks[c.key]).length;
 
+// ---- お客様の評価（営業の記録。お客様には見せない） ---------------------------------------
+export const EVAL_OPTIONS = {
+  attitude: ['良好', '普通', '難あり'],
+  repeat: ['高い', '普通', '低い'],
+  wealth: ['高そう', '普通', '低そう'],
+  timing: ['1か月以内', '3か月以内', '半年以内', '当面不要'],
+  cats: ['ブランドバッグ', '腕時計', 'ジュエリー・貴金属', 'カメラ・家電', 'ゲーム・ホビー', 'その他'],
+  flags: ['価格交渉が強い', '他社と比較中', '家族の同意が必要', '時間にルーズ', 'クレーム注意', '紹介が見込める'],
+};
+export const blankEval = () => ({ overall: 0, attitude: '', repeat: '', wealth: '', timing: '', cats: [], flags: [], memo: '' });
+export const evalFilled = (e) => Boolean(e && (e.overall || e.attitude || e.repeat || e.wealth || e.timing || e.cats.length || e.flags.length || e.memo.trim()));
+
+function evalModalView(s) {
+  const d = s.evalDraft;
+  const single = (field, label) => `
+    <div><div class="font-bold text-sm mb-1">${label}</div><div class="flex flex-wrap gap-1.5">
+      ${EVAL_OPTIONS[field].map((o) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${d[field] === o ? 'active' : ''}" data-action="eval-set" data-field="${field}" data-value="${o}">${o}</button>`).join('')}</div></div>`;
+  const multi = (field, label) => `
+    <div><div class="font-bold text-sm mb-1">${label}<span class="font-normal text-xs text-slate-500">（複数選択可）</span></div><div class="flex flex-wrap gap-1.5">
+      ${EVAL_OPTIONS[field].map((o) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${d[field].includes(o) ? 'active' : ''}" data-action="eval-toggle" data-field="${field}" data-value="${o}">${o}</button>`).join('')}</div></div>`;
+  return modalShell(
+    `⭐ お客様の評価　<span class="text-sm font-normal text-slate-500">${esc(s.customer.name)} 様</span>`,
+    `<p class="text-xs text-slate-500">次の営業活動に生かすための社内記録です。お客様には表示されません。</p>
+    <div class="grid sm:grid-cols-2 gap-3 items-start">
+      <div class="space-y-2.5">
+        <div><div class="font-bold text-sm mb-1">総合評価</div><div class="flex gap-1">
+          ${[1, 2, 3, 4, 5].map((n) => `<button class="text-4xl leading-none w-11 h-11 ${n <= d.overall ? 'text-amber-400' : 'text-slate-300'}" data-action="eval-set" data-field="overall" data-value="${n}" aria-label="${n}点">★</button>`).join('')}
+          <span class="self-center ml-2 font-bold">${d.overall ? `${d.overall} / 5` : '未評価'}</span></div></div>
+        ${single('attitude', 'お客様の態度・対応')}
+        ${single('repeat', 'リピート見込み')}
+        ${single('wealth', '資力（お金を持っていそうか）')}
+      </div>
+      <div class="space-y-2.5">
+        ${multi('cats', '次回、提案できそうな商材')}
+        ${single('timing', '次回アプローチの時期')}
+        ${multi('flags', '特記事項')}
+        <label class="block"><span class="font-bold text-sm">メモ</span>
+          <textarea class="field !py-2 mt-1" rows="2" data-evalmemo placeholder="会話の内容、趣味、家族構成、次回のきっかけなど">${esc(d.memo)}</textarea></label>
+      </div>
+    </div>
+    <button class="btn btn-primary w-full !min-h-[48px] !py-2" data-action="eval-save">保存する</button>`,
+    { wide: true },
+  );
+}
+
 export function endView(s) {
   const done = Boolean(s.visitEndedAt);
   const left = leaveRemaining(s);
@@ -453,6 +498,7 @@ export function endView(s) {
         </div>
         <div class="rounded-xl bg-sky-50 border border-sky-200 p-2 text-xs text-sky-900">本人確認書類の登録・契約書の印刷は、GMOサイン管理画面で行います。</div>
         <button class="btn w-full bg-sky-600 text-white !min-h-[48px] !py-2" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
+        <button class="btn btn-secondary w-full !min-h-[48px] !py-2 flex items-center justify-center gap-2" data-action="open-eval">⭐ お客様の評価を登録${evalFilled(s.evaluation) ? `<span class="text-xs rounded bg-emerald-100 text-emerald-800 px-2 py-0.5">登録済み${s.evaluation.overall ? ` ★${s.evaluation.overall}` : ''}</span>` : '<span class="text-xs text-slate-500">（任意）</span>'}</button>
         ${
           done
             ? `<div class="rounded-xl bg-slate-100 p-3 text-center text-sm">訪問時間 ${fmtTime(s.visitStartedAt)} 〜 ${fmtTime(s.visitEndedAt)}（${fmtElapsed(s.visitStartedAt, s.visitEndedAt)}）
@@ -599,6 +645,7 @@ export function modalView(s) {
       { wide: true },
     );
   }
+  if (m.type === 'eval') return evalModalView(s);
   if (m.type === 'comments') return commentsModalView(s);
   if (m.type === 'appraisal') return appraisalComposeView(s, m);
   return '';

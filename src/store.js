@@ -92,7 +92,7 @@ export const COMMENT_TAGS = ['安すぎる', '高すぎる', '要再確認', '�
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
 };
 
@@ -129,4 +129,20 @@ export const approvalState = (rec, item) => {
   if (!rec) return 'none';
   if (!sameSnapshot(rec, item)) return 'stale';
   return { 承認: 'ok', 差戻し: 'ng' }[rec.status] ?? 'none';
+};
+
+// 営業が記録する、お客様の評価（次の営業活動に生かすための生情報）
+export const EVAL_KEY = 'rq-mock-customer-evals';
+
+export const loadEvals = () => {
+  try {
+    return JSON.parse(localStorage.getItem(EVAL_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+};
+
+export const upsertEval = (record) => {
+  const list = loadEvals();
+  localStorage.setItem(EVAL_KEY, JSON.stringify(list.some((e) => e.visitId === record.visitId) ? list.map((e) => (e.visitId === record.visitId ? record : e)) : [record, ...list]));
 };

@@ -3,7 +3,7 @@ import { loadRecent, pushRecent } from './search.js';
 import { estimateByPhotos } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
-  AP_STORAGE_KEY, APPROVAL_KEY, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
+  AP_STORAGE_KEY, APPROVAL_KEY, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
@@ -39,6 +39,8 @@ const initialState = () => ({
   comments: [],
   scan: null,
   leaveChecks: {},
+  evaluation: null,
+  evalDraft: V.blankEval(),
   approvals: [],
   apMode: 'hq',
   aiBusy: false,
@@ -282,6 +284,25 @@ const actions = {
   },
   // 訪問終了は、お客様宅を出る前のチェックリストがすべて完了している場合のみ
   finish: () => V.leaveRemaining(state) === 0 && set({ visitEndedAt: Date.now() }),
+  // お客様の評価（営業の記録）。保存済みの内容があれば、それを下書きとして開く
+  'open-eval': () => set({ modal: { type: 'eval' }, evalDraft: state.evaluation ? { ...state.evaluation } : V.blankEval() }),
+  'eval-set': (el) => {
+    const v = el.dataset.field === 'overall' ? Number(el.dataset.value) : el.dataset.value;
+    set({ evalDraft: { ...state.evalDraft, [el.dataset.field]: state.evalDraft[el.dataset.field] === v ? (typeof v === 'number' ? 0 : '') : v } });
+  },
+  'eval-toggle': (el) => {
+    const cur = state.evalDraft[el.dataset.field];
+    const v = el.dataset.value;
+    set({ evalDraft: { ...state.evalDraft, [el.dataset.field]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] } });
+  },
+  'eval-save': () => {
+    const e = state.evalDraft;
+    upsertEval({
+      visitId: state.visitId, customerName: state.customer.name, phone: state.customer.phone, savedAt: Date.now(), by: '営業 鈴木', ...e, memo: e.memo.trim(),
+    });
+    set({ evaluation: { ...e, memo: e.memo.trim() }, modal: null });
+    showToast('お客様の評価を保存しました');
+  },
   'leave-all': () => set({ leaveChecks: Object.fromEntries(V.LEAVE_CHECKS.map((c) => [c.key, true])) }),
   reset: () => { state = initialState(); },
   'reset-all': () => { if (confirm(RESET_CONFIRM)) { clearTransactions(); state = initialState(); showToast('データを初期化しました'); } },
@@ -366,7 +387,9 @@ document.addEventListener('pointercancel', endDrag);
 // テキスト入力は再描画せず state のみ更新（フォーカス維持）
 document.addEventListener('input', (e) => {
   const el = e.target;
-  if (el.dataset.draft) {
+  if (el.dataset.evalmemo !== undefined) {
+    set({ evalDraft: { ...state.evalDraft, memo: el.value } });
+  } else if (el.dataset.draft) {
     set({ draft: { ...state.draft, [el.dataset.draft]: el.value } });
   } else if (el.dataset.field) {
     set({ customer: { ...state.customer, [el.dataset.field]: el.value } });

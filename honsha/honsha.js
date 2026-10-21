@@ -1,6 +1,6 @@
 // 本社 査定部デスク画面（ダミー・PC想定）。営業の買取明細をリアルタイムで見て、依頼への回答や提案を行う。
 import {
-  AP_STORAGE_KEY, APPROVAL_KEY, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, COMMENT_TAGS, LIVE_KEY, clearEndedLive, loadAppraisals, loadComments, loadLive, newAppraisalId,
+  AP_STORAGE_KEY, APPROVAL_KEY, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, COMMENT_TAGS, LIVE_KEY, clearEndedLive, loadAppraisals, loadComments, loadLive, newAppraisalId,
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
 import { RANKS } from '../src/data.js';
@@ -53,6 +53,23 @@ function sidebar(visits, aps, approvals) {
         <span>${pending ? `<span class="rounded-full bg-rose-600 text-white text-xs px-2 py-0.5">依頼${pending}</span>` : ''}${pendingApprovals(v, approvals).length ? `<span class="ml-1 rounded-full bg-amber-500 text-white text-xs px-2 py-0.5">未承認${pendingApprovals(v, approvals).length}</span>` : ''}</span></div>
     </button>`;
   }).join('');
+}
+
+// 営業が記録した、お客様の評価（次の営業活動用の記録）
+function evalCard(e) {
+  if (!e) return '';
+  const row = (k, v) => (v && v.length ? `<div><span class="text-xs text-slate-500">${k}</span> <b>${Array.isArray(v) ? v.map(esc).join('・') : esc(v)}</b></div>` : '');
+  return `
+  <div class="rounded-lg border bg-white p-3 space-y-1">
+    <div class="flex justify-between items-center"><b>⭐ お客様の評価（営業の記録）</b>
+      <span class="text-amber-400 text-xl tracking-tight">${'★'.repeat(e.overall)}<span class="text-slate-300">${'★'.repeat(5 - e.overall)}</span></span></div>
+    <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm">
+      ${row('態度', e.attitude)}${row('リピート見込み', e.repeat)}${row('資力', e.wealth)}${row('次回時期', e.timing)}
+    </div>
+    <div class="text-sm">${row('次回の商材', e.cats)}${row('特記事項', e.flags)}</div>
+    ${e.memo ? `<div class="text-sm whitespace-pre-wrap rounded bg-slate-50 px-2 py-1">${esc(e.memo)}</div>` : ''}
+    <div class="text-xs text-slate-400">${esc(e.by)} ／ ${fmtTime(e.savedAt)} 記録</div>
+  </div>`;
 }
 
 function itemsTable(v, aps, cs, approvals) {
@@ -203,6 +220,7 @@ function render() {
           <p class="text-sm text-slate-500">受付 ${esc(v.callInfo?.receptionNo ?? '')} ／ 開始 ${fmtTime(v.startedAt)} ／ 経過 <span data-elapsed="${v.startedAt}" data-end="${v.endedAt ?? ''}">${fmtElapsed(v.startedAt, v.endedAt ?? Date.now())}</span> ／ 最終更新 ${fmtTime(v.updatedAt)}</p></div>
         <div class="text-right">${pendingApprovals(v, approvals).length ? `<button class="mr-3 bg-emerald-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>未承認${pendingApprovals(v, approvals).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-600" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-indigo-800">${yen(sum(v.items))}</div></div>
       </div>
+      ${evalCard(loadEvals().find((e) => e.visitId === v.visitId))}
       ${itemsTable(v, aps, cs, approvals)}` : '<p class="text-slate-400 p-10 text-center">左の一覧から訪問を選択してください</p>'}
     </main>
     <aside class="bg-slate-50 border-l p-4 overflow-y-auto">${detailPanel(v, aps, cs, approvals)}</aside>
@@ -284,7 +302,7 @@ document.addEventListener('input', (e) => {
 
 // 営業側の更新を即時反映。入力中なら、入力欄から離れたときに反映する
 window.addEventListener('storage', (e) => {
-  if (![LIVE_KEY, AP_STORAGE_KEY, COMMENT_KEY, APPROVAL_KEY].includes(e.key)) return;
+  if (![LIVE_KEY, AP_STORAGE_KEY, COMMENT_KEY, APPROVAL_KEY, EVAL_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;
   else render();
 });
