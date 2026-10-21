@@ -17,7 +17,7 @@ const delta = (cur, prev, onDark = false) => {
 
 // 主役は買取金額。ほかの指標は小さめに
 const kpi = (label, value, sub, hero = false) => `
-  <div class="card !p-3 min-w-0 ${hero ? 'md:col-span-2 !bg-teal-600 text-white' : ''}"><div class="text-xs ${hero ? 'text-teal-100' : 'text-slate-500'}">${label}</div>
+  <div class="card !p-3 min-w-0 text-right ${hero ? 'md:col-span-2 !bg-teal-600 text-white' : ''}"><div class="text-xs ${hero ? 'text-teal-100' : 'text-slate-500'}">${label}</div>
     <div class="${hero ? 'text-4xl' : 'text-xl'} font-bold leading-tight truncate">${value}</div><div class="min-h-[18px]">${sub ?? ''}</div></div>`;
 
 function barChart(series, todayKey) {

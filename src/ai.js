@@ -33,3 +33,15 @@ export function estimateByPhotos(item, photos) {
     at: Date.now(),
   };
 }
+
+// レシートのAI読み取り（モック）。写真から、種別・金額・店名を読み取ったように見せる。
+// 実運用では、OCR・画像認識APIの呼び出しに差し替える（読み取り結果は、必ず人が確認・修正できるようにする）。
+export const RECEIPT_SAMPLES = [
+  { type: 'gas', store: 'ENEOS 天王寺SS', amount: 4820, confidence: 96 },
+  { type: 'lunch', store: 'すき家 谷町店', amount: 780, confidence: 93 },
+  { type: 'toll', store: 'タイムズ阿倍野', amount: 1200, confidence: 90 },
+  { type: 'supply', store: 'ダイソー 梅田店', amount: 1430, confidence: 88 },
+  { type: 'toll', store: 'NEXCO西日本 高速料金', amount: 2350, confidence: 91 },
+  { type: 'transit', store: 'JR西日本 乗車券', amount: 640, confidence: 62 },
+];
+export const receiptSampleFor = (seed) => RECEIPT_SAMPLES[Math.abs(Number(seed) || 0) % RECEIPT_SAMPLES.length];

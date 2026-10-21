@@ -1,6 +1,6 @@
 import { PRODUCTS } from './data.js';
 import { loadRecent, pushRecent } from './search.js';
-import { estimateByPhotos } from './ai.js';
+import { estimateByPhotos, RECEIPT_SAMPLES, receiptSampleFor } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
   AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
@@ -111,9 +111,30 @@ function showToast(msg) {
   setTimeout(() => el.remove(), 4000);
 }
 
+// レシートのAI読み取り（モック）。種別・金額・内容を自動入力する。すでに入力済みの項目は上書きしない（再読取のときは上書き）
+let receiptToken = 0;
+function readReceiptAi(sample, { overwrite = false } = {}) {
+  receiptToken += 1;
+  const token = receiptToken;
+  set({ expDraft: { ...state.expDraft, ai: { status: 'reading', sample } } });
+  setTimeout(() => {
+    if (token !== receiptToken || !state.expDraft.photo) return;
+    const d = state.expDraft;
+    const fill = { type: overwrite || !d.type, amount: overwrite || !(d.amount > 0), memo: overwrite || !d.memo.trim() };
+    const now = new Date();
+    set({ expDraft: {
+      ...d, ai: { status: 'done', sample, filled: fill },
+      type: fill.type ? sample.type : d.type, amount: fill.amount ? sample.amount : d.amount,
+      memo: fill.memo ? `${sample.store}（${now.getMonth() + 1}/${now.getDate()}）` : d.memo,
+    } });
+    rerenderKeepScroll();
+  }, 1300);
+}
+
 // 経費のダミーレシート写真（デモ用）
+let dummyReceiptSeq = 0;
 const dummyReceipt = (d) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="320"><rect width="240" height="320" fill="#f8fafc" stroke="#cbd5e1"/><text x="20" y="40" font-size="20" fill="#334155">RECEIPT</text>${[70, 100, 130, 160].map((y) => `<rect x="20" y="${y}" width="${200 - (y % 3) * 30}" height="10" fill="#cbd5e1"/>`).join('')}<text x="20" y="250" font-size="22" fill="#0f172a">¥ ${Number(d.amount || 0).toLocaleString('ja-JP')}</text><text x="20" y="290" font-size="14" fill="#64748b">DUMMY ${dateKey()}</text></svg>`);
+  `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="320"><rect width="240" height="320" fill="#f8fafc" stroke="#cbd5e1"/><text x="20" y="40" font-size="16" fill="#334155">${d.store ?? 'RECEIPT'}</text>${[70, 100, 130, 160].map((y) => `<rect x="20" y="${y}" width="${200 - (y % 3) * 30}" height="10" fill="#cbd5e1"/>`).join('')}<text x="20" y="250" font-size="22" fill="#0f172a">¥ ${Number(d.amount || 0).toLocaleString('ja-JP')}</text><text x="20" y="290" font-size="14" fill="#64748b">DUMMY ${dateKey()}</text></svg>`);
 
 const DUMMY_ID = (label) =>
   'data:image/svg+xml;utf8,' +
@@ -537,8 +558,14 @@ const actions = {
   },
   // 経費
   'exp-type': (el) => set({ expDraft: { ...state.expDraft, type: el.dataset.value } }),
-  'exp-photo-dummy': () => set({ expDraft: { ...state.expDraft, photo: dummyReceipt(state.expDraft) } }),
-  'exp-photo-clear': () => set({ expDraft: { ...state.expDraft, photo: null } }),
+  'exp-photo-dummy': () => {
+    const sample = RECEIPT_SAMPLES[dummyReceiptSeq % RECEIPT_SAMPLES.length];
+    dummyReceiptSeq += 1;
+    set({ expDraft: { ...state.expDraft, photo: dummyReceipt({ amount: sample.amount, store: sample.store }) } });
+    readReceiptAi(sample);
+  },
+  'exp-photo-clear': () => { receiptToken += 1; set({ expDraft: { ...state.expDraft, photo: null, ai: null } }); },
+  'exp-ai-retry': () => { if (state.expDraft.photo) readReceiptAi(state.expDraft.ai?.sample ?? receiptSampleFor(state.expDraft.photo.length), { overwrite: true }); },
   'exp-submit': () => {
     const d = state.expDraft;
     if (!expenseReady(d) || !state.day) return;
@@ -610,7 +637,7 @@ document.addEventListener('change', (e) => {
   }
   if (el.dataset.expPhoto !== undefined && el.files[0]) {
     shrinkImage(el.files[0], 1000)
-      .then((img) => { set({ expDraft: { ...state.expDraft, photo: img } }); rerenderKeepScroll(); })
+      .then((img) => { set({ expDraft: { ...state.expDraft, photo: img } }); readReceiptAi(receiptSampleFor(img.length)); rerenderKeepScroll(); })
       .catch(() => showToast('画像を読み込めませんでした'));
   }
   if (el.dataset.action === 'brief-check') {

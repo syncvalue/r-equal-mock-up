@@ -172,7 +172,7 @@ export const expenseReady = (d) => Boolean(d.type && d.amount > 0 && d.photo && 
 
 export const blankStartForm = () => ({ counted: 0, countedSet: false, note: '', checks: {} });
 export const blankCloseForm = () => ({ counted: 0, countedSet: false, note: '', checks: {}, comment: '' });
-export const blankExpenseDraft = () => ({ type: '', amount: 0, memo: '', photo: null });
+export const blankExpenseDraft = () => ({ type: '', amount: 0, memo: '', photo: null, ai: null }); // ai: レシートのAI読み取りの状態
 
 // 本社画面の一覧用: 全営業の「今日」の状況
 export const todayRows = () => USERS.map((u) => {

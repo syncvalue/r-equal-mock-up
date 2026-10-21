@@ -64,7 +64,7 @@ function resultPanel(s, e, v) {
         ? `${row('結果', `<b>${esc(outcomeOf(v.outcome.type).label)}</b>${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}`)}
            ${v.outcome.memo ? row('メモ', `<span class="rounded bg-slate-50 px-2 py-1 block whitespace-pre-wrap">${esc(v.outcome.memo)}</span>`) : ''}
            <p class="text-xs text-slate-500">買取なし。業績には影響しません。</p>`
-        : `${row('買取', sold.length ? `<b class="text-xl text-teal-700">${yen(sold.reduce((n, i) => n + i.price, 0))}</b>　${sold.reduce((n, i) => n + i.qty, 0)}点` : '<span class="text-slate-500">買取なし</span>')}
+        : `${row('買取', sold.length ? `<div class="text-right"><b class="text-xl text-teal-700">${yen(sold.reduce((n, i) => n + i.price, 0))}</b>　${sold.reduce((n, i) => n + i.qty, 0)}点</div>` : '<span class="text-slate-500">買取なし</span>')}
            ${sold.length ? `<div class="rounded-lg border divide-y text-sm">${sold.map((i) => `<div class="flex justify-between gap-2 px-2 py-1"><span class="min-w-0 truncate">${esc(i.name)}<span class="text-xs text-slate-400"> ランク${esc(i.rank)}・${i.qty}点</span></span><b class="shrink-0">${yen(i.price)}</b></div>`).join('')}</div>` : ''}
            ${skipped.length ? `<div class="text-xs text-slate-400">見送り：${skipped.map((i) => esc(i.name)).join('、')}</div>` : ''}
            ${v.briefing?.propose ? row('他商品の提案', v.briefing.propose === 'yes' ? '提案してよい（お客様の回答）' : '提案は不要（お客様の回答）') : ''}

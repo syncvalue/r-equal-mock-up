@@ -204,13 +204,25 @@ export function workdayView(s) {
 }
 
 // ---- 経費管理 ---------------------------------------------------------------
-const stat = (label, val, cls = '') => `<div class="card !p-3 flex-1"><div class="text-xs text-slate-500">${label}</div><div class="text-2xl font-bold ${cls}">${val}</div></div>`;
+const stat = (label, val, cls = '') => `<div class="card !p-3 flex-1 text-right"><div class="text-xs text-slate-500">${label}</div><div class="text-2xl font-bold ${cls}">${val}</div></div>`;
+
+// レシートのAI読み取り（モック）の表示。読み取り結果は、必ず人が確認・修正する
+const aiBadge = (d, key) => (d.ai?.filled?.[key] ? '<span class="ml-1 rounded bg-slate-700 text-white text-[10px] font-bold px-1.5 py-0.5">AI</span>' : '');
+function aiStatus(ai) {
+  if (!ai) return '';
+  if (ai.status === 'reading') return '<div class="mt-2 rounded-lg bg-slate-100 p-2 text-sm font-bold animate-pulse">🤖 AIがレシートを読み取り中…</div>';
+  const low = ai.sample.confidence < 70;
+  return `<div class="mt-2 rounded-lg border-2 ${low ? 'border-amber-400 bg-amber-50' : 'border-slate-200'} p-2 text-sm flex items-center justify-between gap-2">
+    <span>${low ? '<b class="text-amber-800">⚠ 読み取りに自信がありません。金額を確認してください。</b>' : '🤖 読み取りました。内容を確認してください。'}<span class="block text-xs text-slate-500">${esc(ai.sample.store)} ／ ${yen(ai.sample.amount)} ／ 信頼度 ${ai.sample.confidence}%</span></span>
+    <button class="btn btn-secondary !min-h-[36px] !py-0 !px-3 text-xs shrink-0" data-action="exp-ai-retry">再読取</button></div>`;
+}
 
 // 計上ボタン（入力のたびに差し替え）
 export function expLiveView(s) {
   const d = s.expDraft;
-  const ok = expenseReady(d);
-  const hint = !d.type ? '種別を選んでください' : !(d.amount > 0) ? '金額を入力してください' : d.type === 'other' && !d.memo.trim() ? '内容（メモ）を入力してください' : !d.photo ? 'レシートの写真を添付してください' : '';
+  const reading = d.ai?.status === 'reading';
+  const ok = expenseReady(d) && !reading;
+  const hint = reading ? 'AIが読み取り中…' : !d.type ? '種別を選んでください' : !(d.amount > 0) ? '金額を入力してください' : d.type === 'other' && !d.memo.trim() ? '内容（メモ）を入力してください' : !d.photo ? 'レシートの写真を添付してください' : '';
   return `<button class="btn btn-primary w-full !py-3" data-action="exp-submit" ${ok ? '' : 'disabled'}>${ok ? '経費として計上する' : hint}</button>`;
 }
 
@@ -255,17 +267,18 @@ export function expenseView(s) {
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="expLedger">${ledgerRows(s)}</div></div>
       <div class="card !p-3 w-[26rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[55%] flex flex-col gap-2 min-h-0 overflow-y-auto" data-scroll="expForm">
         <h2 class="font-bold text-lg">➕ 経費を計上する</h2>
-        <div><div class="font-bold text-sm mb-1">種別</div><div class="grid grid-cols-3 gap-1.5">
-          ${EXPENSE_TYPES.map((t) => `<button class="chip !px-1 !py-1 flex flex-col items-center leading-tight ${d.type === t.key ? 'active' : ''}" data-action="exp-type" data-value="${t.key}"><span class="text-xl">${t.icon}</span><span class="text-xs">${t.label}</span></button>`).join('')}</div></div>
-        <label class="block"><span class="font-bold text-sm">金額</span>${moneyInputHtml({ attrs: 'data-wd="exp-amount"', value: d.amount, cls: 'field' })}</label>
-        <label class="block"><span class="font-bold text-sm">内容・メモ${d.type === 'other' ? '<span class="text-rose-600 ml-1">必須</span>' : '<span class="font-normal text-xs text-slate-500">（任意）</span>'}</span>
-          <input class="field !py-2 mt-1" data-wd="exp-memo" value="${esc(d.memo)}" placeholder="例: 大阪→堺 往復分" /></label>
-        <div><div class="font-bold text-sm mb-1">レシートの写真<span class="text-rose-600 ml-1">必須</span></div>
+        <div><div class="font-bold text-sm mb-1">① レシートを撮影<span class="text-rose-600 ml-1">必須</span></div>
           ${d.photo
-            ? `<div class="flex items-center gap-3"><img src="${d.photo}" alt="レシート" class="h-24 rounded-lg border" /><button class="btn btn-secondary !min-h-[44px] !py-1 !px-3 text-sm" data-action="exp-photo-clear">撮り直す</button></div>`
+            ? `<div class="flex items-center gap-3"><img src="${d.photo}" alt="レシート" class="h-24 rounded-lg border" /><button class="btn btn-secondary !min-h-[44px] !py-1 !px-3 text-sm" data-action="exp-photo-clear">撮り直す</button></div>${aiStatus(d.ai)}`
             : `<div class="grid grid-cols-2 gap-2">
-                <label class="btn btn-secondary !min-h-[56px] !py-2 !px-2 text-center text-base cursor-pointer flex items-center justify-center">📷 撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-exp-photo /></label>
+                <label class="btn btn-primary !min-h-[56px] !py-2 !px-2 text-center text-base cursor-pointer flex items-center justify-center">📷 撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-exp-photo /></label>
                 <button class="btn btn-secondary !min-h-[56px] !py-2 !px-2 text-base" data-action="exp-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>
+        <div class="text-xs font-bold text-slate-500 -mb-1">② 内容を確認（撮影すると、AIが自動入力します）</div>
+        <div><div class="font-bold text-sm mb-1">種別${aiBadge(d, 'type')}</div><div class="grid grid-cols-3 gap-1.5">
+          ${EXPENSE_TYPES.map((t) => `<button class="chip !px-1 !py-1 flex flex-col items-center leading-tight ${d.type === t.key ? 'active' : ''}" data-action="exp-type" data-value="${t.key}"><span class="text-xl">${t.icon}</span><span class="text-xs">${t.label}</span></button>`).join('')}</div></div>
+        <label class="block"><span class="font-bold text-sm">金額${aiBadge(d, 'amount')}</span>${moneyInputHtml({ attrs: 'data-wd="exp-amount"', value: d.amount, cls: 'field' })}</label>
+        <label class="block"><span class="font-bold text-sm">内容・メモ${aiBadge(d, 'memo')}${d.type === 'other' ? '<span class="text-rose-600 ml-1">必須</span>' : '<span class="font-normal text-xs text-slate-500">（任意）</span>'}</span>
+          <input class="field !py-2 mt-1" data-wd="exp-memo" value="${esc(d.memo)}" placeholder="例: 大阪→堺 往復分" /></label>
         <div id="exp-live">${expLiveView(s)}</div>
       </div>
     </div>

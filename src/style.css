@@ -26,7 +26,7 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
 .cam-corner { position: absolute; width: 44px; height: 44px; border-color: #fff; border-style: solid; border-width: 0; transition: border-color .2s; }
 
 /* 文字サイズ: 業務画面は小さめ、お客様に見せる画面（.cust）は高齢者を考慮して大きめ。タブレット（iPad Pro 11〜12.9インチ）の縦・横どちらでも使う */
-body { --tk: .875; }
+body { --tk: .875; font-variant-numeric: tabular-nums; } /* 数字は桁をそろえる */
 .cust { --tk: 1.12; }
 
 /* 色の整理: 基調はグレー＋緑（主な操作）。注意を表す赤・黄を目立たせるため、装飾的な青・紫・水色はグレーに寄せる（ライトモードのみ） */
