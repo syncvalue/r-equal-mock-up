@@ -1,6 +1,6 @@
 // 本社 査定部デスク画面（ダミー・PC想定）。営業の買取明細をリアルタイムで見て、依頼への回答や提案を行う。
 import {
-  AP_STORAGE_KEY, APPROVAL_KEY, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, COMMENT_TAGS, LIVE_KEY, clearEndedLive, loadAppraisals, loadComments, loadLive, newAppraisalId,
+  AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, COMMENT_TAGS, LIVE_KEY, clearEndedLive, loadAppraisals, loadComments, loadLive, newAppraisalId,
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
 import { RANKS } from '../src/data.js';
@@ -12,6 +12,7 @@ const $ = (s) => document.querySelector(s);
 let visitId = null;
 let sel = null; // { type: 'item' | 'req', id }
 let draft = { tag: '', text: '', price: '', rank: null, reason: '' }; // 営業への送信内容（コメント＋任意で提案査定額）
+let compose = null; // 営業へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 const TEMPLATES = ['状態良好のため上限で査定しました。', '傷・使用感があるため減額しています。', '写真だけでは判断できません。型番・シリアルの写真を追加で送ってください。'];
@@ -195,6 +196,28 @@ function detailPanel(v, aps, cs, approvals) {
   </div>`;
 }
 
+// 本社からのメッセージ（営業のダッシュボードに表示される）
+function composeModal() {
+  if (!compose) return '';
+  return `
+  <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4" data-compose-backdrop>
+    <div class="bg-white rounded-2xl w-full max-w-xl p-5 space-y-3">
+      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">📢 営業へのお知らせを送る</h2>
+        <button class="px-3 py-1 rounded border font-bold" data-compose-close>閉じる</button></div>
+      <p class="text-xs text-slate-500">営業のダッシュボードの「本社からのメッセージ」に表示されます。</p>
+      <label class="block font-bold text-sm">タイトル<input class="w-full border rounded px-3 py-2 mt-1 font-normal" data-m="title" value="${esc(compose.title)}" placeholder="例: 今月の買取強化商材について" /></label>
+      <label class="block font-bold text-sm">本文<textarea class="w-full border rounded px-3 py-2 mt-1 font-normal" rows="4" data-m="body" placeholder="お知らせの内容">${esc(compose.body)}</textarea></label>
+      <div class="flex flex-wrap items-center gap-4">
+        <label class="flex items-center gap-2 font-bold"><input type="checkbox" class="w-5 h-5" data-m-important ${compose.important ? 'checked' : ''} />重要として送る</label>
+        <label class="flex items-center gap-2 font-bold text-sm">宛先
+          <select class="border rounded px-2 py-1 font-normal" data-m="target">
+            ${[['all', '全員'], ['A', 'グループA'], ['B', 'グループB']].map(([v, l]) => `<option value="${v}" ${compose.target === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      </div>
+      <button class="w-full bg-indigo-700 text-white font-bold rounded py-3" data-compose-send>送信する</button>
+    </div>
+  </div>`;
+}
+
 function render() {
   const visits = visitsSorted();
   const aps = loadAppraisals();
@@ -206,7 +229,7 @@ function render() {
   $('#root').innerHTML = `
   <header class="bg-indigo-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">本社 査定部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
+    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
   <div class="grid grid-cols-[19rem_1fr_26rem] h-[calc(100vh-52px)]">
     <aside class="bg-white border-r overflow-y-auto">
@@ -224,7 +247,7 @@ function render() {
       ${itemsTable(v, aps, cs, approvals)}` : '<p class="text-slate-400 p-10 text-center">左の一覧から訪問を選択してください</p>'}
     </main>
     <aside class="bg-slate-50 border-l p-4 overflow-y-auto">${detailPanel(v, aps, cs, approvals)}</aside>
-  </div>`;
+  </div>${composeModal()}`;
   dirty = false;
 }
 
@@ -269,8 +292,16 @@ function send(itemId) {
 }
 
 document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-compose-backdrop]') && e.target.matches('[data-compose-backdrop]')) { compose = null; render(); return; }
   const t = e.target.closest('button, tr[data-item]');
   if (!t) return;
+  if ('composeOpen' in t.dataset) { compose = { title: '', body: '', important: false, target: 'all' }; render(); return; }
+  if ('composeClose' in t.dataset) { compose = null; render(); return; }
+  if ('composeSend' in t.dataset) {
+    if (!compose.title.trim() || !compose.body.trim()) return alert('タイトルと本文を入力してください');
+    sendMessage({ id: `msg-${Date.now().toString(36)}`, title: compose.title.trim(), body: compose.body.trim(), important: compose.important, target: compose.target, sender: '本社 査定部', sentAt: Date.now() });
+    compose = null; render(); return;
+  }
   if (t.dataset.visit) { visitId = t.dataset.visit; sel = null; draft = emptyDraft(); }
   else if (t.dataset.item) { sel = { type: 'item', id: t.dataset.item }; draft = emptyDraft(); }
   else if (t.dataset.req) { sel = { type: 'req', id: t.dataset.req }; draft = emptyDraft(); }
@@ -291,7 +322,12 @@ document.addEventListener('click', (e) => {
   else return;
   render();
 });
+document.addEventListener('change', (e) => {
+  if (compose && e.target.matches('[data-m-important]')) compose = { ...compose, important: e.target.checked };
+  if (compose && e.target.dataset.m === 'target') compose = { ...compose, target: e.target.value };
+});
 document.addEventListener('input', (e) => {
+  if (compose && e.target.dataset.m && e.target.dataset.m !== 'target') { compose = { ...compose, [e.target.dataset.m]: e.target.value }; return; }
   if (e.target.dataset.f === 'price') {
     // 金額は3桁区切りで表示し、内部では数字のみ保持する（ランク選択欄の出し入れのため、入力有無が変わる時だけ再描画）
     const had = Boolean(draft.price);
@@ -306,7 +342,7 @@ window.addEventListener('storage', (e) => {
   if (isEditing()) dirty = true;
   else render();
 });
-const isEditing = () => Boolean(document.activeElement?.dataset?.f);
+const isEditing = () => Boolean(document.activeElement?.dataset?.f || document.activeElement?.dataset?.m);
 document.addEventListener('focusout', () => { if (dirty) setTimeout(() => !isEditing() && render(), 0); });
 
 setInterval(() => {

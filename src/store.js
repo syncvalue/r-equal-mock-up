@@ -92,7 +92,7 @@ export const COMMENT_TAGS = ['安すぎる', '高すぎる', '要再確認', '�
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
 };
 
@@ -145,4 +145,35 @@ export const loadEvals = () => {
 export const upsertEval = (record) => {
   const list = loadEvals();
   localStorage.setItem(EVAL_KEY, JSON.stringify(list.some((e) => e.visitId === record.visitId) ? list.map((e) => (e.visitId === record.visitId ? record : e)) : [record, ...list]));
+};
+
+// 本社からのメッセージ（お知らせ）。本社画面から送信し、営業のダッシュボードに表示する
+export const MSG_KEY = 'rq-mock-messages';
+const READ_KEY = 'rq-mock-messages-read';
+
+export const loadMessages = () => {
+  try {
+    return JSON.parse(localStorage.getItem(MSG_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+};
+export const sendMessage = (m) => localStorage.setItem(MSG_KEY, JSON.stringify([m, ...loadMessages()]));
+
+// 既読は、ユーザーごとに保存する
+export const loadReadIds = (userId) => {
+  try {
+    return (JSON.parse(localStorage.getItem(READ_KEY)) ?? {})[userId] ?? [];
+  } catch {
+    return [];
+  }
+};
+export const markRead = (userId, ids) => {
+  try {
+    const all = JSON.parse(localStorage.getItem(READ_KEY)) ?? {};
+    all[userId] = [...new Set([...(all[userId] ?? []), ...ids])];
+    localStorage.setItem(READ_KEY, JSON.stringify(all));
+  } catch {
+    // 保存できなくても動作は継続（モック）
+  }
 };

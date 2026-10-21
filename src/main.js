@@ -3,12 +3,13 @@ import { loadRecent, pushRecent } from './search.js';
 import { estimateByPhotos } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
-  AP_STORAGE_KEY, APPROVAL_KEY, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
+  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
 import { initTheme } from './theme.js';
 import { userById } from './dashboard.js';
+import { messagesFor } from './messages.js';
 import { EVENTS, eventById } from './schedule.js';
 import { formatMoneyInput } from './moneyInput.js';
 
@@ -19,7 +20,8 @@ function callInfoOf(ev, userId) {
 
 const initialState = () => ({
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
-  view: 'schedule',
+  view: 'dashboard',
+  msgOpen: null,
   user: 'u01',
   dash: { period: 'month', scope: 'me', member: null },
   menuOpen: false,
@@ -195,6 +197,13 @@ const actions = {
     const { [el.dataset.key]: _removed, ...rest } = state.labels;
     set({ labels: rest, labelError: null });
   },
+  // 本社からのメッセージ: タップで本文を開閉し、開いたものは既読にする
+  'msg-toggle': (el) => {
+    const id = el.dataset.id;
+    set({ msgOpen: state.msgOpen === id ? null : id });
+    markRead(state.user, [id]);
+  },
+  'msg-read-all': () => markRead(state.user, messagesFor(userById(state.user)).map((m) => m.id)),
   'dash-period': (el) => set({ dash: { ...state.dash, period: el.dataset.value } }),
   'dash-scope': (el) => set({ dash: { ...state.dash, scope: el.dataset.value, member: null } }),
   'dash-member': (el) => set({ dash: { ...state.dash, scope: 'member', member: el.dataset.id } }),
@@ -465,6 +474,11 @@ function rerenderKeepScroll() {
 
 // 本社(別タブ)からの回答を受信
 window.addEventListener('storage', (e) => {
+  if (e.key === MSG_KEY) {
+    showToast('📢 本社からメッセージが届きました');
+    rerenderKeepScroll();
+    return;
+  }
   if (e.key === APPROVAL_KEY) {
     const decided = (l) => l.filter((a) => a.visitId === state.visitId && a.status !== '待ち').length;
     if (decided(loadApprovals()) > decided(state.approvals)) showToast('✅ 査定部から承認の結果が届きました');

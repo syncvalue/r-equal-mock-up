@@ -4,6 +4,7 @@ import { approvalState, latestApproval } from './store.js';
 import { themeToggleHtml } from './theme.js';
 import { roleLabel, userById } from './dashboard.js';
 import { eventById } from './schedule.js';
+import { unreadCount } from './messages.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '買取明細', '取捨選択', 'シール紐づけ', 'GMOサイン送信・訪問終了'];
@@ -56,9 +57,9 @@ const itemWarn = (s, itemId) =>
 
 // ---- メインメニュー（開閉式ドロワー）。機能の中身は準備中 -------------------------------
 export const MENU = [
+  { key: 'dashboard', icon: '📊', label: 'ダッシュボード', sub: '本社からのお知らせ・業績の確認' },
   { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
   { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
-  { key: 'dashboard', icon: '📊', label: 'ダッシュボード', sub: '業績の確認（個人・グループ）' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: 'ガソリン代・買取用の現金',
     plan: ['ガソリン代・高速代・駐車場の記録（レシート撮影）', 'お客様への支払い用現金の出し入れと残高', '買取金額の支払い記録と、日次の精算', '日報への自動集計'] },
   { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品の引き渡し',
@@ -87,6 +88,7 @@ export function menuView(s) {
           <span class="text-3xl">${m.icon}</span>
           <span class="flex-1"><span class="block font-bold text-lg leading-tight">${m.label}</span><span class="text-xs text-slate-300">${m.sub}</span></span>
           ${m.key === 'visit' && visiting ? `<span class="text-xs font-bold rounded-full bg-emerald-500 px-2 py-0.5">訪問中</span>` : ''}
+          ${m.key === 'dashboard' && unreadCount(userById(s.user)) ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5">未読 ${unreadCount(userById(s.user))}</span>` : ''}
           ${m.plan ? '<span class="text-xs text-slate-400">準備中</span>' : ''}
         </button>`).join('')}
       </div>
