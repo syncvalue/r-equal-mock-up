@@ -58,3 +58,7 @@ html.dark .border-rose-200 { border-color: rgba(244, 63, 94, .4); }
 html.dark .border-sky-200, html.dark .border-indigo-200 { border-color: #2f405a; }
 html.dark textarea, html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { background-color: #0f172a; color: #e2e8f0; border-color: #2f405a; }
 html.dark .fill-slate-500 { fill: #94a3b8; } html.dark .stroke-slate-300 { stroke: #2f405a; }
+
+/* ダッシュボードのメッセージ欄の「他○件あります」表示 */
+html.dark [data-msgmore] { background-image: linear-gradient(to top, #172236, rgba(23, 34, 54, .9), transparent); }
+html.dark [data-msgmore] span { color: #cbd5e1; }

@@ -95,8 +95,8 @@ function detailPanel(s) {
     ${visiting ? '<p class="text-xs text-amber-700 font-bold">現在、別の訪問中です。終了後に、新しい訪問を開始できます。</p>' : ''}
     <button class="btn btn-primary w-full !py-3" data-action="start-from-event" data-id="${e.id}" ${visiting ? 'disabled' : ''}>▶ この訪問を開始（現地買取へ）</button>
     <div class="grid grid-cols-2 gap-2">
-      <button class="btn btn-secondary !py-2 !min-h-[48px]" data-action="route-for" data-day="${e.day}" data-id="${e.id}">🚗 ルート確認</button>
-      <a class="btn btn-secondary !py-2 !min-h-[48px] text-center flex items-center justify-center" target="_blank" rel="noopener" href="${esc(mapOpenUrl(OFFICE, [e]))}">🗺 マップで開く</a>
+      <button class="btn btn-secondary !py-2 !px-2 !min-h-[48px] whitespace-nowrap text-sm" data-action="route-for" data-day="${e.day}" data-id="${e.id}">🚗 ルート確認</button>
+      <a class="btn btn-secondary !py-2 !px-2 !min-h-[48px] whitespace-nowrap text-sm text-center flex items-center justify-center" target="_blank" rel="noopener" href="${esc(mapOpenUrl(OFFICE, [e]))}">🗺 マップで開く</a>
     </div>
   </div>`;
 }

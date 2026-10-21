@@ -77,7 +77,8 @@ function messagesCard(user) {
       <h3 class="font-bold">📢 本社からのメッセージ ${unread ? `<span class="ml-1 text-xs rounded-full bg-rose-600 text-white px-2 py-0.5">未読 ${unread}</span>` : '<span class="ml-1 text-xs text-slate-400">すべて既読</span>'}
 </h3>
       ${unread ? '<button class="text-xs underline text-slate-500" data-action="msg-read-all">すべて既読にする</button>' : ''}</div>
-    <div class="space-y-1.5 max-h-[102px] overflow-y-auto" data-scroll="msgs">
+    <div class="relative">
+    <div class="space-y-1.5 max-h-[102px] overflow-y-auto" data-scroll="msgs" data-msgs>
       ${msgs.length ? msgs.map((m) => {
         const isRead = read.has(m.id);
         return `<button class="w-full h-12 flex items-center gap-2 text-left rounded-xl border-2 px-3 ${m.important ? 'border-rose-300' : 'border-slate-200'} ${isRead ? '' : 'bg-amber-50'}" data-action="msg-open" data-id="${m.id}">
@@ -86,6 +87,8 @@ function messagesCard(user) {
           <span class="font-bold flex-1 truncate ${isRead ? 'font-normal' : ''}">${esc(m.title)}</span>
           <span class="text-xs text-slate-400 shrink-0">${fmtDateTime(m.sentAt).replace(/:\d+$/, '')}</span></button>`;
       }).join('') : '<p class="text-slate-400 text-center py-3">メッセージはありません</p>'}
+    </div>
+    ${msgs.length > 2 ? `<div data-msgmore class="absolute inset-x-0 bottom-0 h-9 flex items-end justify-center pointer-events-none bg-gradient-to-t from-white via-white/90 to-transparent"><span class="text-xs font-bold text-slate-600 pb-0.5">▼ 他${msgs.length - 2}件あります（下へスクロール）</span></div>` : ''}
     </div>
   </div>`;
 }

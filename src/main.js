@@ -172,6 +172,7 @@ function render() {
     V.scanView(state) +
     V.menuView(state);
   document.querySelectorAll('[data-scroll]').forEach((e) => { e.scrollTop = scrolls[e.dataset.scroll] ?? 0; });
+  document.querySelectorAll('[data-msgs]').forEach((e) => e.dispatchEvent(new Event('scroll', { bubbles: true }))); // 「他○件あります」の表示を、スクロール位置に合わせる
   publish();
   if (state.modal?.type === 'item') {
     const it = state.items.find((i) => i.id === state.modal.id);
@@ -773,6 +774,13 @@ window.addEventListener('storage', (e) => {
   // 下書き入力中は再描画しない（フォーカスが外れるため）
   if (!document.activeElement?.dataset?.draft) rerenderKeepScroll();
 });
+
+// 本社からのメッセージ: 3件目以降があることを示す表示は、一番下までスクロールしたら消す
+document.addEventListener('scroll', (e) => {
+  if (e.target.dataset?.msgs === undefined) return;
+  const more = e.target.parentElement.querySelector('[data-msgmore]');
+  more?.classList.toggle('hidden', e.target.scrollTop + e.target.clientHeight >= e.target.scrollHeight - 4);
+}, true);
 
 // 認証コードの再送ボタンの待ち時間を、入力中の画面を再描画せずに更新する
 setInterval(() => {
