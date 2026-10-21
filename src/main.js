@@ -39,7 +39,7 @@ const firstEventOf = (userId) => (userId && eventsOfDay(0, userId)[0]) || EVENTS
 const initialState = () => ({
   auth: blankAuth(),
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
-  view: phaseOf(loadDay(loadSession() ?? '')) === 'open' ? 'dashboard' : 'workday', // 始業前は、始業開始画面が初期画面
+  view: phaseOf(loadDay(loadSession() ?? '')) === 'before' ? 'workday' : 'dashboard', // 初期画面: 未ログイン→ログイン、始業前→始業開始、始業済み→ダッシュボード
   user: loadSession(), // 未ログインなら null（ログイン画面を表示）
   day: null,
   phase: 'before',
