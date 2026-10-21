@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/honsha", "destination": "/honsha/index.html" },
+    { "source": "/gmosign", "destination": "/gmosign/index.html" }
+  ]
+}
