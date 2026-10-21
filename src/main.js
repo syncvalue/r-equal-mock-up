@@ -16,6 +16,10 @@ import {
   START_CHECKS, END_CHECKS, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
   newId, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady,
 } from './workday.js';
+import {
+  loadUnits, saveUnits, unitsFromVisit, addUnits, byUser, inScope, pendingOf, receive, markMissing, resultMessage, demoUnits,
+} from './stock.js';
+import { DEFAULT_STOCK } from './stockView.js';
 
 // 予定（訪問）から、コールセンター受付情報の表示用データを作る
 function callInfoOf(ev, userId) {
@@ -31,6 +35,8 @@ const initialState = () => ({
   startForm: blankStartForm(),
   closeForm: blankCloseForm(),
   expDraft: blankExpenseDraft(),
+  units: [],
+  stock: { ...DEFAULT_STOCK },
   dash: { period: 'month', scope: 'me', member: null },
   menuOpen: false,
   step: 0,
@@ -128,7 +134,7 @@ function publish() {
 function render() {
   const day = loadDay(state.user);
   const phase = phaseOf(day);
-  set({ day, phase });
+  set({ day, phase, units: loadUnits() });
   // 始業するまで（終業後も）、始業・終業の画面以外は使えない
   if (phase !== 'open' && state.view !== 'workday') set({ view: 'workday', modal: null });
   set({ appraisals: loadAppraisals(), comments: loadComments().filter((c) => c.visitId === state.visitId),
@@ -137,7 +143,7 @@ function render() {
   const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
   $('#app').innerHTML =
     V.headerView(state) +
-    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : V.placeholderView(state)}</main>` +
+    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : state.view === 'return' ? V.stockView(state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
     V.modalView(state) +
     V.receiptModalView(state) +
@@ -190,6 +196,42 @@ function assignLabel(key, raw) {
 
 let scanToken = 0;
 
+// シールNo.（読取・入力）を入庫する。結果は画面に表示する
+function receiveCode(raw) {
+  const { list, result } = receive(loadUnits(), state.user, raw, { location: state.stock.location, by: userById(state.user).name });
+  if (result.type === 'ok' && !saveUnits(list)) {
+    showToast('入庫を保存できませんでした（保存容量不足）');
+    return result;
+  }
+  set({ stock: { ...state.stock, last: resultMessage(result) } });
+  return result;
+}
+
+function submitStockCode() {
+  const input = $('#stock-code');
+  if (!input) return;
+  receiveCode(input.value);
+  input.value = '';
+}
+
+function stockScanStep(token) {
+  setTimeout(() => {
+    if (token !== scanToken) return;
+    const todo = pendingOf(inScope(byUser(loadUnits(), state.user), state.stock.scope));
+    if (!todo.length) { set({ scan: { ...state.scan, status: 'empty', left: 0 } }); rerenderKeepScroll(); return; }
+    const unit = todo[0];
+    set({ scan: { ...state.scan, status: 'found', code: unit.code, name: unit.name, left: todo.length } });
+    rerenderKeepScroll();
+    setTimeout(() => {
+      if (token !== scanToken) return;
+      receiveCode(unit.code);
+      set({ scan: { ...state.scan, status: 'scanning', code: '', stored: state.scan.stored + 1, left: todo.length - 1 } });
+      rerenderKeepScroll();
+      stockScanStep(token);
+    }, 1000);
+  }, 1800);
+}
+
 const actions = {
   // QR読取（モック）: カメラ画面を出し、少し待ってから読取成功 → 紐づけ
   'dummy-scan': (el) => {
@@ -239,7 +281,7 @@ const actions = {
     const ev = eventById(el.dataset.id);
     if (!ev) return;
     if (state.visitStartedAt && !state.visitEndedAt) { showToast('現在、訪問中です。終了してから新しい訪問を開始してください'); return; }
-    const keep = { user: state.user, dash: state.dash, sched: state.sched, route: state.route, geo: state.geo };
+    const keep = { user: state.user, dash: state.dash, sched: state.sched, route: state.route, geo: state.geo, stock: state.stock };
     state = {
       ...initialState(), ...keep, view: 'visit', visitEventId: ev.id,
       customer: { ...ev.customer }, callInfo: callInfoOf(ev, state.user),
@@ -359,6 +401,9 @@ const actions = {
     if (day && !saveDay(recordVisit(day, { visitId: state.visitId, customerName: state.customer.name, itemCount: sel.reduce((n, i) => n + i.qty, 0), total: V.total(sel) }))) {
       showToast('買取代金を経費に計上できませんでした（保存容量不足）');
     }
+    // 持ち帰り（入庫）の対象として、シールを貼った実物を1点ずつ登録する
+    const units = unitsFromVisit({ visitId: state.visitId, userId: state.user, customerName: state.customer.name, slots: V.labelSlots(state), labels: state.labels });
+    if (!saveUnits(addUnits(loadUnits(), units))) showToast('持ち帰り商品を登録できませんでした（保存容量不足）');
   },
   // 始業・終業
   'wd-start': () => {
@@ -379,6 +424,26 @@ const actions = {
   'wd-demo-close': () => set({
     closeForm: { ...state.closeForm, counted: summaryOf(state.day, state.user).balance, countedSet: true, checks: Object.fromEntries(END_CHECKS.map((c) => [c.key, true])) },
   }),
+  // 商品の持ち帰り（入庫）
+  'stock-tab': (el) => set({ stock: { ...state.stock, tab: el.dataset.value } }),
+  'stock-scope': (el) => set({ stock: { ...state.stock, scope: el.dataset.value, last: null } }),
+  'stock-loc': (el) => set({ stock: { ...state.stock, location: el.dataset.value } }),
+  'stock-submit': () => submitStockCode(),
+  'stock-missing': (el) => {
+    if (!confirm('この商品を「所在不明」として報告します。よろしいですか？\n（後でシールを読み取れば、入庫できます）')) return;
+    if (!saveUnits(markMissing(loadUnits(), el.dataset.code))) showToast('保存できませんでした（保存容量不足）');
+  },
+  'stock-demo-add': () => {
+    if (!saveUnits(demoUnits(state.user, loadUnits()))) showToast('保存できませんでした（保存容量不足）');
+  },
+  // 連続QR読取（モック）: 入庫待ちのシールを順に読み取り、入庫する。「完了」で終了
+  'stock-scan': () => {
+    const todo = pendingOf(inScope(byUser(loadUnits(), state.user), state.stock.scope));
+    if (!todo.length) return;
+    scanToken += 1;
+    set({ scan: { mode: 'stock', status: 'scanning', code: '', name: '', stored: 0, left: todo.length, location: state.stock.location } });
+    stockScanStep(scanToken);
+  },
   // 経費
   'exp-type': (el) => set({ expDraft: { ...state.expDraft, type: el.dataset.value } }),
   'exp-photo-dummy': () => set({ expDraft: { ...state.expDraft, photo: dummyReceipt(state.expDraft) } }),
@@ -427,6 +492,13 @@ document.addEventListener('click', (e) => {
   if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
   if (el.dataset.action === 'close-backdrop' && e.target !== el) return;
   actions[el.dataset.action]?.(el, e);
+  rerenderKeepScroll();
+});
+// スキャナ（キーボード入力として動作）・手入力のシールNo.は、Enterで入庫
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.target.dataset.stockCode === undefined) return;
+  e.preventDefault();
+  submitStockCode();
   rerenderKeepScroll();
 });
 document.addEventListener('change', (e) => {
@@ -562,6 +634,7 @@ function rerenderKeepScroll() {
   render();
   window.scrollTo(0, y);
   if (active === 'search') $('#search')?.focus();
+  if (active === 'stock-code') $('#stock-code')?.focus();
 }
 
 // 本社(別タブ)からの回答を受信

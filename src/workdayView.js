@@ -2,6 +2,7 @@
 import { esc, yen, fmtTime } from './format.js';
 import { moneyInputHtml } from './moneyInput.js';
 import { userById } from './dashboard.js';
+import { pendingCount } from './stockView.js';
 import {
   START_CHECKS, END_CHECKS, EXPENSE_TYPES, typeOf, carryoverFor, summaryOf, closeDiff, startReady, closeReady, expenseReady, dateKey,
 } from './workday.js';
@@ -129,6 +130,14 @@ function reportCard(s, day) {
   </div>`;
 }
 
+// 未入庫の買取商品があるときの案内（まとめて翌日以降に入庫してもよい）
+const stockNotice = (s) => {
+  const n = pendingCount(s);
+  return n
+    ? `<div class="rounded-xl bg-amber-50 border-2 border-amber-400 p-2 text-sm text-amber-800 flex items-center gap-2"><span class="flex-1">📦 倉庫に入庫していない買取商品が <b>${n}点</b> あります（持ち越しも可）。</span><button class="btn btn-secondary !min-h-[40px] !py-1 !px-3 !text-sm" data-action="nav" data-value="return">入庫へ</button></div>`
+    : '';
+};
+
 // ---- 終業（日報のプレビュー ＋ 終業手続き） ---------------------------------------
 function closeScreen(s) {
   const day = s.day;
@@ -153,6 +162,7 @@ function closeScreen(s) {
         <label class="block"><span class="font-bold text-sm">差異の理由<span class="font-normal text-xs text-slate-500">（ずれがある場合は必須）</span></span>
           <textarea class="field !py-2 mt-1" rows="2" data-wd="close-note" placeholder="例: 駐車場代のレシートを紛失">${esc(form.note)}</textarea></label>
       </div>
+      ${stockNotice(s)}
       <div class="space-y-1.5">
         <div class="flex items-center justify-between"><b>終業点検</b><span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${END_CHECKS.length - left} / ${END_CHECKS.length}</span></div>
         ${END_CHECKS.map((c) => checkRow(form, c, false)).join('')}</div>

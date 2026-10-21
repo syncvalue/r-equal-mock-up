@@ -32,7 +32,7 @@ export const START_CHECKS = [
 // 終業時の点検項目
 export const END_CHECKS = [
   { key: 'receipt', text: '今日の経費は、すべてレシート付きで計上した' },
-  { key: 'goods', text: '買取商品の持ち帰り・引き渡しを済ませた' },
+  { key: 'goods', text: '買取商品の入庫（倉庫への保管）を済ませた、または未入庫分を引き継いだ' },
   { key: 'contract', text: '契約書・書類を整理し、紛失がない' },
   { key: 'car', text: '車両・タブレットの片付け、充電をした' },
 ];

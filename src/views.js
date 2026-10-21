@@ -5,6 +5,7 @@ import { themeToggleHtml } from './theme.js';
 import { roleLabel, userById } from './dashboard.js';
 import { eventById } from './schedule.js';
 import { messagesFor, unreadCount } from './messages.js';
+import { pendingCount } from './stockView.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '買取明細', '取捨選択', 'シール紐づけ', 'GMOサイン送信・訪問終了'];
@@ -62,8 +63,7 @@ export const MENU = [
   { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
   { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: '所持金・経費の計上（レシート撮影）' },
-  { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品の引き渡し',
-    plan: ['買取商品の一覧（シールNo.ごと）', 'シールのQR読取による持ち帰りチェック', '拠点への引き渡し・受領の記録', '未確認・紛失の検知'] },
+  { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品のQR読取・倉庫への入庫' },
 ];
 
 const menuBadge = (s) =>
@@ -95,7 +95,7 @@ export function menuView(s) {
           ${isLocked(s, m) ? '<span class="text-lg">🔒</span>' : ''}
           ${m.key === 'visit' && visiting ? `<span class="text-xs font-bold rounded-full bg-emerald-500 px-2 py-0.5">訪問中</span>` : ''}
           ${m.key === 'dashboard' && unreadCount(userById(s.user)) ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5">未読 ${unreadCount(userById(s.user))}</span>` : ''}
-          ${m.plan ? '<span class="text-xs text-slate-400">準備中</span>' : ''}
+          ${m.key === 'return' && pendingCount(s) ? `<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">入庫待ち ${pendingCount(s)}</span>` : ''}
         </button>`).join('')}
       </div>
       <div class="px-5 py-3 text-xs text-slate-400 border-t border-white/10">${esc(userById(s.user).name)}（${roleLabel(userById(s.user))}）</div>
@@ -372,7 +372,8 @@ function fakeQr(code) {
 // QR読取のカメラ画面（モック）。タブレットのカメラが起動しているように見せる
 export function scanView(s) {
   if (!s.scan) return '';
-  const slot = labelSlots(s).find((x) => x.key === s.scan.key);
+  const stock = s.scan.mode === 'stock';
+  const slot = stock ? null : labelSlots(s).find((x) => x.key === s.scan.key);
   const found = s.scan.status === 'found';
   const col = found ? '#22c55e' : '#fff';
   const corner = (pos) => `<span class="cam-corner" style="${pos};border-color:${col}"></span>`;
@@ -380,8 +381,10 @@ export function scanView(s) {
   <div class="fixed inset-0 z-[70] bg-black text-white flex flex-col" role="dialog" aria-label="QRコード読み取り">
     <div class="flex items-center justify-between px-5 py-3 bg-black/70 z-10">
       <div class="flex items-center gap-3"><span class="inline-block w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span><span class="font-bold">カメラ起動中</span></div>
-      <div class="text-center leading-tight"><div class="font-bold">${esc(slot?.item.name ?? '')}${slot && slot.item.qty > 1 ? `（${slot.n}/${slot.item.qty}個目）` : ''}</div><div class="text-xs text-slate-300">貼付したシールのQRコードを読み取ります</div></div>
-      <button class="rounded-xl border-2 border-white/50 px-5 min-h-[44px] font-bold" data-action="scan-cancel">キャンセル</button>
+      <div class="text-center leading-tight">${stock
+        ? `<div class="font-bold">入庫 ${s.scan.stored} 点／残り ${s.scan.left} 点</div><div class="text-xs text-slate-300">保管場所: ${esc(s.scan.location)}</div>`
+        : `<div class="font-bold">${esc(slot?.item.name ?? '')}${slot && slot.item.qty > 1 ? `（${slot.n}/${slot.item.qty}個目）` : ''}</div><div class="text-xs text-slate-300">貼付したシールのQRコードを読み取ります</div>`}</div>
+      <button class="rounded-xl border-2 border-white/50 px-5 min-h-[44px] font-bold" data-action="scan-cancel">${stock ? '完了' : 'キャンセル'}</button>
     </div>
     <div class="relative flex-1 overflow-hidden">
       <div class="absolute inset-[-6%] cam-bg"></div>
@@ -392,12 +395,14 @@ export function scanView(s) {
           ${corner('top:0;right:0;border-top-width:6px;border-right-width:6px;border-top-right-radius:14px')}
           ${corner('bottom:0;left:0;border-bottom-width:6px;border-left-width:6px;border-bottom-left-radius:14px')}
           ${corner('bottom:0;right:0;border-bottom-width:6px;border-right-width:6px;border-bottom-right-radius:14px')}
-          ${found ? '' : '<div class="cam-line"></div>'}
+          ${found || s.scan.status === 'empty' ? '' : '<div class="cam-line"></div>'}
         </div>
       </div>
       <div class="absolute inset-x-0 bottom-6 flex justify-center">
-        ${found
-          ? `<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ 読み取りました</div><div class="font-mono text-2xl tracking-wider">${esc(s.scan.code)}</div></div>`
+        ${s.scan.status === 'empty'
+          ? '<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">🎉 対象の商品をすべて入庫しました</div><div class="text-sm">「完了」を押してください</div></div>'
+          : found
+          ? `<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ ${stock ? `入庫しました（${esc(s.scan.name)}）` : '読み取りました'}</div><div class="font-mono text-2xl tracking-wider">${esc(s.scan.code)}</div></div>`
           : '<div class="rounded-full bg-black/60 px-5 py-2 text-lg">QRコードを枠内に合わせてください</div>'}
       </div>
     </div>
@@ -778,3 +783,4 @@ export { masterBodyView } from './masterView.js';
 export { dashboardView } from './dashboardView.js';
 export { scheduleView } from './scheduleView.js';
 export { workdayView, expenseView, receiptModalView } from './workdayView.js';
+export { stockView } from './stockView.js';
