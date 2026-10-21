@@ -69,6 +69,10 @@ export const PROPOSE_OPTIONS = [
   { value: 'yes', label: '提案してよい', sub: 'ご依頼商品以外の、買取可能な商品もご案内できます', cls: 'border-teal-600 bg-teal-50' },
   { value: 'no', label: '提案は不要', sub: 'ご依頼いただいた商品のみ、査定します', cls: 'border-slate-500 bg-slate-100' },
 ];
+const briefingHint = (s) => {
+  const left = BRIEFING_CHECKS.filter((c) => !s.briefing.checks[c.key]).length;
+  return left ? `説明事項があと${left}項目、未チェックです` : 'お客様のご回答（提案の可否）を選んでください';
+};
 export const briefingDone = (s) => BRIEFING_CHECKS.every((c) => s.briefing.checks[c.key]) && Boolean(s.briefing.propose);
 
 // ---- メインメニュー（開閉式ドロワー）。機能の中身は準備中 -------------------------------
@@ -187,7 +191,7 @@ export function canProceed(s) {
 const hint = (s) =>
   ({
     1: 'お客様の確認を行ってください（氏名・電話番号は必須）',
-    2: '説明事項をすべて説明してチェックし、お客様のご回答を選んでください',
+    2: briefingHint(s),
     3: '商品を1点以上追加し、査定金額を入力してください',
     4: '買取するすべての商品に、査定部の承認が必要です（承認待ち）',
     5: 'すべての商品にシールのQRコードを紐づけてください',
@@ -271,12 +275,12 @@ export function briefingView(s) {
   const left = BRIEFING_CHECKS.filter((c) => !b.checks[c.key]).length;
   return `
   <section class="${SEC} flex items-center justify-center">
-    <div class="card w-full max-w-4xl space-y-3 !p-4 max-h-full flex flex-col">
+    <div class="card w-full max-w-4xl space-y-2 !p-4 max-h-full overflow-y-auto" data-scroll="briefing">
       <div class="flex justify-between items-baseline"><h2 class="text-2xl font-bold">査定前の説明事項</h2>
         <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${BRIEFING_CHECKS.length - left} / ${BRIEFING_CHECKS.length}</span></div>
       <p class="text-slate-600 text-sm">お客様にご説明し、説明したものにチェックしてください。完了すると、査定に進めます。</p>
-      <div class="space-y-1.5 overflow-y-auto min-h-0" data-scroll="briefing">
-        ${BRIEFING_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-2 min-h-[52px] cursor-pointer ${b.checks[c.key] ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'}">
+      <div class="space-y-1.5">
+        ${BRIEFING_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-1.5 min-h-[46px] cursor-pointer ${b.checks[c.key] ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'}">
           <input type="checkbox" class="w-7 h-7 shrink-0" data-action="brief-check" data-key="${c.key}" ${b.checks[c.key] ? 'checked' : ''} />
           <span class="flex-1 ${b.checks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`).join('')}
       </div>
