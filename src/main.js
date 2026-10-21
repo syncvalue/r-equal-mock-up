@@ -336,10 +336,13 @@ const actions = {
           },
     );
   },
-  'remove-item': (el) => set({ items: state.items.filter((i) => i.id !== el.dataset.id), modal: null }),
+  'remove-item': (el) => set({ items: state.items.filter((i) => i.id !== el.dataset.id), labels: Object.fromEntries(Object.entries(state.labels).filter(([k]) => !k.startsWith(`${el.dataset.id}-`))), modal: null }),
   qty: (el) => {
     const item = state.items.find((i) => i.id === el.dataset.id);
-    updateItems(item.id, { qty: Math.max(1, item.qty + Number(el.dataset.delta)) });
+    const qty = Math.max(1, item.qty + Number(el.dataset.delta));
+    updateItems(item.id, { qty });
+    // 個数を減らしたら、なくなる分のシールの紐づけも外す
+    set({ labels: Object.fromEntries(Object.entries(state.labels).filter(([k]) => !k.startsWith(`${item.id}-`) || Number(k.slice(item.id.length + 1)) <= qty)) });
   },
   'toggle-sell': (el) =>
     set({ items: state.items.map((i) => (i.id === el.dataset.id ? { ...i, sell: !i.sell } : i)) }),

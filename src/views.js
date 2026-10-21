@@ -28,6 +28,9 @@ export const labelSlots = (s) =>
   selectedItems(s).flatMap((i) =>
     Array.from({ length: i.qty }, (_, k) => ({ key: `${i.id}-${k + 1}`, item: i, n: k + 1 })),
   );
+// 買取明細の段階（売る・見送るを決める前）でシールを貼る場合に使う、全商品のシール枠
+export const itemSlots = (s, item) => Array.from({ length: item.qty }, (_, k) => ({ key: `${item.id}-${k + 1}`, item, n: k + 1 }));
+export const sealCount = (s, item) => itemSlots(s, item).filter((x) => s.labels[x.key]).length;
 export const codesOf = (s, item) =>
   labelSlots(s).filter((x) => x.item.id === item.id).map((x) => s.labels[x.key]).filter(Boolean);
 
@@ -256,6 +259,33 @@ export function customerView(s) {
   </section>`;
 }
 
+const sealChip = (s, i) => {
+  const n = sealCount(s, i);
+  return n ? `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${n === i.qty ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">🏷 シール ${n}/${i.qty}</span>` : '';
+};
+
+// 商品の詳細モーダル内のシール貼付。買取明細の段階で、貼りながら進める場合に使う（あとの「シール紐づけ」で一括する場合は不要）
+function sealSection(s, item) {
+  const slots = itemSlots(s, item);
+  return `
+  <div class="rounded-xl border-2 border-slate-200 p-2.5 space-y-1.5">
+    <div class="flex items-center justify-between"><b class="text-sm">🏷 シール貼付・QR紐づけ <span class="font-normal text-xs text-slate-500">（任意）</span></b>
+      <span class="text-xs font-bold ${sealCount(s, item) === item.qty ? 'text-teal-700' : 'text-slate-500'}">${sealCount(s, item)} / ${item.qty}</span></div>
+    <p class="text-xs text-slate-500">この場でシールを貼る場合は、ここで読み取ります。貼付済みの分は、あとの「シール紐づけ」にそのまま引き継がれます。</p>
+    ${slots.map((x) => {
+      const code = s.labels[x.key];
+      const err = s.labelError?.key === x.key ? s.labelError.msg : '';
+      return `<div><div class="flex items-center gap-2">
+        <span class="w-12 text-xs font-bold text-slate-500">${item.qty > 1 ? `${x.n}/${item.qty}` : ''}</span>
+        <input class="field flex-1 font-mono !py-1.5 !text-base" placeholder="QRを読み取り／手入力" value="${esc(code)}" data-label-key="${x.key}" ${code ? 'readonly' : ''} />
+        ${code
+          ? `<span class="text-teal-700 font-bold text-sm">✅済</span><button class="btn btn-secondary !py-1 !min-h-[40px] !px-3 text-sm" data-action="clear-label" data-key="${x.key}">解除</button>`
+          : `<button class="btn btn-primary !py-1 !min-h-[40px] !px-3 text-sm" data-action="dummy-scan" data-key="${x.key}">📷 QR読取</button>`}</div>
+        ${err ? `<p class="text-rose-600 font-bold text-xs">${esc(err)}</p>` : ''}</div>`;
+    }).join('')}
+  </div>`;
+}
+
 export function itemsListView(s) {
   if (!s.items.length) return '<p class="text-slate-400 text-center py-10">左の商品マスターか、AIカメラから追加してください</p>';
   const btn = 'rounded-lg border-2 px-2 min-h-[44px] min-w-[58px] text-sm font-bold leading-tight';
@@ -265,7 +295,7 @@ export function itemsListView(s) {
     <div class="flex items-center gap-2 rounded-xl border-2 border-slate-200 pl-3 pr-2 py-1">
       <div class="flex-1 min-w-0 leading-tight">
         <div class="font-bold text-[15px] line-clamp-2">${esc(i.name)}${itemWarn(s, i.id)}</div>
-        <div class="text-xs text-slate-500 mt-0.5">ランク${i.rank}・${i.qty}個${apvTag(s, i)}${apTag(s, i.id)}</div>
+        <div class="text-xs text-slate-500 mt-0.5">ランク${i.rank}・${i.qty}個${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
       </div>
       ${i.price ? `<div class="font-bold text-right whitespace-nowrap">${yen(i.price)}</div>` : '<div class="font-bold text-rose-600 text-sm text-right leading-tight">金額<br>未入力</div>'}
       <button class="${btn} border-slate-300 bg-white text-slate-700" data-action="open-item" data-id="${i.id}" aria-label="詳細を編集">✎<br>編集</button>
@@ -443,7 +473,7 @@ function fakeQr(code) {
 export function scanView(s) {
   if (!s.scan) return '';
   const stock = s.scan.mode === 'stock';
-  const slot = stock ? null : labelSlots(s).find((x) => x.key === s.scan.key);
+  const slot = stock ? null : s.items.flatMap((i) => itemSlots(s, i)).find((x) => x.key === s.scan.key);
   const found = s.scan.status === 'found';
   const col = found ? '#22c55e' : '#fff';
   const corner = (pos) => `<span class="cam-corner" style="${pos};border-color:${col}"></span>`;
@@ -487,7 +517,7 @@ export function labelView(s) {
     <div class="card flex flex-col min-h-0 flex-1 !p-4 gap-2">
       <div class="flex justify-between items-end">
         <div><h2 class="text-xl font-bold">商品へのシール貼付・QR紐づけ</h2>
-          <p class="text-slate-500 text-sm">シールを貼り、QRコードを読み取ってください（${done} / ${slots.length} 点）</p></div>
+          <p class="text-slate-500 text-sm">シールを貼り、QRコードを読み取ってください（${done} / ${slots.length} 点）${done ? '　買取明細の段階で貼付済みのシールは、そのまま引き継がれています。' : ''}</p></div>
         <button class="btn btn-secondary !py-2 !min-h-[44px]" data-action="dummy-scan-all">残りを一括ダミー読取</button>
       </div>
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="labels">
@@ -730,6 +760,7 @@ export function modalView(s) {
         </div>
         <div id="range-box">${rangeView(i)}</div>
       </div>
+      ${sealSection(s, i)}
       <div class="flex gap-3 pt-1">
         <button class="btn btn-secondary text-rose-600 !min-h-[48px] !py-2" data-action="remove-item" data-id="${i.id}">削除</button>
         <button class="btn btn-primary flex-1 !min-h-[48px] !py-2" data-action="close-modal">完了</button></div>`,
