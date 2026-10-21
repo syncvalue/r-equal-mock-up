@@ -357,6 +357,11 @@ const apvTag = (s, item) => {
   return `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>`;
 };
 
+// お客様向けの表示。承認済みは「確認済み」、それ以外（承認待ち・再承認・差戻し）は、社内の事情を出さず「確認中」とする
+const confirmTag = (state) => state === 'ok'
+  ? '<span class="ml-2 rounded-full whitespace-nowrap inline-block text-sm font-bold px-3 py-0.5 bg-emerald-600 text-white">✓ 確認済み</span>'
+  : '<span class="ml-2 rounded-full whitespace-nowrap inline-block text-sm font-bold px-3 py-0.5 bg-amber-200 text-amber-900 animate-pulse">⏳ 確認中</span>';
+
 // 買取商品の確認。お客様に画面を見せながら確定する画面。社内向けの情報（査定部の承認・AI査定・本社コメント）は、
 // 「担当者用の情報」を開いたときだけ表示する
 export const isCustomerFacing = (s) => s.view === 'visit' && s.step === 4 && !s.showStaff;
@@ -384,10 +389,10 @@ export function selectView(s) {
           const a = i.sell ? approvalOf(s, i) : null;
           const [label, cls] = a ? APV[a.state] : ['', ''];
           return `
-      <div class="px-4 py-3 rounded-xl border-2 ${i.sell ? 'border-teal-400 bg-white' : 'border-slate-200 bg-slate-100 opacity-70'}">
+      <div class="px-4 py-3 rounded-xl border-2 ${!i.sell ? 'border-slate-200 bg-slate-100 opacity-70' : a.state === 'ok' ? 'border-emerald-500 bg-emerald-50' : 'border-amber-300 bg-amber-50'}">
         <div class="flex items-center justify-between gap-3">
           <div class="flex-1"><div class="text-lg font-bold ${i.sell ? '' : 'line-through'}">${esc(i.name)}${staff ? itemWarn(s, i.id) : ''}
-              ${staff && a ? `<span class="ml-2 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>` : ''}</div>
+              ${a ? (staff ? `<span class="ml-2 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>` : confirmTag(a.state)) : ''}</div>
             <div class="text-sm text-slate-500">状態 ${esc(rankLabel(i))} ／ ${i.qty}点${staff && i.aiAppraisal ? ` ／ 🤖AI査定 ${yen(i.aiAppraisal.price)}` : ''}</div></div>
           <div class="text-2xl font-bold w-36 text-right ${i.sell ? '' : 'line-through'}">${yen(i.price)}</div>
           <button class="btn w-40 !py-2 ${i.sell ? 'btn-primary' : 'btn-secondary'}" data-action="toggle-sell" data-id="${i.id}">${i.sell ? '✓ 売却する' : '今回は見送る'}</button>
