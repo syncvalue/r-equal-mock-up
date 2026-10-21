@@ -97,7 +97,7 @@ function actionCard(s, mine) {
   const todo = pendingOf(inScope(mine, s.stock.scope));
   const last = s.stock.last;
   return `
-  <div class="card !p-4 w-[24rem] shrink-0 flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="stockR">
+  <div class="card !p-4 w-[24rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[50%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="stockR">
     <h3 class="font-bold text-lg">入庫する</h3>
     <div>
       <div class="font-bold text-sm mb-1">保管場所<span class="font-normal text-xs text-slate-500">（読み取った商品は、ここに入庫します）</span></div>
@@ -118,5 +118,5 @@ function actionCard(s, mine) {
 
 export function stockView(s) {
   const mine = byUser(s.units ?? [], s.user);
-  return `<section class="${SEC} flex gap-3">${listCard(s, mine)}${actionCard(s, mine)}</section>`;
+  return `<section class="${SEC} flex gap-3 portrait:flex-col">${listCard(s, mine)}${actionCard(s, mine)}</section>`;
 }

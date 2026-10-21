@@ -1,15 +1,15 @@
 html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 #app { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 body { -webkit-tap-highlight-color: transparent; font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; }
-.field { width: 100%; border: 2px solid #cbd5e1; border-radius: .75rem; padding: .85rem 1rem; font-size: 1.125rem; background: #fff; }
+.field { width: 100%; border: 2px solid #cbd5e1; border-radius: .75rem; padding: .6rem .85rem; font-size: calc(1rem * var(--tk, 1)); background: #fff; }
 .field:focus { outline: none; border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,.2); }
-.btn { border-radius: .75rem; padding: .9rem 1.5rem; font-weight: 700; font-size: 1.125rem; min-height: 56px; transition: transform .05s; }
+.btn { border-radius: .75rem; padding: .6rem 1.1rem; font-weight: 700; font-size: calc(1rem * var(--tk, 1)); min-height: 46px; transition: transform .05s; }
 .btn:active { transform: scale(.97); }
 .btn-primary { background: #0d9488; color: #fff; }
 .btn-secondary { background: #fff; color: #334155; border: 2px solid #cbd5e1; }
 .btn:disabled { opacity: .4; }
-.card { background: #fff; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-.chip { border-radius: 9999px; padding: .5rem 1.1rem; border: 2px solid #cbd5e1; background: #fff; font-weight: 600; min-height: 44px; }
+.card { background: #fff; border-radius: 1rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.chip { border-radius: 9999px; padding: .35rem .9rem; border: 2px solid #cbd5e1; background: #fff; font-weight: 600; min-height: 40px; font-size: calc(.95rem * var(--tk, 1)); }
 .chip.active { background: #0d9488; border-color: #0d9488; color: #fff; }
 input[type="search"]::-webkit-search-cancel-button { display: none; }
 
@@ -24,3 +24,18 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
 .cam-line { position: absolute; left: 4%; right: 4%; height: 3px; background: #f43f5e; box-shadow: 0 0 14px 3px rgba(244, 63, 94, .8); animation: scanLine 1.6s ease-in-out infinite; }
 .cam-sticker { animation: stickerIn 1.5s ease-out forwards; }
 .cam-corner { position: absolute; width: 44px; height: 44px; border-color: #fff; border-style: solid; border-width: 0; transition: border-color .2s; }
+
+/* 文字サイズ: 業務画面は小さめ、お客様に見せる画面（.cust）は高齢者を考慮して大きめ。タブレット（iPad Pro 11〜12.9インチ）の縦・横どちらでも使う */
+body { --tk: .875; }
+.cust { --tk: 1.12; }
+
+/* 色の整理: 基調はグレー＋緑（主な操作）。注意を表す赤・黄を目立たせるため、装飾的な青・紫・水色はグレーに寄せる（ライトモードのみ） */
+html:not(.dark) #app :is(.bg-indigo-50, .bg-sky-50, .bg-violet-50) { background-color: #f8fafc; }
+html:not(.dark) #app :is(.bg-indigo-100, .bg-sky-100, .bg-violet-100) { background-color: #f1f5f9; }
+html:not(.dark) #app :is(.bg-indigo-600, .bg-violet-600, .bg-sky-600) { background-color: #475569; }
+html:not(.dark) #app .bg-sky-300 { background-color: #cbd5e1; }
+html:not(.dark) #app :is(.text-indigo-800, .text-sky-700, .text-sky-800, .text-sky-900, .text-violet-700, .text-violet-800) { color: #334155; }
+html:not(.dark) #app :is(.border-indigo-200, .border-indigo-300, .border-sky-200, .border-violet-300) { border-color: #cbd5e1; }
+html:not(.dark) #app :is(.border-indigo-500, .border-indigo-600) { border-color: #64748b; }
+html:not(.dark) #app :is(.bg-orange-100) { background-color: #fef3c7; }
+html:not(.dark) #app :is(.text-orange-700, .text-orange-800) { color: #92400e; }

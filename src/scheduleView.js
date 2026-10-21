@@ -10,7 +10,7 @@ import { repeatBadge, pastEvalView } from './customerHistoryView.js';
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const HOUR_FROM = 8;
 const HOUR_TO = 20;
-const HOUR_H = 56;
+const HOUR_H = 44;
 const city = (addr) => (addr.match(/^.{2,3}[都道府県](.+?[市区町村])/)?.[1] ?? addr.slice(0, 6));
 const isVisiting = (s) => Boolean(s.visitStartedAt && !s.visitEndedAt);
 
@@ -41,7 +41,7 @@ function eventBlock(s, e, dayN) {
     style="top:${top}px;height:${h}px" data-action="sched-select" data-id="${e.id}">
     <span class="flex items-center gap-1 text-[11px] text-slate-500">${e.start}–${e.end}${st ? st.badge : ''}</span>
     <span class="block font-bold text-sm truncate">${esc(e.customer.name)} 様${historyOf(e.customer).isRepeat ? ' <span class="text-[10px] font-bold rounded bg-indigo-600 text-white px-1">🔁</span>' : ''}</span>
-    ${h > 62 ? `<span class="block text-xs text-slate-600 truncate">📍 ${esc(city(e.customer.address))}</span><span class="block text-xs text-slate-500 truncate">${esc(e.items)}</span>` : ''}
+    ${h > 48 ? `<span class="block text-xs text-slate-600 truncate">📍 ${esc(city(e.customer.address))}</span><span class="block text-xs text-slate-500 truncate">${esc(e.items)}</span>` : ''}
   </button>`;
 }
 
@@ -107,7 +107,7 @@ function calendarBody(s) {
   const hours = Array.from({ length: HOUR_TO - HOUR_FROM }, (_, i) => HOUR_FROM + i);
   const nowTop = ((now.getHours() * 60 + now.getMinutes() - HOUR_FROM * 60) / 60) * HOUR_H;
   return `
-  <div class="flex gap-3 flex-1 min-h-0">
+  <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
     <div class="card !p-0 flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
       <div class="flex items-center justify-between px-4 py-2 border-b">
         <h2 class="text-xl font-bold">今日の予定</h2>
@@ -133,7 +133,7 @@ function calendarBody(s) {
         </div>
       </div>
     </div>
-    <div class="w-80 shrink-0 overflow-y-auto min-h-0" data-scroll="schedDetail">${detailPanel(s)}</div>
+    <div class="w-80 shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[42%] overflow-y-auto min-h-0" data-scroll="schedDetail">${detailPanel(s)}</div>
   </div>`;
 }
 
@@ -196,8 +196,8 @@ function routeBody(s) {
   }
 
   return `
-  <div class="flex gap-3 flex-1 min-h-0">
-    <div class="card !p-3 w-[22rem] shrink-0 flex flex-col gap-2 min-h-0">
+  <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
+    <div class="card !p-3 w-[22rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[48%] flex flex-col gap-2 min-h-0">
       <div class="flex gap-1">${[0, 1].map((n) => { const dd = dayDate(n); return `<button class="flex-1 py-2 rounded-lg font-bold text-sm ${day === n ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="route-day" data-value="${n}">${n === 0 ? '今日' : '明日'}<span class="block text-[11px] font-normal">${dd.getMonth() + 1}/${dd.getDate()}（${WEEK[dd.getDay()]}）</span></button>`; }).join('')}</div>
       <div class="overflow-y-auto min-h-0 flex-1 space-y-1.5" data-scroll="route">
         <div class="flex items-center gap-2 rounded-lg bg-slate-50 p-2 text-sm"><span class="w-6 h-6 rounded-full bg-sky-600 text-white flex items-center justify-center text-xs shrink-0">●</span>

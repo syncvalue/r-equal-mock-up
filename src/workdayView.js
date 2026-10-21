@@ -10,7 +10,7 @@ import {
 } from './workday.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
-const SEC = 'h-full min-h-0 p-4';
+const SEC = 'h-full min-h-0 p-3';
 const isVisiting = (s) => Boolean(s.visitStartedAt && !s.visitEndedAt);
 const dateLabel = (key) => { const d = new Date(`${key}T00:00:00`); return `${d.getMonth() + 1}月${d.getDate()}日（${WEEK[d.getDay()]}）`; };
 const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${yen(Math.abs(n))}`;
@@ -81,8 +81,8 @@ function startScreen(s) {
   const form = { ...s.startForm, name: 'start' };
   const left = START_CHECKS.filter((c) => !form.checks[c.key]).length;
   return `
-  <section class="${SEC} flex gap-3">
-    <div class="card !p-4 w-[28rem] shrink-0 flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="wdStartL">
+  <section class="${SEC} flex gap-3 portrait:flex-col">
+    <div class="card !p-4 w-[28rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[52%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="wdStartL">
       <div><div class="text-sm text-slate-500">${dateLabel(dateKey())}</div>
         <h2 class="text-2xl font-bold">☀ 始業開始</h2>
         <p class="text-sm text-slate-600">${esc(u.name)} さん、おはようございます。始業点検を済ませると、現地買取を始められます。</p></div>
@@ -168,9 +168,9 @@ function closeScreen(s) {
   const form = { ...s.closeForm, name: 'close' };
   const left = END_CHECKS.filter((c) => !form.checks[c.key]).length;
   return `
-  <section class="${SEC} flex gap-3">
+  <section class="${SEC} flex gap-3 portrait:flex-col">
     ${reportCard(s, day)}
-    <div class="card !p-4 w-[28rem] shrink-0 flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="wdCloseR">
+    <div class="card !p-4 w-[28rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[55%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="wdCloseR">
       <h2 class="text-xl font-bold">🌙 終業手続き</h2>
       ${isVisiting(s) ? '<div class="rounded-xl bg-amber-50 border-2 border-amber-400 p-2 text-sm text-amber-800 font-bold">現在、訪問中です。訪問を終了してから終業してください。</div>' : ''}
       <div class="rounded-xl border-2 p-3 space-y-2">
@@ -250,10 +250,10 @@ export function expenseView(s) {
       ${stat('前日繰越', yen(sm.opening))}${stat('本日の入金', `+${yen(sm.depositTotal)}`, 'text-emerald-700')}${stat('経費（買取代金を含む）', `−${yen(sm.expenseTotal)}`, 'text-rose-600')}
       <div class="card !p-3 flex-1 !bg-teal-600 text-white"><div class="text-xs text-teal-100">現在の所持金（帳簿）</div><div class="text-3xl font-bold">${yen(sm.balance)}</div>${sm.balance < 0 ? '<div class="text-xs font-bold text-amber-200">⚠ 残高がマイナスです。入金・計上漏れを確認してください</div>' : ''}</div>
     </div>
-    <div class="flex gap-3 flex-1 min-h-0">
+    <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
       <div class="card !p-3 flex-1 min-w-0 flex flex-col min-h-0"><h2 class="font-bold text-lg mb-2">📒 今日の入出金</h2>
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="expLedger">${ledgerRows(s)}</div></div>
-      <div class="card !p-3 w-[26rem] shrink-0 flex flex-col gap-2 min-h-0 overflow-y-auto" data-scroll="expForm">
+      <div class="card !p-3 w-[26rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[55%] flex flex-col gap-2 min-h-0 overflow-y-auto" data-scroll="expForm">
         <h2 class="font-bold text-lg">➕ 経費を計上する</h2>
         <div><div class="font-bold text-sm mb-1">種別</div><div class="grid grid-cols-3 gap-1.5">
           ${EXPENSE_TYPES.map((t) => `<button class="chip !px-1 !py-1 flex flex-col items-center leading-tight ${d.type === t.key ? 'active' : ''}" data-action="exp-type" data-value="${t.key}"><span class="text-xl">${t.icon}</span><span class="text-xs">${t.label}</span></button>`).join('')}</div></div>

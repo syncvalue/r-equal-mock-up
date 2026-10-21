@@ -6,10 +6,18 @@
   <title>出張買取アプリ（モック）</title>
   <script>(function(){try{var t=localStorage.getItem('rq-theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}})()</script>
   <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>
+    // 文字サイズは --tk 倍にする。業務画面は小さめ（0.875）、お客様に見せる画面は高齢者を考慮して大きめ（1.12）
+    const tkSize = (rem, lh) => [`calc(${rem}rem * var(--tk, 1))`, { lineHeight: lh }];
+    tailwind.config = { theme: { extend: { fontSize: {
+      xs: tkSize(0.75, '1.35'), sm: tkSize(0.875, '1.4'), base: tkSize(1, '1.5'), lg: tkSize(1.125, '1.45'), xl: tkSize(1.25, '1.35'),
+      '2xl': tkSize(1.5, '1.25'), '3xl': tkSize(1.875, '1.2'), '4xl': tkSize(2.25, '1.15'), '5xl': tkSize(3, '1.1'), '6xl': tkSize(3.75, '1'),
+    } } } };
+  </script>
   <link rel="stylesheet" href="/src/style.css" />
   <link rel="stylesheet" href="/src/theme.css" />
 </head>
-<body class="bg-slate-100 text-slate-800 text-lg">
+<body class="bg-slate-100 text-slate-800 text-base">
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
 </body>

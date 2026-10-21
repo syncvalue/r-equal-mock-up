@@ -150,10 +150,10 @@ export function headerView(s) {
   const st = STATUS(s);
   return `
   <header class="shrink-0 bg-slate-900 text-white">
-    <div class="flex items-center justify-between px-5 py-2">
-      <div class="flex items-center gap-3">
-        <button class="relative w-12 h-12 -ml-2 rounded-xl text-3xl leading-none hover:bg-white/10 active:bg-white/20" data-action="open-menu" aria-label="メニューを開く">☰${menuBadge(s)}</button>
-        <span class="font-bold text-xl">出張買取</span>
+    <div class="flex items-center justify-between px-4 py-1">
+      <div class="flex items-center gap-2">
+        <button class="relative w-10 h-10 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-action="open-menu" aria-label="メニューを開く">☰${menuBadge(s)}</button>
+        <span class="font-bold text-lg">出張買取</span>
         ${s.view !== 'visit' ? `<span class="text-slate-300">›</span><span class="font-bold">${esc(MENU.find((m) => m.key === s.view)?.label)}</span>` : ''}
         <span class="${st.cls} rounded-full px-3 py-0.5 font-bold text-sm">${st.label}</span>
       </div>
@@ -162,11 +162,11 @@ export function headerView(s) {
         ${themeToggleHtml()}
         ${isCustomerFacing(s) ? '' : commentBadge(s)}
         ${s.visitStartedAt && !s.visitEndedAt ? `<span class="text-slate-300">開始 ${fmtTime(s.visitStartedAt).slice(0, 5)}</span>
-        <span class="text-2xl font-mono font-bold" id="timer">${fmtElapsed(s.visitStartedAt)}</span>` : ''}
+        <span class="text-lg font-mono font-bold" id="timer">${fmtElapsed(s.visitStartedAt)}</span>` : ''}
       </div>
     </div>
     ${s.view !== 'visit' ? '' : `<ol class="flex bg-slate-800 text-xs">
-      ${STEPS.map((n, i) => `<li class="flex-1 text-center py-1.5 ${i === s.step ? 'bg-teal-600 font-bold' : i < s.step ? 'text-teal-300' : 'text-slate-400'}">${i + 1}. ${n}</li>`).join('')}
+      ${STEPS.map((n, i) => `<li class="flex-1 text-center py-1 ${i === s.step ? 'bg-teal-600 font-bold' : i < s.step ? 'text-teal-300' : 'text-slate-400'}">${i + 1}. ${n}</li>`).join('')}
     </ol>`}
   </header>`;
 }
@@ -175,7 +175,7 @@ export function footerView(s) {
   if (s.step === 0 || s.step === STEPS.length - 1) return '';
   const ok = canProceed(s);
   return `
-  <footer class="shrink-0 bg-white border-t px-5 py-2 flex justify-between items-center">
+  <footer class="shrink-0 bg-white border-t px-4 py-1.5 flex justify-between items-center">
     <button class="btn btn-secondary w-40" data-action="back">← 戻る</button>
     <span class="text-slate-500">${ok ? '' : hint(s)}</span>
     ${s.step === STEPS.length - 2
@@ -211,7 +211,7 @@ const field = (label, key, value, { type = 'text', placeholder = '', required = 
     <input class="field mt-1" data-field="${key}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" />
   </label>`;
 
-const SEC = 'h-full min-h-0 p-4';
+const SEC = 'h-full min-h-0 p-3';
 
 export function startView(s) {
   if (s.outcome) return outcomeResultView(s);
@@ -237,7 +237,7 @@ export function customerView(s) {
   const call = s.callInfo;
   const row = (k, v) => `<dt class="text-slate-500">${k}</dt><dd class="font-bold">${esc(v) || '-'}</dd>`;
   return `
-  <section class="${SEC} flex items-center justify-center">
+  <section class="${SEC} cust flex items-center justify-center">
     <div class="card w-full max-w-3xl space-y-4">
       <div class="flex justify-between items-baseline">
         <h2 class="text-2xl font-bold flex items-center gap-3">お客様のご確認 ${repeatBadge(h)}</h2>
@@ -307,7 +307,7 @@ export function briefingView(s) {
   const b = s.briefing;
   const left = BRIEFING_CHECKS.filter((c) => !b.checks[c.key]).length;
   return `
-  <section class="${SEC} flex items-center justify-center">
+  <section class="${SEC} cust flex items-center justify-center">
     <div class="card w-full max-w-4xl space-y-2 !p-4 max-h-full overflow-y-auto" data-scroll="briefing">
       <div class="flex justify-between items-baseline"><h2 class="text-2xl font-bold">査定前の説明事項</h2>
         <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${BRIEFING_CHECKS.length - left} / ${BRIEFING_CHECKS.length}</span></div>
@@ -330,7 +330,7 @@ export function briefingView(s) {
 
 export function itemsView(s) {
   return `
-  <section class="${SEC} grid grid-cols-2 gap-4">
+  <section class="${SEC} grid grid-cols-2 portrait:grid-cols-1 portrait:grid-rows-2 gap-3">
     <div class="card flex flex-col gap-2 min-h-0 !p-4">
       <button class="btn btn-primary !py-1 !min-h-[48px]" data-action="open-ai">🤖 AIカメラで商品候補を探す</button>
       <div class="relative">
@@ -409,7 +409,7 @@ export function selectView(s) {
   const staff = s.showStaff;
   const rankLabel = (i) => RANKS.find((r) => r.value === i.rank)?.label ?? i.rank;
   return `
-  <section class="${SEC} flex flex-col">
+  <section class="${SEC} cust flex flex-col">
     <div class="card flex flex-col min-h-0 flex-1 !p-4 gap-2">
       <div class="flex items-start justify-between gap-3">
         <div><h2 class="text-2xl font-bold">お買取り商品のご確認</h2>
