@@ -30,7 +30,7 @@ const initialState = () => ({
   visitEndedAt: null,
   visitEventId: EVENTS[0].id,
   sched: { sel: EVENTS[0].id, tab: 'calendar' },
-  route: { day: 0 },
+  route: { day: 0, sel: 'all', origin: 'prev' },
   geo: null,
   callInfo: callInfoOf(EVENTS[0], 'u01'),
   customer: { ...EVENTS[0].customer },
@@ -212,8 +212,11 @@ const actions = {
   nav: (el) => set({ view: el.dataset.value, menuOpen: false, modal: null }),
   'sched-select': (el) => set({ sched: { ...state.sched, sel: el.dataset.id } }),
   'sched-tab': (el) => { set({ sched: { ...state.sched, tab: el.dataset.value } }); if (el.dataset.value === 'route') requestGeo(); },
-  'route-day': (el) => set({ route: { ...state.route, day: Number(el.dataset.value) } }),
-  'route-for': (el) => { set({ view: 'schedule', sched: { ...state.sched, tab: 'route' }, route: { day: Number(el.dataset.day) } }); requestGeo(); },
+  'route-day': (el) => set({ route: { day: Number(el.dataset.value), sel: 'all', origin: 'prev' } }),
+  // 訪問先を選ぶ（all=全行程）。2件目以降は、出発地を「前の予定の場所」「現在地」で切り替える
+  'route-sel': (el) => set({ route: { ...state.route, sel: el.dataset.value, origin: 'prev' } }),
+  'route-origin': (el) => set({ route: { ...state.route, origin: el.dataset.value } }),
+  'route-for': (el) => { set({ view: 'schedule', sched: { ...state.sched, tab: 'route' }, route: { day: Number(el.dataset.day), sel: el.dataset.id ?? 'all', origin: 'prev' } }); requestGeo(); },
   // 予定から現地買取へ。訪問先の情報を引き継いだ、新しい訪問を始める
   'start-from-event': (el) => {
     const ev = eventById(el.dataset.id);
