@@ -2,8 +2,9 @@
 import { yen, esc, fmtDateTime } from './format.js';
 import { messagesFor } from './messages.js';
 import { loadReadIds } from './store.js';
+import { loadDay, summaryOf, typeOf } from './workday.js';
 import {
-  GROUPS, USERS, RESULTS, userById, isLeader, roleLabel, groupMembers, visibleUsers, rangeOf, prevRange, dailySeries, stats, monthProgress, visitRecords, ymd,
+  GROUPS, USERS, RESULTS, userById, isLeader, roleLabel, groupMembers, visibleUsers, rangeOf, prevRange, dailySeries, stats, monthProgress, visitRecords, dummyReport, eachDay, ymd,
 } from './dashboard.js';
 
 const PERIODS = [['today', '今日'], ['week', '今週'], ['month', '今月']];
@@ -117,7 +118,9 @@ export function dashboardView(s) {
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div><h2 class="text-2xl font-bold">📊 業績ダッシュボード</h2>
         <p class="text-sm text-slate-500">${esc(subject)} ／ ${range.start.getMonth() + 1}/${range.start.getDate()}${range.start.getTime() === range.end.getTime() ? '' : `〜${range.end.getMonth() + 1}/${range.end.getDate()}`}</p></div>
-      <div class="flex gap-1 w-64">${PERIODS.map(([k, l]) => `<button class="flex-1 py-2 rounded-lg font-bold ${s.dash.period === k ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="dash-period" data-value="${k}">${l}</button>`).join('')}</div>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-secondary !min-h-[40px] !py-1 !px-3 text-sm whitespace-nowrap" data-action="dash-reports">📝 日報を見る</button>
+        <div class="flex gap-1 w-64">${PERIODS.map(([k, l]) => `<button class="flex-1 py-2 rounded-lg font-bold ${s.dash.period === k ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="dash-period" data-value="${k}">${l}</button>`).join('')}</div></div>
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
@@ -188,4 +191,87 @@ export function dashVisitsModal(s) {
         <td class="text-right pr-3 font-bold whitespace-nowrap">${r.amount ? yen(r.amount) : '-'}</td></tr>`).join('')}</tbody></table></div>`
       : '<p class="text-slate-400 text-center py-8">この期間の訪問はありません</p>'}`,
   };
+}
+
+// ---- 日報（モーダル）。メンバー表示は自分の日報、リーダーのグループ表示はメンバーを選んで見る ------------------
+export function viewUsers(s) {
+  const user = userById(s.user);
+  const leader = s.dash.viewAs ? s.dash.viewAs === 'leader' : isLeader(user);
+  const scope = leader ? s.dash.scope : 'me';
+  return visibleUsers(user, scope, leader && scope === 'member' ? s.dash.member : null, leader);
+}
+
+const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+const dLabel = (d) => `${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）`;
+const signedYen = (n) => (n === 0 ? '一致' : `${n > 0 ? '+' : '−'}${yen(Math.abs(n))}`);
+const isExcluded = (r) => RESULTS[r].excluded;
+
+// 今日の日報は、実際に始業・訪問・経費の記録があれば、それを使う（なければ、ダミー）
+function reportFor(user, date, now) {
+  const day = ymd(date) === ymd(now) ? loadDay(user.id) : null;
+  if (!day?.startedAt) return dummyReport(user, date, now);
+  const sm = summaryOf(day, user.id);
+  return {
+    userId: user.id, date, source: 'real', closed: Boolean(day.closedAt),
+    startTime: new Date(day.startedAt).toTimeString().slice(0, 5), closeTime: day.closedAt ? new Date(day.closedAt).toTimeString().slice(0, 5) : '',
+    opening: sm.opening, depositTotal: sm.depositTotal, expenseTotal: sm.expenseTotal, balance: sm.balance,
+    expenses: sm.expenses.map((e) => ({ type: e.type, label: typeOf(e.type).label, amount: e.amount, memo: e.memo })),
+    counted: day.closedAt ? day.close.counted : null, diff: day.closedAt ? day.close.diff : 0, diffNote: day.closedAt ? day.close.note : '', comment: day.closedAt ? day.close.comment : '',
+    visits: day.visits.map((v) => ({ date, time: new Date(v.at).toTimeString().slice(0, 5), userId: user.id, customer: v.customerName, items: `${v.itemCount}点`, result: v.outcome ? v.outcome.type : v.total > 0 ? 'won' : 'lost', amount: v.total, note: v.outcome?.memo ?? '' })),
+  };
+}
+
+const stats3 = (reports) => {
+  const vs = reports.flatMap((r) => r.visits);
+  return { days: reports.length, visits: vs.filter((v) => !isExcluded(v.result)).length, won: vs.filter((v) => v.result === 'won').length, amount: vs.reduce((n, v) => n + v.amount, 0), diffDays: reports.filter((r) => r.closed && r.diff).length };
+};
+
+function reportDetail(r) {
+  const row = (k, v, cls = '') => `<div class="flex justify-between gap-3 py-1 ${cls}"><span>${k}</span><b class="text-right">${v}</b></div>`;
+  const won = r.visits.filter((v) => v.result === 'won');
+  return `
+  <div class="flex flex-wrap items-center gap-2 text-sm"><span class="rounded-full px-3 py-0.5 text-xs font-bold ${r.closed ? 'bg-slate-200 text-slate-700' : 'bg-amber-100 text-amber-800'}">${r.closed ? '提出済み' : '集計中'}</span>
+    <span class="text-slate-500">勤務 ${r.startTime}〜${r.closed ? r.closeTime : '（業務中）'}</span></div>
+  <div class="grid md:grid-cols-2 gap-3">
+    <div class="rounded-xl border p-3"><div class="font-bold mb-1">現金の収支</div><div class="text-sm divide-y">
+      ${row('前日繰越金', yen(r.opening))}${row('入金', `+${yen(r.depositTotal)}`)}${row('経費（買取代金を含む）', `−${yen(r.expenseTotal)}`)}${row('帳簿上の残高', yen(r.balance), 'text-base')}
+      ${r.closed ? `${row('実際の所持金', yen(r.counted))}${row('過不足', `<span class="${r.diff ? 'text-rose-600' : 'text-emerald-700'}">${signedYen(r.diff)}</span>`)}` : ''}</div>
+      ${r.closed && r.diff ? `<div class="text-xs rounded bg-rose-50 p-2 mt-1">差異の理由: ${esc(r.diffNote)}</div>` : ''}</div>
+    <div class="rounded-xl border p-3"><div class="font-bold mb-1">経費の内訳</div><div class="text-sm divide-y">
+      ${r.expenses.length ? r.expenses.map((e) => row(`${esc(e.label)}${e.memo ? `<span class="text-xs text-slate-400 ml-1">${esc(e.memo)}</span>` : ''}`, yen(e.amount))).join('') : '<div class="text-slate-400 py-2">計上なし</div>'}</div></div>
+  </div>
+  <div class="rounded-xl border p-3"><div class="font-bold mb-1">訪問　<span class="font-normal text-sm">${r.visits.length}件（成約 ${won.length}）／ 買取金額 <b>${yen(r.visits.reduce((n, v) => n + v.amount, 0))}</b></span></div>
+    <div class="text-sm divide-y">${r.visits.length ? r.visits.map((v) => `<div class="flex items-start justify-between gap-3 py-1"><span>${v.time}　${esc(v.customer)} 様 <span class="text-xs text-slate-400">${esc(v.items)}</span>
+      <span class="ml-1 rounded px-1.5 py-0.5 text-xs font-bold ${RESULTS[v.result].cls}">${RESULTS[v.result].label}</span>${v.note ? `<span class="block text-xs text-slate-500">${esc(v.note)}</span>` : ''}</span><b class="text-right shrink-0">${v.amount ? yen(v.amount) : '-'}</b></div>`).join('') : '<div class="text-slate-400 py-2">訪問なし</div>'}</div></div>
+  ${r.comment ? `<div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">所感・連絡事項</div><p class="whitespace-pre-wrap">${esc(r.comment)}</p></div>` : ''}`;
+}
+
+export function dashReportsModal(s) {
+  const now = new Date();
+  const users = viewUsers(s);
+  const range = rangeOf(s.dash.period, now);
+  const multi = users.length > 1;
+  const uid = s.modal.userId ?? (multi ? null : users[0].id);
+  const user = uid ? userById(uid) : null;
+  const period = `${range.start.getMonth() + 1}/${range.start.getDate()}${range.start.getTime() === range.end.getTime() ? '' : `〜${range.end.getMonth() + 1}/${range.end.getDate()}`}`;
+  const back = (uid && multi) || s.modal.date ? '<button class="text-sm font-bold text-teal-700 underline" data-action="dash-rep-back">← 戻る</button>' : '';
+  const listFor = (u) => eachDay(range).map((d) => reportFor(u, d, now)).filter(Boolean).reverse();
+
+  if (s.modal.date && user) {
+    const d = new Date(`${s.modal.date}T00:00:00`);
+    const r = reportFor(user, d, now);
+    return { title: `📝 ${esc(user.name)}　${dLabel(d)}の日報`, body: `${back}${r ? reportDetail(r) : '<p class="text-slate-400 text-center py-8">この日の日報はありません</p>'}` };
+  }
+  if (!user) {
+    const rows = users.map((u) => ({ u, st: stats3(listFor(u)) }));
+    return { title: `📝 日報　${period}`, body: `
+      <p class="text-sm text-slate-500">メンバーを選ぶと、期間中の日報を見られます。</p>
+      <div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">メンバー</th><th class="text-right">日報</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right pr-3">差異のあった日</th></tr></thead>
+        <tbody>${rows.map(({ u, st }) => `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-user" data-id="${u.id}"><td class="p-2 font-bold">${esc(u.name)}</td><td class="text-right">${st.days}日</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right pr-3 ${st.diffDays ? 'text-rose-600 font-bold' : 'text-slate-400'}">${st.diffDays ? `${st.diffDays}日` : 'なし'}</td></tr>`).join('')}</tbody></table></div>` };
+  }
+  const list = listFor(user);
+  return { title: `📝 ${esc(user.name)}の日報　${period}`, body: `${back}
+    ${list.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">日付</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right">経費</th><th class="text-right pr-3">現金の過不足</th></tr></thead>
+      <tbody>${list.map((r) => { const st = stats3([r]); return `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-day" data-date="${ymd(r.date)}"><td class="p-2 font-bold whitespace-nowrap">${dLabel(r.date)}${r.closed ? '' : ' <span class="text-xs rounded bg-amber-100 text-amber-800 px-1.5">集計中</span>'}</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right">${yen(r.expenseTotal)}</td><td class="text-right pr-3 font-bold ${!r.closed ? 'text-slate-400' : r.diff ? 'text-rose-600' : 'text-emerald-700'}">${r.closed ? signedYen(r.diff) : '-'}</td></tr>`; }).join('')}</tbody></table></div>
+      <p class="text-xs text-slate-400">行をタップすると、その日の日報を表示します。</p>` : '<p class="text-slate-400 text-center py-8">この期間の日報はありません</p>'}` };
 }

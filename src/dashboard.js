@@ -108,6 +108,44 @@ function dummyDay(user, date, isToday) {
   return { visits: v.filter((x) => !RESULTS[x.result].excluded).length, contracts: v.filter((x) => x.result === 'won').length, amount: v.reduce((n, x) => n + x.amount, 0) };
 }
 
+// その日の日報（ダミー）。訪問の結果は、業績の集計と同じもの。現金は、買取代金を含む経費・入金から、ユーザー×日付で固定の値を作る
+const EXPENSE_LABELS = { purchase: '買取代金', gas: 'ガソリン代', lunch: '昼食代', toll: '高速・駐車場', supply: '備品購入' };
+const DIFF_NOTES = ['小銭の数え間違い', '駐車場代のレシートを紛失', '釣り銭の渡し間違い'];
+const REPORT_COMMENTS = ['', '', '午後の訪問で、次回のご提案につながるお話ができた。', '渋滞で移動に時間がかかった。明日は早めに出発する。', 'お客様から、知人の紹介の話をいただいた。'];
+
+export function dummyReport(user, date, now = new Date()) {
+  const isToday = ymd(date) === ymd(now);
+  const visits = dummyVisits(user, date, isToday);
+  if (date.getDay() === 0 || date > now) return null;
+  const rnd = seeded(`rep-${user.id}-${ymd(date)}`);
+  const purchase = visits.reduce((n, v) => n + v.amount, 0);
+  const expenses = [];
+  if (purchase) expenses.push({ type: 'purchase', label: EXPENSE_LABELS.purchase, amount: purchase, memo: `買取 ${visits.filter((v) => v.result === 'won').length}件` });
+  if (visits.length) {
+    expenses.push({ type: 'gas', label: EXPENSE_LABELS.gas, amount: 4000 + Math.floor(rnd() * 21) * 100, memo: '' });
+    expenses.push({ type: 'lunch', label: EXPENSE_LABELS.lunch, amount: 700 + Math.floor(rnd() * 6) * 100, memo: '' });
+    if (rnd() < 0.3) expenses.push({ type: rnd() < 0.5 ? 'toll' : 'supply', label: EXPENSE_LABELS[rnd() < 0.5 ? 'toll' : 'supply'], amount: 500 + Math.floor(rnd() * 15) * 100, memo: '' });
+  }
+  const opening = 30000 + Math.floor(rnd() * 6) * 10000;
+  const deposit = purchase > 250000 ? 500000 : 300000;
+  const spent = expenses.reduce((n, e) => n + e.amount, 0);
+  const balance = opening + deposit - spent;
+  const diff = rnd() < 0.85 ? 0 : (rnd() < 0.5 ? -1 : 1) * (1 + Math.floor(rnd() * 15)) * 100;
+  const pad = (n) => String(n).padStart(2, '0');
+  return {
+    userId: user.id, date, source: 'dummy', closed: !isToday,
+    startTime: `08:${pad(40 + Math.floor(rnd() * 30) % 20)}`, closeTime: `${17 + Math.floor(rnd() * 2)}:${pad(Math.floor(rnd() * 6) * 10)}`,
+    opening, depositTotal: deposit, expenses, expenseTotal: spent, balance,
+    counted: isToday ? null : balance + diff, diff: isToday ? 0 : diff, diffNote: !isToday && diff ? DIFF_NOTES[Math.floor(rnd() * DIFF_NOTES.length)] : '',
+    comment: isToday ? '' : REPORT_COMMENTS[Math.floor(rnd() * REPORT_COMMENTS.length)], visits,
+  };
+}
+
+// 指定ユーザー・期間の日報（新しい日から）。日曜（休み）と、これからの日はない
+export function reportsOf(user, range, now = new Date()) {
+  return eachDay(range).map((d) => dummyReport(user, d, now)).filter(Boolean).reverse();
+}
+
 // 指定ユーザー・期間の、訪問ごとの結果（新しい順）
 export function visitRecords(users, range, now = new Date()) {
   const todayKey = ymd(now);

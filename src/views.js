@@ -6,7 +6,7 @@ import { roleLabel, userById } from './dashboard.js';
 import { eventById } from './schedule.js';
 import { historyOf } from './customerHistory.js';
 import { repeatBadge, pastEvalView } from './customerHistoryView.js';
-import { dashVisitsModal } from './dashboardView.js';
+import { dashVisitsModal, dashReportsModal } from './dashboardView.js';
 import { outcomeResultView } from './workdayView.js';
 import { messagesFor, unreadCount } from './messages.js';
 import { pendingCount } from './stockView.js';
@@ -776,6 +776,7 @@ export function modalView(s) {
        <button class="btn btn-primary w-full" data-action="close-modal">閉じる</button>`,
     );
   }
+  if (m.type === 'dashreports') { const v = dashReportsModal(s); return modalShell(v.title, v.body, { wide: true }); }
   if (m.type === 'dashvisits') { const v = dashVisitsModal(s); return modalShell(v.title, v.body, { wide: true }); }
   if (m.type === 'eval') return evalModalView(s);
   if (m.type === 'comments') return commentsModalView(s);
