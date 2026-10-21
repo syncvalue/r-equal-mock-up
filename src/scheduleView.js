@@ -18,15 +18,23 @@ const isVisiting = (s) => Boolean(s.visitStartedAt && !s.visitEndedAt);
 const doneVisitOf = (s, e) =>
   Object.values(loadLive()).filter((v) => v.eventId === e.id && (v.userId ?? 'u01') === s.user && v.endedAt).sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
 
+// 予定表での見た目（今日の予定のみ、状況で色分け）。todo=まだ訪問していない／visiting=訪問中／done=完了
+const BLOCK = {
+  todo: { box: 'bg-white border-teal-600', text: 'text-slate-800', badge: '<span class="rounded px-1 text-[10px] font-bold border border-teal-600 text-teal-700 bg-teal-50">未訪問</span>' },
+  visiting: { box: 'bg-emerald-100 border-emerald-600 ring-2 ring-emerald-400', text: 'text-emerald-900', badge: '<span class="rounded px-1 text-[10px] font-bold bg-emerald-600 text-white animate-pulse">● 訪問中</span>' },
+  done: { box: 'bg-slate-200 border-slate-400 opacity-80', text: 'text-slate-500', badge: '<span class="rounded px-1 text-[10px] font-bold bg-slate-600 text-white">✓ 完了</span>' },
+};
+const visitStateOf = (s, e) => (doneVisitOf(s, e) ? 'done' : s.visitEventId === e.id && isVisiting(s) ? 'visiting' : 'todo');
+
 function eventBlock(s, e, today) {
   const top = ((toMin(e.start) - HOUR_FROM * 60) / 60) * HOUR_H;
   const h = Math.max(28, ((toMin(e.end) - toMin(e.start)) / 60) * HOUR_H - 2);
   const sel = s.sched.sel === e.id;
-  const done = Boolean(doneVisitOf(s, e));
+  const st = today ? BLOCK[visitStateOf(s, e)] : null;
   return `
-  <button class="absolute left-1 right-1 rounded-md border-l-4 px-1.5 py-1 text-left overflow-hidden leading-tight ${done ? 'bg-slate-100 border-slate-400 text-slate-500' : today ? 'bg-teal-50 border-teal-600' : 'bg-indigo-50 border-indigo-500'} ${sel ? 'ring-2 ring-offset-1 ring-teal-500 shadow-lg' : 'shadow'}"
+  <button class="absolute left-1 right-1 rounded-md border-l-[6px] px-1.5 py-1 text-left overflow-hidden leading-tight ${st ? `${st.box} ${st.text}` : 'bg-indigo-50 border-indigo-500'} ${sel ? 'outline outline-2 outline-offset-1 outline-teal-500 shadow-lg' : 'shadow'}"
     style="top:${top}px;height:${h}px" data-action="sched-select" data-id="${e.id}">
-    <span class="block text-[11px] text-slate-500">${e.start}–${e.end}${done ? ' <b class="text-emerald-700">✓ 完了</b>' : ''}</span>
+    <span class="flex items-center gap-1 text-[11px] text-slate-500">${e.start}–${e.end}${st ? st.badge : ''}</span>
     <span class="block font-bold text-sm truncate">${esc(e.customer.name)} 様${historyOf(e.customer).isRepeat ? ' <span class="text-[10px] font-bold rounded bg-indigo-600 text-white px-1">🔁</span>' : ''}</span>
     ${h > 62 ? `<span class="block text-xs text-slate-600 truncate">📍 ${esc(city(e.customer.address))}</span><span class="block text-xs text-slate-500 truncate">${esc(e.items)}</span>` : ''}
   </button>`;
@@ -98,6 +106,10 @@ function calendarBody(s) {
     <div class="card !p-0 flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
       <div class="flex items-center justify-between px-4 py-2 border-b">
         <h2 class="text-xl font-bold">今日の予定</h2>
+        <span class="flex items-center gap-2 text-xs text-slate-500">
+          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-white border-2 border-teal-600"></span>未訪問</span>
+          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-emerald-100 border-2 border-emerald-600"></span>訪問中</span>
+          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-slate-200 border-2 border-slate-400"></span>完了</span></span>
         <span class="text-sm text-slate-500">${days[0].date.getMonth() + 1}/${days[0].date.getDate()}〜${days[2].date.getMonth() + 1}/${days[2].date.getDate()}（3日間）</span></div>
       <div class="grid grid-cols-[3.2rem_repeat(3,1fr)] border-b">
         <div></div>
