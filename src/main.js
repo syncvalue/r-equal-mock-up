@@ -1,0 +1,399 @@
+import { PRODUCTS } from './data.js';
+import { loadRecent, pushRecent } from './search.js';
+import { estimateByPhotos } from './ai.js';
+import { fmtElapsed } from './format.js';
+import {
+  AP_STORAGE_KEY, APPROVAL_KEY, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
+} from './store.js';
+import { dummyPhoto, shrinkImage } from './image.js';
+import * as V from './views.js';
+
+const initialState = () => ({
+  visitId: `V-${Date.now().toString(36).toUpperCase()}`,
+  view: 'visit',
+  menuOpen: false,
+  step: 0,
+  visitStartedAt: null,
+  visitEndedAt: null,
+  callInfo: { receptionNo: 'CC-20261020-0042', receivedAt: '2026/10/20 09:42', operator: '佐藤', apType: '新', appraiser: '鈴木 一郎' },
+  customer: {
+    name: '山田 太郎', kana: 'ヤマダ タロウ', birth: '1975-04-12', phone: '090-1234-5678',
+    zip: '150-0001', occupation: '会社員', address: '東京都渋谷区神宮前1-2-3 〇〇マンション 502',
+  },
+  customerConfirmed: false,
+  modal: null,
+  items: [],
+  ai: { status: 'idle', photo: null, candidates: [] },
+  search: '',
+  mtab: 'browse',
+  mcat: '',
+  mbrand: '',
+  mlimit: 40,
+  recent: loadRecent(),
+  labels: {},
+  labelError: null,
+  contract: null,
+  appraisals: [],
+  comments: [],
+  approvals: [],
+  apMode: 'hq',
+  aiBusy: false,
+  draft: { name: '', note: '', photos: [] },
+});
+
+let state = initialState();
+const $ = (sel) => document.querySelector(sel);
+const set = (patch) => { state = { ...state, ...patch }; };
+
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-slate-900 text-white rounded-xl px-6 py-4 text-lg shadow-lg';
+  el.textContent = msg;
+  document.body.append(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+const DUMMY_ID = (label) =>
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="320" height="200" rx="14" fill="#e2e8f0"/><circle cx="70" cy="80" r="32" fill="#94a3b8"/><rect x="120" y="55" width="160" height="14" fill="#94a3b8"/><rect x="120" y="85" width="120" height="14" fill="#94a3b8"/><text x="20" y="175" font-size="20" fill="#475569">DUMMY ${label}</text></svg>`,
+  );
+
+const STEP_VIEWS = [
+  V.startView,
+  V.customerView,
+  V.itemsView,
+  V.selectView,
+  V.labelView,
+  V.endView,
+];
+
+// 本社査定部のリアルタイム画面へ、現在の訪問状況を共有
+function publish() {
+  if (!state.visitStartedAt) return;
+  publishLive({
+    visitId: state.visitId,
+    staff: '営業 鈴木',
+    startedAt: state.visitStartedAt,
+    endedAt: state.visitEndedAt,
+    step: state.step,
+    customerName: state.customer.name,
+    callInfo: state.callInfo,
+    items: state.items.map(({ id, name, category, rank, qty, price, sell, aiAppraisal }) => ({ id, name, category, rank, qty, price, sell, aiAppraisal })),
+    updatedAt: Date.now(),
+  });
+}
+
+function render() {
+  set({ appraisals: loadAppraisals(), comments: loadComments().filter((c) => c.visitId === state.visitId),
+    approvals: loadApprovals().filter((a) => a.visitId === state.visitId),
+  });
+  const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
+  $('#app').innerHTML =
+    V.headerView(state) +
+    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : V.placeholderView(state)}</main>` +
+    (state.view === 'visit' ? V.footerView(state) : '') +
+    (state.view === 'visit' ? V.modalView(state) : '') +
+    V.menuView(state);
+  document.querySelectorAll('[data-scroll]').forEach((e) => { e.scrollTop = scrolls[e.dataset.scroll] ?? 0; });
+  publish();
+  if (state.modal?.type === 'item') {
+    const it = state.items.find((i) => i.id === state.modal.id);
+    if (it && !it.price) $('[data-item-field=price]')?.focus();
+  }
+}
+
+function updateItems(id, patch) {
+  set({ items: state.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
+}
+
+// AIカメラ（モック）: 画像から疑似的に候補を返す
+function runAi(photo) {
+  set({ ai: { status: 'loading', photo, candidates: [] } });
+  render();
+  setTimeout(() => {
+    const start = photo.length % PRODUCTS.length;
+    const candidates = [0, 3, 7].map((off, n) => ({
+      ...PRODUCTS[(start + off) % PRODUCTS.length],
+      confidence: [92, 71, 48][n],
+    }));
+    set({ ai: { status: 'done', photo, candidates } });
+    if (state.modal?.type === 'ai') $('#ai').innerHTML = V.aiView(state);
+  }, 1200);
+}
+
+const newCode = () => {
+  const used = Object.values(state.labels);
+  let code;
+  do code = `RQ-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+  while (used.includes(code));
+  return code;
+};
+
+function assignLabel(key, raw) {
+  const code = raw.trim().toUpperCase();
+  if (!code) return;
+  if (Object.values(state.labels).includes(code)) {
+    set({ labelError: { key, msg: `このシール(${code})は既に別の商品に紐づいています` } });
+    return;
+  }
+  set({ labels: { ...state.labels, [key]: code }, labelError: null });
+}
+
+const actions = {
+  'dummy-scan': (el) => assignLabel(el.dataset.key, newCode()),
+  'dummy-scan-all': () => V.labelSlots(state).forEach((x) => !state.labels[x.key] && assignLabel(x.key, newCode())),
+  'clear-label': (el) => {
+    const { [el.dataset.key]: _removed, ...rest } = state.labels;
+    set({ labels: rest, labelError: null });
+  },
+  'open-menu': () => set({ menuOpen: true }),
+  'close-menu': () => set({ menuOpen: false }),
+  nav: (el) => set({ view: el.dataset.value, menuOpen: false, modal: null }),
+  start: () => set({ visitStartedAt: Date.now(), step: 1 }),
+  'confirm-customer': () => set({ customerConfirmed: true, modal: null }),
+  'edit-customer': () => set({ customerConfirmed: false, modal: { type: 'customer' } }),
+  'open-ai': () => set({ modal: { type: 'ai' } }),
+  'open-item': (el) => set({ modal: { type: 'item', id: el.dataset.id } }),
+  'close-modal': () => set({ modal: null }),
+  rank: (el) => updateItems(el.dataset.id, { rank: el.dataset.value }),
+  'price-add': (el) => {
+    const item = state.items.find((i) => i.id === el.dataset.id);
+    updateItems(item.id, { price: Math.max(0, item.price + Number(el.dataset.delta)) });
+  },
+  'price-set': (el) => updateItems(el.dataset.id, { price: Number(el.dataset.value) }),
+  back: () => set({ step: Math.max(0, state.step - 1) }),
+  next: () => V.canProceed(state) && set({ step: Math.min(5, state.step + 1) }),
+  mtab: (el) => set({ mtab: el.dataset.value, mlimit: 40 }),
+  // 絞り込み: カテゴリ → ブランド の順に掘り下げる（同じものを押すと解除）
+  mcat: (el) => set({ mcat: state.mcat === el.dataset.value ? '' : el.dataset.value, mbrand: '', mlimit: 40 }),
+  mbrand: (el) => set({ mbrand: state.mbrand === el.dataset.value ? '' : el.dataset.value, mlimit: 40 }),
+  mclear: () => set({ mcat: '', mbrand: '', search: '', mlimit: 40 }),
+  'mclear-search': () => set({ search: '', mlimit: 40 }),
+  more: () => set({ mlimit: state.mlimit + 40 }),
+  'add-item': (el) => {
+    const p = PRODUCTS.find((x) => x.id === el.dataset.id);
+    const existing = state.items.find((i) => i.id === p.id);
+    set({ recent: pushRecent(p.id) });
+    // 新規追加時は金額未入力（0）で明細に入れ、詳細モーダルで手入力する
+    set(
+      existing
+        ? { items: state.items.map((i) => (i.id === p.id ? { ...i, qty: i.qty + 1 } : i)) }
+        : {
+            items: [...state.items, { id: p.id, name: p.name, category: p.category, qty: 1, rank: 'A', price: 0, sell: true }],
+            modal: { type: 'item', id: p.id },
+          },
+    );
+  },
+  'remove-item': (el) => set({ items: state.items.filter((i) => i.id !== el.dataset.id), modal: null }),
+  qty: (el) => {
+    const item = state.items.find((i) => i.id === el.dataset.id);
+    updateItems(item.id, { qty: Math.max(1, item.qty + Number(el.dataset.delta)) });
+  },
+  'toggle-sell': (el) =>
+    set({ items: state.items.map((i) => (i.id === el.dataset.id ? { ...i, sell: !i.sell } : i)) }),
+  'ai-dummy': () => runAi(DUMMY_ID('商品')),
+  'send-gmo': () => {
+    if (!V.canProceed(state)) return;
+    const sentAt = Date.now();
+    const items = V.selectedItems(state).map((i) => ({
+      name: i.name, category: i.category, rank: i.rank, qty: i.qty, price: i.price, codes: V.codesOf(state, i),
+    }));
+    const record = {
+      id: newContractId(), sentAt, status: '本人確認待ち',
+      customer: state.customer, callInfo: state.callInfo, items, total: V.total(V.selectedItems(state)),
+      kyc: null, signature: null, signedAt: null,
+    };
+    upsertContract(record);
+    set({ contract: { id: record.id, sentAt }, step: 5 });
+    window.open(GMO_URL, '_blank', 'noopener');
+  },
+  'open-gmo': () => window.open(GMO_URL, '_blank', 'noopener'),
+  'close-backdrop': (el, e) => e.target === el && set({ modal: null }),
+  'open-hq': () => window.open(HQ_URL, '_blank', 'noopener'),
+  'open-comments': () => set({ modal: { type: 'comments' } }),
+  'open-appraisal-item': (el) => {
+    const item = state.items.find((i) => i.id === el.dataset.id);
+    set({ modal: { type: 'appraisal', itemId: item.id }, apMode: 'hq', draft: { name: item.name, note: '', photos: [] } });
+  },
+  'ap-mode': (el) => set({ apMode: el.dataset.value }),
+  'ai-run': () => {
+    const item = state.items.find((i) => i.id === state.modal?.itemId);
+    if (!item || !state.draft.photos.length || state.aiBusy) return;
+    set({ aiBusy: true });
+    setTimeout(() => {
+      updateItems(item.id, { aiAppraisal: estimateByPhotos(item, state.draft.photos) });
+      set({ aiBusy: false });
+      rerenderKeepScroll();
+    }, 1400);
+  },
+  'ai-adopt': (el) => {
+    const item = state.items.find((i) => i.id === el.dataset.id);
+    if (!item?.aiAppraisal) return;
+    updateItems(item.id, { price: item.aiAppraisal.price, rank: item.aiAppraisal.rank });
+    showToast('AI査定の金額・ランクを買取金額に反映しました');
+  },
+  'ap-dummy-photo': () => set({ draft: { ...state.draft, photos: [...state.draft.photos, dummyPhoto(state.draft.photos.length + 1)] } }),
+  'ap-remove-photo': (el) =>
+    set({ draft: { ...state.draft, photos: state.draft.photos.filter((_, i) => i !== Number(el.dataset.idx)) } }),
+  'send-appraisal': () => {
+    const d = state.draft;
+    if (!d.photos.length) return;
+    upsertAppraisal({
+      id: newAppraisalId(), createdAt: Date.now(), visitId: state.visitId, itemId: state.modal.itemId, name: d.name.trim() || '（名称未入力）',
+      note: d.note, photos: d.photos, sender: '営業 鈴木', customerName: state.customer.name,
+      status: '依頼中', reply: null, adopted: false,
+    });
+    set({ modal: { type: 'appraisal', itemId: state.modal.itemId }, draft: { ...d, note: '', photos: [] } });
+    showToast('本社査定部に送信しました');
+  },
+  'adopt-comment': (el) => {
+    const c = loadComments().find((x) => x.id === el.dataset.id);
+    const target = c && state.items.find((i) => i.id === c.itemId);
+    if (!target || !c.price) return;
+    updateItems(target.id, { price: c.price, rank: c.rank ?? target.rank });
+    upsertComment({ ...c, adopted: true });
+    showToast('提案された査定額を買取金額に反映しました');
+  },
+  finish: () => set({ visitEndedAt: Date.now() }),
+  reset: () => { state = initialState(); },
+  'reset-all': () => { if (confirm(RESET_CONFIRM)) { clearTransactions(); state = initialState(); showToast('データを初期化しました'); } },
+};
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el || el.tagName === 'INPUT') return;
+  // 入力欄のタップや、モーダル内部のタップ（背面クリック扱いのもの）で再描画すると、フォーカスが外れて入力できなくなる
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  if (el.dataset.action === 'close-backdrop' && e.target !== el) return;
+  actions[el.dataset.action]?.(el, e);
+  rerenderKeepScroll();
+});
+document.addEventListener('change', (e) => {
+  const el = e.target;
+  if (el.dataset.action === 'ack-comment') {
+    const c = loadComments().find((x) => x.id === el.dataset.id);
+    if (c) upsertComment({ ...c, ack: el.checked, ackAt: el.checked ? Date.now() : null });
+    rerenderKeepScroll();
+  }
+  if (el.dataset.apPhoto !== undefined && el.files[0]) {
+    shrinkImage(el.files[0])
+      .then((img) => { set({ draft: { ...state.draft, photos: [...state.draft.photos, img] } }); rerenderKeepScroll(); })
+      .catch(() => showToast('画像を読み込めませんでした'));
+  }
+  if (el.dataset.aiPhoto !== undefined && el.files[0]) {
+    const reader = new FileReader();
+    reader.onload = () => runAi(reader.result);
+    reader.readAsDataURL(el.files[0]);
+  }
+  if (el.dataset.labelKey) { assignLabel(el.dataset.labelKey, el.value); rerenderKeepScroll(); }
+  if (el.dataset.itemField === 'rank') updateItems(el.dataset.id, { rank: el.value });
+});
+
+// 金額バーのドラッグ操作（再描画せず、つまみ・入力欄・警告だけを更新してドラッグを途切れさせない）
+let dragging = null;
+function applySlider(track, clientX) {
+  const rect = track.getBoundingClientRect();
+  const lo = Number(track.dataset.lo);
+  const hi = Number(track.dataset.hi);
+  const step = Number(track.dataset.step);
+  const cur = state.items.find((i) => i.id === track.dataset.id);
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  // バーは「1個あたり」の金額。買取金額（個数分の合計）＝ 1個あたり × 個数
+  const unit = Math.max(step, Math.round((lo + ratio * (hi - lo)) / step) * step);
+  const price = unit * cur.qty;
+  updateItems(cur.id, { price });
+  const item = state.items.find((i) => i.id === track.dataset.id);
+  const thumb = track.querySelector('[data-thumb]');
+  thumb.classList.remove('hidden');
+  thumb.style.left = `${(Math.min(1, Math.max(0, (unit - lo) / (hi - lo))) * 100).toFixed(1)}%`;
+  const warn = V.rangeWarn(item);
+  thumb.classList.toggle('bg-rose-600', warn.includes('rose'));
+  thumb.classList.toggle('bg-slate-900', !warn.includes('rose'));
+  track.closest('#range-box').querySelector('[data-warn]').innerHTML = warn;
+  const input = $('[data-item-field=price]');
+  if (input) input.value = price.toLocaleString('ja-JP');
+  publish();
+}
+document.addEventListener('pointerdown', (e) => {
+  const track = e.target.closest('[data-slider]');
+  if (!track) return;
+  dragging = track;
+  track.setPointerCapture(e.pointerId);
+  applySlider(track, e.clientX);
+});
+document.addEventListener('pointermove', (e) => { if (dragging) applySlider(dragging, e.clientX); });
+const endDrag = () => {
+  if (!dragging) return;
+  dragging = null;
+  const next = $('[data-action="next"]');
+  if (next) next.disabled = !V.canProceed(state);
+};
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
+
+// テキスト入力は再描画せず state のみ更新（フォーカス維持）
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (el.dataset.draft) {
+    set({ draft: { ...state.draft, [el.dataset.draft]: el.value } });
+  } else if (el.dataset.field) {
+    set({ customer: { ...state.customer, [el.dataset.field]: el.value } });
+    const next = $('[data-action="next"]');
+    if (next) next.disabled = !V.canProceed(state);
+  } else if (el.id === 'search') {
+    set({ search: el.value, mtab: 'browse', mlimit: 40 });
+    $('#master').innerHTML = V.masterBodyView(state);
+    $('#search-clear')?.classList.toggle('hidden', !state.search);
+  } else if (el.dataset.itemField === 'price') {
+    // 全角数字も受け付け、3桁区切りで表示（カーソル位置は桁数で保持）
+    const digits = el.value.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/\D/g, '').slice(0, 10);
+    const price = Number(digits) || 0;
+    const before = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/\D/g, '').length;
+    el.value = price ? price.toLocaleString('ja-JP') : '';
+    let pos = 0;
+    for (let seen = 0; pos < el.value.length && seen < before; pos += 1) if (/\d/.test(el.value[pos])) seen += 1;
+    el.setSelectionRange(pos, pos);
+    updateItems(el.dataset.id, { price });
+    const item = state.items.find((i) => i.id === el.dataset.id);
+    const box = $('#range-box');
+    if (box && item) box.innerHTML = V.rangeView(item);
+    publish();
+    const next = $('[data-action="next"]');
+    if (next) next.disabled = !V.canProceed(state);
+  }
+});
+
+function rerenderKeepScroll() {
+  const y = window.scrollY;
+  const active = document.activeElement?.id;
+  render();
+  window.scrollTo(0, y);
+  if (active === 'search') $('#search')?.focus();
+}
+
+// 本社(別タブ)からの回答を受信
+window.addEventListener('storage', (e) => {
+  if (e.key === APPROVAL_KEY) {
+    const decided = (l) => l.filter((a) => a.visitId === state.visitId && a.status !== '待ち').length;
+    if (decided(loadApprovals()) > decided(state.approvals)) showToast('✅ 査定部から承認の結果が届きました');
+    rerenderKeepScroll();
+    return;
+  }
+  if (e.key === COMMENT_KEY) {
+    const mine = (list) => list.filter((c) => c.visitId === state.visitId).length;
+    if (mine(loadComments()) > state.comments.length) showToast('❗ 本社査定部からコメントが届きました');
+    rerenderKeepScroll();
+    return;
+  }
+  if (e.key !== AP_STORAGE_KEY) return;
+  // 下書き入力中は再描画しない（フォーカスが外れるため）
+  if (!document.activeElement?.dataset?.draft) rerenderKeepScroll();
+});
+
+setInterval(() => {
+  const t = $('#timer');
+  if (t && state.visitStartedAt && !state.visitEndedAt) t.textContent = fmtElapsed(state.visitStartedAt);
+}, 1000);
+
+render();

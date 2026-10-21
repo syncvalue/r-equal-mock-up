@@ -1,0 +1,46 @@
+/* 出張買取契約書（A4）。サンプル帳票のレイアウトを再現 */
+.cf-page { width: 210mm; height: 297mm; padding: 9mm 9mm 7mm; box-sizing: border-box; background: #fff; color: #111;
+  font-size: 8.5pt; line-height: 1.25; position: relative; page-break-after: always; break-after: page; overflow: hidden;
+  font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; }
+.cf-page:last-child { page-break-after: auto; break-after: auto; }
+.cf-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.cf-title { font-size: 17pt; font-weight: bold; text-decoration: underline; text-underline-offset: 3px; letter-spacing: .1em; }
+.cf-badge { justify-self: end; border: 1.5px solid #e4572e; color: #e4572e; font-weight: bold; font-size: 11pt; padding: 1mm 4mm; }
+.cf-top { display: grid; grid-template-columns: 1fr 62mm; gap: 4mm; margin: 2mm 0 2mm; }
+.cf-top .u { border-bottom: 1px solid #111; padding: 0 2mm; display: inline-block; min-width: 8mm; text-align: center; }
+.cf-pre { font-size: 7pt; margin-top: 1.5mm; }
+.cf-pre b { color: #e4572e; font-weight: normal; }
+.cf-co { font-size: 7pt; }
+.cf-co strong { font-size: 8.5pt; }
+.cf-tbl { width: 100%; border-collapse: separate; border-spacing: 0; border: 1.5px solid #111; border-radius: 3mm; overflow: hidden; table-layout: fixed; }
+.cf-tbl th { background: #eee; border-bottom: 1px solid #111; border-right: 1px solid #111; font-size: 8pt; padding: .8mm 0; }
+.cf-tbl td { border-bottom: 1px solid #555; border-right: 1px solid #555; height: 5.6mm; padding: 0 1mm; font-size: 7.5pt; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cf-tbl th:last-child, .cf-tbl td:last-child { border-right: 0; }
+.cf-tbl tr:last-child td { border-bottom: 0; }
+.cf-tbl .n { text-align: center; } .cf-tbl .r { text-align: right; font-size: 9pt; }
+.cf-tbl .sm { font-size: 5.5pt; text-align: center; white-space: normal; line-height: 1.1; }
+.cf-tbl .ft { font-size: 6.8pt; }
+.cf-total { display: flex; justify-content: flex-end; margin-top: -1px; }
+.cf-total > div { border: 1.5px solid #111; border-top: 0; display: flex; width: 84mm; }
+.cf-total .l { background: #eee; padding: 1mm 3mm; border-right: 1px solid #111; font-weight: bold; text-align: center; width: 18mm; }
+.cf-total .v { flex: 1; text-align: right; font-weight: bold; font-size: 11pt; padding: .5mm 2mm; }
+.cf-red { color: #e4572e; font-weight: bold; font-size: 11pt; text-align: center; margin: 2.5mm 0 1mm; }
+.cf-red small { font-size: 8pt; }
+.cf-id { border: 1.5px solid #111; border-radius: 2mm; padding: 1.2mm 2mm; display: flex; gap: 2mm; align-items: center; font-size: 8pt; }
+.cf-id .g { flex: 1; } .cf-id .box { margin-left: auto; white-space: nowrap; }
+.cf-bottom { display: grid; grid-template-columns: 1fr 92mm; margin-top: 1.5mm; border: 1.5px solid #111; border-radius: 2mm; overflow: hidden; }
+.cf-chk { border-right: 1px solid #111; padding: 0 0 0 0; }
+.cf-chk .h { color: #e4572e; font-weight: bold; padding: 1mm 2mm 0; font-size: 9pt; }
+.cf-chk .h small { font-size: 6.2pt; color: #111; font-weight: normal; }
+.cf-chk .q { display: flex; gap: 1.5mm; padding: 1.4mm 2mm; border-bottom: 1px solid #aaa; align-items: center; font-size: 7.6pt; }
+.cf-chk .q:last-child { border-bottom: 0; }
+.cf-chk .q .bx { font-size: 10pt; line-height: 1; }
+.cf-form { display: grid; grid-template-rows: auto auto auto auto auto auto auto; }
+.cf-form > div { display: grid; grid-template-columns: 17mm 1fr; border-bottom: 1px solid #555; min-height: 9mm; }
+.cf-form > div:last-child { border-bottom: 0; }
+.cf-form .k { background: #eee; display: flex; align-items: center; justify-content: center; text-align: center; border-right: 1px solid #555; font-weight: bold; font-size: 7.6pt; padding: 0 1mm; }
+.cf-form .v { padding: 1mm 2mm; display: flex; flex-direction: column; justify-content: center; font-size: 8pt; position: relative; }
+.cf-form .v small { font-size: 6pt; color: #555; }
+.cf-c { display: inline-block; border: 1px solid #111; border-radius: 50%; padding: 0 1.2mm; margin: 0 .3mm; }
+.cf-seal { position: absolute; right: 2mm; top: 50%; transform: translateY(-50%); width: 18mm; height: 18mm; border: 1px dashed #777; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 7pt; color: #777; }
+.cf-seal img { max-width: 100%; max-height: 100%; }
