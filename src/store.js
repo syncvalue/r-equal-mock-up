@@ -90,13 +90,17 @@ export const newCommentId = () => `CM-${Date.now().toString(36).toUpperCase()}${
 
 export const COMMENT_TAGS = ['安すぎる', '高すぎる', '要再確認', 'その他'];
 
+// 始業・終業の記録（営業×日付）と、本社からの入金
+export const WORKDAY_KEY = 'rq-mock-workdays';
+export const DEPOSIT_KEY = 'rq-mock-deposits';
+
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
 };
 
-export const RESET_CONFIRM = '契約・査定依頼・コメント・訪問状況のデータをすべて初期化します。よろしいですか？（商品マスタは消えません）';
+export const RESET_CONFIRM = '契約・査定依頼・コメント・訪問状況・始業終業・経費のデータをすべて初期化します。よろしいですか？（商品マスタは消えません）';
 
 // 買取承認（本社査定部が、商品が登録された時点から随時 承認／差戻し）。承認時点の金額・ランク・個数のスナップショットを持つ
 export const APPROVAL_KEY = 'rq-mock-approvals';

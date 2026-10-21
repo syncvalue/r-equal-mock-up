@@ -4,6 +4,9 @@ import {
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
 import { RANKS } from '../src/data.js';
+import { DEPOSIT_KEY, WORKDAY_KEY } from '../src/store.js';
+import { USERS } from '../src/dashboard.js';
+import { addDeposit, todayRows, newId } from '../src/workday.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
 import { yen, fmtTime, fmtElapsed, esc } from '../src/format.js';
@@ -12,6 +15,7 @@ const $ = (s) => document.querySelector(s);
 let visitId = null;
 let sel = null; // { type: 'item' | 'req', id }
 let draft = { tag: '', text: '', price: '', rank: null, reason: '' }; // 営業への送信内容（コメント＋任意で提案査定額）
+let cash = null; // 営業への入金・日報の確認画面（開いているときだけ { userId, amount, memo }）
 let compose = null; // 営業へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
@@ -218,6 +222,36 @@ function composeModal() {
   </div>`;
 }
 
+// 営業の現金管理（入金の登録と、今日の所持金・日報の確認）
+const PHASE = { before: ['未始業', 'bg-slate-200 text-slate-600'], open: ['業務中', 'bg-emerald-100 text-emerald-800'], closed: ['終業済み', 'bg-indigo-100 text-indigo-800'] };
+function cashModal() {
+  if (!cash) return '';
+  const rows = todayRows();
+  return `
+  <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4" data-cash-backdrop>
+    <div class="bg-white rounded-2xl w-full max-w-5xl p-5 space-y-3 max-h-[94vh] overflow-y-auto">
+      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">💴 営業の現金管理（今日）</h2>
+        <button class="px-3 py-1 rounded border font-bold" data-cash-close>閉じる</button></div>
+      <div class="rounded-xl border p-3 flex flex-wrap items-end gap-3 bg-slate-50">
+        <b class="w-full">🏦 入金を登録（営業の口座へ）</b>
+        <label class="text-sm font-bold">営業<select class="inp mt-1 font-normal" data-c="userId">${USERS.map((u) => `<option value="${u.id}" ${cash.userId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
+        <label class="text-sm font-bold">金額（円）<input class="inp mt-1 font-normal text-right" data-c="amount" inputmode="numeric" value="${cash.amount ? Number(cash.amount).toLocaleString('ja-JP') : ''}" placeholder="50,000" /></label>
+        <label class="text-sm font-bold flex-1 min-w-[10rem]">メモ<input class="inp mt-1 font-normal" data-c="memo" value="${esc(cash.memo)}" placeholder="例: 買取資金の追加" /></label>
+        <button class="b b-pri" data-cash-send>入金する</button>
+      </div>
+      <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>営業</th><th>状況</th><th class="text-right">繰越</th><th class="text-right">入金</th><th class="text-right">経費</th><th class="text-right">帳簿残高</th><th class="text-right">実際の所持金</th><th class="text-right">過不足</th><th>日報</th></tr></thead><tbody>
+        ${rows.map(({ user, day, phase, summary: sm }) => `<tr class="border-b">
+          <td class="font-bold">${esc(user.name)}</td><td><span class="rounded px-2 py-0.5 text-xs font-bold ${PHASE[phase][1]}">${PHASE[phase][0]}</span></td>
+          <td class="text-right">${sm ? yen(sm.opening) : '-'}</td><td class="text-right">${sm ? yen(sm.depositTotal) : '-'}</td><td class="text-right">${sm ? yen(sm.expenseTotal) : '-'}</td>
+          <td class="text-right font-bold">${sm ? yen(sm.balance) : '-'}</td><td class="text-right">${day?.closedAt ? yen(day.close.counted) : '-'}</td>
+          <td class="text-right font-bold ${day?.close?.diff ? 'text-rose-600' : 'text-emerald-700'}">${day?.closedAt ? (day.close.diff ? `${day.close.diff > 0 ? '+' : '−'}${yen(Math.abs(day.close.diff))}` : '一致') : '-'}</td>
+          <td class="text-xs">${day?.closedAt ? `提出済 ${fmtTime(day.closedAt).slice(0, 5)}／${day.report.visitCount}件・${yen(day.report.purchaseTotal)}` : '-'}${day?.start?.diff ? `<br><span class="text-amber-700">始業時差異 ${yen(day.start.diff)}</span>` : ''}</td></tr>
+          ${day?.closedAt && (day.close.diff || day.close.comment) ? `<tr class="border-b bg-amber-50/50"><td></td><td colspan="8" class="text-xs whitespace-normal">${day.close.diff ? `差異の理由: ${esc(day.close.note)}　` : ''}${day.close.comment ? `所感: ${esc(day.close.comment)}` : ''}</td></tr>` : ''}`).join('')}
+      </tbody></table>
+    </div>
+  </div>`;
+}
+
 function render() {
   const visits = visitsSorted();
   const aps = loadAppraisals();
@@ -229,7 +263,7 @@ function render() {
   $('#root').innerHTML = `
   <header class="bg-indigo-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">本社 査定部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
+    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <button class="ml-2 rounded bg-white/20 px-3 py-1 font-bold" data-cash-open>💴 入金・日報</button> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
   <div class="grid grid-cols-[19rem_1fr_26rem] h-[calc(100vh-52px)]">
     <aside class="bg-white border-r overflow-y-auto">
@@ -247,7 +281,7 @@ function render() {
       ${itemsTable(v, aps, cs, approvals)}` : '<p class="text-slate-400 p-10 text-center">左の一覧から訪問を選択してください</p>'}
     </main>
     <aside class="bg-slate-50 border-l p-4 overflow-y-auto">${detailPanel(v, aps, cs, approvals)}</aside>
-  </div>${composeModal()}`;
+  </div>${composeModal()}${cashModal()}`;
   dirty = false;
 }
 
@@ -292,6 +326,15 @@ function send(itemId) {
 }
 
 document.addEventListener('click', (e) => {
+  if (e.target.matches('[data-cash-backdrop]')) { cash = null; render(); return; }
+  const cb = e.target.closest('button');
+  if (cb && 'cashOpen' in cb.dataset) { cash = { userId: USERS[0].id, amount: 0, memo: '' }; render(); return; }
+  if (cb && 'cashClose' in cb.dataset) { cash = null; render(); return; }
+  if (cb && 'cashSend' in cb.dataset) {
+    if (!(cash.amount > 0)) return alert('入金額を入力してください');
+    addDeposit({ id: newId('DP'), userId: cash.userId, amount: cash.amount, memo: cash.memo.trim(), by: '本社 経理部', at: Date.now() });
+    cash = { ...cash, amount: 0, memo: '' }; render(); return;
+  }
   if (e.target.closest('[data-compose-backdrop]') && e.target.matches('[data-compose-backdrop]')) { compose = null; render(); return; }
   const t = e.target.closest('button, tr[data-item]');
   if (!t) return;
@@ -323,10 +366,16 @@ document.addEventListener('click', (e) => {
   render();
 });
 document.addEventListener('change', (e) => {
+  if (cash && e.target.dataset.c === 'userId') cash = { ...cash, userId: e.target.value };
   if (compose && e.target.matches('[data-m-important]')) compose = { ...compose, important: e.target.checked };
   if (compose && e.target.dataset.m === 'target') compose = { ...compose, target: e.target.value };
 });
 document.addEventListener('input', (e) => {
+  if (cash && e.target.dataset.c) {
+    if (e.target.dataset.c === 'amount') cash = { ...cash, amount: formatMoneyInput(e.target) };
+    else cash = { ...cash, [e.target.dataset.c]: e.target.value };
+    return;
+  }
   if (compose && e.target.dataset.m && e.target.dataset.m !== 'target') { compose = { ...compose, [e.target.dataset.m]: e.target.value }; return; }
   if (e.target.dataset.f === 'price') {
     // 金額は3桁区切りで表示し、内部では数字のみ保持する（ランク選択欄の出し入れのため、入力有無が変わる時だけ再描画）
@@ -338,11 +387,11 @@ document.addEventListener('input', (e) => {
 
 // 営業側の更新を即時反映。入力中なら、入力欄から離れたときに反映する
 window.addEventListener('storage', (e) => {
-  if (![LIVE_KEY, AP_STORAGE_KEY, COMMENT_KEY, APPROVAL_KEY, EVAL_KEY].includes(e.key)) return;
+  if (![LIVE_KEY, AP_STORAGE_KEY, COMMENT_KEY, APPROVAL_KEY, EVAL_KEY, WORKDAY_KEY, DEPOSIT_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;
   else render();
 });
-const isEditing = () => Boolean(document.activeElement?.dataset?.f || document.activeElement?.dataset?.m);
+const isEditing = () => Boolean(document.activeElement?.dataset?.f || document.activeElement?.dataset?.m || document.activeElement?.dataset?.c);
 document.addEventListener('focusout', () => { if (dirty) setTimeout(() => !isEditing() && render(), 0); });
 
 setInterval(() => {

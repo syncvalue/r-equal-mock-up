@@ -3,7 +3,7 @@ import { loadRecent, pushRecent } from './search.js';
 import { estimateByPhotos } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
-  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
+  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
@@ -12,6 +12,10 @@ import { userById } from './dashboard.js';
 import { messagesFor } from './messages.js';
 import { EVENTS, eventById } from './schedule.js';
 import { formatMoneyInput } from './moneyInput.js';
+import {
+  START_CHECKS, END_CHECKS, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
+  newId, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady,
+} from './workday.js';
 
 // 予定（訪問）から、コールセンター受付情報の表示用データを作る
 function callInfoOf(ev, userId) {
@@ -20,8 +24,13 @@ function callInfoOf(ev, userId) {
 
 const initialState = () => ({
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
-  view: 'dashboard',
+  view: phaseOf(loadDay('u01')) === 'open' ? 'dashboard' : 'workday', // 始業前は、始業開始画面が初期画面
   user: 'u01',
+  day: null,
+  phase: 'before',
+  startForm: blankStartForm(),
+  closeForm: blankCloseForm(),
+  expDraft: blankExpenseDraft(),
   dash: { period: 'month', scope: 'me', member: null },
   menuOpen: false,
   step: 0,
@@ -81,6 +90,10 @@ function showToast(msg) {
   setTimeout(() => el.remove(), 4000);
 }
 
+// 経費のダミーレシート写真（デモ用）
+const dummyReceipt = (d) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="320"><rect width="240" height="320" fill="#f8fafc" stroke="#cbd5e1"/><text x="20" y="40" font-size="20" fill="#334155">RECEIPT</text>${[70, 100, 130, 160].map((y) => `<rect x="20" y="${y}" width="${200 - (y % 3) * 30}" height="10" fill="#cbd5e1"/>`).join('')}<text x="20" y="250" font-size="22" fill="#0f172a">¥ ${Number(d.amount || 0).toLocaleString('ja-JP')}</text><text x="20" y="290" font-size="14" fill="#64748b">DUMMY ${dateKey()}</text></svg>`);
+
 const DUMMY_ID = (label) =>
   'data:image/svg+xml;utf8,' +
   encodeURIComponent(
@@ -113,15 +126,21 @@ function publish() {
 }
 
 function render() {
+  const day = loadDay(state.user);
+  const phase = phaseOf(day);
+  set({ day, phase });
+  // 始業するまで（終業後も）、始業・終業の画面以外は使えない
+  if (phase !== 'open' && state.view !== 'workday') set({ view: 'workday', modal: null });
   set({ appraisals: loadAppraisals(), comments: loadComments().filter((c) => c.visitId === state.visitId),
     approvals: loadApprovals().filter((a) => a.visitId === state.visitId),
   });
   const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
   $('#app').innerHTML =
     V.headerView(state) +
-    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : V.placeholderView(state)}</main>` +
+    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
     V.modalView(state) +
+    V.receiptModalView(state) +
     V.scanView(state) +
     V.menuView(state);
   document.querySelectorAll('[data-scroll]').forEach((e) => { e.scrollTop = scrolls[e.dataset.scroll] ?? 0; });
@@ -331,8 +350,52 @@ const actions = {
     upsertComment({ ...c, adopted: true });
     showToast('提案された査定額を買取金額に反映しました');
   },
-  // 訪問終了は、お客様宅を出る前のチェックリストがすべて完了している場合のみ
-  finish: () => V.leaveRemaining(state) === 0 && set({ visitEndedAt: Date.now() }),
+  // 訪問終了は、お客様宅を出る前のチェックリストがすべて完了している場合のみ。買取代金は、経費として自動計上する
+  finish: () => {
+    if (V.leaveRemaining(state) !== 0) return;
+    set({ visitEndedAt: Date.now() });
+    const sel = V.selectedItems(state);
+    const day = loadDay(state.user);
+    if (day && !saveDay(recordVisit(day, { visitId: state.visitId, customerName: state.customer.name, itemCount: sel.reduce((n, i) => n + i.qty, 0), total: V.total(sel) }))) {
+      showToast('買取代金を経費に計上できませんでした（保存容量不足）');
+    }
+  },
+  // 始業・終業
+  'wd-start': () => {
+    if (!startReady(state.startForm, state.user)) return;
+    if (!saveDay(startDay(state.user, state.startForm))) { showToast('始業を記録できませんでした（保存容量不足）'); return; }
+    set({ view: 'dashboard', startForm: blankStartForm() });
+    showToast('始業を記録しました。本日もよろしくお願いします');
+  },
+  'wd-close': () => {
+    if (!closeReady(state.closeForm, state.day, state.user, Boolean(state.visitStartedAt && !state.visitEndedAt))) return;
+    if (!saveDay(closeDay(state.day, state.user, state.closeForm))) { showToast('日報を保存できませんでした（保存容量不足）'); return; }
+    set({ closeForm: blankCloseForm(), modal: null });
+    showToast('日報を提出し、終業しました。お疲れさまでした');
+  },
+  'wd-demo-start': () => set({
+    startForm: { ...state.startForm, counted: carryoverFor(state.user).amount, countedSet: true, checks: Object.fromEntries(START_CHECKS.map((c) => [c.key, true])) },
+  }),
+  'wd-demo-close': () => set({
+    closeForm: { ...state.closeForm, counted: summaryOf(state.day, state.user).balance, countedSet: true, checks: Object.fromEntries(END_CHECKS.map((c) => [c.key, true])) },
+  }),
+  // 経費
+  'exp-type': (el) => set({ expDraft: { ...state.expDraft, type: el.dataset.value } }),
+  'exp-photo-dummy': () => set({ expDraft: { ...state.expDraft, photo: dummyReceipt(state.expDraft) } }),
+  'exp-photo-clear': () => set({ expDraft: { ...state.expDraft, photo: null } }),
+  'exp-submit': () => {
+    const d = state.expDraft;
+    if (!expenseReady(d) || !state.day) return;
+    const next = addExpense(state.day, { id: newId('EX'), at: Date.now(), type: d.type, amount: d.amount, memo: d.memo.trim(), photo: d.photo, auto: false });
+    if (!saveDay(next)) { showToast('保存できませんでした（写真の容量が大きすぎます）。撮り直してください'); return; }
+    set({ expDraft: blankExpenseDraft() });
+    showToast('経費を計上しました');
+  },
+  'exp-remove': (el) => {
+    if (!confirm('この経費の計上を取り消します。よろしいですか？')) return;
+    saveDay(removeExpense(state.day, el.dataset.id));
+  },
+  'exp-view': (el) => set({ modal: { type: 'receipt', id: el.dataset.id } }),
   // お客様の評価（営業の記録）。保存済みの内容があれば、それを下書きとして開く
   'open-eval': () => set({ modal: { type: 'eval' }, evalDraft: state.evaluation ? { ...state.evaluation } : V.blankEval() }),
   'eval-set': (el) => {
@@ -372,6 +435,16 @@ document.addEventListener('change', (e) => {
     // デモ用: ログインユーザーの切り替え。一般の営業に切り替えると、閲覧範囲は自分のみになる
     set({ user: el.value, dash: { ...state.dash, scope: 'me', member: null } });
     rerenderKeepScroll();
+  }
+  if (el.dataset.action === 'wd-check') {
+    const key = el.dataset.form === 'start' ? 'startForm' : 'closeForm';
+    set({ [key]: { ...state[key], checks: { ...state[key].checks, [el.dataset.key]: el.checked } } });
+    rerenderKeepScroll();
+  }
+  if (el.dataset.expPhoto !== undefined && el.files[0]) {
+    shrinkImage(el.files[0], 1000)
+      .then((img) => { set({ expDraft: { ...state.expDraft, photo: img } }); rerenderKeepScroll(); })
+      .catch(() => showToast('画像を読み込めませんでした'));
   }
   if (el.dataset.action === 'leave-check') {
     set({ leaveChecks: { ...state.leaveChecks, [el.dataset.key]: el.checked } });
@@ -441,6 +514,24 @@ document.addEventListener('pointercancel', endDrag);
 // テキスト入力は再描画せず state のみ更新（フォーカス維持）
 document.addEventListener('input', (e) => {
   const el = e.target;
+  if (el.dataset.wd) {
+    // 始業・終業・経費の入力。再描画せず state だけ更新し、差異の表示とボタンだけ差し替える（フォーカス維持）
+    const filled = el.value.trim() !== '';
+    const amount = el.dataset.wd.endsWith('counted') || el.dataset.wd === 'exp-amount' ? formatMoneyInput(el) : 0;
+    const patch = {
+      'start-counted': { startForm: { ...state.startForm, counted: amount, countedSet: filled } },
+      'start-note': { startForm: { ...state.startForm, note: el.value } },
+      'close-counted': { closeForm: { ...state.closeForm, counted: amount, countedSet: filled } },
+      'close-note': { closeForm: { ...state.closeForm, note: el.value } },
+      'close-comment': { closeForm: { ...state.closeForm, comment: el.value } },
+      'exp-amount': { expDraft: { ...state.expDraft, amount } },
+      'exp-memo': { expDraft: { ...state.expDraft, memo: el.value } },
+    }[el.dataset.wd];
+    set(patch);
+    if ($('#wd-live')) $('#wd-live').innerHTML = V.wdLiveView(state);
+    if ($('#exp-live')) $('#exp-live').innerHTML = V.expLiveView(state);
+    return;
+  }
   if (el.dataset.evalmemo !== undefined) {
     set({ evalDraft: { ...state.evalDraft, memo: el.value } });
   } else if (el.dataset.draft) {
@@ -475,6 +566,11 @@ function rerenderKeepScroll() {
 
 // 本社(別タブ)からの回答を受信
 window.addEventListener('storage', (e) => {
+  if (e.key === DEPOSIT_KEY) {
+    showToast('🏦 本社から入金がありました');
+    rerenderKeepScroll();
+    return;
+  }
   if (e.key === MSG_KEY) {
     showToast('📢 本社からメッセージが届きました');
     rerenderKeepScroll();
