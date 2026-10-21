@@ -13,7 +13,7 @@ const link = (action, label) => `<button class="text-sm underline text-slate-500
 // 受信したSMS（モック）。実際はSMSで届くため、この表示はデモ用
 const smsPreview = (p) => (p?.userId ? `
   <div class="rounded-2xl bg-slate-800 text-white p-3 text-sm shadow-lg">
-    <div class="text-[11px] text-slate-300 mb-0.5">📱 デモ用：端末に届いたSMS（実際は画面に表示されません）</div>
+    <div class="text-[11px] text-slate-300 mb-0.5">📱 デモ用：届いたSMS</div>
     <div>【出張買取】認証コード <b class="text-xl tracking-widest font-mono">${p.code}</b>（5分間有効）。他人には教えないでください。</div></div>` : '');
 
 function loginScreen(a) {
@@ -26,7 +26,7 @@ function loginScreen(a) {
     <button class="btn btn-primary w-full" data-action="auth-login">ログイン</button>
     <div class="text-center">${link('auth-forgot', 'パスワードをお忘れの方')}</div>
     <details class="rounded-xl bg-slate-50 border p-2 text-xs text-slate-500"><summary class="cursor-pointer">デモ用アカウント</summary>
-      <div class="mt-1">モックのため、ID・パスワードは何でもログインできます。下のIDなら、その営業としてログインします（それ以外は鈴木 一郎）。</div>
+      <div class="mt-1">ID・パスワードは何でも可（モック）。下のIDならその営業、それ以外は鈴木 一郎としてログインします。</div>
       <div class="mt-1 grid grid-cols-2 gap-x-3">${ACCOUNTS.map((x) => `<span><b class="font-mono">${x.loginId}</b> ${esc(userById(x.userId).name)}</span>`).join('')}</div></details>`;
 }
 
@@ -36,7 +36,7 @@ function smsScreen(a, forgot) {
   const phone = p?.userId ? maskPhone(ACCOUNTS.find((x) => x.userId === p.userId).phone) : 'ご登録の電話番号';
   return `
     ${message(a)}
-    <p class="text-sm text-slate-600">${esc(phone)} 宛に、6桁の認証コードをSMSでお送りしました。コードを入力してください。</p>
+    <p class="text-sm text-slate-600">${esc(phone)} 宛に、6桁の認証コードをSMSで送りました。</p>
     ${smsPreview(p)}
     ${input('認証コード（6桁）', 'code', a.code, { inputmode: 'numeric', maxlength: 6, autocomplete: 'one-time-code', placeholder: '000000' })}
     <button class="btn btn-primary w-full" data-action="auth-verify">${forgot ? '次へ' : 'ログイン'}</button>
@@ -46,14 +46,14 @@ function smsScreen(a, forgot) {
 
 const forgotScreen = (a) => `
     ${message(a)}
-    <p class="text-sm text-slate-600">ログインIDを入力してください。登録の電話番号に、本人確認のための認証コードをSMSでお送りします。</p>
+    <p class="text-sm text-slate-600">ログインIDを入力してください。登録の電話番号に認証コードを送ります。</p>
     ${input('ログインID', 'id', a.id, { placeholder: '例: sales01', autocomplete: 'username' })}
     <button class="btn btn-primary w-full" data-action="auth-forgot-send">認証コードを送る</button>
     <div class="text-center">${link('auth-back', '← ログインに戻る')}</div>`;
 
 const newPwScreen = (a) => `
     ${message(a)}
-    <p class="text-sm text-slate-600">新しいパスワードを設定してください（8文字以上・英字と数字を含む）。</p>
+    <p class="text-sm text-slate-600">新しいパスワード（8文字以上・英字と数字を含む）</p>
     ${input('新しいパスワード', 'newPw', a.newPw, { type: 'password', autocomplete: 'new-password' })}
     ${input('新しいパスワード（確認）', 'newPw2', a.newPw2, { type: 'password', autocomplete: 'new-password' })}
     <button class="btn btn-primary w-full" data-action="auth-setpw">パスワードを変更する</button>`;

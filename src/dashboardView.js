@@ -63,7 +63,7 @@ function memberTable(s, members, range, now) {
           <td class="text-right font-bold">${yen(st.amount)}</td>
           <td class="pl-3"><div class="flex items-center gap-2">${`<div class="flex-1">${progressBar(pr)}</div>`}<span class="w-10 text-right font-bold ${pr.rate >= pr.pace ? 'text-emerald-700' : 'text-amber-700'}">${pct(pr.rate)}</span></div></td></tr>`).join('')}
       </tbody></table></div>
-  <p class="text-xs text-slate-500">行をタップすると、そのメンバーの詳細を見られます。目標達成の縦線は、今日までの経過に応じた目安です。</p>`;
+  <p class="text-xs text-slate-500">行をタップするとメンバーの詳細を表示。縦線は今日までの経過の目安です。</p>`;
 }
 
 // 本社からのメッセージ。一覧は2件分の高さに固定し、3件目以降は一覧内でスクロールする。詳細はモーダルで開く
@@ -88,7 +88,7 @@ function messagesCard(user) {
           <span class="text-xs text-slate-400 shrink-0">${fmtDateTime(m.sentAt).replace(/:\d+$/, '')}</span></button>`;
       }).join('') : '<p class="text-slate-400 text-center py-3">メッセージはありません</p>'}
     </div>
-    ${msgs.length > 2 ? `<div data-msgmore class="absolute inset-x-0 bottom-0 h-9 flex items-end justify-center pointer-events-none bg-gradient-to-t from-white via-white/90 to-transparent"><span class="text-xs font-bold text-slate-600 pb-0.5">▼ 他${msgs.length - 2}件あります（下へスクロール）</span></div>` : ''}
+    ${msgs.length > 2 ? `<div data-msgmore class="absolute inset-x-0 bottom-0 h-9 flex items-end justify-center pointer-events-none bg-gradient-to-t from-white via-white/90 to-transparent"><span class="text-xs font-bold text-slate-600 pb-0.5">▼ 他${msgs.length - 2}件（下へスクロール）</span></div>` : ''}
     </div>
   </div>`;
 }
@@ -138,11 +138,11 @@ export function dashboardView(s) {
       ${kpi('成約率', pct(cur.rate), `<span class="text-xs text-slate-500">前期間 ${pct(prev.rate)}</span>`)}
       ${kpi('平均買取額／契約', yen(cur.avg), delta(cur.avg, prev.avg))}
     </div>
-    <p class="text-[11px] text-slate-400 -mt-1">▲▼は直前の同じ長さの期間との比較。訪問数・成約率に、不在・日程変更は含みません。</p>
+    <p class="text-[11px] text-slate-400 -mt-1">▲▼は前の同じ期間との比較。不在・日程変更は訪問数・成約率に含みません。</p>
 
     <div class="grid md:grid-cols-[3fr_2fr] gap-3 items-start">
       <div class="card !p-3"><div class="font-bold text-sm mb-1">日別の買取金額${s.dash.period === 'today' ? '（直近7日）' : ''}</div>${barChart(series, ymd(now))}
-        <div class="text-[11px] text-slate-400">バーをタップすると、その日の訪問ごとの結果を見られます。</div></div>
+        <div class="text-[11px] text-slate-400">バーをタップで、その日の訪問結果を表示。</div></div>
       <div class="card !p-3 space-y-2">
         <div class="font-bold text-sm">今月の目標達成</div>
         <div class="flex items-end justify-between"><span class="text-3xl font-bold ${prog.rate >= prog.pace ? 'text-emerald-700' : 'text-amber-700'}">${pct(prog.rate)}</span>
@@ -178,7 +178,7 @@ export function dashVisitsModal(s) {
       <span class="rounded-lg bg-emerald-100 text-emerald-800 px-3 py-1">成約 <b>${count('won')}</b></span>
       <span class="rounded-lg bg-slate-200 text-slate-700 px-3 py-1">不成約 <b>${count('lost')}</b></span>
       <span class="rounded-lg bg-amber-100 text-amber-800 px-3 py-1">業績対象外 <b>${excluded}</b>（不在・日程変更）</span></div>
-    <p class="text-xs text-slate-500">不在・日程変更の依頼は、訪問実績には数えますが、営業の責任ではないため、訪問数・成約率には含みません。</p>
+    <p class="text-xs text-slate-500">不在・日程変更は訪問実績に数え、訪問数・成約率には含みません。</p>
     ${recs.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm">
       <thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">日時</th>${showWho ? '<th class="text-left">営業</th>' : ''}<th class="text-left">お客様</th><th class="text-left">商材</th><th class="text-left">結果</th><th class="text-right pr-3">買取金額</th></tr></thead>
       <tbody>${recs.map((r) => `<tr class="border-t align-top">

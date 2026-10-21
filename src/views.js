@@ -65,19 +65,19 @@ const itemWarn = (s, itemId) =>
 
 // 査定の前に、お客様へ説明する事項。説明したことを記録してから査定に進む
 export const BRIEFING_CHECKS = [
-  { key: 'flow', text: '買取の流れ（査定 → 金額のご提示 → ご同意 → 契約・お支払い）を説明した' },
-  { key: 'refuse', text: '査定額にご納得いただけない場合は、売却をお断りいただけることを説明した' },
-  { key: 'photo', text: '査定のため、商品の撮影と、本社査定部への写真送信について了承を得た' },
-  { key: 'kyc', text: '古物営業法に基づき、本人確認書類の確認が必要なことを説明した' },
-  { key: 'cooling', text: 'クーリング・オフ制度があることを説明した（契約時に、あらためて満了日をお伝えします）' },
+  { key: 'flow', text: '買取の流れ（査定→提示→同意→契約・支払い）を説明した' },
+  { key: 'refuse', text: '査定額に納得できない場合は、断れることを説明した' },
+  { key: 'photo', text: '商品の撮影と、本社への写真送信の了承を得た' },
+  { key: 'kyc', text: '本人確認書類の確認が必要なことを説明した（古物営業法）' },
+  { key: 'cooling', text: 'クーリング・オフ制度を説明した（満了日は契約時に再度案内）' },
 ];
 export const PROPOSE_OPTIONS = [
-  { value: 'yes', label: '提案してよい', sub: 'ご依頼商品以外の、買取可能な商品もご案内できます', cls: 'border-teal-600 bg-teal-50' },
-  { value: 'no', label: '提案は不要', sub: 'ご依頼いただいた商品のみ、査定します', cls: 'border-slate-500 bg-slate-100' },
+  { value: 'yes', label: '提案してよい', sub: '他の買取可能な商品もご案内', cls: 'border-teal-600 bg-teal-50' },
+  { value: 'no', label: '提案は不要', sub: '依頼商品のみ査定', cls: 'border-slate-500 bg-slate-100' },
 ];
 const briefingHint = (s) => {
   const left = BRIEFING_CHECKS.filter((c) => !s.briefing.checks[c.key]).length;
-  return left ? `説明事項があと${left}項目、未チェックです` : 'お客様のご回答（提案の可否）を選んでください';
+  return left ? `説明事項があと${left}項目` : 'お客様の回答を選んでください';
 };
 export const briefingDone = (s) => BRIEFING_CHECKS.every((c) => s.briefing.checks[c.key]) && Boolean(s.briefing.propose);
 
@@ -197,11 +197,11 @@ export function canProceed(s) {
 
 const hint = (s) =>
   ({
-    1: 'お客様の確認を行ってください（氏名・電話番号は必須）',
+    1: 'お客様確認を済ませてください（氏名・電話は必須）',
     2: briefingHint(s),
     3: '商品を1点以上追加し、査定金額を入力してください',
-    4: isCustomerFacing(s) ? '最終確認中です。少々お待ちください' : '買取するすべての商品に、査定部の承認が必要です（承認待ち）',
-    5: 'すべての商品にシールのQRコードを紐づけてください',
+    4: isCustomerFacing(s) ? '最終確認中です。少々お待ちください' : '全商品に査定部の承認が必要です',
+    5: '全商品にシールを紐づけてください',
   })[s.step] ?? '';
 
 
@@ -243,7 +243,7 @@ export function customerView(s) {
         <h2 class="text-2xl font-bold flex items-center gap-3">お客様のご確認 ${repeatBadge(h)}</h2>
         <span class="text-sm text-slate-500">受付 ${esc(call.receptionNo)} ／ ${esc(call.receivedAt)} ／ 担当 ${esc(call.operator)}</span>
       </div>
-      <p class="text-slate-600">コールセンターで承った内容です。ご本人であることを確認してください。</p>
+      <p class="text-slate-600">ご本人かどうか、確認してください。</p>
       ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 担当者用の情報（過去の評価）を隠す' : '担当者用の情報（過去の評価）を表示'}</button>${s.showStaff ? pastEvalView(h) : ''}</div>` : ''}
       <dl class="grid grid-cols-[8rem_1fr] gap-y-2 text-xl">
         ${row('氏名', c.name)}${row('フリガナ', c.kana)}${row('生年月日', c.birth)}
@@ -285,7 +285,7 @@ function sealSection(s, item) {
 }
 
 export function itemsListView(s) {
-  if (!s.items.length) return '<p class="text-slate-400 text-center py-10">左の商品マスタか、AIカメラから追加してください</p>';
+  if (!s.items.length) return '<p class="text-slate-400 text-center py-10">商品を追加してください</p>';
   const btn = 'rounded-lg border-2 px-2 min-h-[44px] min-w-[58px] text-sm font-bold leading-tight';
   return s.items
     .map(
@@ -318,7 +318,7 @@ export function briefingView(s) {
           <span class="flex-1 ${b.checks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`).join('')}
       </div>
       <div class="rounded-xl border-2 p-3 space-y-2 ${b.propose ? 'border-emerald-300' : 'border-amber-400'}">
-        <div class="font-bold">ご依頼いただいた商品以外に、こちらから買取可能な商品をご提案してもよろしいですか？<span class="text-rose-600 ml-1 text-sm">お客様のご回答</span></div>
+        <div class="font-bold">依頼商品以外の買取可能な商品を、ご提案してもよろしいですか？<span class="text-rose-600 ml-1 text-sm">お客様のご回答</span></div>
         <div class="grid grid-cols-2 gap-2">${PROPOSE_OPTIONS.map((o) => `
           <button class="rounded-xl border-2 p-3 text-left ${b.propose === o.value ? o.cls + ' ring-2 ring-offset-1 ring-teal-400' : 'border-slate-200'}" data-action="brief-propose" data-value="${o.value}">
             <span class="block font-bold text-lg">${b.propose === o.value ? '✅ ' : ''}${o.label}</span><span class="block text-xs text-slate-500">${o.sub}</span></button>`).join('')}</div>
@@ -413,10 +413,10 @@ export function selectView(s) {
     <div class="card flex flex-col min-h-0 flex-1 !p-4 gap-2">
       <div class="flex items-start justify-between gap-3">
         <div><h2 class="text-2xl font-bold">買取商品のご確認</h2>
-          <p class="text-slate-600">${esc(s.customer.name)} 様、以下の内容で買取いたします。ご売却いただく商品をご確認ください。</p></div>
+          <p class="text-slate-600">${esc(s.customer.name)} 様、以下の内容で買取いたします。</p></div>
         <button class="shrink-0 text-xs underline ${staff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 担当者用の情報を隠す' : '担当者用の情報を表示'}</button>
       </div>
-      ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-900 font-bold">担当者用の表示です。お客様にはお見せしないでください（査定部の承認 ${okCount} / ${chosen.length} 点）。</div>` : ''}
+      ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-900 font-bold">担当者用（お客様には見せないでください）　承認 ${okCount} / ${chosen.length}点。</div>` : ''}
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="select">
       ${s.items
         .map((i) => {
@@ -431,15 +431,15 @@ export function selectView(s) {
           <div class="text-2xl font-bold w-36 text-right ${i.sell ? '' : 'line-through'}">${yen(i.price)}</div>
           <button class="btn w-40 !py-2 ${i.sell ? 'btn-primary' : 'btn-secondary'}" data-action="toggle-sell" data-id="${i.id}">${i.sell ? '✓ 売却する' : '今回は見送る'}</button>
         </div>
-        ${staff && a?.state === 'ng' ? `<p class="text-sm text-rose-700 font-bold mt-1">差戻し理由：${esc(a.rec.comment)}（買取明細で金額を見直してください）</p>` : ''}
-        ${staff && a?.state === 'stale' ? '<p class="text-sm text-orange-700 font-bold mt-1">承認後に金額・ランク・数量が変更されたため、査定部の再承認が必要です。</p>' : ''}
+        ${staff && a?.state === 'ng' ? `<p class="text-sm text-rose-700 font-bold mt-1">差戻し理由：${esc(a.rec.comment)}</p>` : ''}
+        ${staff && a?.state === 'stale' ? '<p class="text-sm text-orange-700 font-bold mt-1">承認後に変更されたため、再承認が必要です。</p>' : ''}
       </div>`;
         })
         .join('')}
       </div>
       <div class="border-t-2 pt-2 flex justify-between items-end gap-3">
         <div class="space-y-1">${staff ? `<div class="text-slate-500 text-sm">査定合計 ${yen(all)} ／ 除外 −${yen(all - sel)}</div>` : ''}
-          <div class="text-sm font-bold ${ready ? 'text-emerald-700' : 'text-amber-700'}">${ready ? '✓ 確認が完了しました' : staff ? `承認待ち ${chosen.length - okCount}点（承認されると自動で更新されます）` : 'ただいま、最終の確認をしております。少々お待ちください…'}</div></div>
+          <div class="text-sm font-bold ${ready ? 'text-emerald-700' : 'text-amber-700'}">${ready ? '✓ 確認が完了しました' : staff ? `承認待ち ${chosen.length - okCount}点` : '最終確認中です。少々お待ちください…'}</div></div>
         <span class="text-right"><span class="mr-3 text-lg">買取金額（${chosen.length}点）</span><span class="text-5xl font-bold text-teal-700">${yen(sel)}</span></span>
       </div>
     </div>
@@ -577,7 +577,7 @@ function evalModalView(s) {
       ${EVAL_OPTIONS[field].map((o) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${d[field].includes(o) ? 'active' : ''}" data-action="eval-toggle" data-field="${field}" data-value="${o}">${o}</button>`).join('')}</div></div>`;
   return modalShell(
     `⭐ お客様の評価　<span class="text-sm font-normal text-slate-500">${esc(s.customer.name)} 様</span>`,
-    `<p class="text-xs text-slate-500">次の営業活動に生かすための社内記録です。お客様には表示されません。</p>
+    `<p class="text-xs text-slate-500">社内記録です。お客様には表示されません。</p>
     <div class="grid sm:grid-cols-2 gap-3 items-start">
       <div class="space-y-2.5">
         <div><div class="font-bold text-sm mb-1">総合評価</div><div class="flex gap-1">
@@ -616,7 +616,7 @@ export function endView(s) {
           <div class="font-bold text-lg">GMOサインに送信しました</div>
           <div class="text-slate-600 text-sm">契約No. ${esc(s.contract.id)}<br>買取金額 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
         </div>
-        <div class="rounded-xl bg-sky-50 border border-sky-200 p-2 text-xs text-sky-900">本人確認書類の登録・契約書の印刷は、GMOサイン管理画面で行います。</div>
+        <div class="rounded-xl bg-sky-50 border border-sky-200 p-2 text-xs text-sky-900">本人確認・契約書の印刷は、GMOサイン管理画面で行います。</div>
         <button class="btn w-full bg-sky-600 text-white !min-h-[48px] !py-2" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
         <button class="btn btn-secondary w-full !min-h-[48px] !py-2 flex items-center justify-center gap-2" data-action="open-eval">⭐ お客様の評価を登録${evalFilled(s.evaluation) ? `<span class="text-xs rounded bg-emerald-100 text-emerald-800 px-2 py-0.5">登録済み${s.evaluation.overall ? ` ★${s.evaluation.overall}` : ''}</span>` : '<span class="text-xs text-slate-500">（任意）</span>'}</button>
         ${
@@ -630,7 +630,7 @@ export function endView(s) {
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-bold">🚪 お客様宅を出る前の確認</h2>
           <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${LEAVE_CHECKS.length - left} / ${LEAVE_CHECKS.length}</span></div>
-        <p class="text-xs text-slate-500">すべて確認してチェックすると、訪問を終了できます。</p>
+        <p class="text-xs text-slate-500">すべてチェックすると、訪問を終了できます。</p>
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="leave">
           ${auto.map(([t, ok]) => `<div class="flex items-center gap-3 rounded-xl border-2 ${ok ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300'} px-3 py-2 min-h-[48px]">
               <span class="w-7 h-7 rounded-md flex items-center justify-center text-white font-bold ${ok ? 'bg-emerald-600' : 'bg-rose-500'}">${ok ? '✓' : '!'}</span>
@@ -740,7 +740,7 @@ export function modalView(s) {
     const warn = s.comments.filter((c) => c.itemId === i.id && !c.ack);
     return modalShell(
       esc(i.name),
-      `${warn.length ? `<button class="w-full text-left rounded-xl bg-rose-50 border-2 border-rose-400 p-3 font-bold text-rose-700" data-action="open-comments">❗ 本社からのコメントが${warn.length}件あります（タップで確認）</button>` : ''}
+      `${warn.length ? `<button class="w-full text-left rounded-xl bg-rose-50 border-2 border-rose-400 p-3 font-bold text-rose-700" data-action="open-comments">❗ 本社コメント ${warn.length}件（タップで確認）</button>` : ''}
       <div class="grid sm:grid-cols-2 gap-3 items-start">
         <div class="space-y-2">
           <div class="font-bold text-sm">買取金額（円）<span class="font-normal text-xs text-slate-500">　${i.qty}点分の合計</span></div>
@@ -822,7 +822,7 @@ function apCardView(a) {
       <span class="rounded px-2 py-0.5 text-sm font-bold ${AP_CLS[a.status]}">${a.status}</span></div>
     <div class="flex gap-1">${a.photos.slice(0, 4).map((p) => `<img src="${p}" class="h-12 w-12 object-cover rounded border" alt="" />`).join('')}</div>
     ${a.reply
-      ? '<p class="text-sm text-emerald-700 font-bold">✓ 本社から回答がありました（❗のコメントをご確認ください）</p>'
+      ? '<p class="text-sm text-emerald-700 font-bold">✓ 本社から回答あり（❗を確認）</p>'
       : '<p class="text-sm text-amber-700">本社の回答をお待ちください…</p>'}
   </div>`;
 }
@@ -841,7 +841,7 @@ function aiResultView(s, item) {
       <div class="text-right text-sm"><div>推定ランク <b class="text-xl">${r.rank}</b></div><div>信頼度 <b class="${r.confidence < 70 ? 'text-rose-600' : 'text-emerald-700'}">${r.confidence}%</b></div></div>
     </div>
     <p class="text-sm text-slate-700">${esc(r.reason)}</p>
-    ${r.confidence < 70 ? '<p class="text-sm font-bold text-rose-600">⚠ 信頼度が低めです。本社査定部への依頼をおすすめします。</p>' : ''}
+    ${r.confidence < 70 ? '<p class="text-sm font-bold text-rose-600">⚠ 信頼度が低めです。本社への査定依頼をおすすめします。</p>' : ''}
     ${adopted ? '<p class="text-emerald-700 font-bold">✓ 買取金額に反映済み</p>' : `<button class="btn btn-primary w-full !py-2" data-action="ai-adopt" data-id="${item.id}">この査定額・ランクを買取金額に反映</button>`}
   </div>`;
 }
@@ -856,7 +856,7 @@ function appraisalComposeView(s, m) {
     ai ? '🤖 AI査定' : '📨 本社に査定依頼',
     `<p class="font-bold text-lg">${esc(d.name)}</p>
     <div class="flex gap-2">${tab('hq', '👤 本社査定部に依頼')}${tab('ai', '🤖 AI査定')}</div>
-    <p class="text-sm text-slate-500">${ai ? '撮影した画像から、AIが買取額と状態ランクを推定します（即時）。' : '写真を本社査定部に送り、査定してもらいます（回答待ち）。'}</p>
+    <p class="text-sm text-slate-500">${ai ? '画像からAIが買取額とランクを推定します。' : '写真を本社に送り、査定を依頼します。'}</p>
     <label class="block"><span class="font-bold">状態・補足</span>
       <textarea class="field mt-1" rows="2" data-draft="note" placeholder="傷、付属品、お客様の希望額など">${esc(d.note)}</textarea></label>
     <div><div class="font-bold mb-1">写真（${d.photos.length}枚）</div>

@@ -63,7 +63,7 @@ function resultPanel(s, e, v) {
       ${v.outcome
         ? `${row('結果', `<b>${esc(outcomeOf(v.outcome.type).label)}</b>${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}`)}
            ${v.outcome.memo ? row('メモ', `<span class="rounded bg-slate-50 px-2 py-1 block whitespace-pre-wrap">${esc(v.outcome.memo)}</span>`) : ''}
-           <p class="text-xs text-slate-500">買取には至っていません。営業の責任ではないため、業績には影響しません。</p>`
+           <p class="text-xs text-slate-500">買取なし。業績には影響しません。</p>`
         : `${row('買取', sold.length ? `<b class="text-xl text-teal-700">${yen(sold.reduce((n, i) => n + i.price, 0))}</b>　${sold.reduce((n, i) => n + i.qty, 0)}点` : '<span class="text-slate-500">買取なし</span>')}
            ${sold.length ? `<div class="rounded-lg border divide-y text-sm">${sold.map((i) => `<div class="flex justify-between gap-2 px-2 py-1"><span class="min-w-0 truncate">${esc(i.name)}<span class="text-xs text-slate-400"> ランク${esc(i.rank)}・${i.qty}点</span></span><b class="shrink-0">${yen(i.price)}</b></div>`).join('')}</div>` : ''}
            ${skipped.length ? `<div class="text-xs text-slate-400">見送り：${skipped.map((i) => esc(i.name)).join('、')}</div>` : ''}
@@ -75,7 +75,7 @@ function resultPanel(s, e, v) {
 
 function detailPanel(s) {
   const e = eventById(s.sched.sel);
-  if (!e) return '<div class="card !p-4 text-slate-400 text-center">予定をタップすると、詳細と、訪問開始・ルート確認のボタンが出ます。</div>';
+  if (!e) return '<div class="card !p-4 text-slate-400 text-center">予定をタップすると詳細が出ます。</div>';
   const doneVisit = doneVisitOf(s, e);
   if (doneVisit) return resultPanel(s, e, doneVisit);
   const d = dayDate(e.day);
@@ -92,7 +92,7 @@ function detailPanel(s) {
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">商材</dt><dd>${esc(e.items)}</dd></div>
       ${e.memo ? `<div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">メモ</dt><dd class="rounded bg-amber-50 px-2 py-1">${esc(e.memo)}</dd></div>` : ''}
     </dl>
-    ${visiting ? '<p class="text-xs text-amber-700 font-bold">現在、別の訪問中です。終了後に、新しい訪問を開始できます。</p>' : ''}
+    ${visiting ? '<p class="text-xs text-amber-700 font-bold">別の訪問中です。終了後に開始できます。</p>' : ''}
     <button class="btn btn-primary w-full !py-3" data-action="start-from-event" data-id="${e.id}" ${visiting ? 'disabled' : ''}>▶ この訪問を開始（現地買取へ）</button>
     <div class="grid grid-cols-2 gap-2">
       <button class="btn btn-secondary !py-2 !px-2 !min-h-[48px] whitespace-nowrap text-sm" data-action="route-for" data-day="${e.day}" data-id="${e.id}">🚗 ルート確認</button>
@@ -206,14 +206,14 @@ function routeBody(s) {
           <span class="text-xs text-slate-500 block">現在地 → ${stops.map((e) => esc(e.customer.name)).join(' → ')}　合計 約${totalKm.toFixed(1)}km・約${totalMin}分</span></div>` : ''}
         ${stops.map(stopRow).join('') || '<p class="text-slate-400 text-center py-6">この日の訪問予定はありません。</p>'}
         ${detail ? `<div class="space-y-1.5 pt-1 border-t-2 border-dashed mt-2">${detail}</div>` : ''}
-        ${stops.length ? '<p class="text-xs text-slate-500">距離・時間は、直線距離からの概算です（実際の道のりはマップが計算します）。</p>' : ''}
+        ${stops.length ? '<p class="text-xs text-slate-500">距離・時間は直線距離からの概算です。</p>' : ''}
       </div>
       ${stops.length ? `<a class="btn btn-primary !py-2 !min-h-[48px] text-center flex items-center justify-center" target="_blank" rel="noopener" href="${esc(mapOpenUrl(origin, mapStops))}">🗺 Googleマップで開く（ナビ）</a>` : ''}
     </div>
     <div class="card !p-0 flex-1 min-w-0 min-h-0 overflow-hidden relative">
       ${stops.length
         ? `<iframe title="訪問ルート（${d.getMonth() + 1}/${d.getDate()}）" class="absolute inset-0 w-full h-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${esc(mapEmbedUrl(origin, mapStops))}"></iframe>
-           <div class="absolute bottom-2 left-2 right-2 text-center pointer-events-none"><span class="inline-block rounded-full bg-black/60 text-white text-xs px-3 py-1">${selStop ? `${origin === cur ? '現在地' : esc(origin.customer.name)} → ${esc(selStop.customer.name)}` : `現在地 → ${stops.map((e) => esc(e.customer.name)).join(' → ')}`}　／　地図が表示されない場合は「Googleマップで開く」をご利用ください</span></div>`
+           <div class="absolute bottom-2 left-2 right-2 text-center pointer-events-none"><span class="inline-block rounded-full bg-black/60 text-white text-xs px-3 py-1">${selStop ? `${origin === cur ? '現在地' : esc(origin.customer.name)} → ${esc(selStop.customer.name)}` : `現在地 → ${stops.map((e) => esc(e.customer.name)).join(' → ')}`}　／　表示されない場合は「Googleマップで開く」</span></div>`
         : '<div class="h-full flex items-center justify-center text-slate-400">訪問予定がありません</div>'}
     </div>
   </div>`;

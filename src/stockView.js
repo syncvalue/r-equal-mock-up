@@ -104,12 +104,12 @@ function actionCard(s, mine) {
       <div class="flex flex-wrap gap-1.5">${LOCATIONS.map((l) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${s.stock.location === l ? 'active' : ''}" data-action="stock-loc" data-value="${esc(l)}">${esc(l)}</button>`).join('')}</div>
     </div>
     <button class="btn btn-primary w-full text-xl !py-4" data-action="stock-scan" ${todo.length ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
-    <p class="text-xs text-slate-500 -mt-1">カメラでシールを次々に読み取ります。${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点が対象です。</p>
+    <p class="text-xs text-slate-500 -mt-1">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
     <label class="block"><span class="font-bold text-sm">シールNo.を入力（スキャナ・手入力）</span>
       <div class="flex gap-2 mt-1"><input id="stock-code" class="field font-mono !py-2" placeholder="RQ-XXXXXXXX" autocomplete="off" data-stock-code />
         <button class="btn btn-secondary !py-2 !px-4 !min-h-[48px]" data-action="stock-submit">入庫</button></div></label>
     ${last ? `<div class="rounded-xl border-2 p-3 text-sm font-bold ${last.ok ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-rose-50 border-rose-400 text-rose-700'}">${last.ok ? '✓' : '⚠'} ${esc(last.text)}</div>` : ''}
-    ${s.user && todo.some((u) => u.status === 'missing') ? `<div class="rounded-xl bg-rose-50 border border-rose-300 p-2 text-xs text-rose-700">所在不明の商品が ${todo.filter((u) => u.status === 'missing').length} 点あります。探しても見つからない場合は、本社へ連絡してください。</div>` : ''}
+    ${s.user && todo.some((u) => u.status === 'missing') ? `<div class="rounded-xl bg-rose-50 border border-rose-300 p-2 text-xs text-rose-700">所在不明の商品が ${todo.filter((u) => u.status === 'missing').length} 点あります。見つからない場合は本社へ連絡してください。</div>` : ''}
     <div class="mt-auto flex flex-col gap-1 items-end">
       <button class="text-xs underline text-slate-400" data-action="stock-demo-add">（デモ用）過去2日分の入庫待ちを追加</button>
     </div>

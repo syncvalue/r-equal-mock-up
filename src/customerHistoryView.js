@@ -9,13 +9,13 @@ export const repeatBadge = (h, { small = false } = {}) => h.isRepeat
 
 // 過去の評価とご利用履歴（営業の内部情報。お客様には見せない）
 export function pastEvalView(h) {
-  if (!h.isRepeat) return '<div class="rounded-xl border bg-slate-50 p-3 text-sm text-slate-500">初めてのお客様です。過去の評価・ご利用履歴はありません。</div>';
+  if (!h.isRepeat) return '<div class="rounded-xl border bg-slate-50 p-3 text-sm text-slate-500">初めてのお客様です。</div>';
   const e = h.latestEval;
   const row = (k, v) => (v && v.length ? `<div><span class="text-xs text-slate-500">${k}</span> <b>${Array.isArray(v) ? v.map(esc).join('・') : esc(v)}</b></div>` : '');
   const warn = (e?.flags ?? []).some((f) => f === 'クレーム注意');
   return `
   <div class="rounded-xl border-2 ${warn ? 'border-rose-400' : 'border-indigo-300'} bg-indigo-50/40 p-3 space-y-2">
-    <div class="font-bold">⭐ 前回までのお客様評価<span class="ml-2 text-xs font-normal text-slate-500">（営業の記録・お客様には見せないでください）</span></div>
+    <div class="font-bold">⭐ 前回までのお客様評価<span class="ml-2 text-xs font-normal text-slate-500">（お客様には見せないでください）</span></div>
     ${e ? `
     <div class="flex items-center gap-3"><span class="text-amber-400 text-2xl tracking-tight">${'★'.repeat(e.overall)}<span class="text-slate-300">${'★'.repeat(5 - e.overall)}</span></span>
       <span class="text-xs text-slate-500">${esc(e.by)} ／ ${dateStr(e.savedAt)} 記録</span></div>
