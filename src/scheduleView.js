@@ -6,6 +6,7 @@ import { EVENTS, OFFICE, eventById, eventsOfDay, dayDate, toMin } from './schedu
 import { legsOf, mapEmbedUrl, mapOpenUrl } from './route.js';
 import { historyOf } from './customerHistory.js';
 import { repeatBadge, pastEvalView } from './customerHistoryView.js';
+import { hearingRows, hearingMeta } from './hearingView.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const HOUR_FROM = 8;
@@ -90,8 +91,9 @@ function detailPanel(s) {
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">住所</dt><dd class="font-bold">${esc(e.customer.address)}</dd></div>
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">電話</dt><dd><a class="text-teal-700 underline font-bold" href="tel:${esc(e.customer.phone)}">${esc(e.customer.phone)}</a></dd></div>
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">商材</dt><dd>${esc(e.items)}</dd></div>
-      ${e.memo ? `<div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">メモ</dt><dd class="rounded bg-amber-50 px-2 py-1">${esc(e.memo)}</dd></div>` : ''}
     </dl>
+    <div class="rounded-xl border p-2.5"><div class="font-bold text-sm">📞 受電時のヒアリング</div><div class="text-[11px] text-slate-400">${hearingMeta(e)}</div>
+      <dl class="text-sm divide-y">${hearingRows(e, { stack: true })}</dl></div>
     ${visiting ? '<p class="text-xs text-amber-700 font-bold">別の訪問中です。終了後に開始できます。</p>' : ''}
     <button class="btn btn-primary w-full !py-3" data-action="start-from-event" data-id="${e.id}" ${visiting ? 'disabled' : ''}>▶ この訪問を開始（現地買取へ）</button>
     <div class="grid grid-cols-2 gap-2">

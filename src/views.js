@@ -7,6 +7,7 @@ import { eventById } from './schedule.js';
 import { historyOf } from './customerHistory.js';
 import { repeatBadge, pastEvalView } from './customerHistoryView.js';
 import { dashVisitsModal, dashReportsModal } from './dashboardView.js';
+import { hearingModal } from './hearingView.js';
 import { outcomeResultView } from './workdayView.js';
 import { messagesFor, unreadCount } from './messages.js';
 import { pendingCount } from './stockView.js';
@@ -227,11 +228,12 @@ export function startView(s) {
   <section class="h-full flex flex-col items-center justify-center gap-4 p-6">
     <div class="text-6xl">🚗</div>
     <h1 class="text-3xl font-bold">訪問先に到着しましたか？</h1>
-    <div class="card !p-4 w-full max-w-md text-center space-y-1">
+    <button class="card !p-4 w-full max-w-md text-center space-y-1 border-2 border-teal-600 active:bg-teal-50" data-action="hearing-open" data-id="${ev?.id ?? ''}" ${ev ? '' : 'disabled'}>
       <div class="text-xs text-slate-500">${ev ? `予定 ${ev.start}–${ev.end}` : '訪問先'}</div>
       <div class="text-xl font-bold">${esc(s.customer.name)} 様</div>
       <div class="text-sm text-slate-600">📍 ${esc(s.customer.address)}</div>
-    </div>
+      ${ev ? '<div class="text-sm font-bold text-teal-700 pt-1">📞 受電時のヒアリングを見る ›</div>' : ''}
+    </button>
     <button class="btn btn-primary text-3xl px-16 py-8" data-action="start">訪問開始</button>
     <button class="btn btn-secondary !min-h-[48px] !py-2 text-base" data-action="oc-open">🚪 不在・日程変更など、訪問できなかった場合</button>
     <button class="text-sm underline text-slate-400" data-action="nav" data-value="schedule">今日の予定に戻る</button>
@@ -783,6 +785,7 @@ export function modalView(s) {
        <button class="btn btn-primary w-full" data-action="close-modal">閉じる</button>`,
     );
   }
+  if (m.type === 'hearing') { const ev = eventById(m.eventId); if (!ev) return ''; const v = hearingModal(ev); return modalShell(v.title, v.body, { wide: true }); }
   if (m.type === 'leadermsg') {
     const d = s.leaderDraft;
     const g = userById(s.user).group;

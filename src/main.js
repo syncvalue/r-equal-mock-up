@@ -309,6 +309,7 @@ const actions = {
     markRead(state.user, [el.dataset.id]);
   },
   'msg-read-all': (el) => markRead(state.user, (el.dataset.kind === 'leader' ? leaderMessagesFor : hqMessagesFor)(userById(state.user)).map((m) => m.id)),
+  'hearing-open': (el) => { if (el.dataset.id) set({ modal: { type: 'hearing', eventId: el.dataset.id } }); },
   'msg-toggle': (el) => set({ dash: { ...state.dash, msgOpen: { ...state.dash.msgOpen, [el.dataset.key]: !state.dash.msgOpen?.[el.dataset.key] } } }),
   // グループリーダーから、グループのメンバーへのメッセージ
   'leader-compose': () => set({ modal: { type: 'leadermsg' }, leaderDraft: { title: '', body: '', important: false } }),

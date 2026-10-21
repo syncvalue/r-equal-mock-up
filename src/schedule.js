@@ -66,3 +66,34 @@ EVENTS.push(
     items: [{ name: 'オメガ シーマスタ', rank: 'B', qty: 1, price: 420000, sell: true }, { name: 'セイコー プレザージュ', rank: 'C', qty: 1, price: 30000, sell: false }], propose: 'no',
     eval: { overall: 3, memo: '価格にこだわりが強い。' } }),
 );
+
+// 受電時のヒアリング内容（コールセンターのオペレーターが、お客様から電話口で聞き取った内容）。営業が訪問前に確認する。
+// trigger=来電のきっかけ／attendee=当日の立会い／wants=売りたいもの／large=大型品・その他の確認／notes=訪問時の注意
+const HEARING = {
+  'ev-0-1': { trigger: 'チラシ（10/12 新聞折込）を見て', attendee: 'ご本人', wants: 'ブランドバッグ 3点（ヴィトン・シャネル）、腕時計 2本',
+    large: 'ベビーカー・ゴルフクラブも売れるか質問あり。「状態を見て買取可能」とご案内済み', notes: '1階エントランスで待ち合わせ。電話は午前中がつながりやすい' },
+  'ev-0-2': { trigger: '前回ご利用（7月）。ご自身からのご連絡', attendee: 'ご本人。娘様も同席予定', wants: '貴金属・ジュエリー（お母様の形見のネックレス、指輪 5点ほど）',
+    large: 'なし', notes: '前回ご利用のお客様。ご納得いただけない場合は、無理に勧めないこと' },
+  'ev-0-3': { trigger: 'ネット検索（買取比較サイト）', attendee: 'ご夫婦で同席。奥様は金額に厳しめ', wants: 'カメラ（ミラーレス 2台・レンズ 4本）、家電（炊飯器など）',
+    large: '冷蔵庫・洗濯機は買取対象外とご説明済み（ご了承）', notes: '駐車はコインパーキング。ご夫婦で同席予定' },
+  'ev-1-1': { trigger: '知人の紹介（山田様）', attendee: 'ご本人', wants: 'ブランドバッグ 2点（エルメス・ルイ・ヴィトン）',
+    large: 'なし', notes: '紹介元の山田様にも、お礼のご連絡をすること' },
+  'ev-1-2': { trigger: '前回ご利用（8月）', attendee: 'ご本人', wants: '腕時計（ロレックスを数本。事前に型番の連絡あり）',
+    large: '時計のケース・保証書の有無を確認してほしい', notes: '前回、価格交渉が強かった。相場を調べてから訪問すること' },
+  'ev-1-3': { trigger: 'テレビCMを見て', attendee: 'ご主人（奥様は不在がち）', wants: '貴金属（金のネックレス・インゴット風のもの）',
+    large: '金の延べ棒は、純度の確認が必要とご案内済み', notes: '空港近くのため、駐車場所を事前に電話で確認すること' },
+};
+
+const H_TRIGGER = ['チラシ（新聞折込）を見て', 'ネット検索（買取比較サイト）', '知人の紹介', 'テレビCMを見て', '前回ご利用のため、ご自身から'];
+const H_ATTENDEE = ['ご本人', 'ご本人', 'ご主人（奥様は不在がち）', '奥様', 'ご本人。ご家族（息子様）も同席予定'];
+const H_LARGE = ['なし', 'なし', '大きな物（家具・自転車など）も売れるか質問あり。「状態を見て判断」とご案内済み', '大型家電は買取対象外とご説明済み（ご了承）'];
+const hashOf = (id) => [...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+
+export function hearingOf(e) {
+  if (HEARING[e.id]) return HEARING[e.id];
+  const h = hashOf(e.id);
+  return {
+    trigger: H_TRIGGER[h % H_TRIGGER.length], attendee: H_ATTENDEE[(h >> 3) % H_ATTENDEE.length], wants: `${e.items}（点数は、訪問時に確認）`,
+    large: H_LARGE[(h >> 5) % H_LARGE.length], notes: e.memo || '特になし',
+  };
+}
