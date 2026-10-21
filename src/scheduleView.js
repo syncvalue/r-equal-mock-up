@@ -15,7 +15,12 @@ const city = (addr) => (addr.match(/^.{2,3}[都道府県](.+?[市区町村])/)?.
 const isVisiting = (s) => Boolean(s.visitStartedAt && !s.visitEndedAt);
 
 // 訪問が終わった予定の、訪問の記録（最新のもの）。本社と共有している訪問状況から探す
-const doneVisitOf = (s, e) =>
+// 前日までの予定は、あらかじめ持っている実績（e.past）から作る
+const pastVisitOf = (e) => {
+  const base = dayDate(e.day).getTime();
+  return { visitId: `past-${e.id}`, startedAt: base + toMin(e.start) * 60000, endedAt: base + toMin(e.end) * 60000, items: e.past.items, outcome: e.past.outcome ?? null, briefing: e.past.propose ? { propose: e.past.propose } : null, eval: e.past.eval ?? null, updatedAt: base };
+};
+const doneVisitOf = (s, e) => e.past ? pastVisitOf(e) :
   Object.values(loadLive()).filter((v) => v.eventId === e.id && (v.userId ?? 'u01') === s.user && v.endedAt).sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
 
 // 予定表での見た目（今日の予定のみ、状況で色分け）。todo=まだ訪問していない／visiting=訪問中／done=完了
@@ -26,11 +31,11 @@ const BLOCK = {
 };
 const visitStateOf = (s, e) => (doneVisitOf(s, e) ? 'done' : s.visitEventId === e.id && isVisiting(s) ? 'visiting' : 'todo');
 
-function eventBlock(s, e, today) {
+function eventBlock(s, e, dayN) {
   const top = ((toMin(e.start) - HOUR_FROM * 60) / 60) * HOUR_H;
   const h = Math.max(28, ((toMin(e.end) - toMin(e.start)) / 60) * HOUR_H - 2);
   const sel = s.sched.sel === e.id;
-  const st = today ? BLOCK[visitStateOf(s, e)] : null;
+  const st = dayN <= 0 ? BLOCK[visitStateOf(s, e)] : null; // 昨日の実績は完了、今日は状況で色分け、明日は予定のまま
   return `
   <button class="absolute left-1 right-1 rounded-md border-l-[6px] px-1.5 py-1 text-left overflow-hidden leading-tight ${st ? `${st.box} ${st.text}` : 'bg-indigo-50 border-indigo-500'} ${sel ? 'outline outline-2 outline-offset-1 outline-teal-500 shadow-lg' : 'shadow'}"
     style="top:${top}px;height:${h}px" data-action="sched-select" data-id="${e.id}">
@@ -45,7 +50,7 @@ function resultPanel(s, e, v) {
   const d = dayDate(e.day);
   const sold = v.items.filter((i) => i.sell);
   const skipped = v.items.filter((i) => !i.sell);
-  const ev = loadEvals().find((x) => x.visitId === v.visitId);
+  const ev = v.eval ?? loadEvals().find((x) => x.visitId === v.visitId);
   const mins = Math.max(1, Math.round((v.endedAt - v.startedAt) / 60000));
   const row = (k, val) => `<div class="flex gap-2"><dt class="w-20 text-slate-500 shrink-0">${k}</dt><dd class="flex-1">${val}</dd></div>`;
   return `
@@ -98,7 +103,7 @@ function detailPanel(s) {
 
 function calendarBody(s) {
   const now = new Date();
-  const days = [0, 1, 2].map((n) => ({ n, date: dayDate(n, now), events: eventsOfDay(n, s.user) }));
+  const days = [-1, 0, 1].map((n) => ({ n, date: dayDate(n, now), events: eventsOfDay(n, s.user) })); // 前日（実績）・今日・明日
   const hours = Array.from({ length: HOUR_TO - HOUR_FROM }, (_, i) => HOUR_FROM + i);
   const nowTop = ((now.getHours() * 60 + now.getMinutes() - HOUR_FROM * 60) / 60) * HOUR_H;
   return `
@@ -110,11 +115,11 @@ function calendarBody(s) {
           <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-white border-2 border-teal-600"></span>未訪問</span>
           <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-emerald-100 border-2 border-emerald-600"></span>訪問中</span>
           <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-slate-200 border-2 border-slate-400"></span>完了</span></span>
-        <span class="text-sm text-slate-500">${days[0].date.getMonth() + 1}/${days[0].date.getDate()}〜${days[2].date.getMonth() + 1}/${days[2].date.getDate()}（3日間）</span></div>
+        <span class="text-sm text-slate-500">${days[0].date.getMonth() + 1}/${days[0].date.getDate()}〜${days[2].date.getMonth() + 1}/${days[2].date.getDate()}</span></div>
       <div class="grid grid-cols-[3.2rem_repeat(3,1fr)] border-b">
         <div></div>
-        ${days.map((d) => `<div class="text-center py-1.5 border-l ${d.n === 0 ? '' : ''}">
-          <div class="text-xs ${d.n === 0 ? 'text-teal-700 font-bold' : 'text-slate-500'}">${WEEK[d.date.getDay()]}${d.n === 0 ? '（今日）' : ''}</div>
+        ${days.map((d) => `<div class="text-center py-1.5 border-l ${d.n === 0 ? 'bg-teal-50/60' : ''}">
+          <div class="text-xs ${d.n === 0 ? 'text-teal-700 font-bold' : 'text-slate-500'}">${WEEK[d.date.getDay()]}${{ '-1': '（昨日・実績）', 0: '（今日）', 1: '（明日）' }[d.n]}</div>
           <div class="inline-flex w-9 h-9 items-center justify-center rounded-full text-lg font-bold ${d.n === 0 ? 'bg-teal-600 text-white' : ''}">${d.date.getDate()}</div>
           <div class="text-[11px] text-slate-500">${d.events.length}件</div></div>`).join('')}
       </div>
@@ -122,7 +127,7 @@ function calendarBody(s) {
         <div class="grid grid-cols-[3.2rem_repeat(3,1fr)] relative" style="height:${hours.length * HOUR_H}px">
           <div class="relative">${hours.map((h, i) => `<div class="absolute right-1 text-[11px] text-slate-400 -translate-y-1/2" style="top:${i * HOUR_H}px">${i === 0 ? '' : `${h}:00`}</div>`).join('')}</div>
           ${days.map((d) => `<div class="relative border-l" style="background-image:repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_H - 1}px, rgba(148,163,184,.35) ${HOUR_H - 1}px, rgba(148,163,184,.35) ${HOUR_H}px)">
-            ${d.events.map((e) => eventBlock(s, e, d.n === 0)).join('')}
+            ${d.events.map((e) => eventBlock(s, e, d.n)).join('')}
             ${d.n === 0 && nowTop > 0 && nowTop < hours.length * HOUR_H ? `<div class="absolute left-0 right-0 z-10 pointer-events-none" style="top:${nowTop}px"><div class="h-0.5 bg-rose-500"></div><div class="w-2.5 h-2.5 rounded-full bg-rose-500 -mt-1.5 -ml-1"></div></div>` : ''}
           </div>`).join('')}
         </div>
@@ -193,7 +198,7 @@ function routeBody(s) {
   return `
   <div class="flex gap-3 flex-1 min-h-0">
     <div class="card !p-3 w-[22rem] shrink-0 flex flex-col gap-2 min-h-0">
-      <div class="flex gap-1">${[0, 1, 2].map((n) => { const dd = dayDate(n); return `<button class="flex-1 py-2 rounded-lg font-bold text-sm ${day === n ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="route-day" data-value="${n}">${n === 0 ? '今日' : n === 1 ? '明日' : '明後日'}<span class="block text-[11px] font-normal">${dd.getMonth() + 1}/${dd.getDate()}（${WEEK[dd.getDay()]}）</span></button>`; }).join('')}</div>
+      <div class="flex gap-1">${[0, 1].map((n) => { const dd = dayDate(n); return `<button class="flex-1 py-2 rounded-lg font-bold text-sm ${day === n ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="route-day" data-value="${n}">${n === 0 ? '今日' : '明日'}<span class="block text-[11px] font-normal">${dd.getMonth() + 1}/${dd.getDate()}（${WEEK[dd.getDay()]}）</span></button>`; }).join('')}</div>
       <div class="overflow-y-auto min-h-0 flex-1 space-y-1.5" data-scroll="route">
         <div class="flex items-center gap-2 rounded-lg bg-slate-50 p-2 text-sm"><span class="w-6 h-6 rounded-full bg-sky-600 text-white flex items-center justify-center text-xs shrink-0">●</span>
           <div class="min-w-0"><b>現在地</b><div class="text-xs text-slate-500 truncate">${s.geo?.ok ? `${s.geo.lat.toFixed(4)}, ${s.geo.lng.toFixed(4)}` : esc(curLabel)}</div></div></div>

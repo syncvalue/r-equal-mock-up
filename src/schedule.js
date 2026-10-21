@@ -51,3 +51,18 @@ export const eventsOfDay = (day, userId = null) => EVENTS.filter((e) => e.day ==
 export const eventById = (id) => EVENTS.find((e) => e.id === id);
 export const toMin = (hhmm) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
 export const dayDate = (day, now = new Date()) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + day);
+
+// 前日の予定（実績）。予定表の左側に表示する。past は訪問の結果（買取明細・不在などの結果・評価）
+const p1 = (id, start, end, n, items, lat, lng, customer, past) => ({
+  id, userId: 'u01', day: -1, start, end, receptionNo: `CC-20261019-${String(n).padStart(4, '0')}`, receivedAt: '2026/10/19 09:00', operator: '佐藤', apType: '新', items, memo: '', lat, lng, customer, past,
+});
+EVENTS.push(
+  p1('ev-m1-1', '10:00', '11:30', 31, 'ブランドバッグ', 34.6873, 135.5262, c('佐野 健', 'サノ ケン', '090-2222-3101', '540-0002', '大阪府大阪市中央区大阪城1-1（大阪城天守閣）', '会社員', '1977-03-05'), {
+    items: [{ name: 'ルイ・ヴィトン ネヴァーフル MM', rank: 'A', qty: 1, price: 145000, sell: true }, { name: 'ルイ・ヴィトン ポシェット', rank: 'B', qty: 1, price: 40000, sell: true }], propose: 'yes',
+    eval: { overall: 4, memo: '次回は腕時計も見たいとのこと。' } }),
+  p1('ev-m1-2', '13:30', '14:30', 32, '貴金属', 34.6545, 135.429, c('中川 美和', 'ナカガワ ミワ', '080-2222-3102', '552-0022', '大阪府大阪市港区海岸通1-1-10（海遊館）', 'パート', '1968-08-21'), {
+    items: [], outcome: { type: 'absent', memo: 'チャイム・電話ともに応答なし。不在票を投函。' } }),
+  p1('ev-m1-3', '16:00', '17:00', 33, '腕時計', 34.7055, 135.49, c('田村 恵', 'タムラ メグミ', '070-2222-3103', '531-6023', '大阪府大阪市北区大淀中1-1-88（梅田スカイビル）', '自営', '1960-12-02'), {
+    items: [{ name: 'オメガ シーマスター', rank: 'B', qty: 1, price: 420000, sell: true }, { name: 'セイコー プレザージュ', rank: 'C', qty: 1, price: 30000, sell: false }], propose: 'no',
+    eval: { overall: 3, memo: '価格にこだわりが強い。' } }),
+);
