@@ -1,5 +1,7 @@
 // 今日の予定（Googleカレンダー風の3日表示）と、訪問先までのルート確認（Googleマップ）。
-import { esc } from './format.js';
+import { esc, yen, fmtTime } from './format.js';
+import { loadLive, loadEvals } from './store.js';
+import { outcomeOf } from './workday.js';
 import { EVENTS, OFFICE, eventById, eventsOfDay, dayDate, toMin } from './schedule.js';
 import { legsOf, mapEmbedUrl, mapOpenUrl } from './route.js';
 import { historyOf } from './customerHistory.js';
@@ -12,22 +14,57 @@ const HOUR_H = 56;
 const city = (addr) => (addr.match(/^.{2,3}[都道府県](.+?[市区町村])/)?.[1] ?? addr.slice(0, 6));
 const isVisiting = (s) => Boolean(s.visitStartedAt && !s.visitEndedAt);
 
+// 訪問が終わった予定の、訪問の記録（最新のもの）。本社と共有している訪問状況から探す
+const doneVisitOf = (s, e) =>
+  Object.values(loadLive()).filter((v) => v.eventId === e.id && (v.userId ?? 'u01') === s.user && v.endedAt).sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
+
 function eventBlock(s, e, today) {
   const top = ((toMin(e.start) - HOUR_FROM * 60) / 60) * HOUR_H;
   const h = Math.max(28, ((toMin(e.end) - toMin(e.start)) / 60) * HOUR_H - 2);
   const sel = s.sched.sel === e.id;
+  const done = Boolean(doneVisitOf(s, e));
   return `
-  <button class="absolute left-1 right-1 rounded-md border-l-4 px-1.5 py-1 text-left overflow-hidden leading-tight ${today ? 'bg-teal-50 border-teal-600' : 'bg-indigo-50 border-indigo-500'} ${sel ? 'ring-2 ring-offset-1 ring-teal-500 shadow-lg' : 'shadow'}"
+  <button class="absolute left-1 right-1 rounded-md border-l-4 px-1.5 py-1 text-left overflow-hidden leading-tight ${done ? 'bg-slate-100 border-slate-400 text-slate-500' : today ? 'bg-teal-50 border-teal-600' : 'bg-indigo-50 border-indigo-500'} ${sel ? 'ring-2 ring-offset-1 ring-teal-500 shadow-lg' : 'shadow'}"
     style="top:${top}px;height:${h}px" data-action="sched-select" data-id="${e.id}">
-    <span class="block text-[11px] text-slate-500">${e.start}–${e.end}</span>
+    <span class="block text-[11px] text-slate-500">${e.start}–${e.end}${done ? ' <b class="text-emerald-700">✓ 完了</b>' : ''}</span>
     <span class="block font-bold text-sm truncate">${esc(e.customer.name)} 様${historyOf(e.customer).isRepeat ? ' <span class="text-[10px] font-bold rounded bg-indigo-600 text-white px-1">🔁</span>' : ''}</span>
     ${h > 62 ? `<span class="block text-xs text-slate-600 truncate">📍 ${esc(city(e.customer.address))}</span><span class="block text-xs text-slate-500 truncate">${esc(e.items)}</span>` : ''}
   </button>`;
 }
 
+// 訪問が終わった予定をタップしたときの、訪問結果
+function resultPanel(s, e, v) {
+  const d = dayDate(e.day);
+  const sold = v.items.filter((i) => i.sell);
+  const skipped = v.items.filter((i) => !i.sell);
+  const ev = loadEvals().find((x) => x.visitId === v.visitId);
+  const mins = Math.max(1, Math.round((v.endedAt - v.startedAt) / 60000));
+  const row = (k, val) => `<div class="flex gap-2"><dt class="w-20 text-slate-500 shrink-0">${k}</dt><dd class="flex-1">${val}</dd></div>`;
+  return `
+  <div class="card !p-4 space-y-3">
+    <div><div class="text-xs text-slate-500">${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${e.start}–${e.end}</div>
+      <h3 class="text-xl font-bold flex items-center gap-2 flex-wrap">${esc(e.customer.name)} 様
+        <span class="text-xs font-bold rounded-full px-2 py-0.5 ${v.outcome ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">✓ ${v.outcome ? esc(outcomeOf(v.outcome.type).label) : '訪問完了'}</span></h3></div>
+    <dl class="text-sm space-y-1.5">
+      ${row('訪問時間', `${fmtTime(v.startedAt).slice(0, 5)}〜${fmtTime(v.endedAt).slice(0, 5)}（${mins}分）`)}
+      ${v.outcome
+        ? `${row('結果', `<b>${esc(outcomeOf(v.outcome.type).label)}</b>${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}`)}
+           ${v.outcome.memo ? row('メモ', `<span class="rounded bg-slate-50 px-2 py-1 block whitespace-pre-wrap">${esc(v.outcome.memo)}</span>`) : ''}
+           <p class="text-xs text-slate-500">買取には至っていません。営業の責任ではないため、業績には影響しません。</p>`
+        : `${row('買取', sold.length ? `<b class="text-xl text-teal-700">${yen(sold.reduce((n, i) => n + i.price, 0))}</b>　${sold.reduce((n, i) => n + i.qty, 0)}点` : '<span class="text-slate-500">買取なし</span>')}
+           ${sold.length ? `<div class="rounded-lg border divide-y text-sm">${sold.map((i) => `<div class="flex justify-between gap-2 px-2 py-1"><span class="min-w-0 truncate">${esc(i.name)}<span class="text-xs text-slate-400"> ランク${esc(i.rank)}・${i.qty}点</span></span><b class="shrink-0">${yen(i.price)}</b></div>`).join('')}</div>` : ''}
+           ${skipped.length ? `<div class="text-xs text-slate-400">見送り：${skipped.map((i) => esc(i.name)).join('、')}</div>` : ''}
+           ${v.briefing?.propose ? row('他商品の提案', v.briefing.propose === 'yes' ? '提案してよい（お客様の回答）' : '提案は不要（お客様の回答）') : ''}
+           ${row('お客様評価', ev ? `<span class="text-amber-500 text-lg">${'★'.repeat(ev.overall)}</span><span class="text-slate-300 text-lg">${'★'.repeat(5 - ev.overall)}</span>${ev.memo ? `<span class="block text-xs text-slate-500 whitespace-pre-wrap">${esc(ev.memo)}</span>` : ''}` : '<span class="text-slate-400">未登録</span>')}`}
+    </dl>
+  </div>`;
+}
+
 function detailPanel(s) {
   const e = eventById(s.sched.sel);
   if (!e) return '<div class="card !p-4 text-slate-400 text-center">予定をタップすると、詳細と、訪問開始・ルート確認のボタンが出ます。</div>';
+  const doneVisit = doneVisitOf(s, e);
+  if (doneVisit) return resultPanel(s, e, doneVisit);
   const d = dayDate(e.day);
   const visiting = isVisiting(s);
   const h = historyOf(e.customer);
