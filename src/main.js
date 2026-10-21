@@ -14,7 +14,7 @@ const ACCOUNTS_BY_USER = (userId) => ACCOUNTS.find((a) => a.userId === userId) ?
 import { messagesFor } from './messages.js';
 import { EVENTS, eventById, eventsOfDay } from './schedule.js';
 import {
-  findAccount, passwordOf, setPassword, passwordProblem, lockedUntil, recordFail, clearFails, issueCode, checkCode, loadSession, saveSession, clearSession, RESEND_WAIT, MAX_CODE_TRIES,
+  accountFor, passwordProblem, issueCode, checkCode, loadSession, saveSession, clearSession, RESEND_WAIT, MAX_CODE_TRIES,
 } from './auth.js';
 import { formatMoneyInput } from './moneyInput.js';
 import {
@@ -290,17 +290,9 @@ const actions = {
   'auth-toggle-pw': () => set({ auth: { ...state.auth, showPw: !state.auth.showPw } }),
   'auth-login': () => {
     const a = state.auth;
-    const id = a.id.trim().toLowerCase();
-    if (!id || !a.pw) { set({ auth: { ...a, error: 'ログインIDとパスワードを入力してください', info: '' } }); return; }
-    if (lockedUntil(id)) { set({ auth: { ...a, pw: '', error: '', info: '' } }); return; }
-    const acc = findAccount(id);
-    if (!acc || a.pw !== passwordOf(acc.userId)) {
-      if (acc) recordFail(id);
-      set({ auth: { ...a, pw: '', error: 'ログインIDまたはパスワードが違います', info: '' } });
-      return;
-    }
-    clearFails(id);
-    set({ auth: { ...a, screen: 'sms', pw: '', code: '', error: '', info: '', pending: issueCode(acc.userId, 'login') } });
+    if (!a.id.trim() || !a.pw) { set({ auth: { ...a, error: 'ログインIDとパスワードを入力してください', info: '' } }); return; }
+    // モック: ID・パスワードは何でも通る。次は、SMSの認証コード（2要素認証）
+    set({ auth: { ...a, screen: 'sms', pw: '', code: '', error: '', info: '', pending: issueCode(accountFor(a.id).userId, 'login') } });
   },
   'auth-verify': () => {
     const a = state.auth;
@@ -327,16 +319,14 @@ const actions = {
   'auth-forgot-send': () => {
     const a = state.auth;
     if (!a.id.trim()) { set({ auth: { ...a, error: 'ログインIDを入力してください' } }); return; }
-    // IDの有無を知られないよう、存在しないIDでも同じ画面に進める（コードは届かない）
-    set({ auth: { ...a, screen: 'forgot-sms', code: '', error: '', info: '', pending: issueCode(findAccount(a.id)?.userId ?? null, 'forgot') } });
+    set({ auth: { ...a, screen: 'forgot-sms', code: '', error: '', info: '', pending: issueCode(accountFor(a.id).userId, 'forgot') } });
   },
   'auth-setpw': () => {
     const a = state.auth;
     const acc = ACCOUNTS_BY_USER(a.resetUserId);
     const problem = passwordProblem(a.newPw, acc?.loginId ?? '') || (a.newPw !== a.newPw2 ? '確認用のパスワードが一致しません' : '');
     if (!acc || problem) { set({ auth: { ...a, error: problem || 'もう一度、最初からやり直してください' } }); return; }
-    if (!setPassword(acc.userId, a.newPw)) { set({ auth: { ...a, error: 'パスワードを保存できませんでした' } }); return; }
-    clearFails(acc.loginId);
+    // モック: パスワードは保存しない（ログインでは何を入力しても通る）
     set({ auth: { ...blankAuth(acc.loginId), info: 'パスワードを変更しました。新しいパスワードでログインしてください' } });
   },
   'auth-back': () => set({ auth: blankAuth(state.auth.id) }),

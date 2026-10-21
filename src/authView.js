@@ -1,6 +1,6 @@
 // ログイン画面（ID・パスワード → SMS認証コード）と、パスワードを忘れた場合の再設定
 import { esc } from './format.js';
-import { ACCOUNTS, DEMO_PASSWORD, maskPhone, findAccount, lockedUntil, RESEND_WAIT } from './auth.js';
+import { ACCOUNTS, maskPhone, RESEND_WAIT } from './auth.js';
 import { userById } from './dashboard.js';
 
 const input = (label, key, value, { type = 'text', placeholder = '', autocomplete = 'off', inputmode = '', maxlength = '' } = {}) => `
@@ -17,10 +17,8 @@ const smsPreview = (p) => (p?.userId ? `
     <div>【出張買取】認証コード <b class="text-xl tracking-widest font-mono">${p.code}</b>（5分間有効）。他人には教えないでください。</div></div>` : '');
 
 function loginScreen(a) {
-  const lock = a.id && lockedUntil(String(a.id).trim().toLowerCase());
   return `
     ${message(a)}
-    ${lock ? `<div class="rounded-xl bg-amber-50 border-2 border-amber-300 p-3 text-sm font-bold text-amber-800">入力ミスが続いたため、しばらくロックしています（あと約${Math.ceil((lock - Date.now()) / 1000)}秒）。</div>` : ''}
     ${input('ログインID', 'id', a.id, { placeholder: '例: sales01', autocomplete: 'username' })}
     <label class="block"><span class="font-bold text-sm">パスワード</span>
       <div class="relative mt-1"><input class="field pr-16" type="${a.showPw ? 'text' : 'password'}" data-auth="pw" value="${esc(a.pw)}" autocomplete="current-password" autocapitalize="none" spellcheck="false" />
@@ -28,7 +26,7 @@ function loginScreen(a) {
     <button class="btn btn-primary w-full" data-action="auth-login">ログイン</button>
     <div class="text-center">${link('auth-forgot', 'パスワードをお忘れの方')}</div>
     <details class="rounded-xl bg-slate-50 border p-2 text-xs text-slate-500"><summary class="cursor-pointer">デモ用アカウント</summary>
-      <div class="mt-1">パスワードは全員 <b class="font-mono">${DEMO_PASSWORD}</b>（再設定すると変わります）</div>
+      <div class="mt-1">モックのため、ID・パスワードは何でもログインできます。下のIDなら、その営業としてログインします（それ以外は鈴木 一郎）。</div>
       <div class="mt-1 grid grid-cols-2 gap-x-3">${ACCOUNTS.map((x) => `<span><b class="font-mono">${x.loginId}</b> ${esc(userById(x.userId).name)}</span>`).join('')}</div></details>`;
 }
 
