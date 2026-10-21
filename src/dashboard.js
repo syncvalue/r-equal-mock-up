@@ -1,0 +1,103 @@
+// 業績ダッシュボードのデータとロジック。
+// 表示する業績は、すべて静的なダミーデータ（ユーザー×日付から決まる疑似乱数）。保存領域や他の画面のデータは使わない。
+
+export const GROUPS = [
+  { id: 'A', name: 'グループA（東日本）' },
+  { id: 'B', name: 'グループB（西日本）' },
+];
+
+// role: leader = グループリーダー（グループ全員の業績を閲覧可）／member = 一般（自分の業績のみ）
+// target: 月間の買取金額目標, skill: 成約しやすさ, base: 1契約あたりの平均買取額（ダミーデータ生成用）
+export const USERS = [
+  { id: 'u01', name: '鈴木 一郎', group: 'A', role: 'member', target: 4000000, skill: 0.62, base: 180000 },
+  { id: 'u02', name: '田中 健', group: 'A', role: 'leader', target: 5000000, skill: 0.74, base: 200000 },
+  { id: 'u03', name: '佐々木 美咲', group: 'A', role: 'member', target: 4000000, skill: 0.7, base: 165000 },
+  { id: 'u04', name: '高橋 翔', group: 'A', role: 'member', target: 3500000, skill: 0.55, base: 185000 },
+  { id: 'u05', name: '山本 結衣', group: 'A', role: 'member', target: 3500000, skill: 0.66, base: 155000 },
+  { id: 'u06', name: '佐藤 大輔', group: 'B', role: 'leader', target: 5000000, skill: 0.72, base: 205000 },
+  { id: 'u07', name: '伊藤 恵', group: 'B', role: 'member', target: 4000000, skill: 0.6, base: 195000 },
+  { id: 'u08', name: '渡辺 蓮', group: 'B', role: 'member', target: 3500000, skill: 0.58, base: 175000 },
+];
+
+export const userById = (id) => USERS.find((u) => u.id === id) ?? USERS[0];
+export const isLeader = (u) => u.role === 'leader';
+export const roleLabel = (u) => (isLeader(u) ? 'グループリーダー' : '営業');
+export const groupMembers = (u) => USERS.filter((x) => x.group === u.group);
+
+// 閲覧できるユーザー: リーダーはグループ全員、一般は自分のみ
+export function visibleUsers(user, scope, memberId) {
+  if (!isLeader(user)) return [user];
+  const members = groupMembers(user);
+  if (scope === 'member') return members.filter((m) => m.id === memberId);
+  return scope === 'group' ? members : [user];
+}
+
+// ---- 日付 -------------------------------------------------------------------
+export const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+export function rangeOf(period, now = new Date()) {
+  const end = startOfDay(now);
+  if (period === 'today') return { start: end, end };
+  if (period === 'week') return { start: addDays(end, -((end.getDay() + 6) % 7)), end };
+  return { start: new Date(end.getFullYear(), end.getMonth(), 1), end };
+}
+const daysIn = ({ start, end }) => Math.round((end - start) / 86400000) + 1;
+export const prevRange = (r) => ({ start: addDays(r.start, -daysIn(r)), end: addDays(r.start, -1) });
+export const eachDay = (r) => Array.from({ length: daysIn(r) }, (_, i) => addDays(r.start, i));
+
+// ---- ダミーの業績データ（ユーザー×日付で固定の疑似乱数） ---------------------------
+const seeded = (str) => {
+  let h = 2166136261;
+  for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 10000) / 10000;
+};
+
+function dummyDay(user, date, isToday) {
+  const rnd = seeded(`${user.id}-${ymd(date)}`);
+  const dow = date.getDay();
+  if (dow === 0) return { visits: 0, contracts: 0, amount: 0 };
+  let visits = 1 + Math.floor(rnd() * 4);
+  if (isToday) visits = Math.floor(rnd() * 3); // 当日は途中経過のため少なめ
+  let contracts = 0;
+  let amount = 0;
+  for (let i = 0; i < visits; i += 1) {
+    if (rnd() < user.skill) {
+      contracts += 1;
+      amount += Math.round((user.base * (0.3 + rnd() * 0.9)) / 1000) * 1000;
+    }
+  }
+  return { visits, contracts, amount };
+}
+
+// 指定ユーザー・期間の日別データ
+export function dailySeries(users, range, now = new Date()) {
+  const todayKey = ymd(now);
+  return eachDay(range).map((d) => {
+    const row = { date: d, visits: 0, contracts: 0, amount: 0 };
+    users.forEach((u) => {
+      const day = dummyDay(u, d, ymd(d) === todayKey);
+      row.visits += day.visits;
+      row.contracts += day.contracts;
+      row.amount += day.amount;
+    });
+    return row;
+  });
+}
+
+export function summarize(series) {
+  const t = series.reduce((a, d) => ({ visits: a.visits + d.visits, contracts: a.contracts + d.contracts, amount: a.amount + d.amount }), { visits: 0, contracts: 0, amount: 0 });
+  return { ...t, rate: t.visits ? t.contracts / t.visits : 0, avg: t.contracts ? Math.round(t.amount / t.contracts) : 0 };
+}
+
+export const stats = (users, range, now) => summarize(dailySeries(users, range, now));
+
+// 今月の目標達成状況（期間の選択とは独立）
+export function monthProgress(users, now = new Date()) {
+  const range = rangeOf('month', now);
+  const amount = stats(users, range, now).amount;
+  const target = users.reduce((n, u) => n + u.target, 0);
+  const monthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return { amount, target, rate: target ? amount / target : 0, pace: now.getDate() / monthDays };
+}

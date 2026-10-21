@@ -8,11 +8,14 @@ import {
 import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
 import { initTheme } from './theme.js';
+import { userById } from './dashboard.js';
 import { formatMoneyInput } from './moneyInput.js';
 
 const initialState = () => ({
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
   view: 'visit',
+  user: 'u01',
+  dash: { period: 'month', scope: 'me', member: null },
   menuOpen: false,
   step: 0,
   visitStartedAt: null,
@@ -79,7 +82,7 @@ function publish() {
   if (!state.visitStartedAt) return;
   publishLive({
     visitId: state.visitId,
-    staff: '営業 鈴木',
+    staff: `営業 ${userById(state.user).name}`,
     startedAt: state.visitStartedAt,
     endedAt: state.visitEndedAt,
     step: state.step,
@@ -97,7 +100,7 @@ function render() {
   const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
   $('#app').innerHTML =
     V.headerView(state) +
-    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : V.placeholderView(state)}</main>` +
+    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
     (state.view === 'visit' ? V.modalView(state) : '') +
     V.scanView(state) +
@@ -174,6 +177,9 @@ const actions = {
     const { [el.dataset.key]: _removed, ...rest } = state.labels;
     set({ labels: rest, labelError: null });
   },
+  'dash-period': (el) => set({ dash: { ...state.dash, period: el.dataset.value } }),
+  'dash-scope': (el) => set({ dash: { ...state.dash, scope: el.dataset.value, member: null } }),
+  'dash-member': (el) => set({ dash: { ...state.dash, scope: 'member', member: el.dataset.id } }),
   'open-menu': () => set({ menuOpen: true }),
   'close-menu': () => set({ menuOpen: false }),
   nav: (el) => set({ view: el.dataset.value, menuOpen: false, modal: null }),
@@ -268,7 +274,7 @@ const actions = {
     if (!d.photos.length) return;
     upsertAppraisal({
       id: newAppraisalId(), createdAt: Date.now(), visitId: state.visitId, itemId: state.modal.itemId, name: d.name.trim() || '（名称未入力）',
-      note: d.note, photos: d.photos, sender: '営業 鈴木', customerName: state.customer.name,
+      note: d.note, photos: d.photos, sender: `営業 ${userById(state.user).name}`, customerName: state.customer.name,
       status: '依頼中', reply: null, adopted: false,
     });
     set({ modal: { type: 'appraisal', itemId: state.modal.itemId }, draft: { ...d, note: '', photos: [] } });
@@ -298,7 +304,7 @@ const actions = {
   'eval-save': () => {
     const e = state.evalDraft;
     upsertEval({
-      visitId: state.visitId, customerName: state.customer.name, phone: state.customer.phone, savedAt: Date.now(), by: '営業 鈴木', ...e, memo: e.memo.trim(),
+      visitId: state.visitId, customerName: state.customer.name, phone: state.customer.phone, savedAt: Date.now(), by: `営業 ${userById(state.user).name}`, ...e, memo: e.memo.trim(),
     });
     set({ evaluation: { ...e, memo: e.memo.trim() }, modal: null });
     showToast('お客様の評価を保存しました');
@@ -319,6 +325,11 @@ document.addEventListener('click', (e) => {
 });
 document.addEventListener('change', (e) => {
   const el = e.target;
+  if (el.dataset.dashuser !== undefined) {
+    // デモ用: ログインユーザーの切り替え。一般の営業に切り替えると、閲覧範囲は自分のみになる
+    set({ user: el.value, dash: { ...state.dash, scope: 'me', member: null } });
+    rerenderKeepScroll();
+  }
   if (el.dataset.action === 'leave-check') {
     set({ leaveChecks: { ...state.leaveChecks, [el.dataset.key]: el.checked } });
     rerenderKeepScroll();

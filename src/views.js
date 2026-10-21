@@ -2,6 +2,7 @@ import { PRODUCTS, RANKS } from './data.js';
 import { masterBodyView } from './masterView.js';
 import { approvalState, latestApproval } from './store.js';
 import { themeToggleHtml } from './theme.js';
+import { roleLabel, userById } from './dashboard.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '買取明細', '取捨選択', 'シール紐づけ', 'GMOサイン送信・訪問終了'];
@@ -59,6 +60,7 @@ export const MENU = [
   { key: 'move', icon: '🚗', label: '移動', sub: 'ルート・走行記録',
     plan: ['訪問先までのルート案内と到着予定時刻', '走行距離・移動時間の自動記録', '到着時に「訪問開始」へ自動で切り替え', '渋滞・遅延の本社への共有'] },
   { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
+  { key: 'dashboard', icon: '📊', label: 'ダッシュボード', sub: '業績の確認（個人・グループ）' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: 'ガソリン代・買取用の現金',
     plan: ['ガソリン代・高速代・駐車場の記録（レシート撮影）', 'お客様への支払い用現金の出し入れと残高', '買取金額の支払い記録と、日次の精算', '日報への自動集計'] },
   { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品の引き渡し',
@@ -90,7 +92,7 @@ export function menuView(s) {
           ${m.plan ? '<span class="text-xs text-slate-400">準備中</span>' : ''}
         </button>`).join('')}
       </div>
-      <div class="px-5 py-3 text-xs text-slate-400 border-t border-white/10">営業 鈴木</div>
+      <div class="px-5 py-3 text-xs text-slate-400 border-t border-white/10">${esc(userById(s.user).name)}（${roleLabel(userById(s.user))}）</div>
     </nav>
   </div>`;
 }
@@ -749,3 +751,4 @@ function appraisalComposeView(s, m) {
 
 export { yen, total } from './format.js';
 export { masterBodyView } from './masterView.js';
+export { dashboardView } from './dashboardView.js';
