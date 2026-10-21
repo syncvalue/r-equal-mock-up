@@ -123,7 +123,8 @@ export function menuView(s) {
           ${m.key === 'return' && pendingCount(s) ? `<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">入庫待ち ${pendingCount(s)}</span>` : ''}
         </button>`).join('')}
       </div>
-      <div class="px-5 py-3 text-xs text-slate-400 border-t border-white/10">${esc(userById(s.user).name)}（${roleLabel(userById(s.user))}）</div>
+      <div class="px-5 py-3 border-t border-white/10 flex items-center justify-between gap-2"><span class="text-xs text-slate-400">${esc(userById(s.user).name)}（${roleLabel(userById(s.user))}）</span>
+        <button class="rounded-lg border border-white/30 px-3 py-1.5 text-sm font-bold hover:bg-white/10" data-action="logout">ログアウト</button></div>
     </nav>
   </div>`;
 }
@@ -882,5 +883,6 @@ export { yen, total } from './format.js';
 export { masterBodyView } from './masterView.js';
 export { dashboardView } from './dashboardView.js';
 export { scheduleView } from './scheduleView.js';
+export { authView } from './authView.js';
 export { workdayView, expenseView, receiptModalView, outcomeModalView, outcomeResultView, wdLiveView, expLiveView, ocLiveView } from './workdayView.js';
 export { stockView } from './stockView.js';

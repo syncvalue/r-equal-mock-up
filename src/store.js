@@ -94,12 +94,17 @@ export const COMMENT_TAGS = ['安すぎる', '高すぎる', '要再確認', '�
 export const WORKDAY_KEY = 'rq-mock-workdays';
 export const DEPOSIT_KEY = 'rq-mock-deposits';
 
+// ログイン（モック）。再設定したパスワードと、入力ミスのロック状態は、データ初期化でデモ用の状態に戻す
+export const PASSWORD_KEY = 'rq-mock-passwords';
+export const AUTH_FAIL_KEY = 'rq-mock-auth-fails';
+export const SESSION_KEY = 'rq-mock-session';
+
 // 買取商品の持ち帰り（実物1点ごとの入庫状況）
 export const STOCK_KEY = 'rq-mock-stock';
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, STOCK_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, STOCK_KEY, PASSWORD_KEY, AUTH_FAIL_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
 };
 

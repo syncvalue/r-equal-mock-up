@@ -9,8 +9,13 @@ import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
 import { initTheme } from './theme.js';
 import { userById, isLeader } from './dashboard.js';
+import { ACCOUNTS } from './auth.js';
+const ACCOUNTS_BY_USER = (userId) => ACCOUNTS.find((a) => a.userId === userId) ?? null;
 import { messagesFor } from './messages.js';
-import { EVENTS, eventById } from './schedule.js';
+import { EVENTS, eventById, eventsOfDay } from './schedule.js';
+import {
+  findAccount, passwordOf, setPassword, passwordProblem, lockedUntil, recordFail, clearFails, issueCode, checkCode, loadSession, saveSession, clearSession, RESEND_WAIT, MAX_CODE_TRIES,
+} from './auth.js';
 import { formatMoneyInput } from './moneyInput.js';
 import {
   START_CHECKS, END_CHECKS, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
@@ -26,10 +31,16 @@ function callInfoOf(ev, userId) {
   return { receptionNo: ev.receptionNo, receivedAt: ev.receivedAt, operator: ev.operator, apType: ev.apType, appraiser: userById(userId).name };
 }
 
+const blankAuth = (id = '') => ({ screen: 'login', id, pw: '', showPw: false, code: '', newPw: '', newPw2: '', error: '', info: '', pending: null, resetUserId: null });
+
+// ログイン中の営業の、最初の予定を、訪問・予定表の初期値にする
+const firstEventOf = (userId) => (userId && eventsOfDay(0, userId)[0]) || EVENTS[0];
+
 const initialState = () => ({
+  auth: blankAuth(),
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
-  view: phaseOf(loadDay('u01')) === 'open' ? 'dashboard' : 'workday', // 始業前は、始業開始画面が初期画面
-  user: 'u01',
+  view: phaseOf(loadDay(loadSession() ?? '')) === 'open' ? 'dashboard' : 'workday', // 始業前は、始業開始画面が初期画面
+  user: loadSession(), // 未ログインなら null（ログイン画面を表示）
   day: null,
   phase: 'before',
   startForm: blankStartForm(),
@@ -44,12 +55,12 @@ const initialState = () => ({
   step: 0,
   visitStartedAt: null,
   visitEndedAt: null,
-  visitEventId: EVENTS[0].id,
-  sched: { sel: EVENTS[0].id, tab: 'calendar' },
+  visitEventId: firstEventOf(loadSession()).id,
+  sched: { sel: firstEventOf(loadSession()).id, tab: 'calendar' },
   route: { day: 0, sel: 'all', origin: 'prev' },
   geo: null,
-  callInfo: callInfoOf(EVENTS[0], 'u01'),
-  customer: { ...EVENTS[0].customer },
+  callInfo: callInfoOf(firstEventOf(loadSession()), loadSession() ?? 'u01'),
+  customer: { ...firstEventOf(loadSession()).customer },
   customerConfirmed: false,
   modal: null,
   items: [],
@@ -141,6 +152,7 @@ function publish() {
 }
 
 function render() {
+  if (!state.user) { $('#app').innerHTML = V.authView(state); return; } // 未ログイン
   const day = loadDay(state.user);
   const phase = phaseOf(day);
   set({ day, phase, units: loadUnits() });
@@ -274,6 +286,61 @@ const actions = {
   },
   'msg-read-all': () => markRead(state.user, messagesFor(userById(state.user)).map((m) => m.id)),
   // デモ用: ダッシュボードで表示するロール（メンバー／グループリーダー）の切り替え
+  // ログイン（ID・パスワード → SMS認証コード）とパスワードの再設定
+  'auth-toggle-pw': () => set({ auth: { ...state.auth, showPw: !state.auth.showPw } }),
+  'auth-login': () => {
+    const a = state.auth;
+    const id = a.id.trim().toLowerCase();
+    if (!id || !a.pw) { set({ auth: { ...a, error: 'ログインIDとパスワードを入力してください', info: '' } }); return; }
+    if (lockedUntil(id)) { set({ auth: { ...a, pw: '', error: '', info: '' } }); return; }
+    const acc = findAccount(id);
+    if (!acc || a.pw !== passwordOf(acc.userId)) {
+      if (acc) recordFail(id);
+      set({ auth: { ...a, pw: '', error: 'ログインIDまたはパスワードが違います', info: '' } });
+      return;
+    }
+    clearFails(id);
+    set({ auth: { ...a, screen: 'sms', pw: '', code: '', error: '', info: '', pending: issueCode(acc.userId, 'login') } });
+  },
+  'auth-verify': () => {
+    const a = state.auth;
+    const p = a.pending;
+    const r = checkCode(p, a.code.trim());
+    if (r === 'ok') {
+      if (p.purpose === 'login') { saveSession(p.userId); state = initialState(); showToast('ログインしました'); return; }
+      set({ auth: { ...a, screen: 'newpw', code: '', error: '', info: '', resetUserId: p.userId, pending: null } });
+      return;
+    }
+    const tries = (p?.tries ?? MAX_CODE_TRIES) + 1;
+    if (r === 'locked' || tries >= MAX_CODE_TRIES) {
+      set({ auth: { ...blankAuth(a.id), error: '認証コードの入力ミスが続いたため、最初からやり直してください' } });
+      return;
+    }
+    set({ auth: { ...a, code: '', info: '', pending: { ...p, tries }, error: r === 'expired' ? '認証コードの有効期限が切れました。再送してください' : `認証コードが違います（あと${MAX_CODE_TRIES - tries}回）` } });
+  },
+  'auth-resend': () => {
+    const p = state.auth.pending;
+    if (!p || Date.now() - p.sentAt < RESEND_WAIT) return;
+    set({ auth: { ...state.auth, code: '', error: '', info: '認証コードを再送しました', pending: issueCode(p.userId, p.purpose) } });
+  },
+  'auth-forgot': () => set({ auth: { ...blankAuth(state.auth.id), screen: 'forgot' } }),
+  'auth-forgot-send': () => {
+    const a = state.auth;
+    if (!a.id.trim()) { set({ auth: { ...a, error: 'ログインIDを入力してください' } }); return; }
+    // IDの有無を知られないよう、存在しないIDでも同じ画面に進める（コードは届かない）
+    set({ auth: { ...a, screen: 'forgot-sms', code: '', error: '', info: '', pending: issueCode(findAccount(a.id)?.userId ?? null, 'forgot') } });
+  },
+  'auth-setpw': () => {
+    const a = state.auth;
+    const acc = ACCOUNTS_BY_USER(a.resetUserId);
+    const problem = passwordProblem(a.newPw, acc?.loginId ?? '') || (a.newPw !== a.newPw2 ? '確認用のパスワードが一致しません' : '');
+    if (!acc || problem) { set({ auth: { ...a, error: problem || 'もう一度、最初からやり直してください' } }); return; }
+    if (!setPassword(acc.userId, a.newPw)) { set({ auth: { ...a, error: 'パスワードを保存できませんでした' } }); return; }
+    clearFails(acc.loginId);
+    set({ auth: { ...blankAuth(acc.loginId), info: 'パスワードを変更しました。新しいパスワードでログインしてください' } });
+  },
+  'auth-back': () => set({ auth: blankAuth(state.auth.id) }),
+  logout: () => { clearSession(); state = initialState(); },
   'dash-viewas': (el) => set({ dash: { ...state.dash, viewAs: el.dataset.value === (isLeader(userById(state.user)) ? 'leader' : 'member') ? null : el.dataset.value, scope: 'me', member: null } }),
   'dash-demo': () => set({ dash: { ...state.dash, demoOpen: !state.dash.demoOpen } }),
   'dash-visits': (el) => set({ modal: { type: 'dashvisits', date: el.dataset.date || null } }),
@@ -532,6 +599,12 @@ document.addEventListener('click', (e) => {
 });
 // スキャナ（キーボード入力として動作）・手入力のシールNo.は、Enterで入庫
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.dataset.auth) {
+    e.preventDefault();
+    actions[{ login: 'auth-login', sms: 'auth-verify', forgot: 'auth-forgot-send', 'forgot-sms': 'auth-verify', newpw: 'auth-setpw' }[state.auth.screen]]?.();
+    rerenderKeepScroll();
+    return;
+  }
   if (e.key !== 'Enter' || e.target.dataset.stockCode === undefined) return;
   e.preventDefault();
   submitStockCode();
@@ -539,11 +612,6 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('change', (e) => {
   const el = e.target;
-  if (el.dataset.dashuser !== undefined) {
-    // デモ用: ログインユーザーの切り替え。一般の営業に切り替えると、閲覧範囲は自分のみになる
-    set({ user: el.value, dash: { ...state.dash, scope: 'me', member: null, viewAs: null }, sched: { ...state.sched, sel: null }, route: { day: 0, sel: 'all', origin: 'prev' } });
-    rerenderKeepScroll();
-  }
   if (el.dataset.action === 'wd-check') {
     const key = el.dataset.form === 'start' ? 'startForm' : 'closeForm';
     set({ [key]: { ...state[key], checks: { ...state[key].checks, [el.dataset.key]: el.checked } } });
@@ -626,6 +694,12 @@ document.addEventListener('pointercancel', endDrag);
 // テキスト入力は再描画せず state のみ更新（フォーカス維持）
 document.addEventListener('input', (e) => {
   const el = e.target;
+  if (el.dataset.auth) {
+    // ログイン画面の入力。再描画せず state だけ更新する（フォーカス維持）。認証コードは数字のみ
+    if (el.dataset.auth === 'code') el.value = el.value.replace(/\D/g, '').slice(0, 6);
+    set({ auth: { ...state.auth, [el.dataset.auth]: el.value } });
+    return;
+  }
   if (el.dataset.wd) {
     // 始業・終業・経費の入力。再描画せず state だけ更新し、差異の表示とボタンだけ差し替える（フォーカス維持）
     const filled = el.value.trim() !== '';
@@ -709,6 +783,18 @@ window.addEventListener('storage', (e) => {
   // 下書き入力中は再描画しない（フォーカスが外れるため）
   if (!document.activeElement?.dataset?.draft) rerenderKeepScroll();
 });
+
+// 認証コードの再送ボタンの待ち時間を、入力中の画面を再描画せずに更新する
+setInterval(() => {
+  const b = $('[data-action="auth-resend"]');
+  const p = state.auth?.pending;
+  if (!b || !p) return;
+  const wait = Math.max(0, Math.ceil((p.sentAt + RESEND_WAIT - Date.now()) / 1000));
+  b.disabled = wait > 0;
+  b.textContent = `コードを再送する${wait ? `（${wait}秒後）` : ''}`;
+  b.classList.toggle('text-slate-300', wait > 0);
+  b.classList.toggle('text-slate-500', wait === 0);
+}, 1000);
 
 setInterval(() => {
   const t = $('#timer');

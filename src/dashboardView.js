@@ -122,13 +122,10 @@ export function dashboardView(s) {
         ? `<div class="flex gap-1 w-80">${tab('me', '自分')}${tab('group', 'グループ全体')}</div>`
         : '<span class="text-sm rounded-lg bg-slate-100 text-slate-600 px-3 py-1.5">🔒 あなたの業績のみ表示されます</span>'}
       ${scope === 'member' ? '<button class="text-teal-700 font-bold underline" data-action="dash-scope" data-value="group">← グループ全体に戻る</button>' : ''}
-      <details class="ml-auto text-xs text-slate-500" ${s.dash.demoOpen ? 'open' : ''}><summary class="cursor-pointer text-right underline" data-action="dash-demo">デモ用の切り替え</summary><div class="mt-1 flex flex-wrap items-center justify-end gap-2">
+      <details class="ml-auto text-xs text-slate-500" ${s.dash.demoOpen ? 'open' : ''}><summary class="cursor-pointer text-right underline" data-action="dash-demo">デモ用：表示するロール</summary><div class="mt-1 flex flex-wrap items-center justify-end gap-2">
       <div class="flex items-center gap-1">表示するロール
         ${[['member', 'メンバー'], ['leader', 'グループリーダー']].map(([k, l]) => `<button class="rounded-lg px-3 py-1.5 font-bold ${(leader ? 'leader' : 'member') === k ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="dash-viewas" data-value="${k}">${l}</button>`).join('')}</div>
-      <label class="text-xs text-slate-500 flex items-center gap-2">ログイン中のユーザー
-        <select class="field !py-1 !px-2 !text-sm !w-auto" data-dashuser>
-          ${GROUPS.map((g) => `<optgroup label="${esc(g.name)}">${USERS.filter((u) => u.group === g.id).map((u) => `<option value="${u.id}" ${u.id === user.id ? 'selected' : ''}>${esc(u.name)}（${roleLabel(u)}）</option>`).join('')}</optgroup>`).join('')}
-        </select></label></div></details>
+      </div></details>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
