@@ -645,11 +645,11 @@ export function endView(s) {
   </section>`;
 }
 
-const modalShell = (title, body, { wide = false } = {}) => `
+const modalShell = (title, body, { wide = false, right = null } = {}) => `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl w-full ${wide ? 'max-w-3xl p-4 gap-2' : 'max-w-2xl p-5 gap-3'} max-h-[96dvh] flex flex-col">
       <div class="flex justify-between items-center gap-2"><h2 class="${wide ? 'text-lg' : 'text-xl'} font-bold leading-tight">${title}</h2>
-        <button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
+        ${right ?? '<button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button>'}</div>
       <div class="overflow-y-auto min-h-0 flex-1 ${wide ? 'space-y-2' : 'space-y-3'}" data-scroll="modal">${body}</div>
     </div>
   </div>`;
@@ -776,7 +776,7 @@ export function modalView(s) {
        <button class="btn btn-primary w-full" data-action="close-modal">閉じる</button>`,
     );
   }
-  if (m.type === 'dashreports') { const v = dashReportsModal(s); return modalShell(v.title, v.body, { wide: true }); }
+  if (m.type === 'dashreports') { const v = dashReportsModal(s); return modalShell(v.title, v.body, { wide: true, right: v.right }); }
   if (m.type === 'dashvisits') { const v = dashVisitsModal(s); return modalShell(v.title, v.body, { wide: true }); }
   if (m.type === 'eval') return evalModalView(s);
   if (m.type === 'comments') return commentsModalView(s);

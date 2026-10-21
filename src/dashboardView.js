@@ -260,7 +260,12 @@ export function dashReportsModal(s) {
   if (s.modal.date && user) {
     const d = new Date(`${s.modal.date}T00:00:00`);
     const r = reportFor(user, d, now);
-    return { title: `📝 ${esc(user.name)}　${dLabel(d)}の日報`, body: `${back}${r ? reportDetail(r) : '<p class="text-slate-400 text-center py-8">この日の日報はありません</p>'}` };
+    // 詳細では「閉じる」の代わりに、同じ場所に「一覧に戻る」を置く（一覧に戻るつもりで閉じてしまわないように）
+    return {
+      title: `📝 ${esc(user.name)}　${dLabel(d)}の日報`,
+      right: '<button class="btn btn-secondary !py-1 !min-h-[40px] !px-4 whitespace-nowrap" data-action="dash-rep-back">← 一覧に戻る</button>',
+      body: r ? reportDetail(r) : '<p class="text-slate-400 text-center py-8">この日の日報はありません</p>',
+    };
   }
   if (!user) {
     const rows = users.map((u) => ({ u, st: stats3(listFor(u)) }));
