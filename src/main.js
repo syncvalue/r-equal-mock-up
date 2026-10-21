@@ -67,6 +67,7 @@ const initialState = () => ({
   comments: [],
   scan: null,
   leaveChecks: {},
+  briefing: { checks: {}, propose: '' },
   evaluation: null,
   evalDraft: V.blankEval(),
   approvals: [],
@@ -111,6 +112,7 @@ const DUMMY_ID = (label) =>
 const STEP_VIEWS = [
   V.startView,
   V.customerView,
+  V.briefingView,
   V.itemsView,
   V.selectView,
   V.labelView,
@@ -126,6 +128,7 @@ function publish() {
     startedAt: state.visitStartedAt,
     endedAt: state.visitEndedAt,
     step: state.step,
+    briefing: { propose: state.briefing.propose },
     customerName: state.customer.name,
     callInfo: state.callInfo,
     outcome: state.outcome ? { ...state.outcome, label: outcomeOf(state.outcome.type).label } : null,
@@ -305,7 +308,7 @@ const actions = {
   },
   'price-set': (el) => updateItems(el.dataset.id, { price: Number(el.dataset.value) }),
   back: () => set({ step: Math.max(0, state.step - 1) }),
-  next: () => V.canProceed(state) && set({ step: Math.min(5, state.step + 1) }),
+  next: () => V.canProceed(state) && set({ step: Math.min(V.STEPS.length - 1, state.step + 1) }),
   mtab: (el) => set({ mtab: el.dataset.value, mlimit: 40 }),
   // 絞り込み: カテゴリ → ブランド の順に掘り下げる（同じものを押すと解除）
   mcat: (el) => set({ mcat: state.mcat === el.dataset.value ? '' : el.dataset.value, mbrand: '', mlimit: 40 }),
@@ -347,7 +350,7 @@ const actions = {
       kyc: null, signature: null, signedAt: null,
     };
     upsertContract(record);
-    set({ contract: { id: record.id, sentAt }, step: 5 });
+    set({ contract: { id: record.id, sentAt }, step: V.STEPS.length - 1 });
     window.open(GMO_URL, '_blank', 'noopener');
   },
   'open-gmo': () => window.open(GMO_URL, '_blank', 'noopener'),
@@ -500,6 +503,8 @@ const actions = {
     set({ evaluation: { ...e, memo: e.memo.trim() }, modal: null });
     showToast('お客様の評価を保存しました');
   },
+  'brief-propose': (el) => set({ briefing: { ...state.briefing, propose: el.dataset.value } }),
+  'brief-all': () => set({ briefing: { checks: Object.fromEntries(V.BRIEFING_CHECKS.map((c) => [c.key, true])), propose: 'yes' } }),
   'leave-all': () => set({ leaveChecks: Object.fromEntries(V.LEAVE_CHECKS.map((c) => [c.key, true])) }),
   reset: () => { state = initialState(); },
   'reset-all': () => { if (confirm(RESET_CONFIRM)) { clearTransactions(); state = initialState(); showToast('データを初期化しました'); } },
@@ -537,6 +542,10 @@ document.addEventListener('change', (e) => {
     shrinkImage(el.files[0], 1000)
       .then((img) => { set({ expDraft: { ...state.expDraft, photo: img } }); rerenderKeepScroll(); })
       .catch(() => showToast('画像を読み込めませんでした'));
+  }
+  if (el.dataset.action === 'brief-check') {
+    set({ briefing: { ...state.briefing, checks: { ...state.briefing.checks, [el.dataset.key]: el.checked } } });
+    rerenderKeepScroll();
   }
   if (el.dataset.action === 'leave-check') {
     set({ leaveChecks: { ...state.leaveChecks, [el.dataset.key]: el.checked } });

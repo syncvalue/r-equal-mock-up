@@ -9,11 +9,11 @@ import { messagesFor, unreadCount } from './messages.js';
 import { pendingCount } from './stockView.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 
-export const STEPS = ['訪問開始', 'お客様確認', '買取明細', '取捨選択', 'シール紐づけ', 'GMOサイン送信・訪問終了'];
+export const STEPS = ['訪問開始', 'お客様確認', '説明事項', '買取明細', '買取商品の確認', 'シール紐づけ', 'GMOサイン送信・訪問終了'];
 
 export const selectedItems = (s) => s.items.filter((i) => i.sell);
 
-// 取捨選択で「売る」にした商品ごとの、査定部の承認状態
+// 買取商品の確認で「売る」にした商品ごとの、査定部の承認状態
 export const approvalOf = (s, item) => {
   const rec = latestApproval(s.approvals, s.visitId, item.id);
   return { state: approvalState(rec, item), rec };
@@ -56,6 +56,20 @@ const apTag = (s, itemId) => {
 
 const itemWarn = (s, itemId) =>
   s.comments.some((c) => c.itemId === itemId && !c.ack) ? '<span class="text-rose-600 text-xl ml-1" title="本社からのコメント">❗</span>' : '';
+
+// 査定の前に、お客様へ説明する事項。説明したことを記録してから査定に進む
+export const BRIEFING_CHECKS = [
+  { key: 'flow', text: '買取の流れ（査定 → 金額のご提示 → ご同意 → 契約・お支払い）を説明した' },
+  { key: 'refuse', text: '査定額にご納得いただけない場合は、売却をお断りいただけることを説明した' },
+  { key: 'photo', text: '査定のため、商品の撮影と、本社査定部への写真送信について了承を得た' },
+  { key: 'kyc', text: '古物営業法に基づき、本人確認書類の確認が必要なことを説明した' },
+  { key: 'cooling', text: 'クーリング・オフ制度があることを説明した（契約時に、あらためて満了日をお伝えします）' },
+];
+export const PROPOSE_OPTIONS = [
+  { value: 'yes', label: '提案してよい', sub: 'ご依頼商品以外の、買取可能な商品もご案内できます', cls: 'border-teal-600 bg-teal-50' },
+  { value: 'no', label: '提案は不要', sub: 'ご依頼いただいた商品のみ、査定します', cls: 'border-slate-500 bg-slate-100' },
+];
+export const briefingDone = (s) => BRIEFING_CHECKS.every((c) => s.briefing.checks[c.key]) && Boolean(s.briefing.propose);
 
 // ---- メインメニュー（開閉式ドロワー）。機能の中身は準備中 -------------------------------
 export const MENU = [
@@ -147,13 +161,13 @@ export function headerView(s) {
 }
 
 export function footerView(s) {
-  if (s.step === 0 || s.step === 5) return '';
+  if (s.step === 0 || s.step === STEPS.length - 1) return '';
   const ok = canProceed(s);
   return `
   <footer class="shrink-0 bg-white border-t px-5 py-2 flex justify-between items-center">
     <button class="btn btn-secondary w-40" data-action="back">← 戻る</button>
     <span class="text-slate-500">${ok ? '' : hint(s)}</span>
-    ${s.step === 4
+    ${s.step === STEPS.length - 2
       ? `<button class="btn btn-primary" data-action="send-gmo" ${ok ? '' : 'disabled'}>確定してGMOサインに送信 →</button>`
       : `<button class="btn btn-primary w-40" data-action="next" ${ok ? '' : 'disabled'}>次へ →</button>`}
   </footer>`;
@@ -162,9 +176,10 @@ export function footerView(s) {
 export function canProceed(s) {
   switch (s.step) {
     case 1: return s.customerConfirmed && s.customer.name.trim() !== '' && s.customer.phone.trim() !== '';
-    case 2: return s.items.length > 0 && s.items.every((i) => i.price > 0);
-    case 3: return selectedItems(s).length > 0 && allApproved(s);
-    case 4: return labelSlots(s).every((x) => s.labels[x.key]);
+    case 2: return briefingDone(s);
+    case 3: return s.items.length > 0 && s.items.every((i) => i.price > 0);
+    case 4: return selectedItems(s).length > 0 && allApproved(s);
+    case 5: return labelSlots(s).every((x) => s.labels[x.key]);
     default: return true;
   }
 }
@@ -172,9 +187,10 @@ export function canProceed(s) {
 const hint = (s) =>
   ({
     1: 'お客様の確認を行ってください（氏名・電話番号は必須）',
-    2: '商品を1点以上追加し、査定金額を入力してください',
-    3: '買取するすべての商品に、査定部の承認が必要です（承認待ち）',
-    4: 'すべての商品にシールのQRコードを紐づけてください',
+    2: '説明事項をすべて説明してチェックし、お客様のご回答を選んでください',
+    3: '商品を1点以上追加し、査定金額を入力してください',
+    4: '買取するすべての商品に、査定部の承認が必要です（承認待ち）',
+    5: 'すべての商品にシールのQRコードを紐づけてください',
   })[s.step] ?? '';
 
 
@@ -250,6 +266,31 @@ export function itemsListView(s) {
     .join('');
 }
 
+export function briefingView(s) {
+  const b = s.briefing;
+  const left = BRIEFING_CHECKS.filter((c) => !b.checks[c.key]).length;
+  return `
+  <section class="${SEC} flex items-center justify-center">
+    <div class="card w-full max-w-4xl space-y-3 !p-4 max-h-full flex flex-col">
+      <div class="flex justify-between items-baseline"><h2 class="text-2xl font-bold">査定前の説明事項</h2>
+        <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${BRIEFING_CHECKS.length - left} / ${BRIEFING_CHECKS.length}</span></div>
+      <p class="text-slate-600 text-sm">お客様にご説明し、説明したものにチェックしてください。完了すると、査定に進めます。</p>
+      <div class="space-y-1.5 overflow-y-auto min-h-0" data-scroll="briefing">
+        ${BRIEFING_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-2 min-h-[52px] cursor-pointer ${b.checks[c.key] ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'}">
+          <input type="checkbox" class="w-7 h-7 shrink-0" data-action="brief-check" data-key="${c.key}" ${b.checks[c.key] ? 'checked' : ''} />
+          <span class="flex-1 ${b.checks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`).join('')}
+      </div>
+      <div class="rounded-xl border-2 p-3 space-y-2 ${b.propose ? 'border-emerald-300' : 'border-amber-400'}">
+        <div class="font-bold">ご依頼いただいた商品以外に、こちらから買取可能な商品をご提案してもよろしいですか？<span class="text-rose-600 ml-1 text-sm">お客様のご回答</span></div>
+        <div class="grid grid-cols-2 gap-2">${PROPOSE_OPTIONS.map((o) => `
+          <button class="rounded-xl border-2 p-3 text-left ${b.propose === o.value ? o.cls + ' ring-2 ring-offset-1 ring-teal-400' : 'border-slate-200'}" data-action="brief-propose" data-value="${o.value}">
+            <span class="block font-bold text-lg">${b.propose === o.value ? '✅ ' : ''}${o.label}</span><span class="block text-xs text-slate-500">${o.sub}</span></button>`).join('')}</div>
+      </div>
+      <button class="text-xs underline text-slate-400 self-end" data-action="brief-all">（デモ用）すべてチェックして「提案してよい」を選ぶ</button>
+    </div>
+  </section>`;
+}
+
 export function itemsView(s) {
   return `
   <section class="${SEC} grid grid-cols-2 gap-4">
@@ -262,7 +303,7 @@ export function itemsView(s) {
       <div id="master" class="flex flex-col gap-2 min-h-0 flex-1">${masterBodyView(s)}</div>
     </div>
     <div class="card flex flex-col gap-2 min-h-0 !p-4">
-      <h2 class="text-xl font-bold">買取明細 </h2>
+      <h2 class="text-xl font-bold flex items-center gap-2">買取明細 ${s.briefing.propose ? `<span class="text-xs font-bold rounded-full px-2 py-0.5 ${s.briefing.propose === 'yes' ? 'bg-teal-100 text-teal-800' : 'bg-slate-200 text-slate-700'}">他商品の提案：${s.briefing.propose === 'yes' ? '可' : '不要'}</span>` : ''}</h2>
       <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="items">${itemsListView(s)}</div>
       <div class="flex justify-between items-center border-t-2 pt-2">
         <span class="font-bold">合計（${s.items.reduce((n, i) => n + i.qty, 0)}点）</span>
