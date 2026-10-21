@@ -3,6 +3,7 @@ import { loadRecent, pushRecent } from './search.js';
 import { estimateByPhotos, RECEIPT_SAMPLES, receiptSampleFor } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
+  sendMessage,
   AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
@@ -11,7 +12,7 @@ import { initTheme } from './theme.js';
 import { userById, isLeader } from './dashboard.js';
 import { ACCOUNTS } from './auth.js';
 const ACCOUNTS_BY_USER = (userId) => ACCOUNTS.find((a) => a.userId === userId) ?? null;
-import { messagesFor } from './messages.js';
+import { messagesFor, hqMessagesFor, leaderMessagesFor } from './messages.js';
 import { EVENTS, eventById, eventsOfDay } from './schedule.js';
 import {
   accountFor, passwordProblem, issueCode, checkCode, loadSession, saveSession, clearSession, RESEND_WAIT, MAX_CODE_TRIES,
@@ -50,7 +51,8 @@ const initialState = () => ({
   outcomeDraft: blankOutcomeDraft(),
   units: [],
   stock: { ...DEFAULT_STOCK },
-  dash: { period: 'month', scope: 'me', member: null, viewAs: null },
+  dash: { period: 'month', scope: 'me', member: null, viewAs: null, msgOpen: {} },
+  leaderDraft: { title: '', body: '', important: false },
   menuOpen: false,
   step: 0,
   visitStartedAt: null,
@@ -306,7 +308,20 @@ const actions = {
     set({ modal: { type: 'message', id: el.dataset.id } });
     markRead(state.user, [el.dataset.id]);
   },
-  'msg-read-all': () => markRead(state.user, messagesFor(userById(state.user)).map((m) => m.id)),
+  'msg-read-all': (el) => markRead(state.user, (el.dataset.kind === 'leader' ? leaderMessagesFor : hqMessagesFor)(userById(state.user)).map((m) => m.id)),
+  'msg-toggle': (el) => set({ dash: { ...state.dash, msgOpen: { ...state.dash.msgOpen, [el.dataset.key]: !state.dash.msgOpen?.[el.dataset.key] } } }),
+  // グループリーダーから、グループのメンバーへのメッセージ
+  'leader-compose': () => set({ modal: { type: 'leadermsg' }, leaderDraft: { title: '', body: '', important: false } }),
+  'leader-important': () => set({ leaderDraft: { ...state.leaderDraft, important: !state.leaderDraft.important } }),
+  'leader-send': () => {
+    const u = userById(state.user);
+    const d = state.leaderDraft;
+    if (!isLeader(u)) return;
+    if (!d.title.trim() || !d.body.trim()) { showToast('タイトルと本文を入力してください'); return; }
+    sendMessage({ id: `ldr-${Date.now().toString(36)}`, kind: 'leader', important: d.important, sender: `リーダー ${u.name}`, target: u.group, sentAt: Date.now(), title: d.title.trim(), body: d.body.trim() });
+    set({ modal: null, leaderDraft: { title: '', body: '', important: false }, dash: { ...state.dash, msgOpen: { ...state.dash.msgOpen, leader: true } } });
+    showToast('グループのメンバーに送信しました');
+  },
   // デモ用: ダッシュボードで表示するロール（メンバー／グループリーダー）の切り替え
   // ログイン（ID・パスワード → SMS認証コード）とパスワードの再設定
   'auth-toggle-pw': () => set({ auth: { ...state.auth, showPw: !state.auth.showPw } }),
@@ -716,6 +731,10 @@ document.addEventListener('pointercancel', endDrag);
 // テキスト入力は再描画せず state のみ更新（フォーカス維持）
 document.addEventListener('input', (e) => {
   const el = e.target;
+  if (el.dataset.ld) {
+    set({ leaderDraft: { ...state.leaderDraft, [el.dataset.ld]: el.value } });
+    return;
+  }
   if (el.dataset.auth) {
     // ログイン画面の入力。再描画せず state だけ更新する（フォーカス維持）。認証コードは数字のみ
     if (el.dataset.auth === 'code') el.value = el.value.replace(/\D/g, '').slice(0, 6);

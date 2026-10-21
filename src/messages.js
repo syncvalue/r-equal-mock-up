@@ -18,14 +18,29 @@ const SEED = () => [
   { id: 'seed-4', important: false, sender: '本社 システム管理', target: 'all', sentAt: ago(96),
     title: 'シールのQR読取について',
     body: '買取商品へのシール貼付後、QRコードの読取を忘れずに行ってください。読取が完了していない商品は、持ち帰り時のチェックで差異となります。' },
+  // グループリーダーからのメッセージ（kind: 'leader'。宛先は、そのグループ）
+  { id: 'seed-l1', kind: 'leader', important: true, sender: 'リーダー 田中 健', target: 'A', sentAt: ago(5),
+    title: '今週の訪問目標について',
+    body: '今週は、グループ全体で買取金額 600万円を目標にします。再訪のお客様へのご提案を優先し、困ったことがあれば、訪問前に私へ連絡してください。' },
+  { id: 'seed-l2', kind: 'leader', important: false, sender: 'リーダー 田中 健', target: 'A', sentAt: ago(30),
+    title: '日報の書き方のお願い',
+    body: '日報の所感欄に、お客様の反応と、次回につながる話を、一言で構いませんので書いてください。評価の登録も、忘れずにお願いします。' },
+  { id: 'seed-l3', kind: 'leader', important: true, sender: 'リーダー 佐藤 大輔', target: 'B', sentAt: ago(4),
+    title: '明日の朝の集合について',
+    body: '明日は、9:00に営業所で、短いミーティングを行います。新しい買取強化商材を共有します。' },
+  { id: 'seed-l4', kind: 'leader', important: false, sender: 'リーダー 佐藤 大輔', target: 'B', sentAt: ago(28),
+    title: '訪問時の身だしなみの確認',
+    body: '名札と社員証を、お客様から見える位置に付けてください。' },
 ];
 
-// 自分に届くメッセージ（宛先が全員、または自分のグループ）を新しい順に
+// 自分に届くメッセージ（宛先が全員、または自分のグループ）を新しい順に。本社とリーダーのものを合わせる
 export function messagesFor(user) {
   return [...loadMessages(), ...SEED()]
     .filter((m) => m.target === 'all' || m.target === user.group)
     .sort((a, b) => b.sentAt - a.sentAt);
 }
+export const hqMessagesFor = (user) => messagesFor(user).filter((m) => m.kind !== 'leader');
+export const leaderMessagesFor = (user) => messagesFor(user).filter((m) => m.kind === 'leader');
 
 export const unreadCount = (user) => {
   const read = new Set(loadReadIds(user.id));

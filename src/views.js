@@ -783,6 +783,16 @@ export function modalView(s) {
        <button class="btn btn-primary w-full" data-action="close-modal">閉じる</button>`,
     );
   }
+  if (m.type === 'leadermsg') {
+    const d = s.leaderDraft;
+    const g = userById(s.user).group;
+    return modalShell('👤 グループのメンバーへメッセージ', `
+      <p class="text-sm text-slate-500">グループ${esc(g)}のメンバー全員のダッシュボードに、「リーダーから」として表示されます。</p>
+      <label class="block"><span class="font-bold text-sm">タイトル</span><input class="field !py-2 mt-1" data-ld="title" value="${esc(d.title)}" placeholder="例: 明日の朝の集合について" /></label>
+      <label class="block"><span class="font-bold text-sm">本文</span><textarea class="field !py-2 mt-1" rows="4" data-ld="body" placeholder="連絡内容">${esc(d.body)}</textarea></label>
+      <button class="flex items-center gap-2 font-bold text-sm" data-action="leader-important"><span class="w-6 h-6 rounded border-2 flex items-center justify-center ${d.important ? 'bg-rose-600 border-rose-600 text-white' : 'border-slate-300'}">${d.important ? '✓' : ''}</span>重要として送る</button>
+      <button class="btn btn-primary w-full" data-action="leader-send">送信する</button>`);
+  }
   if (m.type === 'dashreports') { const v = dashReportsModal(s); return modalShell(v.title, v.body, { wide: true, right: v.right }); }
   if (m.type === 'dashvisits') { const v = dashVisitsModal(s); return modalShell(v.title, v.body, { wide: true }); }
   if (m.type === 'eval') return evalModalView(s);

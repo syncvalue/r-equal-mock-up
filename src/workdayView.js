@@ -2,7 +2,7 @@
 import { esc, yen, fmtTime } from './format.js';
 import { moneyInputHtml } from './moneyInput.js';
 import { userById } from './dashboard.js';
-import { messagesFor } from './messages.js';
+import { hqMessagesFor } from './messages.js';
 import { loadReadIds } from './store.js';
 import { pendingCount } from './stockView.js';
 import {
@@ -58,7 +58,7 @@ const closeHint = (s, diff) => {
 
 // 始業前に確認する、本社からのお知らせ（タップで全文を開くと既読になる）
 function messagesCard(s) {
-  const list = messagesFor(userById(s.user));
+  const list = hqMessagesFor(userById(s.user));
   const read = new Set(loadReadIds(s.user));
   const unread = list.filter((m) => !read.has(m.id)).length;
   return `

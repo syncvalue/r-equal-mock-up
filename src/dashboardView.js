@@ -1,6 +1,6 @@
 // 業績ダッシュボードの画面。リーダーはグループ全員、一般の営業は自分の業績のみ閲覧できる。
 import { yen, esc, fmtDateTime } from './format.js';
-import { messagesFor } from './messages.js';
+import { hqMessagesFor, leaderMessagesFor } from './messages.js';
 import { loadReadIds } from './store.js';
 import { loadDay, summaryOf, typeOf } from './workday.js';
 import {
@@ -67,30 +67,46 @@ function memberTable(s, members, range, now) {
   <p class="text-xs text-slate-500">行をタップするとメンバーの詳細を表示。縦線は今日までの経過の目安です。</p>`;
 }
 
-// 本社からのメッセージ。一覧は2件分の高さに固定し、3件目以降は一覧内でスクロールする。詳細はモーダルで開く
-function messagesCard(user) {
-  const msgs = messagesFor(user);
+// メッセージ（本社／リーダー）。見出しをタップして開閉する（初期は閉じて、縦幅を取らない）。開いた一覧は2件分の高さで、3件目以降はスクロール
+function messageCard(s, { key, icon, title, msgs, canSend }) {
+  const user = userById(s.user);
   const read = new Set(loadReadIds(user.id));
   const unread = msgs.filter((m) => !read.has(m.id)).length;
+  const open = Boolean(s.dash.msgOpen?.[key]);
+  const latest = msgs[0];
   return `
-  <div class="card !p-3 space-y-1.5">
-    <div class="flex items-center justify-between">
-      <h3 class="font-bold">📢 本社からのメッセージ ${unread ? `<span class="ml-1 text-xs rounded-full bg-rose-600 text-white px-2 py-0.5">未読 ${unread}</span>` : '<span class="ml-1 text-xs text-slate-400">すべて既読</span>'}
-</h3>
-      ${unread ? '<button class="text-xs underline text-slate-500" data-action="msg-read-all">すべて既読にする</button>' : ''}</div>
-    <div class="relative">
-    <div class="space-y-1.5 max-h-[102px] overflow-y-auto" data-scroll="msgs" data-msgs>
-      ${msgs.length ? msgs.map((m) => {
-        const isRead = read.has(m.id);
-        return `<button class="w-full h-12 flex items-center gap-2 text-left rounded-xl border-2 px-3 ${m.important ? 'border-rose-300' : 'border-slate-200'} ${isRead ? '' : 'bg-amber-50'}" data-action="msg-open" data-id="${m.id}">
-          ${isRead ? '<span class="w-2.5 shrink-0"></span>' : '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>'}
-          ${m.important ? '<span class="text-xs font-bold rounded bg-rose-600 text-white px-1.5 py-0.5 shrink-0">重要</span>' : '<span class="text-xs font-bold rounded bg-slate-200 text-slate-600 px-1.5 py-0.5 shrink-0">お知らせ</span>'}
-          <span class="font-bold flex-1 truncate ${isRead ? 'font-normal' : ''}">${esc(m.title)}</span>
-          <span class="text-xs text-slate-400 shrink-0">${fmtDateTime(m.sentAt).replace(/:\d+$/, '')}</span></button>`;
-      }).join('') : '<p class="text-slate-400 text-center py-3">メッセージはありません</p>'}
+  <div class="card !p-2.5 min-w-0">
+    <div class="flex items-center gap-2">
+      <button class="flex-1 min-w-0 flex items-center gap-2 text-left min-h-[40px]" data-action="msg-toggle" data-key="${key}" aria-expanded="${open}">
+        <span class="text-slate-500 w-4 shrink-0">${open ? '▼' : '▶'}</span>
+        <span class="font-bold shrink-0">${icon} ${title}</span>
+        ${unread ? `<span class="text-xs rounded-full bg-rose-600 text-white px-2 py-0.5 shrink-0">未読 ${unread}</span>` : ''}
+        ${!open && latest ? `<span class="text-xs text-slate-400 truncate min-w-0">${esc(latest.title)}</span>` : ''}
+      </button>
+      ${canSend ? `<button class="text-xs font-bold rounded-lg border border-slate-300 px-2 py-1.5 shrink-0" data-action="leader-compose">✉ 送る</button>` : ''}
+      ${open && unread ? `<button class="text-xs underline text-slate-500 shrink-0" data-action="msg-read-all" data-kind="${key}">すべて既読</button>` : ''}
     </div>
-    ${msgs.length > 2 ? `<div data-msgmore class="absolute inset-x-0 bottom-0 h-9 flex items-end justify-center pointer-events-none bg-gradient-to-t from-white via-white/90 to-transparent"><span class="text-xs font-bold text-slate-600 pb-0.5">▼ 他${msgs.length - 2}件（下へスクロール）</span></div>` : ''}
-    </div>
+    ${open ? `<div class="relative mt-1.5">
+      <div class="space-y-1.5 max-h-[102px] overflow-y-auto" data-scroll="msgs-${key}" data-msgs>
+        ${msgs.length ? msgs.map((m) => {
+          const isRead = read.has(m.id);
+          return `<button class="w-full h-12 flex items-center gap-2 text-left rounded-xl border-2 px-3 ${m.important ? 'border-rose-300' : 'border-slate-200'} ${isRead ? '' : 'bg-amber-50'}" data-action="msg-open" data-id="${m.id}">
+            ${isRead ? '<span class="w-2.5 shrink-0"></span>' : '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>'}
+            ${m.important ? '<span class="text-xs font-bold rounded bg-rose-600 text-white px-1.5 py-0.5 shrink-0">重要</span>' : ''}
+            <span class="flex-1 truncate ${isRead ? '' : 'font-bold'}">${esc(m.title)}</span>
+            <span class="text-xs text-slate-400 shrink-0">${fmtDateTime(m.sentAt).replace(/:\d+$/, '').replace(/^\d+年/, '')}</span></button>`;
+        }).join('') : '<p class="text-slate-400 text-center py-3">メッセージはありません</p>'}
+      </div>
+      ${msgs.length > 2 ? `<div data-msgmore class="absolute inset-x-0 bottom-0 h-9 flex items-end justify-center pointer-events-none bg-gradient-to-t from-white via-white/90 to-transparent"><span class="text-xs font-bold text-slate-600 pb-0.5">▼ 他${msgs.length - 2}件（下へスクロール）</span></div>` : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+function messagesCards(s) {
+  const user = userById(s.user);
+  return `<div class="grid grid-cols-2 gap-3 items-start">
+    ${messageCard(s, { key: 'hq', icon: '📢', title: '本社から', msgs: hqMessagesFor(user), canSend: false })}
+    ${messageCard(s, { key: 'leader', icon: '👤', title: 'リーダーから', msgs: leaderMessagesFor(user), canSend: isLeader(user) })}
   </div>`;
 }
 
@@ -114,7 +130,7 @@ export function dashboardView(s) {
 
   return `
   <section class="h-full min-h-0 overflow-y-auto p-4 space-y-3" data-scroll="dash">
-    ${messagesCard(userById(s.user))}
+    ${messagesCards(s)}
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div><h2 class="text-2xl font-bold">📊 業績ダッシュボード</h2>
         <p class="text-sm text-slate-500">${esc(subject)} ／ ${range.start.getMonth() + 1}/${range.start.getDate()}${range.start.getTime() === range.end.getTime() ? '' : `〜${range.end.getMonth() + 1}/${range.end.getDate()}`}</p></div>
