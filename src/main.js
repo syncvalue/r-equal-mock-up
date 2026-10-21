@@ -14,7 +14,7 @@ import { EVENTS, eventById } from './schedule.js';
 import { formatMoneyInput } from './moneyInput.js';
 import {
   START_CHECKS, END_CHECKS, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
-  newId, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady,
+  newId, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, startReady, closeReady,
 } from './workday.js';
 import {
   loadUnits, saveUnits, unitsFromVisit, addUnits, byUser, inScope, pendingOf, receive, markMissing, resultMessage, demoUnits,
@@ -135,8 +135,8 @@ function render() {
   const day = loadDay(state.user);
   const phase = phaseOf(day);
   set({ day, phase, units: loadUnits() });
-  // 始業するまで（終業後も）、始業・終業の画面以外は使えない
-  if (phase !== 'open' && state.view !== 'workday') set({ view: 'workday', modal: null });
+  // 始業するまで（終業後も）、現地買取だけは使えない
+  if (phase !== 'open' && state.view === 'visit') set({ view: 'workday', modal: null });
   set({ appraisals: loadAppraisals(), comments: loadComments().filter((c) => c.visitId === state.visitId),
     approvals: loadApprovals().filter((a) => a.visitId === state.visitId),
   });
@@ -280,6 +280,7 @@ const actions = {
   'start-from-event': (el) => {
     const ev = eventById(el.dataset.id);
     if (!ev) return;
+    if (state.phase !== 'open') { showToast('始業登録をしていないため、訪問を開始できません'); return; }
     if (state.visitStartedAt && !state.visitEndedAt) { showToast('現在、訪問中です。終了してから新しい訪問を開始してください'); return; }
     const keep = { user: state.user, dash: state.dash, sched: state.sched, route: state.route, geo: state.geo, stock: state.stock };
     state = {

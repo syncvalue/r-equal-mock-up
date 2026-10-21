@@ -71,9 +71,9 @@ const menuBadge = (s) =>
     ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900"></span>'
     : '';
 
-// 始業するまで（終業後も）、始業・終業以外の機能は使えない
+// 始業するまで（終業後も）、現地買取は使えない。他の機能は、始業前・終業後も使える
 const WORKDAY_SUB = { before: '始業点検をして、業務を開始します', open: '終業の現金締めと、日報の提出', closed: '本日の日報' };
-const isLocked = (s, m) => s.phase !== 'open' && m.key !== 'workday';
+const isLocked = (s, m) => s.phase !== 'open' && m.key === 'visit';
 
 export function menuView(s) {
   if (!s.menuOpen) return '';
@@ -782,5 +782,5 @@ export { yen, total } from './format.js';
 export { masterBodyView } from './masterView.js';
 export { dashboardView } from './dashboardView.js';
 export { scheduleView } from './scheduleView.js';
-export { workdayView, expenseView, receiptModalView } from './workdayView.js';
+export { workdayView, expenseView, receiptModalView, wdLiveView, expLiveView } from './workdayView.js';
 export { stockView } from './stockView.js';
