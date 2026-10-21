@@ -2,6 +2,8 @@
 import { esc } from './format.js';
 import { EVENTS, OFFICE, eventById, eventsOfDay, dayDate, toMin } from './schedule.js';
 import { legsOf, mapEmbedUrl, mapOpenUrl } from './route.js';
+import { historyOf } from './customerHistory.js';
+import { repeatBadge, pastEvalView } from './customerHistoryView.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const HOUR_FROM = 8;
@@ -18,7 +20,7 @@ function eventBlock(s, e, today) {
   <button class="absolute left-1 right-1 rounded-md border-l-4 px-1.5 py-1 text-left overflow-hidden leading-tight ${today ? 'bg-teal-50 border-teal-600' : 'bg-indigo-50 border-indigo-500'} ${sel ? 'ring-2 ring-offset-1 ring-teal-500 shadow-lg' : 'shadow'}"
     style="top:${top}px;height:${h}px" data-action="sched-select" data-id="${e.id}">
     <span class="block text-[11px] text-slate-500">${e.start}–${e.end}</span>
-    <span class="block font-bold text-sm truncate">${esc(e.customer.name)} 様</span>
+    <span class="block font-bold text-sm truncate">${esc(e.customer.name)} 様${historyOf(e.customer).isRepeat ? ' <span class="text-[10px] font-bold rounded bg-indigo-600 text-white px-1">🔁</span>' : ''}</span>
     ${h > 62 ? `<span class="block text-xs text-slate-600 truncate">📍 ${esc(city(e.customer.address))}</span><span class="block text-xs text-slate-500 truncate">${esc(e.items)}</span>` : ''}
   </button>`;
 }
@@ -28,10 +30,12 @@ function detailPanel(s) {
   if (!e) return '<div class="card !p-4 text-slate-400 text-center">予定をタップすると、詳細と、訪問開始・ルート確認のボタンが出ます。</div>';
   const d = dayDate(e.day);
   const visiting = isVisiting(s);
+  const h = historyOf(e.customer);
   return `
   <div class="card !p-4 space-y-3">
-    <div><div class="text-xs text-slate-500">${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${e.start}–${e.end}${e.apType === '新' ? ' ／ 新規' : ' ／ 再訪'}</div>
-      <h3 class="text-xl font-bold">${esc(e.customer.name)} 様</h3></div>
+    <div><div class="text-xs text-slate-500">${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${e.start}–${e.end}</div>
+      <h3 class="text-xl font-bold flex items-center gap-2 flex-wrap">${esc(e.customer.name)} 様 ${repeatBadge(h)}</h3></div>
+    ${h.isRepeat ? pastEvalView(h) : ''}
     <dl class="text-sm space-y-1.5">
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">住所</dt><dd class="font-bold">${esc(e.customer.address)}</dd></div>
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">電話</dt><dd><a class="text-teal-700 underline font-bold" href="tel:${esc(e.customer.phone)}">${esc(e.customer.phone)}</a></dd></div>
