@@ -153,7 +153,7 @@ export function headerView(s) {
       <div class="flex items-center gap-3 text-sm">
         <button class="text-xs underline text-slate-300 hover:text-white" data-action="reset-all">（デモ用）データ初期化</button>
         ${themeToggleHtml()}
-        ${commentBadge(s)}
+        ${isCustomerFacing(s) ? '' : commentBadge(s)}
         ${s.visitStartedAt && !s.visitEndedAt ? `<span>開始 ${fmtTime(s.visitStartedAt)}</span>
         <span class="text-2xl font-mono font-bold" id="timer">${fmtElapsed(s.visitStartedAt)}</span>` : ''}
       </div>
@@ -193,7 +193,7 @@ const hint = (s) =>
     1: 'お客様の確認を行ってください（氏名・電話番号は必須）',
     2: briefingHint(s),
     3: '商品を1点以上追加し、査定金額を入力してください',
-    4: '買取するすべての商品に、査定部の承認が必要です（承認待ち）',
+    4: isCustomerFacing(s) ? '最終確認中です。少々お待ちください' : '買取するすべての商品に、査定部の承認が必要です（承認待ち）',
     5: 'すべての商品にシールのQRコードを紐づけてください',
   })[s.step] ?? '';
 
@@ -357,39 +357,51 @@ const apvTag = (s, item) => {
   return `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>`;
 };
 
+// 買取商品の確認。お客様に画面を見せながら確定する画面。社内向けの情報（査定部の承認・AI査定・本社コメント）は、
+// 「担当者用の情報」を開いたときだけ表示する
+export const isCustomerFacing = (s) => s.view === 'visit' && s.step === 4 && !s.showStaff;
+
 export function selectView(s) {
   const all = total(s.items);
   const sel = total(selectedItems(s));
-  const okCount = selectedItems(s).filter((i) => approvalOf(s, i).state === 'ok').length;
+  const chosen = selectedItems(s);
+  const okCount = chosen.filter((i) => approvalOf(s, i).state === 'ok').length;
+  const ready = okCount === chosen.length;
+  const staff = s.showStaff;
+  const rankLabel = (i) => RANKS.find((r) => r.value === i.rank)?.label ?? i.rank;
   return `
   <section class="${SEC} flex flex-col">
     <div class="card flex flex-col min-h-0 flex-1 !p-4 gap-2">
-      <div><h2 class="text-xl font-bold">査定結果の確認・査定部の承認</h2>
-        <p class="text-slate-500 text-sm">売らない商品は「売らない」に切り替えてください。査定部は商品の登録時から随時承認しています（承認 ${okCount} / ${selectedItems(s).length} 点）。</p></div>
+      <div class="flex items-start justify-between gap-3">
+        <div><h2 class="text-2xl font-bold">お買取り商品のご確認</h2>
+          <p class="text-slate-600">${esc(s.customer.name)} 様、以下の内容でお買取りいたします。ご売却いただく商品をご確認ください。</p></div>
+        <button class="shrink-0 text-xs underline ${staff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 担当者用の情報を隠す' : '担当者用の情報を表示'}</button>
+      </div>
+      ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-900 font-bold">担当者用の表示です。お客様にはお見せしないでください（査定部の承認 ${okCount} / ${chosen.length} 点）。</div>` : ''}
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="select">
       ${s.items
         .map((i) => {
           const a = i.sell ? approvalOf(s, i) : null;
           const [label, cls] = a ? APV[a.state] : ['', ''];
           return `
-      <div class="px-3 py-2 rounded-xl border-2 ${i.sell ? (a.state === 'ok' ? 'border-emerald-400 bg-white' : 'border-teal-400 bg-white') : 'border-slate-200 bg-slate-100 opacity-70'}">
+      <div class="px-4 py-3 rounded-xl border-2 ${i.sell ? 'border-teal-400 bg-white' : 'border-slate-200 bg-slate-100 opacity-70'}">
         <div class="flex items-center justify-between gap-3">
-          <div class="flex-1"><div class="font-bold ${i.sell ? '' : 'line-through'}">${esc(i.name)}${itemWarn(s, i.id)}
-              ${a ? `<span class="ml-2 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>` : ''}</div>
-            <div class="text-sm text-slate-500">ランク${i.rank} ／ ${i.qty}個${i.aiAppraisal ? ` ／ 🤖AI査定 ${yen(i.aiAppraisal.price)}` : ''}</div></div>
-          <div class="text-xl font-bold w-32 text-right ${i.sell ? '' : 'line-through'}">${yen(i.price)}</div>
-          <button class="btn w-32 !py-2 ${i.sell ? 'btn-primary' : 'btn-secondary'}" data-action="toggle-sell" data-id="${i.id}">${i.sell ? '✓ 売る' : '売らない'}</button>
+          <div class="flex-1"><div class="text-lg font-bold ${i.sell ? '' : 'line-through'}">${esc(i.name)}${staff ? itemWarn(s, i.id) : ''}
+              ${staff && a ? `<span class="ml-2 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>` : ''}</div>
+            <div class="text-sm text-slate-500">状態 ${esc(rankLabel(i))} ／ ${i.qty}点${staff && i.aiAppraisal ? ` ／ 🤖AI査定 ${yen(i.aiAppraisal.price)}` : ''}</div></div>
+          <div class="text-2xl font-bold w-36 text-right ${i.sell ? '' : 'line-through'}">${yen(i.price)}</div>
+          <button class="btn w-40 !py-2 ${i.sell ? 'btn-primary' : 'btn-secondary'}" data-action="toggle-sell" data-id="${i.id}">${i.sell ? '✓ 売却する' : '今回は見送る'}</button>
         </div>
-        ${a?.state === 'ng' ? `<p class="text-sm text-rose-700 font-bold mt-1">差戻し理由：${esc(a.rec.comment)}（買取明細で金額を見直してください）</p>` : ''}
-        ${a?.state === 'stale' ? '<p class="text-sm text-orange-700 font-bold mt-1">承認後に金額・ランク・個数が変更されたため、査定部の再承認が必要です。</p>' : ''}
+        ${staff && a?.state === 'ng' ? `<p class="text-sm text-rose-700 font-bold mt-1">差戻し理由：${esc(a.rec.comment)}（買取明細で金額を見直してください）</p>` : ''}
+        ${staff && a?.state === 'stale' ? '<p class="text-sm text-orange-700 font-bold mt-1">承認後に金額・ランク・個数が変更されたため、査定部の再承認が必要です。</p>' : ''}
       </div>`;
         })
         .join('')}
       </div>
       <div class="border-t-2 pt-2 flex justify-between items-end gap-3">
-        <div class="space-y-1"><div class="text-slate-500 text-sm">査定合計 ${yen(all)} ／ 除外 −${yen(all - sel)}</div>
-          <div class="text-sm font-bold ${okCount === selectedItems(s).length ? 'text-emerald-700' : 'text-amber-700'}">${okCount === selectedItems(s).length ? '✓ すべて承認済みです。次へ進めます' : `承認待ち ${selectedItems(s).length - okCount}点（承認されると自動で更新されます）`}</div></div>
-        <span class="text-right"><span class="mr-3">お買取り金額（${selectedItems(s).length}点）</span><span class="text-4xl font-bold text-teal-700">${yen(sel)}</span></span>
+        <div class="space-y-1">${staff ? `<div class="text-slate-500 text-sm">査定合計 ${yen(all)} ／ 除外 −${yen(all - sel)}</div>` : ''}
+          <div class="text-sm font-bold ${ready ? 'text-emerald-700' : 'text-amber-700'}">${ready ? '✓ 内容のご確認が整いました' : staff ? `承認待ち ${chosen.length - okCount}点（承認されると自動で更新されます）` : 'ただいま、最終の確認をしております。少々お待ちください…'}</div></div>
+        <span class="text-right"><span class="mr-3 text-lg">お買取り金額（${chosen.length}点）</span><span class="text-5xl font-bold text-teal-700">${yen(sel)}</span></span>
       </div>
     </div>
   </section>`;

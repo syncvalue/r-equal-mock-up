@@ -67,6 +67,7 @@ const initialState = () => ({
   comments: [],
   scan: null,
   leaveChecks: {},
+  showStaff: false,
   briefing: { checks: {}, propose: '' },
   evaluation: null,
   evalDraft: V.blankEval(),
@@ -307,8 +308,8 @@ const actions = {
     updateItems(item.id, { price: Math.max(0, item.price + Number(el.dataset.delta)) });
   },
   'price-set': (el) => updateItems(el.dataset.id, { price: Number(el.dataset.value) }),
-  back: () => set({ step: Math.max(0, state.step - 1) }),
-  next: () => V.canProceed(state) && set({ step: Math.min(V.STEPS.length - 1, state.step + 1) }),
+  back: () => set({ step: Math.max(0, state.step - 1), showStaff: false }),
+  next: () => V.canProceed(state) && set({ step: Math.min(V.STEPS.length - 1, state.step + 1), showStaff: false }),
   mtab: (el) => set({ mtab: el.dataset.value, mlimit: 40 }),
   // 絞り込み: カテゴリ → ブランド の順に掘り下げる（同じものを押すと解除）
   mcat: (el) => set({ mcat: state.mcat === el.dataset.value ? '' : el.dataset.value, mbrand: '', mlimit: 40 }),
@@ -503,6 +504,7 @@ const actions = {
     set({ evaluation: { ...e, memo: e.memo.trim() }, modal: null });
     showToast('お客様の評価を保存しました');
   },
+  'staff-toggle': () => set({ showStaff: !state.showStaff }),
   'brief-propose': (el) => set({ briefing: { ...state.briefing, propose: el.dataset.value } }),
   'brief-all': () => set({ briefing: { checks: Object.fromEntries(V.BRIEFING_CHECKS.map((c) => [c.key, true])), propose: 'yes' } }),
   'leave-all': () => set({ leaveChecks: Object.fromEntries(V.LEAVE_CHECKS.map((c) => [c.key, true])) }),
