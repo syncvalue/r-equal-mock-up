@@ -3,6 +3,7 @@ import { masterBodyView } from './masterView.js';
 import { approvalState, latestApproval } from './store.js';
 import { themeToggleHtml } from './theme.js';
 import { roleLabel, userById } from './dashboard.js';
+import { eventById } from './schedule.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '買取明細', '取捨選択', 'シール紐づけ', 'GMOサイン送信・訪問終了'];
@@ -55,10 +56,8 @@ const itemWarn = (s, itemId) =>
 
 // ---- メインメニュー（開閉式ドロワー）。機能の中身は準備中 -------------------------------
 export const MENU = [
-  { key: 'schedule', icon: '📅', label: '今日の予定', sub: '訪問予定の確認',
-    plan: ['本日の訪問予定の一覧（時間・訪問先・お客様）', 'コールセンターの受付内容の確認', 'ナビの起動、訪問開始への引き継ぎ', '予定の追加・変更の通知'] },
-  { key: 'move', icon: '🚗', label: '移動', sub: 'ルート・走行記録',
-    plan: ['訪問先までのルート案内と到着予定時刻', '走行距離・移動時間の自動記録', '到着時に「訪問開始」へ自動で切り替え', '渋滞・遅延の本社への共有'] },
+  { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・訪問開始' },
+  { key: 'move', icon: '🚗', label: '移動', sub: 'ルート確認（Googleマップ）' },
   { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
   { key: 'dashboard', icon: '📊', label: 'ダッシュボード', sub: '業績の確認（個人・グループ）' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: 'ガソリン代・買取用の現金',
@@ -178,14 +177,22 @@ const field = (label, key, value, { type = 'text', placeholder = '', required = 
 
 const SEC = 'h-full min-h-0 p-4';
 
-export function startView() {
+export function startView(s) {
+  const ev = eventById(s.visitEventId);
   return `
-  <section class="h-full flex flex-col items-center justify-center gap-5 p-6">
-    <div class="text-7xl">🚗</div>
+  <section class="h-full flex flex-col items-center justify-center gap-4 p-6">
+    <div class="text-6xl">🚗</div>
     <h1 class="text-3xl font-bold">訪問先に到着しましたか？</h1>
+    <div class="card !p-4 w-full max-w-md text-center space-y-1">
+      <div class="text-xs text-slate-500">${ev ? `予定 ${ev.start}–${ev.end}` : '訪問先'}</div>
+      <div class="text-xl font-bold">${esc(s.customer.name)} 様</div>
+      <div class="text-sm text-slate-600">📍 ${esc(s.customer.address)}</div>
+      ${ev ? `<div class="text-xs text-slate-500">予定の商材：${esc(ev.items)}</div>` : ''}
+    </div>
     <p class="text-slate-500">ボタンを押すと訪問開始時刻が記録されます。</p>
     <button class="btn btn-primary text-3xl px-16 py-8" data-action="start">訪問開始</button>
-    <button class="text-sm underline text-slate-400 mt-6" data-action="reset-all">（デモ用）データを初期化</button>
+    <button class="text-sm underline text-slate-400" data-action="nav" data-value="schedule">今日の予定に戻る</button>
+    <button class="text-sm underline text-slate-400" data-action="reset-all">（デモ用）データを初期化</button>
   </section>`;
 }
 
@@ -752,3 +759,4 @@ function appraisalComposeView(s, m) {
 export { yen, total } from './format.js';
 export { masterBodyView } from './masterView.js';
 export { dashboardView } from './dashboardView.js';
+export { scheduleView, moveView } from './scheduleView.js';

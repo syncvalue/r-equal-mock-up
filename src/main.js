@@ -9,7 +9,13 @@ import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
 import { initTheme } from './theme.js';
 import { userById } from './dashboard.js';
+import { EVENTS, eventById } from './schedule.js';
 import { formatMoneyInput } from './moneyInput.js';
+
+// 予定（訪問）から、コールセンター受付情報の表示用データを作る
+function callInfoOf(ev, userId) {
+  return { receptionNo: ev.receptionNo, receivedAt: ev.receivedAt, operator: ev.operator, apType: ev.apType, appraiser: userById(userId).name };
+}
 
 const initialState = () => ({
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
@@ -20,11 +26,12 @@ const initialState = () => ({
   step: 0,
   visitStartedAt: null,
   visitEndedAt: null,
-  callInfo: { receptionNo: 'CC-20261020-0042', receivedAt: '2026/10/20 09:42', operator: '佐藤', apType: '新', appraiser: '鈴木 一郎' },
-  customer: {
-    name: '山田 太郎', kana: 'ヤマダ タロウ', birth: '1975-04-12', phone: '090-1234-5678',
-    zip: '150-0001', occupation: '会社員', address: '東京都渋谷区神宮前1-2-3 〇〇マンション 502',
-  },
+  visitEventId: EVENTS[0].id,
+  sched: { sel: EVENTS[0].id },
+  route: { day: 0, order: 'schedule' },
+  geo: null,
+  callInfo: callInfoOf(EVENTS[0], 'u01'),
+  customer: { ...EVENTS[0].customer },
   customerConfirmed: false,
   modal: null,
   items: [],
@@ -53,6 +60,17 @@ const initialState = () => ({
 let state = initialState();
 const $ = (sel) => document.querySelector(sel);
 const set = (patch) => { state = { ...state, ...patch }; };
+
+// 現在地の取得（Googleマップの出発点）。許可されない・取得できない場合は営業所を出発点にする
+function requestGeo() {
+  if (state.geo || !navigator.geolocation) { if (!state.geo) set({ geo: { ok: false } }); return; }
+  set({ geo: { ok: false, pending: true } });
+  navigator.geolocation.getCurrentPosition(
+    (pos) => { set({ geo: { ok: true, lat: pos.coords.latitude, lng: pos.coords.longitude } }); if (state.view === 'move') rerenderKeepScroll(); },
+    () => { set({ geo: { ok: false } }); if (state.view === 'move') rerenderKeepScroll(); },
+    { timeout: 6000, maximumAge: 60000 },
+  );
+}
 
 function showToast(msg) {
   const el = document.createElement('div');
@@ -100,7 +118,7 @@ function render() {
   const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
   $('#app').innerHTML =
     V.headerView(state) +
-    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : V.placeholderView(state)}</main>` +
+    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'move' ? V.moveView(state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
     (state.view === 'visit' ? V.modalView(state) : '') +
     V.scanView(state) +
@@ -182,7 +200,25 @@ const actions = {
   'dash-member': (el) => set({ dash: { ...state.dash, scope: 'member', member: el.dataset.id } }),
   'open-menu': () => set({ menuOpen: true }),
   'close-menu': () => set({ menuOpen: false }),
-  nav: (el) => set({ view: el.dataset.value, menuOpen: false, modal: null }),
+  nav: (el) => {
+    set({ view: el.dataset.value, menuOpen: false, modal: null });
+    if (el.dataset.value === 'move') requestGeo();
+  },
+  'sched-select': (el) => set({ sched: { sel: el.dataset.id } }),
+  'route-day': (el) => set({ route: { ...state.route, day: Number(el.dataset.value) } }),
+  'route-order': (el) => set({ route: { ...state.route, order: el.dataset.value } }),
+  'route-for': (el) => { set({ view: 'move', route: { day: Number(el.dataset.day), order: 'schedule' } }); requestGeo(); },
+  // 予定から現地買取へ。訪問先の情報を引き継いだ、新しい訪問を始める
+  'start-from-event': (el) => {
+    const ev = eventById(el.dataset.id);
+    if (!ev) return;
+    if (state.visitStartedAt && !state.visitEndedAt) { showToast('現在、訪問中です。終了してから新しい訪問を開始してください'); return; }
+    const keep = { user: state.user, dash: state.dash, sched: state.sched, route: state.route, geo: state.geo };
+    state = {
+      ...initialState(), ...keep, view: 'visit', visitEventId: ev.id,
+      customer: { ...ev.customer }, callInfo: callInfoOf(ev, state.user),
+    };
+  },
   start: () => set({ visitStartedAt: Date.now(), step: 1 }),
   'confirm-customer': () => set({ customerConfirmed: true, modal: null }),
   'edit-customer': () => set({ customerConfirmed: false, modal: { type: 'customer' } }),

@@ -1,0 +1,123 @@
+// 今日の予定（Googleカレンダー風の3日表示）と、訪問先までのルート確認（Googleマップ）。
+import { esc } from './format.js';
+import { EVENTS, OFFICE, eventById, eventsOfDay, dayDate, toMin } from './schedule.js';
+import { legsOf, mapEmbedUrl, mapOpenUrl, shortestOrder } from './route.js';
+
+const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+const HOUR_FROM = 8;
+const HOUR_TO = 20;
+const HOUR_H = 56;
+const city = (addr) => (addr.match(/^.{2,3}[都道府県](.+?[市区町村])/)?.[1] ?? addr.slice(0, 6));
+const isVisiting = (s) => Boolean(s.visitStartedAt && !s.visitEndedAt);
+
+function eventBlock(s, e, today) {
+  const top = ((toMin(e.start) - HOUR_FROM * 60) / 60) * HOUR_H;
+  const h = Math.max(28, ((toMin(e.end) - toMin(e.start)) / 60) * HOUR_H - 2);
+  const sel = s.sched.sel === e.id;
+  return `
+  <button class="absolute left-1 right-1 rounded-md border-l-4 px-1.5 py-1 text-left overflow-hidden leading-tight ${today ? 'bg-teal-50 border-teal-600' : 'bg-indigo-50 border-indigo-500'} ${sel ? 'ring-2 ring-offset-1 ring-teal-500 shadow-lg' : 'shadow'}"
+    style="top:${top}px;height:${h}px" data-action="sched-select" data-id="${e.id}">
+    <span class="block text-[11px] text-slate-500">${e.start}–${e.end}</span>
+    <span class="block font-bold text-sm truncate">${esc(e.customer.name)} 様</span>
+    ${h > 62 ? `<span class="block text-xs text-slate-600 truncate">📍 ${esc(city(e.customer.address))}</span><span class="block text-xs text-slate-500 truncate">${esc(e.items)}</span>` : ''}
+  </button>`;
+}
+
+function detailPanel(s) {
+  const e = eventById(s.sched.sel);
+  if (!e) return '<div class="card !p-4 text-slate-400 text-center">予定をタップすると、詳細と、訪問開始・ルート確認のボタンが出ます。</div>';
+  const d = dayDate(e.day);
+  const visiting = isVisiting(s);
+  return `
+  <div class="card !p-4 space-y-3">
+    <div><div class="text-xs text-slate-500">${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${e.start}–${e.end}${e.apType === '新' ? ' ／ 新規' : ' ／ 再訪'}</div>
+      <h3 class="text-xl font-bold">${esc(e.customer.name)} 様</h3></div>
+    <dl class="text-sm space-y-1.5">
+      <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">住所</dt><dd class="font-bold">${esc(e.customer.address)}</dd></div>
+      <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">電話</dt><dd><a class="text-teal-700 underline font-bold" href="tel:${esc(e.customer.phone)}">${esc(e.customer.phone)}</a></dd></div>
+      <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">商材</dt><dd>${esc(e.items)}</dd></div>
+      <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">受付</dt><dd class="text-slate-600">${esc(e.receptionNo)}（${esc(e.operator)}）</dd></div>
+      ${e.memo ? `<div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">メモ</dt><dd class="rounded bg-amber-50 px-2 py-1">${esc(e.memo)}</dd></div>` : ''}
+    </dl>
+    ${visiting ? '<p class="text-xs text-amber-700 font-bold">現在、別の訪問中です。終了後に、新しい訪問を開始できます。</p>' : ''}
+    <button class="btn btn-primary w-full !py-3" data-action="start-from-event" data-id="${e.id}" ${visiting ? 'disabled' : ''}>▶ この訪問を開始（現地買取へ）</button>
+    <div class="grid grid-cols-2 gap-2">
+      <button class="btn btn-secondary !py-2 !min-h-[48px]" data-action="route-for" data-day="${e.day}">🚗 ルート確認</button>
+      <a class="btn btn-secondary !py-2 !min-h-[48px] text-center flex items-center justify-center" target="_blank" rel="noopener" href="${esc(mapOpenUrl(OFFICE, [e]))}">🗺 マップで開く</a>
+    </div>
+  </div>`;
+}
+
+export function scheduleView(s) {
+  const now = new Date();
+  const days = [0, 1, 2].map((n) => ({ n, date: dayDate(n, now), events: eventsOfDay(n) }));
+  const hours = Array.from({ length: HOUR_TO - HOUR_FROM }, (_, i) => HOUR_FROM + i);
+  const nowTop = ((now.getHours() * 60 + now.getMinutes() - HOUR_FROM * 60) / 60) * HOUR_H;
+  return `
+  <section class="h-full min-h-0 p-4 flex gap-3">
+    <div class="card !p-0 flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-2 border-b">
+        <h2 class="text-xl font-bold">📅 今日の予定</h2>
+        <span class="text-sm text-slate-500">${days[0].date.getMonth() + 1}/${days[0].date.getDate()}〜${days[2].date.getMonth() + 1}/${days[2].date.getDate()}（3日間）</span></div>
+      <div class="grid grid-cols-[3.2rem_repeat(3,1fr)] border-b">
+        <div></div>
+        ${days.map((d) => `<div class="text-center py-1.5 border-l ${d.n === 0 ? '' : ''}">
+          <div class="text-xs ${d.n === 0 ? 'text-teal-700 font-bold' : 'text-slate-500'}">${WEEK[d.date.getDay()]}${d.n === 0 ? '（今日）' : ''}</div>
+          <div class="inline-flex w-9 h-9 items-center justify-center rounded-full text-lg font-bold ${d.n === 0 ? 'bg-teal-600 text-white' : ''}">${d.date.getDate()}</div>
+          <div class="text-[11px] text-slate-500">${d.events.length}件</div></div>`).join('')}
+      </div>
+      <div class="flex-1 min-h-0 overflow-y-auto" data-scroll="cal">
+        <div class="grid grid-cols-[3.2rem_repeat(3,1fr)] relative" style="height:${hours.length * HOUR_H}px">
+          <div class="relative">${hours.map((h, i) => `<div class="absolute right-1 text-[11px] text-slate-400 -translate-y-1/2" style="top:${i * HOUR_H}px">${i === 0 ? '' : `${h}:00`}</div>`).join('')}</div>
+          ${days.map((d) => `<div class="relative border-l" style="background-image:repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_H - 1}px, rgba(148,163,184,.35) ${HOUR_H - 1}px, rgba(148,163,184,.35) ${HOUR_H}px)">
+            ${d.events.map((e) => eventBlock(s, e, d.n === 0)).join('')}
+            ${d.n === 0 && nowTop > 0 && nowTop < hours.length * HOUR_H ? `<div class="absolute left-0 right-0 z-10 pointer-events-none" style="top:${nowTop}px"><div class="h-0.5 bg-rose-500"></div><div class="w-2.5 h-2.5 rounded-full bg-rose-500 -mt-1.5 -ml-1"></div></div>` : ''}
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="w-80 shrink-0 overflow-y-auto min-h-0" data-scroll="schedDetail">${detailPanel(s)}</div>
+  </section>`;
+}
+
+// ---- ルート確認 -------------------------------------------------------------
+export function moveView(s) {
+  const day = s.route.day;
+  const stops = eventsOfDay(day);
+  const origin = s.geo?.ok ? { lat: s.geo.lat, lng: s.geo.lng } : { lat: OFFICE.lat, lng: OFFICE.lng, address: OFFICE.address };
+  const originLabel = s.geo?.ok ? '現在地' : s.geo?.pending ? '現在地を取得中…（取得できない場合は営業所）' : `営業所（現在地を取得できないため）`;
+  const sorted = s.route.order === 'shortest' ? shortestOrder(origin, stops) : stops;
+  const reordered = sorted.some((e, i) => e.id !== stops[i].id);
+  const legs = legsOf(origin, sorted);
+  const totalKm = legs.reduce((n, l) => n + l.km, 0);
+  const totalMin = legs.reduce((n, l) => n + l.min, 0);
+  const d = dayDate(day);
+
+  return `
+  <section class="h-full min-h-0 p-4 flex gap-3">
+    <div class="card !p-3 w-[22rem] shrink-0 flex flex-col gap-2 min-h-0">
+      <h2 class="text-xl font-bold">🚗 ルート確認</h2>
+      <div class="flex gap-1">${[0, 1, 2].map((n) => { const dd = dayDate(n); return `<button class="flex-1 py-2 rounded-lg font-bold text-sm ${day === n ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="route-day" data-value="${n}">${n === 0 ? '今日' : n === 1 ? '明日' : '明後日'}<span class="block text-[11px] font-normal">${dd.getMonth() + 1}/${dd.getDate()}（${WEEK[dd.getDay()]}）</span></button>`; }).join('')}</div>
+      <div class="overflow-y-auto min-h-0 flex-1 space-y-1" data-scroll="route">
+        <div class="flex items-start gap-2 rounded-lg bg-slate-50 p-2"><span class="w-7 h-7 rounded-full bg-sky-600 text-white flex items-center justify-center text-sm font-bold shrink-0">●</span>
+          <div class="text-sm"><div class="font-bold">出発：${esc(originLabel)}</div><div class="text-xs text-slate-500">${s.geo?.ok ? `${s.geo.lat.toFixed(4)}, ${s.geo.lng.toFixed(4)}` : esc(OFFICE.address)}</div></div></div>
+        ${sorted.map((e, i) => `
+          <div class="pl-3 text-xs text-slate-500 flex items-center gap-2"><span class="border-l-2 border-dashed border-slate-300 h-5"></span>↓ 約${legs[i].km.toFixed(1)}km・${legs[i].min}分</div>
+          <div class="flex items-start gap-2 rounded-lg border-2 border-slate-200 p-2"><span class="w-7 h-7 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold shrink-0">${i + 1}</span>
+            <div class="text-sm flex-1 min-w-0"><div class="font-bold">${e.start}　${esc(e.customer.name)} 様</div><div class="text-xs text-slate-500 truncate">${esc(e.customer.address)}</div></div>
+            <button class="rounded-lg border-2 border-teal-600 text-teal-700 font-bold text-xs px-2 min-h-[40px] shrink-0" data-action="start-from-event" data-id="${e.id}" ${isVisiting(s) ? 'disabled' : ''}>訪問開始</button></div>`).join('')
+          || '<p class="text-slate-400 text-center py-6">この日の訪問予定はありません。</p>'}
+        ${stops.length ? `<div class="rounded-lg bg-teal-50 p-2 text-sm font-bold">合計 約${totalKm.toFixed(1)}km・移動 約${totalMin}分<div class="text-xs font-normal text-slate-500">直線距離からの概算です（実際の道のりはマップが計算します）</div></div>` : ''}
+      </div>
+      ${stops.length > 1 ? `<button class="btn btn-secondary !py-2 !min-h-[48px]" data-action="route-order" data-value="${s.route.order === 'shortest' ? 'schedule' : 'shortest'}">${s.route.order === 'shortest' ? '↩ 予定の時刻順に戻す' : '⚡ 最短ルートの順に並べ替える'}</button>
+        ${s.route.order === 'shortest' && reordered ? '<p class="text-xs text-amber-700 font-bold">予定の時刻順と異なります。お客様との約束の時刻にご注意ください。</p>' : ''}` : ''}
+      ${stops.length ? `<a class="btn btn-primary !py-2 !min-h-[48px] text-center flex items-center justify-center" target="_blank" rel="noopener" href="${esc(mapOpenUrl(origin, sorted))}">🗺 Googleマップで開く（ナビ）</a>` : ''}
+    </div>
+    <div class="card !p-0 flex-1 min-w-0 min-h-0 overflow-hidden relative">
+      ${stops.length
+        ? `<iframe title="訪問ルート（${d.getMonth() + 1}/${d.getDate()}）" class="absolute inset-0 w-full h-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${esc(mapEmbedUrl(origin, sorted))}"></iframe>
+           <div class="absolute bottom-2 left-2 right-2 text-center pointer-events-none"><span class="inline-block rounded-full bg-black/60 text-white text-xs px-3 py-1">現在地 → ${sorted.map((e) => esc(e.customer.name)).join(' → ')}　／　地図が表示されない場合は「Googleマップで開く」をご利用ください</span></div>`
+        : '<div class="h-full flex items-center justify-center text-slate-400">訪問予定がありません</div>'}
+    </div>
+  </section>`;
+}
