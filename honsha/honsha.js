@@ -4,6 +4,7 @@ import {
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
 import { RANKS } from '../src/data.js';
+import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { yen, fmtTime, fmtElapsed, esc } from '../src/format.js';
 
 const $ = (s) => document.querySelector(s);
@@ -94,6 +95,7 @@ function sendForm(itemId, item) {
     <div class="flex flex-wrap gap-1">${TEMPLATES.map((t, i) => `<button class="px-2 py-1 rounded border text-xs bg-white" data-tpl="${i}">${esc(t.slice(0, 14))}…</button>`).join('')}</div>
     ${item ? `
     <div class="border-t pt-2 space-y-2">
+      ${item.price > 0 ? `<button class="w-full rounded border-2 border-emerald-600 text-emerald-700 font-bold py-2 hover:bg-emerald-50" data-fillprice="${item.price}" data-fillrank="${item.rank}">営業の査定額 ${yen(item.price)}（ランク${item.rank}）をそのまま入力</button>` : ''}
       <label class="block text-sm font-bold">提案する査定額（円・個数分の合計・任意）
         <input class="w-full border rounded px-3 py-2 mt-1 text-lg text-right" type="number" min="0" step="100" data-f="price" value="${esc(draft.price)}" placeholder="入力すると、営業が買取金額に反映できます" /></label>
       ${draft.price ? `<div class="flex flex-wrap gap-1">${RANKS.map((r) => `<button class="px-2 py-1 rounded border text-sm font-bold ${r.value === rank ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-white'}" data-rank="${r.value}">${r.label}</button>`).join('')}</div>` : ''}
@@ -186,7 +188,7 @@ function render() {
   $('#root').innerHTML = `
   <header class="bg-indigo-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">本社 査定部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 text-xs underline text-white/70" data-reset>データ初期化</button></div>
+    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
   <div class="grid grid-cols-[19rem_1fr_26rem] h-[calc(100vh-52px)]">
     <aside class="bg-white border-r overflow-y-auto">
@@ -255,6 +257,7 @@ document.addEventListener('click', (e) => {
   else if (t.dataset.req) { sel = { type: 'req', id: t.dataset.req }; draft = emptyDraft(); }
   else if ('cvisit' in t.dataset) { sel = null; draft = emptyDraft(); }
   else if (t.dataset.tag) draft = { ...draft, tag: draft.tag === t.dataset.tag ? '' : t.dataset.tag };
+  else if (t.dataset.fillprice) draft = { ...draft, price: t.dataset.fillprice, rank: t.dataset.fillrank, text: draft.text || 'この査定額でOKです。' };
   else if (t.dataset.rank) draft = { ...draft, rank: t.dataset.rank };
   else if (t.dataset.tpl) draft = { ...draft, text: TEMPLATES[Number(t.dataset.tpl)] };
   else if ('send' in t.dataset) send(t.dataset.send);
@@ -288,4 +291,5 @@ setInterval(() => {
   });
 }, 1000);
 
+initTheme();
 render();

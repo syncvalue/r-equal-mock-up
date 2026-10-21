@@ -1,6 +1,7 @@
 import { PRODUCTS, RANKS } from './data.js';
 import { masterBodyView } from './masterView.js';
 import { approvalState, latestApproval } from './store.js';
+import { themeToggleHtml } from './theme.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '買取明細', '取捨選択', 'シール紐づけ', 'GMOサイン送信・訪問終了'];
@@ -122,7 +123,8 @@ export function headerView(s) {
         ${s.view !== 'visit' ? `<span class="text-slate-300">›</span><span class="font-bold">${esc(MENU.find((m) => m.key === s.view)?.label)}</span>` : ''}
         <span class="${st.cls} rounded-full px-3 py-0.5 font-bold text-sm">${st.label}</span>
       </div>
-      <div class="flex items-center gap-4 text-sm">
+      <div class="flex items-center gap-3 text-sm">
+        ${themeToggleHtml()}
         ${commentBadge(s)}
         <span>開始 ${fmtTime(s.visitStartedAt)} ／ 終了 ${fmtTime(s.visitEndedAt)}</span>
         <span class="text-2xl font-mono font-bold" id="timer">${s.visitStartedAt ? fmtElapsed(s.visitStartedAt, s.visitEndedAt ?? Date.now()) : '00:00:00'}</span>

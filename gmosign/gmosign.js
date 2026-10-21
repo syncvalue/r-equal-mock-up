@@ -2,6 +2,7 @@
 import { RESET_CONFIRM, clearTransactions, loadContracts, upsertContract } from '../src/store.js';
 import { mountSignaturePad } from '../src/signature.js';
 import { ID_TYPES } from '../src/data.js';
+import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { CHECK_ITEMS, contractFormHtml, wareki } from './contractForm.js';
 import { yen, fmtDateTime, esc } from '../src/format.js';
 
@@ -13,11 +14,12 @@ const badge = (st) => `<span class="rounded px-2 py-0.5 text-sm font-bold ${STAT
 const topbar = () => `
   <header class="bg-sky-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">GMOサイン <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面</span></div>
-    <button class="underline" data-act="logout">ログアウト</button>
+    <span class="flex items-center gap-3">${themeToggleHtml()}<button class="underline" data-act="logout">ログアウト</button></span>
   </header>`;
 
 function loginView() {
   return `
+  <div class="fixed top-3 right-3">${themeToggleHtml()}</div>
   <div class="min-h-screen flex items-center justify-center p-4">
     <form class="bg-white shadow rounded-lg p-8 w-full max-w-sm space-y-4" data-form="login">
       <h1 class="text-2xl font-bold text-sky-800">GMOサイン ログイン</h1>
@@ -173,4 +175,5 @@ document.addEventListener('change', (e) => {
   r.readAsDataURL(e.target.files[0]);
 });
 window.addEventListener('hashchange', () => { previewOpen = false; render(); });
+initTheme();
 render();

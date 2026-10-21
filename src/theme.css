@@ -1,0 +1,59 @@
+/* ダークモード: html.dark のときに、使用中のユーティリティクラスと共通部品の色を置き換える */
+.theme-btn { width: 44px; height: 44px; border-radius: 9999px; font-size: 1.25rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+.theme-btn:hover { background: rgba(255, 255, 255, .15); }
+html:not(.dark) .theme-sun, html.dark .theme-moon { display: none; }
+
+html.dark body { background: #0b1220; color: #e2e8f0; }
+
+/* 面 */
+html.dark .bg-white, html.dark .bg-slate-50 { background-color: #172236; }
+html.dark .bg-slate-100 { background-color: #1e2b42; }
+html.dark .bg-slate-200 { background-color: #2f405a; }
+html.dark .card { background: #172236; box-shadow: none; }
+html.dark .field { background: #0f172a; color: #e2e8f0; border-color: #2f405a; }
+html.dark .field::placeholder, html.dark .inp::placeholder, html.dark textarea::placeholder { color: #64748b; }
+html.dark .btn-secondary, html.dark .chip { background: #1e2b42; color: #e2e8f0; border-color: #2f405a; }
+html.dark .chip.active { background: #0d9488; border-color: #0d9488; color: #fff; }
+html.dark .inp, html.dark .b-sec { background: #0f172a; color: #e2e8f0; border-color: #2f405a; }
+html.dark select, html.dark option { background: #0f172a; color: #e2e8f0; }
+html.dark .b.on { background: #4338ca; color: #fff; border-color: #4338ca; }
+/* 署名キャンバス・署名画像は黒インクなので白地のまま */
+html.dark canvas, html.dark img.bg-white { background: #fff !important; }
+
+/* 枠線 */
+html.dark .border-slate-200, html.dark .border-slate-300, html.dark .border-slate-400, html.dark .border { border-color: #2f405a; }
+html.dark .border-t, html.dark .border-t-2, html.dark .border-b { border-color: #2f405a; }
+html.dark tr.border-t, html.dark .divide-y > * { border-color: #2f405a; }
+
+/* 文字 */
+html.dark .text-slate-900, html.dark .text-slate-800, html.dark .text-slate-700 { color: #e2e8f0; }
+html.dark .text-slate-600 { color: #cbd5e1; }
+html.dark .text-slate-500 { color: #94a3b8; }
+html.dark .text-slate-400 { color: #8091a8; }
+html.dark .btn-secondary.text-rose-600 { color: #fda4af; }
+html.dark .text-teal-700 { color: #5eead4; }
+html.dark .text-emerald-700, html.dark .text-emerald-800 { color: #6ee7b7; }
+html.dark .text-rose-600, html.dark .text-rose-700, html.dark .text-rose-800 { color: #fda4af; }
+html.dark .text-amber-600, html.dark .text-amber-700, html.dark .text-amber-800 { color: #fcd34d; }
+html.dark .text-orange-700, html.dark .text-orange-800 { color: #fdba74; }
+html.dark .text-sky-700, html.dark .text-sky-800, html.dark .text-sky-900 { color: #7dd3fc; }
+html.dark .text-indigo-800 { color: #a5b4fc; }
+html.dark .text-violet-700, html.dark .text-violet-800 { color: #c4b5fd; }
+
+/* 淡い色の背景（バッジ・注意枠）は、暗い面になじむ半透明に */
+html.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, .2); }
+html.dark .bg-amber-100, html.dark .bg-amber-50 { background-color: rgba(245, 158, 11, .16); }
+html.dark .bg-rose-100, html.dark .bg-rose-50 { background-color: rgba(244, 63, 94, .16); }
+html.dark .bg-sky-100, html.dark .bg-sky-50 { background-color: rgba(14, 165, 233, .16); }
+html.dark .bg-orange-100 { background-color: rgba(249, 115, 22, .18); }
+html.dark .bg-teal-50 { background-color: rgba(20, 184, 166, .16); }
+html.dark .bg-indigo-50, html.dark .bg-indigo-100 { background-color: rgba(99, 102, 241, .2); }
+html.dark .bg-violet-50 { background-color: rgba(139, 92, 246, .16); }
+html.dark .bg-yellow-200 { background-color: rgba(250, 204, 21, .35); color: inherit; }
+html.dark .hover\:bg-indigo-50:hover { background-color: rgba(99, 102, 241, .2); }
+html.dark .hover\:bg-sky-50:hover { background-color: rgba(14, 165, 233, .16); }
+html.dark .hover\:bg-emerald-50:hover { background-color: rgba(16, 185, 129, .16); }
+html.dark .active\:bg-teal-50:active { background-color: rgba(20, 184, 166, .2); }
+html.dark .border-rose-200 { border-color: rgba(244, 63, 94, .4); }
+html.dark .border-sky-200, html.dark .border-indigo-200 { border-color: #2f405a; }
+html.dark textarea, html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { background-color: #0f172a; color: #e2e8f0; border-color: #2f405a; }

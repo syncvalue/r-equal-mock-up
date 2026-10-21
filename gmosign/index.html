@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GMOサイン（ダミー）</title>
+  <script>(function(){try{var t=localStorage.getItem('rq-theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}})()</script>
   <script src="https://cdn.tailwindcss.com/3.4.16"></script>
   <style>
     body { font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; }
@@ -15,6 +16,7 @@
     @page { size: A4; margin: 0; }
     @media print { #root { display: none !important; } #print-area { display: block !important; } body { background: #fff; } }
   </style>
+  <link rel="stylesheet" href="/src/theme.css" />
 </head>
 <body class="bg-slate-50 text-slate-800">
   <div id="root"></div>

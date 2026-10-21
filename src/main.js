@@ -7,6 +7,7 @@ import {
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
+import { initTheme } from './theme.js';
 
 const initialState = () => ({
   visitId: `V-${Date.now().toString(36).toUpperCase()}`,
@@ -396,4 +397,5 @@ setInterval(() => {
   if (t && state.visitStartedAt && !state.visitEndedAt) t.textContent = fmtElapsed(state.visitStartedAt);
 }, 1000);
 
+initTheme();
 render();
