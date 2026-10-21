@@ -331,6 +331,63 @@ export function selectView(s) {
   </section>`;
 }
 
+// 疑似QRコード（コード文字列から決まる模様）。見た目だけのダミー
+function fakeQr(code) {
+  const N = 21;
+  let seed = [...code].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 9973, 7);
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const finder = (x, y) => [[0, 0], [N - 7, 0], [0, N - 7]].some(([fx, fy]) => x >= fx && x < fx + 7 && y >= fy && y < fy + 7);
+  const inFinder = (x, y) => {
+    const [fx, fy] = [[0, 0], [N - 7, 0], [0, N - 7]].find(([a, b]) => x >= a && x < a + 7 && y >= b && y < b + 7);
+    const dx = x - fx;
+    const dy = y - fy;
+    return dx === 0 || dx === 6 || dy === 0 || dy === 6 || (dx >= 2 && dx <= 4 && dy >= 2 && dy <= 4);
+  };
+  let cells = '';
+  for (let y = 0; y < N; y += 1) {
+    for (let x = 0; x < N; x += 1) {
+      const on = finder(x, y) ? inFinder(x, y) : rnd() > 0.5;
+      if (on) cells += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+    }
+  }
+  return `<svg viewBox="-1 -1 ${N + 2} ${N + 2}" class="w-full h-full" shape-rendering="crispEdges"><rect x="-1" y="-1" width="${N + 2}" height="${N + 2}" fill="#fff"/><g fill="#111">${cells}</g></svg>`;
+}
+
+// QR読取のカメラ画面（モック）。タブレットのカメラが起動しているように見せる
+export function scanView(s) {
+  if (!s.scan) return '';
+  const slot = labelSlots(s).find((x) => x.key === s.scan.key);
+  const found = s.scan.status === 'found';
+  const col = found ? '#22c55e' : '#fff';
+  const corner = (pos) => `<span class="cam-corner" style="${pos};border-color:${col}"></span>`;
+  return `
+  <div class="fixed inset-0 z-[70] bg-black text-white flex flex-col" role="dialog" aria-label="QRコード読み取り">
+    <div class="flex items-center justify-between px-5 py-3 bg-black/70 z-10">
+      <div class="flex items-center gap-3"><span class="inline-block w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span><span class="font-bold">カメラ起動中</span></div>
+      <div class="text-center leading-tight"><div class="font-bold">${esc(slot?.item.name ?? '')}${slot && slot.item.qty > 1 ? `（${slot.n}/${slot.item.qty}個目）` : ''}</div><div class="text-xs text-slate-300">貼付したシールのQRコードを読み取ります</div></div>
+      <button class="rounded-xl border-2 border-white/50 px-5 min-h-[44px] font-bold" data-action="scan-cancel">キャンセル</button>
+    </div>
+    <div class="relative flex-1 overflow-hidden">
+      <div class="absolute inset-[-6%] cam-bg"></div>
+      <div class="absolute inset-0 flex items-center justify-center">
+        <div class="relative w-[min(60vh,70vw)] aspect-square">
+          <div class="absolute inset-[12%] cam-sticker rounded-md shadow-2xl overflow-hidden">${fakeQr(found ? s.scan.code : 'scanning-preview')}</div>
+          ${corner('top:0;left:0;border-top-width:6px;border-left-width:6px;border-top-left-radius:14px')}
+          ${corner('top:0;right:0;border-top-width:6px;border-right-width:6px;border-top-right-radius:14px')}
+          ${corner('bottom:0;left:0;border-bottom-width:6px;border-left-width:6px;border-bottom-left-radius:14px')}
+          ${corner('bottom:0;right:0;border-bottom-width:6px;border-right-width:6px;border-bottom-right-radius:14px')}
+          ${found ? '' : '<div class="cam-line"></div>'}
+        </div>
+      </div>
+      <div class="absolute inset-x-0 bottom-6 flex justify-center">
+        ${found
+          ? `<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ 読み取りました</div><div class="font-mono text-2xl tracking-wider">${esc(s.scan.code)}</div></div>`
+          : '<div class="rounded-full bg-black/60 px-5 py-2 text-lg">QRコードを枠内に合わせてください</div>'}
+      </div>
+    </div>
+  </div>`;
+}
+
 export function labelView(s) {
   const slots = labelSlots(s);
   const done = slots.filter((x) => s.labels[x.key]).length;

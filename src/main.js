@@ -37,6 +37,7 @@ const initialState = () => ({
   contract: null,
   appraisals: [],
   comments: [],
+  scan: null,
   approvals: [],
   apMode: 'hq',
   aiBusy: false,
@@ -96,6 +97,7 @@ function render() {
     `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
     (state.view === 'visit' ? V.modalView(state) : '') +
+    V.scanView(state) +
     V.menuView(state);
   document.querySelectorAll('[data-scroll]').forEach((e) => { e.scrollTop = scrolls[e.dataset.scroll] ?? 0; });
   publish();
@@ -142,8 +144,28 @@ function assignLabel(key, raw) {
   set({ labels: { ...state.labels, [key]: code }, labelError: null });
 }
 
+let scanToken = 0;
+
 const actions = {
-  'dummy-scan': (el) => assignLabel(el.dataset.key, newCode()),
+  // QR読取（モック）: カメラ画面を出し、少し待ってから読取成功 → 紐づけ
+  'dummy-scan': (el) => {
+    const key = el.dataset.key;
+    scanToken += 1;
+    const token = scanToken;
+    set({ scan: { key, status: 'scanning', code: '' } });
+    setTimeout(() => {
+      if (token !== scanToken) return;
+      set({ scan: { key, status: 'found', code: newCode() } });
+      rerenderKeepScroll();
+      setTimeout(() => {
+        if (token !== scanToken) return;
+        assignLabel(key, state.scan.code);
+        set({ scan: null });
+        rerenderKeepScroll();
+      }, 1000);
+    }, 2200);
+  },
+  'scan-cancel': () => { scanToken += 1; set({ scan: null }); },
   'dummy-scan-all': () => V.labelSlots(state).forEach((x) => !state.labels[x.key] && assignLabel(x.key, newCode())),
   'clear-label': (el) => {
     const { [el.dataset.key]: _removed, ...rest } = state.labels;
