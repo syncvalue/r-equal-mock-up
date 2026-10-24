@@ -1,6 +1,6 @@
 // コールセンターの配車ロジック（画面に依存しない純関数）。
 // 訪問先の住所 → 担当エリア → そのエリアの営業のうち、希望日時に空いている人 → 女性のお客様の担当が偏らないように選ぶ。
-import { USERS } from './dashboard.js';
+import { USERS, stats, monthProgress, rangeOf } from './dashboard.js';
 import { EVENTS, OFFICE, toMin } from './schedule.js';
 import { dayOffset, minToHHMM, ymdOf } from './reservations.js';
 
@@ -15,7 +15,7 @@ export const AREAS = [
 export const areaById = (id) => AREAS.find((a) => a.id === id) ?? null;
 
 // 営業の担当エリア（ダミー）
-const USER_AREA = { u01: 'osaka', u02: 'osaka', u03: 'osaka', u06: 'hyogo', u07: 'hyogo', u04: 'kanto', u05: 'kanto', u08: 'tokai', u09: 'osaka', u10: 'tokai' };
+const USER_AREA = { u01: 'osaka', u02: 'osaka', u03: 'osaka', u06: 'hyogo', u07: 'hyogo', u04: 'kanto', u05: 'kanto', u08: 'tokai', u09: 'osaka', u10: 'tokai', u11: 'osaka', u12: 'osaka', u13: 'osaka', u14: 'osaka', u15: 'osaka', u16: 'osaka' };
 export const areaOfUser = (userId) => USER_AREA[userId] ?? null;
 
 const PREFS = [
@@ -47,7 +47,7 @@ const hash = (str) => {
 
 // ---- 営業のランク ------------------------------------------------------------------
 // 営業ごとのランク（ダミー。S が最上位）
-const USER_RANK = { u01: 'B', u02: 'S', u03: 'A', u04: 'C', u05: 'B', u06: 'S', u07: 'B', u08: 'C', u09: 'A', u10: 'B' };
+const USER_RANK = { u01: 'B', u02: 'S', u03: 'A', u04: 'C', u05: 'B', u06: 'S', u07: 'B', u08: 'C', u09: 'A', u10: 'B', u11: 'A', u12: 'B', u13: 'C', u14: 'B', u15: 'A', u16: 'C' };
 export const RANKS = ['S', 'A', 'B', 'C'];
 export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
 
@@ -168,7 +168,7 @@ export const conflictText = (c) => {
 // ---- 公平性（女性のお客様の担当件数） ---------------------------------------------------
 // 女性のお客様は客単価が高いため、女性の担当が特定の営業に偏らないようにする。今月の件数＝実績（ダミー）＋コールセンターで確定した予約
 const SEED = {
-  u01: [12, 5], u02: [14, 7], u03: [13, 4], u04: [10, 3], u05: [9, 5], u06: [15, 6], u07: [11, 2], u08: [8, 4], u09: [10, 4], u10: [9, 3],
+  u01: [12, 5], u02: [14, 7], u03: [13, 4], u04: [10, 3], u05: [9, 5], u06: [15, 6], u07: [11, 2], u08: [8, 4], u09: [10, 4], u10: [9, 3], u11: [13, 6], u12: [11, 3], u13: [9, 2], u14: [14, 8], u15: [15, 4], u16: [10, 5],
 };
 
 export function fairnessStats(reservations, now = new Date()) {
@@ -235,4 +235,28 @@ export function findWeekSlots({ userIds, startDate, days = 7, dur, reservations,
     }
     return { date, slots };
   });
+}
+
+// 営業の詳細（日別表示で、営業の枠を選んだときに出す）。今月の実績・担当件数・その日の予定と空き枠
+export function salesDetail({ userId, date, start, dur, reservations, here = null, now = new Date() }) {
+  const user = USERS.find((u) => u.id === userId);
+  if (!user) return null;
+  const month = stats([user], rangeOf('month', now), now);
+  const progress = monthProgress([user], now);
+  const blocks = busyBlocks(userId, date, reservations, now);
+  const starts = [];
+  for (let m = WORK_START; m + dur <= WORK_END; m += SLOT_STEP) if (!conflictOf(blocks, m, m + dur)) starts.push(m);
+  // 開始できる時刻を、つながっている範囲にまとめる（例: 9:00〜10:30）
+  const windows = starts.reduce((acc, m) => {
+    const last = acc[acc.length - 1];
+    if (last && m - last.to === SLOT_STEP) last.to = m; else acc.push({ from: m, to: m });
+    return acc;
+  }, []);
+  const conflict = conflictOf(blocks, start, start + dur);
+  return {
+    user, rank: rankOfUser(userId), areaId: areaOfUser(userId),
+    month: { ...month, target: user.target, achieve: progress.rate, pace: progress.pace },
+    fairness: fairnessStats(reservations, now)[userId],
+    blocks, windows, conflict, travel: travelAround(blocks, start, start + dur, here),
+  };
 }

@@ -19,6 +19,12 @@ export const USERS = [
   { id: 'u08', name: '渡辺 蓮', group: 'B', role: 'member', target: 3500000, skill: 0.58, base: 175000 },
   { id: 'u09', name: '松田 亮', group: 'B', role: 'member', target: 4000000, skill: 0.64, base: 170000 },
   { id: 'u10', name: '青木 さくら', group: 'B', role: 'member', target: 3500000, skill: 0.57, base: 160000 },
+  { id: 'u11', name: '西田 翼', group: 'A', role: 'member', target: 4000000, skill: 0.68, base: 172000 },
+  { id: 'u12', name: '森 凛', group: 'B', role: 'member', target: 3800000, skill: 0.61, base: 168000 },
+  { id: 'u13', name: '大塚 大地', group: 'A', role: 'member', target: 3500000, skill: 0.52, base: 158000 },
+  { id: 'u14', name: '内田 美優', group: 'B', role: 'member', target: 4200000, skill: 0.71, base: 190000 },
+  { id: 'u15', name: '堀 拓海', group: 'A', role: 'member', target: 4500000, skill: 0.75, base: 198000 },
+  { id: 'u16', name: '三浦 彩', group: 'B', role: 'member', target: 3500000, skill: 0.56, base: 162000 },
 ];
 
 // 本社 査定部の担当者。担当するグループの営業の予定・訪問を、本社画面で見る

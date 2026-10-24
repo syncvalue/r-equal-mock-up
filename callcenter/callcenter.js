@@ -2,7 +2,7 @@
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を確定する。確定した予約は営業アプリの予定に出る。
 import { EVENTS } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
-import { areaById, areaOfAddress, locateAddress, rankCandidates, findWeekSlots, fairnessStats, fairerAlternative } from '../src/dispatch.js';
+import { areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairnessStats, fairerAlternative } from '../src/dispatch.js';
 import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -38,6 +38,7 @@ let form = blankForm();
 let done = null; // 確定した直後の予約（確定画面を表示している間）
 let quoted = false; // 過去のお客様情報を引用済みか
 let showOthers = false;
+let calOnlyFree = false; // 日別表示で、希望の時間に空いている営業だけを出す
 let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別（営業ごとの列）
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
 let boardDate = addDays(1);
@@ -72,10 +73,11 @@ function compute() {
   const selected = manual ?? ranking.inArea.find((c) => c.recommended) ?? null; // 手動で選ばなければ、おすすめを自動で選ぶ
   const today = ymdOf(new Date());
   const calendar = ranking.inArea.length
-    ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today, mode: calMode, hasHere: Boolean(here) }
+    ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today, mode: calMode, hasHere: Boolean(here), onlyFree: calOnlyFree }
     : null;
   const missing = missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
   return {
+    detail: calMode === 'day' && selected ? salesDetail({ userId: selected.user.id, date: form.date, start: form.start, dur: form.dur, reservations, here }) : null,
     area, proposal, confirmed, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
     unasked: hearingChecklist(form).filter((x) => !x.asked && !REQUIRED_CHECKS.has(x.key)).map((x) => x.label),
@@ -344,6 +346,7 @@ document.addEventListener('click', (e) => {
     el?.closest('div, label')?.querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
   }
   else if (d.gotoday) { form = { ...form, date: d.gotoday, whenAsked: true }; calMode = 'day'; weekStart = weekStartFor(d.gotoday); refresh(); }
+  else if ('onlyfree' in d) { calOnlyFree = !calOnlyFree; renderDispatch(); }
   else if (d.calmode) { calMode = d.calmode; renderDispatch(); }
   else if (d.day) { form = { ...form, date: shiftDay(form.date, Number(d.day)), whenAsked: true }; weekStart = weekStartFor(form.date); refresh(); }
   else if (d.dcell) { const [userId, start] = d.dcell.split('|'); form = { ...form, userId, start: Number(start), whenAsked: true }; refresh(); }

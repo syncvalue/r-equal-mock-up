@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { USERS } from '../src/dashboard.js';
-import { RANKS, rankOfUser, haversineKm, locateAddress, travelAround, areaById, fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
+import { salesDetail, RANKS, rankOfUser, haversineKm, locateAddress, travelAround, areaById, fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
 import { nextReceptionNo, dayOffset, reservationToEvent } from '../src/reservations.js';
 
 const NOW = new Date(2026, 9, 21, 9, 0); // 2026-10-21
@@ -57,7 +57,7 @@ test('営業時間外は受けられない', () => {
 
 test('候補はエリア内の営業のみ。空いている人が先で、一人はおすすめになる', () => {
   const r = rankCandidates({ gender: 'f', areaId: 'osaka', date: '2026-10-25', start: 13 * 60, dur: 60, reservations: [], now: NOW });
-  assert.deepEqual(r.inArea.map((x) => x.user.id).sort(), ['u01', 'u02', 'u03', 'u09']);
+  assert.deepEqual(r.inArea.map((x) => x.user.id).sort(), ['u01', 'u02', 'u03', 'u09', 'u11', 'u12', 'u13', 'u14', 'u15', 'u16']); // 大阪エリアは10名
   assert.ok(r.others.every((x) => areaOfUser(x.user.id) !== 'osaka'));
   const frees = r.inArea.filter((x) => x.free);
   assert.equal(r.inArea.findIndex((x) => !x.free) === -1 ? frees.length : r.inArea.findIndex((x) => !x.free), frees.length);
@@ -188,8 +188,9 @@ test('候補に、ランクと移動距離が付く', () => {
   assert.ok(inArea.every((c) => RANKS.includes(c.rank) && c.travel.prev.km >= 0));
 });
 
-test('営業は10名で、全員にエリア・ランク・今月の実績がある', () => {
-  assert.equal(USERS.length, 10);
+test('営業は16名（大阪10・兵庫京都2・関東2・東海2）で、全員にエリア・ランク・今月の実績がある', () => {
+  assert.equal(USERS.length, 16);
+  assert.equal(USERS.filter((u) => areaOfUser(u.id) === 'osaka').length, 10);
   assert.ok(USERS.every((u) => areaOfUser(u.id) && rankOfUser(u.id) && fairnessStats([], NOW)[u.id].total > 0));
 });
 
@@ -201,4 +202,17 @@ test('予定のない営業は、直前のアポがなく、営業所からの�
   assert.equal(light.travel.prev.label, '営業所');
   assert.equal(light.travel.prev.at, null);
   assert.ok(light.travel.prev.km > 0);
+});
+
+test('営業の詳細: 今月の実績・担当件数・その日の予定と、開始できる時刻の範囲', () => {
+  const here = locateAddress('大阪府大阪市阿倍野区1-2-3', areaById('osaka'));
+  const d = salesDetail({ userId: 'u01', date: '2026-10-21', start: 13 * 60, dur: 60, reservations: [], here, now: NOW }); // u01は10:00-11:30の予定あり
+  assert.equal(d.user.id, 'u01');
+  assert.ok(d.month.visits > 0 && d.month.target > 0 && d.month.rate >= 0 && d.month.achieve >= 0);
+  assert.equal(d.fairness.total >= d.fairness.female, true);
+  assert.ok(d.blocks.some((b) => b.start === 600 && b.end === 690));
+  assert.ok(d.windows.length > 0 && d.windows.every((w) => w.from <= w.to));
+  assert.ok(d.windows.every((w) => w.from >= 540)); // 営業時間内
+  assert.ok(!d.windows.some((w) => w.from <= 600 && w.to >= 600)); // 10:00開始は、予定と重なるので含まない
+  assert.equal(salesDetail({ userId: 'zzz', date: '2026-10-21', start: 600, dur: 60, reservations: [], now: NOW }), null);
 });

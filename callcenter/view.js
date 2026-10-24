@@ -234,20 +234,19 @@ const DAY_ROW = 26; // 30分あたりの高さ（px）
 const DAY_SLOTS = (WORK_END - WORK_START) / SLOT_STEP;
 const topOf = (m) => ((m - WORK_START) / SLOT_STEP) * DAY_ROW;
 
-export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
+export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree }) {
+  const cols = onlyFree ? allCols.filter((c) => c.free) : allCols;
   const h = DAY_SLOTS * DAY_ROW;
   const dh = dayHead(form.date);
-  const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(0,1fr))`;
+  const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(6.5rem,1fr));min-width:${2.25 + cols.length * 6.5}rem`;
   const end = form.start + form.dur;
   const head = cols.map((c) => {
     const tag = c.free ? 'button' : 'div';
     return `<${tag} class="block w-full px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'} ${c.free ? 'cursor-pointer hover:bg-teal-50' : 'opacity-80'}" ${c.free ? `data-pick="${c.user.id}" title="この営業を担当にする"` : `title="${esc(conflictText(c.conflict))}"`}>
       <b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)}${c.recommended ? `<span class="ml-0.5 rounded bg-amber-400 px-1 text-[10px] font-bold" title="${esc(starTitle(form.gender))}">⭐</span>` : ''}
-      <div class="text-[10px] text-slate-600 leading-tight">${statText(c.stats, form.gender)}</div>
       <div class="text-[10px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}">${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}</div></${tag}>`;
   }).join('');
-  const travel = cols.map((c) => `<div class="px-1 py-0.5 text-[10px] leading-tight text-slate-600 border-b min-h-[2.1rem]" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${esc(legText(c.travel.prev, 'prev', true))}</div>${c.travel.next ? `<div class="truncate">${esc(legText(c.travel.next, 'next', true))}</div>` : ''}` : ''}</div>`).join('');
-  const axisCol = `<div class="relative" style="height:${h}px">${Array.from({ length: DAY_SLOTS / 2 }, (_, i) => `<span class="absolute right-1 text-[10px] text-slate-400 -translate-y-1/2" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
+  const axisCol = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: DAY_SLOTS / 2 }, (_, i) => `<span class="absolute right-1 text-[10px] text-slate-400 -translate-y-1/2" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => {
     const slots = Array.from({ length: DAY_SLOTS }, (_, i) => {
       const m = WORK_START + i * SLOT_STEP;
@@ -263,11 +262,10 @@ export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
     <div class="flex items-center justify-between gap-2 mb-1">
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="-1" ${canPrev ? '' : 'disabled'} title="前の日">◀</button>
       <div class="text-sm font-bold">${dh.md}（${dh.w}）<span class="font-normal text-xs text-slate-500 ml-2">${form.dur}分 ${minToHHMM(form.start)}〜${minToHHMM(end)}</span></div>
-      <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="1" title="次の日">▶</button></div>
-    <div class="grid" style="${grid}"><div class="border-b"></div>${head}<div class="border-b text-[10px] text-slate-400 text-right pr-1 leading-tight" title="今回のお客様宅までの距離">お客様宅まで</div>${travel}${axisCol}${body}</div>
-    ${hasHere ? '' : '<div class="text-[11px] text-slate-400 mt-0.5">住所を入力すると、前後のアポからの距離を表示します</div>'}
+      <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="1" title="次の日">▶</button>
+      <button class="chip ${onlyFree ? 'on' : ''}" data-onlyfree title="希望の時間に空いている営業だけを表示">空きのみ</button></div>
+    ${cols.length ? `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axisCol}${body}</div></div>` : '<div class="py-6 text-center text-sm text-slate-400">この時間に空いている営業がいません</div>'}
     <div class="mt-0.5">${legendHtml()}<span class="text-[11px] text-slate-500">空いている枠を押すと、その営業・その時刻を選べます</span></div>
-    <div class="text-[11px] text-slate-400">距離は住所からの概算（直前のアポがなければ営業所から）</div>
   </div>`;
 }
 
@@ -282,9 +280,42 @@ const areaBanner = ({ proposal, confirmed, hasAddress }) => {
     <div class="flex flex-wrap items-center gap-1.5"><span class="text-sm font-bold">${confirmed ? '✔ エリア確定：' : 'エリア確定：'}</span>${btns}${differ}</div></div>`;
 };
 
+// 営業の詳細（日別表示で、営業の枠を選んだときに出す）
+const wan = (n) => `${Math.round(n / 10000).toLocaleString('ja-JP')}万円`;
+const pctText = (x) => `${Math.round(x * 100)}%`;
+
+function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
+  const { user, month, fairness: f } = d;
+  const end = form.start + form.dur;
+  const ok = !d.conflict;
+  const box = (title, body) => `<div class="min-w-0"><div class="mb-0.5 text-[11px] font-bold text-slate-500">${title}</div><div class="space-y-0.5">${body}</div></div>`;
+  const bar = (rate, pace) => `<div class="relative h-1.5 rounded bg-slate-200"><div class="h-1.5 rounded ${rate >= pace ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${Math.min(100, rate * 100)}%"></div><div class="absolute -top-0.5 h-2.5 w-0.5 bg-slate-700" style="left:${Math.min(100, pace * 100)}%" title="今月の経過（${pctText(pace)}）"></div></div>`;
+  const plans = d.blocks.length
+    ? d.blocks.map((b) => `<div class="truncate" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}`)}"><b>${minToHHMM(b.start)}–${minToHHMM(b.end)}</b> ${b.source === 'reservation' ? '📞' : ''}${esc(b.label)}${b.place ? `<span class="text-slate-500">　${esc(b.place)}</span>` : ''}</div>`).join('')
+    : '<div class="text-slate-500">予定なし</div>';
+  return `<div class="rounded-lg border-2 border-teal-600 bg-white p-2 text-xs">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div><b class="text-sm">${esc(user.name)}</b> ${rankBadge(d.rank)}${isLeader(user) ? '<span class="ml-1 text-[10px] rounded bg-slate-200 px-1.5 py-0.5">リーダー</span>' : ''}<span class="ml-2 text-slate-500">グループ${esc(user.group)}・${esc(area?.name ?? '')}</span></div>
+      <div class="font-bold ${ok ? 'text-emerald-700' : 'text-rose-600'}">${dateLabel(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(end)}　${ok ? '空き' : `不可（${esc(conflictText(d.conflict))}）`}</div></div>
+    <div class="mt-1.5 grid grid-cols-3 gap-3">
+      ${box('今月の実績', `<div>訪問 <b>${month.visits}</b>件 ／ 成約 <b>${month.contracts}</b>件（${pctText(month.rate)}）</div>
+        <div>売上 <b>${wan(month.amount)}</b> ／ 目標 ${wan(month.target)}</div>${bar(month.achieve, month.pace)}
+        <div class="text-slate-500">達成 ${pctText(month.achieve)}（今月の経過 ${pctText(month.pace)}）　平均単価 ${wan(month.avg)}</div>`)}
+      ${box('今月の担当件数', `<div>計 <b>${f.total}</b>件 ／ 女性 <b>${f.female}</b>件（${pctText(f.femaleShare)}）／ 男性 ${f.male}件</div>
+        ${fairIndex ? `<div>空いている営業 ${freeCount}人のうち、${form.gender === 'f' ? '女性の' : ''}担当が <b>${fairIndex}番目に少ない</b></div>` : '<div class="text-slate-500">この時間は空きがないため、配分の順位なし</div>'}`)}
+      ${box(`${dateLabel(form.date)}の予定`, `${plans}
+        <div class="pt-0.5"><span class="text-slate-500">${form.dur}分で開始できる時刻：</span>${d.windows.length ? d.windows.map((w) => `<b>${minToHHMM(w.from)}${w.to > w.from ? `〜${minToHHMM(w.to)}` : ''}</b>`).join('、') : '<span class="text-rose-600">なし</span>'}</div>
+        ${d.travel ? `<div class="text-[11px] leading-tight">${legHtml(d.travel.prev, 'prev')}${d.travel.next ? `<br />${legHtml(d.travel.next, 'next')}` : ''}</div>` : ''}`)}
+    </div>
+  </div>`;
+}
+
 export function dispatchHtml(x) {
-  const { area, proposal, confirmed, hasAddress, ranking, calendar, form, selectedId, alt, missing, unasked, showOthers } = x;
+  const { area, proposal, confirmed, hasAddress, ranking, calendar, form, selectedId, alt, missing, unasked, showOthers, detail } = x;
   const card = (c) => candidateRow(c, { selectedId, gender: form.gender });
+  const freeList = ranking.inArea.filter((c) => c.free); // 空いている営業（担当が少ない順）。選んだ人が、その何番目か
+  const freeCount = freeList.length;
+  const fairIndex = freeList.findIndex((c) => c.user.id === selectedId) + 1;
   const sel = [...ranking.inArea, ...ranking.others].find((c) => c.user.id === selectedId);
   return `
   <div class="space-y-2">
@@ -292,11 +323,12 @@ export function dispatchHtml(x) {
     ${ranking.inArea.length ? `
       <div><div class="flex items-center justify-between mb-0.5"><div class="text-sm font-bold">空き状況（${esc(area.name)}）</div>
         <div class="flex gap-1">${[['week', '週'], ['day', '日別']].map(([k, t]) => `<button class="chip ${calendar.mode === k ? 'on' : ''}" data-calmode="${k}">${t}</button>`).join('')}</div></div>
-        ${calendar.mode === 'day' ? dayViewHtml({ cols: [...ranking.inArea, ...(showOthers ? ranking.others : [])].sort((a, b) => a.user.id.localeCompare(b.user.id)), form, selectedId, canPrev: form.date > calendar.today, hasHere: Boolean(calendar.hasHere) }) : weekCalendarHtml(calendar)}</div>
-      ${calendar.mode === 'day' ? '' : `<div><div class="text-sm font-bold mb-0.5 flex flex-wrap items-baseline gap-x-3">担当候補<span class="font-normal text-[11px] text-slate-500">${minToHHMM(form.start)}〜 の空き　⭐＝空いている中で、${form.gender === 'f' ? '女性のお客様の担当' : '担当'}が今月最も少ない人</span></div>
-        <div class="space-y-1">${ranking.inArea.map(card).join('')}</div></div>`}` : ''}
+        ${calendar.mode === 'day' ? dayViewHtml({ cols: [...ranking.inArea, ...(showOthers ? ranking.others : [])].sort((a, b) => a.user.id.localeCompare(b.user.id)), form, selectedId, canPrev: form.date > calendar.today, onlyFree: calendar.onlyFree }) : weekCalendarHtml(calendar)}</div>
+      ${calendar.mode === 'day' && detail ? salesDetailHtml(detail, { form, fairIndex, freeCount, area: areaById(detail.areaId) }) : ''}
+      <div><div class="text-sm font-bold mb-0.5 flex flex-wrap items-baseline gap-x-3">担当候補<span class="font-normal text-[11px] text-slate-500">${minToHHMM(form.start)}〜 の空き　⭐＝空いている中で、${form.gender === 'f' ? '女性のお客様の担当' : '担当'}が今月最も少ない人</span></div>
+        <div class="space-y-1">${ranking.inArea.map(card).join('')}</div></div>` : ''}
     <div><button class="text-sm underline text-slate-500" data-toggle-others>${showOthers ? '▼' : '▶'} 他エリア（例外）</button>
-      ${showOthers && calendar?.mode !== 'day' ? `<div class="space-y-1 mt-1">${ranking.others.map((c) => candidateRow(c, { selectedId, gender: form.gender, showArea: true })).join('')}</div>` : ''}</div>
+      ${showOthers ? `<div class="space-y-1 mt-1">${ranking.others.map((c) => candidateRow(c, { selectedId, gender: form.gender, showArea: true })).join('')}</div>` : ''}</div>
     ${alt ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-3 py-1.5 text-xs text-rose-800">⚖ <b>${esc(alt.user.name)}</b>の方が女性担当が少ない（${alt.stats.female}件／選択中 ${sel.stats.female}件）</div>` : ''}
     <div class="rounded-lg border-2 border-teal-600 bg-white p-2 space-y-1.5 sticky bottom-0">
       ${sel ? `<div class="text-sm">担当：<b class="text-base">${esc(sel.user.name)}</b>　${esc(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}　${esc(fullName(form) || 'お客様')} 様（${genderLabel(form.gender) || '性別未選択'}）</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
