@@ -81,3 +81,15 @@ test('お客様への入金: 入力チェック、登録、振込済みへの更
   markPaid(p.id, 200);
   assert.deepEqual([loadCustomerPayments()[0].status, loadCustomerPayments()[0].paidAt], ['done', 200]);
 });
+
+test('営業所での絞り込み: 空なら全員。指定すれば、その営業所の営業だけ', async () => {
+  const { officeUsers, onlyOffice } = await import('../src/accounting.js');
+  const users = [{ id: 'u01' }, { id: 'u04' }, { id: 'u08' }];
+  const areaOf = (id) => ({ u01: 'osaka', u04: 'kanto', u08: 'tokai' })[id];
+  assert.equal(officeUsers(users, '', areaOf).length, 3);
+  assert.deepEqual(officeUsers(users, 'kanto', areaOf).map((u) => u.id), ['u04']);
+  assert.deepEqual(officeUsers(users, 'nowhere', areaOf), []);
+  const ids = officeUsers(users, 'osaka', areaOf).map((u) => u.id);
+  assert.equal(onlyOffice([{ userId: 'u01' }, { userId: 'u04' }, { userId: '' }], ids, true).length, 1);
+  assert.equal(onlyOffice([{ userId: 'u01' }, { userId: '' }], null, false).length, 2); // 絞り込みなし
+});

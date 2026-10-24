@@ -77,3 +77,10 @@ export function addCustomerPayment(d, now = Date.now()) {
 }
 
 export const markPaid = (id, now = Date.now()) => save(loadCustomerPayments().map((p) => (p.id === id ? { ...p, status: 'done', paidAt: now } : p)));
+
+// ---- 営業所での絞り込み -------------------------------------------------------------
+// officeId が空なら全員。営業所は、営業の担当エリア（areaOf）で分ける
+export const officeUsers = (users, officeId, areaOf) => (officeId ? users.filter((u) => areaOf(u.id) === officeId) : users);
+
+// 営業の id を持つ記録（userId）を、営業所の営業だけに絞る。filtering=false なら絞らない
+export const onlyOffice = (list, userIds, filtering) => (filtering ? list.filter((x) => userIds.includes(x.userId)) : list);

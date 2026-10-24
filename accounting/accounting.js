@@ -1,9 +1,10 @@
 // 本社 経理部デスク画面（ダミー・PC想定）。営業の手持ち現金の確認、入金（営業・お客様）、経費の入力代行、経費の全体状況。
 import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY } from '../src/store.js';
 import { USERS, userById } from '../src/dashboard.js';
+import { AREAS, areaOfUser } from '../src/dispatch.js';
 import { addDeposit, depositsOf, carryoverFor, todayRows, loadDay, loadDays, saveDay, newId, dateKey, EXPENSE_TYPES, typeOf } from '../src/workday.js';
 import {
-  flagsOf, expenseStats, canProxy, proxyExpense, PAY_REASONS, reasonOf, paymentReady, loadCustomerPayments, addCustomerPayment, markPaid,
+  flagsOf, expenseStats, officeUsers, onlyOffice, canProxy, proxyExpense, PAY_REASONS, reasonOf, paymentReady, loadCustomerPayments, addCustomerPayment, markPaid,
 } from '../src/accounting.js';
 import { seedSample } from '../src/accountingSample.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -15,10 +16,14 @@ const BY = '本社 経理部';
 const TABS = [['cash', '💴 所持金の確認'], ['deposit', '🏦 入金処理'], ['expense', '🧾 経費の入力代行'], ['overview', '📊 経費の全体状況']];
 const PHASE = { before: ['未始業', 'bg-slate-200 text-slate-600'], open: ['業務中', 'bg-emerald-100 text-emerald-800'], closed: ['終業済み', 'bg-indigo-100 text-indigo-800'] };
 const LEVEL = { danger: 'bg-rose-100 text-rose-700', warn: 'bg-amber-100 text-amber-800', info: 'bg-slate-100 text-slate-600' };
-const blankDeposit = () => ({ userId: USERS[0].id, amount: 0, memo: '' });
+const blankDeposit = () => ({ userId: scoped()[0]?.id ?? '', amount: 0, memo: '' });
 const blankPay = () => ({ customerName: '', amount: 0, reason: '', userId: '', memo: '' });
-const blankExp = () => ({ userId: USERS[0].id, type: '', amount: 0, memo: '' });
+const blankExp = () => ({ userId: scoped()[0]?.id ?? '', type: '', amount: 0, memo: '' });
 
+const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+let office = AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : ''; // 絞り込み中の営業所（空は全営業所）
+const scoped = () => officeUsers(USERS, office, areaOfUser);
+const scopedIds = () => scoped().map((u) => u.id);
 let tab = 'cash';
 let selUser = null; // 所持金の確認で、明細を開いている営業
 let period = 'day'; // 経費の全体状況: day（今日）／ month（今月）
@@ -29,7 +34,7 @@ let dirty = false; // 入力中に届いた更新を、入力完了後に反映�
 
 const signed = (n) => (n ? `${n > 0 ? '+' : '−'}${yen(Math.abs(n))}` : '一致');
 const badge = (cls, text) => `<span class="rounded px-2 py-0.5 text-xs font-bold whitespace-normal ${cls}">${text}</span>`;
-const userSelect = (key, value) => `<select class="inp mt-1 font-normal" data-f="${key}">${USERS.map((u) => `<option value="${u.id}" ${value === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>`;
+const userSelect = (key, value) => `<select class="inp mt-1 font-normal" data-f="${key}">${scoped().map((u) => `<option value="${u.id}" ${value === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>`;
 const card = (label, value, cls = '') => `<div class="rounded-xl bg-white border p-3 flex-1 min-w-[10rem]"><div class="text-xs text-slate-500">${label}</div><div class="text-2xl font-bold ${cls}">${value}</div></div>`;
 
 // ---- 所持金の確認 ---------------------------------------------------------------
@@ -52,7 +57,7 @@ function expenseDetail(row) {
 
 function cashTab() {
   // 未始業でも、前日の繰越金（と今日の入金）は手元にあるものとして扱う
-  const rows = todayRows().map((r) => {
+  const rows = todayRows().filter((r) => scopedIds().includes(r.user.id)).map((r) => {
     const opening = carryoverFor(r.user.id).amount;
     const depositTotal = depositsOf(r.user.id).reduce((n, d) => n + d.amount, 0);
     const cash = r.summary ?? { opening, depositTotal, expenseTotal: 0, balance: opening + depositTotal };
@@ -84,8 +89,8 @@ function cashTab() {
 // ---- 入金処理 -------------------------------------------------------------------
 function depositTab() {
   // 毎朝の定例入金（ダミー）は全員にあるため、一覧には出さず、経理部が登録した入金だけを出す
-  const today = USERS.flatMap((u) => depositsOf(u.id).filter((d) => !d.id.startsWith('seed-')).map((d) => ({ ...d, name: u.name }))).sort((a, b) => b.at - a.at);
-  const pays = loadCustomerPayments();
+  const today = scoped().flatMap((u) => depositsOf(u.id).filter((d) => !d.id.startsWith('seed-')).map((d) => ({ ...d, name: u.name }))).sort((a, b) => b.at - a.at);
+  const pays = onlyOffice(loadCustomerPayments(), scopedIds(), Boolean(office)); // 担当営業が未指定の振込は、全営業所のときだけ出る
   return `
   <div class="grid lg:grid-cols-2 gap-4">
     <section class="rounded-xl border bg-white p-4 space-y-3">
@@ -109,7 +114,7 @@ function depositTab() {
         <label class="text-sm font-bold">お客様名<input class="inp mt-1 font-normal" data-f="pay.customerName" value="${esc(pay.customerName)}" placeholder="例: 山田 花子" /></label>
         <label class="text-sm font-bold">金額${moneyInputHtml({ attrs: 'data-f="pay.amount"', value: pay.amount, placeholder: '120,000', cls: 'inp mt-1 font-normal' })}</label>
         <label class="text-sm font-bold">理由<select class="inp mt-1 font-normal" data-f="pay.reason"><option value="">選んでください</option>${PAY_REASONS.map((r) => `<option value="${r.key}" ${pay.reason === r.key ? 'selected' : ''}>${r.label}</option>`).join('')}</select></label>
-        <label class="text-sm font-bold">担当した営業<select class="inp mt-1 font-normal" data-f="pay.userId"><option value="">（指定なし）</option>${USERS.map((u) => `<option value="${u.id}" ${pay.userId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
+        <label class="text-sm font-bold">担当した営業<select class="inp mt-1 font-normal" data-f="pay.userId"><option value="">（指定なし）</option>${scoped().map((u) => `<option value="${u.id}" ${pay.userId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
         <label class="text-sm font-bold sm:col-span-2">メモ（振込先の口座など）<input class="inp mt-1 font-normal" data-f="pay.memo" value="${esc(pay.memo)}" placeholder="${pay.reason === 'other' ? '理由を記入してください' : '例: ○○銀行 △△支店 普通 1234567'}" /></label>
       </div>
       <button class="b b-pri" data-pay-add>振込の依頼を登録</button>
@@ -147,7 +152,7 @@ function expenseTab() {
 // ---- 経費の全体状況 ---------------------------------------------------------------
 function overviewTab() {
   const key = period === 'day' ? dateKey() : dateKey().slice(0, 7);
-  const st = expenseStats(Object.values(loadDays()), key);
+  const st = expenseStats(onlyOffice(Object.values(loadDays()), scopedIds(), Boolean(office)), key);
   const max = Math.max(1, ...st.byType.map((t) => t.amount));
   return `
   <div class="flex gap-2">${[['day', '今日'], ['month', '今月']].map(([k, l]) => `<button class="b b-sec ${period === k ? 'on' : ''}" data-period="${k}">${l}</button>`).join('')}</div>
@@ -167,15 +172,20 @@ function overviewTab() {
 const VIEWS = { cash: cashTab, deposit: depositTab, expense: expenseTab, overview: overviewTab };
 
 function render() {
-  const rows = todayRows();
+  // 入力中の営業が、絞り込みの外なら、営業所の先頭の営業に切り替える
+  if (!scopedIds().includes(dep.userId)) dep = { ...dep, userId: scopedIds()[0] ?? '' };
+  if (!scopedIds().includes(exp.userId)) exp = { ...exp, userId: scopedIds()[0] ?? '' };
+  if (pay.userId && !scopedIds().includes(pay.userId)) pay = { ...pay, userId: '' };
+  const rows = todayRows().filter((r) => scopedIds().includes(r.user.id));
   const alerts = rows.filter((r) => r.summary && flagsOf(r.day, r.summary).length).length;
-  const pending = loadCustomerPayments().filter((p) => p.status === 'pending').length;
+  const pending = onlyOffice(loadCustomerPayments(), scopedIds(), Boolean(office)).filter((p) => p.status === 'pending').length;
   $('#root').innerHTML = `
   <header class="bg-teal-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">本社 経理部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
     <div class="text-sm">確認が必要な営業 <b class="text-lg">${alerts}</b>人 ／ 振込待ち <b class="text-lg">${pending}</b>件 <button class="ml-3 text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
-  <nav class="bg-white border-b px-6 flex gap-1">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 ${tab === k ? 'border-teal-700 text-teal-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}</nav>
+  <nav class="bg-white border-b px-6 flex gap-1 items-center">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 ${tab === k ? 'border-teal-700 text-teal-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}
+    <label class="ml-auto text-sm font-bold">営業所 <select class="border rounded px-2 py-1 font-normal" data-office><option value="">全営業所（${USERS.length}人）</option>${AREAS.map((a) => `<option value="${a.id}" ${office === a.id ? 'selected' : ''}>${esc(a.name.replace('エリア', ''))}（${officeUsers(USERS, a.id, areaOfUser).length}人）</option>`).join('')}</select></label></nav>
   <main class="p-4 space-y-4 overflow-y-auto" style="height:calc(100vh - 112px)">${VIEWS[tab]()}</main>`;
 }
 
@@ -226,6 +236,11 @@ function onField(e, isInput) {
 }
 document.addEventListener('input', (e) => { onField(e, true); });
 document.addEventListener('change', (e) => {
+  if (e.target.matches('[data-office]')) {
+    office = e.target.value;
+    try { localStorage.setItem('rq-mock-acc-office', office); } catch { /* 保存できなくても動作は継続（モック） */ }
+    selUser = null; render(); return;
+  }
   if (!onField(e, false)) return;
   if (['dep.userId', 'pay.reason', 'exp.userId'].includes(e.target.dataset.f)) render(); // 状況表示・入力例が変わるもの
 });
