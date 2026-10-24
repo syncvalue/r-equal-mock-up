@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>画面一覧（モック）</title>
+  <style>
+    :root { --bg: #f1f5f9; --card: #fff; --text: #1e293b; --sub: #64748b; --line: #e2e8f0; --accent: #0f766e; --accent-soft: #ccfbf1; --tag: #f1f5f9; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0b1220; --card: #111c30; --text: #e2e8f0; --sub: #94a3b8; --line: #2f405a; --accent: #2dd4bf; --accent-soft: #134e4a; --tag: #1e293b; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; line-height: 1.6; }
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    .lead { color: var(--sub); margin: 0 0 20px; font-size: .9rem; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    h2 { font-size: 1.05rem; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .who { font-size: .75rem; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 1px 10px; }
+    .desc { color: var(--sub); font-size: .85rem; margin: 4px 0 10px; }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+    li a { display: block; text-decoration: none; color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+    li a:hover { border-color: var(--accent); background: var(--accent-soft); }
+    li b { display: block; }
+    li span { display: block; font-size: .8rem; color: var(--sub); }
+    code { background: var(--tag); border-radius: 4px; padding: 0 5px; font-size: .78rem; }
+    .note { margin-top: 10px; font-size: .78rem; color: var(--sub); }
+    .tag { display: inline-block; font-size: .7rem; font-weight: 700; border-radius: 4px; padding: 0 6px; background: var(--tag); color: var(--sub); margin-left: 6px; vertical-align: middle; }
+    footer { margin-top: 24px; font-size: .8rem; color: var(--sub); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>🗂 画面一覧</h1>
+  <p class="lead">要件定義用の、各画面への入口です（便宜上のページで、アプリの一部ではありません）。リンクから、すぐにその画面を開けます。</p>
+
+  <div class="grid">
+    <section>
+      <h2>📞 コールセンター <span class="who">オペレーター</span></h2>
+      <p class="desc">受電して、お客様の情報とヒアリングを入力し、営業の空きを見て、訪問を仮確定します。</p>
+      <ul>
+        <li><a href="/callcenter/?tab=new"><b>新規受付</b><span>お客様・日時・ヒアリング・備考を入力 → 空きカレンダー（週／日別）で枠を選ぶ → 仮確定</span></a></li>
+        <li><a href="/callcenter/?tab=new&demo=1"><b>音声入力デモ<span class="tag">今後の拡張</span></b><span>通話の文字起こしから、項目が自動で入る様子。「次の発話」「一気に最後まで」で進める</span></a></li>
+      </ul>
+      <p class="note">電話番号 <code>090-5050-6060</code> を入れると、「過去にご利用あり」と、受け付け済みの予約（変更・取消）の例が出ます。</p>
+    </section>
+
+    <section>
+      <h2>🚚 コールセンター <span class="who">配車係</span></h2>
+      <p class="desc">仮確定された訪問を、1日分のカレンダーで見ながら調整して確定します（主に翌々日分）。</p>
+      <ul>
+        <li><a href="/callcenter/?tab=dispatch"><b>配車確定（翌々日・大阪エリア）</b><span>営業ごとの列に、訪問をドラッグして調整。帯の「確定」で確定</span></a></li>
+        <li><a href="/callcenter/?tab=dispatch&area=all"><b>配車確定（翌々日・全エリア）</b><span>16名を横に並べて表示</span></a></li>
+        <li><a href="/callcenter/?tab=dispatch&day=0"><b>配車確定（今日）</b><span>確定済みの訪問が多い日</span></a></li>
+        <li><a href="/callcenter/?tab=dispatch&day=1"><b>配車確定（明日）</b><span>配車係が仮に戻した「確認待ち」の例</span></a></li>
+      </ul>
+      <p class="note">カレンダーの<b>営業の顔写真</b> → 営業の詳細（実績・勤怠・移動距離）。<b>訪問の帯</b> → 下に詳細 → 「お客様の詳細」（評価・買取履歴・見送り品）。</p>
+    </section>
+
+    <section>
+      <h2>📱 営業タブレット <span class="who">営業</span></h2>
+      <p class="desc">訪問前の確認から、現地での買取、経費、持ち帰り、日報までを行います。</p>
+      <ul>
+        <li><a href="/"><b>営業アプリ（ログイン）</b><span>ログイン後、左のメニューから各画面へ</span></a></li>
+      </ul>
+      <p class="note">ログインは、<code>sales01</code>〜<code>sales16</code>（ID・パスワードは何でも可）。メニュー：ダッシュボード／始業／今日の予定（訪問前のお客様情報）／現地買取／経費管理／商品の持ち帰り／終業・日報。</p>
+    </section>
+
+    <section>
+      <h2>🏢 本社 査定部 <span class="who">査定部</span></h2>
+      <p class="desc">営業の買取明細をリアルタイムで見て、査定の承認・提案、営業への入金・お知らせを行います。</p>
+      <ul>
+        <li><a href="/honsha/"><b>査定部デスク</b><span>訪問中の買取の確認・承認、日報・入金の確認、お知らせ送信</span></a></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>✍ GMOサイン（ダミー） <span class="who">契約</span></h2>
+      <p class="desc">営業のタブレットから送った買取契約の、本人確認と署名を行います。</p>
+      <ul>
+        <li><a href="/gmosign/"><b>契約の署名</b><span>ログイン → 契約の一覧 → 本人確認・署名 → 契約書の印刷</span></a></li>
+      </ul>
+    </section>
+  </div>
+
+  <footer>
+    <p>・各画面の右上（または画面内）の「データ初期化」で、保存したデータをすべて消せます。コールセンターのサンプルの受付は、初期化のあと、自動で入り直します。</p>
+    <p>・営業アプリ・本社・コールセンターは、同じブラウザの保存領域でつながっています（コールセンターで確定した訪問が、営業アプリの予定に出ます）。</p>
+  </footer>
+</main>
+</body>
+</html>

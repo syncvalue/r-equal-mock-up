@@ -2,7 +2,7 @@
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を仮確定する。担当の確定は配車係が行い（配車確定タブ）、確定した予約が営業アプリの予定に出る。
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
-import { canPlace, hiddenBlocks, busyBlocks, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
+import { AREAS, canPlace, hiddenBlocks, busyBlocks, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
 import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, removeReservations, holdReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -602,6 +602,19 @@ function seedSamples() {
   sampleReservations().forEach(addReservation);
 }
 
+// 画面一覧（/menu/）から、その画面を直接開くためのリンク: ?tab=new|dispatch ／ ?demo=1（音声入力デモ）／ ?area=osaka|hyogo|kanto|tokai|all ／ ?day=0〜4（配車確定の日。今日からの日数）
+function applyDeepLink() {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get('tab') === 'dispatch') tab = 'dispatch';
+    if (q.get('demo') === '1' && tab === 'new') demoOpen = true;
+    if (['all', ...AREAS.map((a) => a.id)].includes(q.get('area'))) boardArea = q.get('area');
+    const day = Number(q.get('day'));
+    if (q.has('day') && Number.isInteger(day) && day >= 0 && day <= 30) dispDate = addDays(day);
+  } catch { /* リンクの指定が読めなくても、通常どおり開く */ }
+}
+
 initTheme();
 seedSamples();
+applyDeepLink();
 render();

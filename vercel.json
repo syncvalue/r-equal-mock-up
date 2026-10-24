@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/honsha", "destination": "/honsha/index.html" },
     { "source": "/gmosign", "destination": "/gmosign/index.html" },
-    { "source": "/callcenter", "destination": "/callcenter/index.html" }
+    { "source": "/callcenter", "destination": "/callcenter/index.html" },
+    { "source": "/menu", "destination": "/menu/index.html" }
   ]
 }
