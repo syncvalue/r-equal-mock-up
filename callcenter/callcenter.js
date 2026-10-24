@@ -43,6 +43,7 @@ let toast = '';
 let lines = []; // 文字起こし（{ who, text, got: 入力欄にセットした項目 }）
 let playing = false;
 let finished = false;
+let scriptPos = 0; // 台本の進み位置（手で入力した発話は数えない）
 let timer = null;
 let demoOpen = false; // 通話デモのウィンドウ
 let demoPos = { x: Math.max(8, window.innerWidth - 26 * 16 - 16), y: 64 };
@@ -155,28 +156,42 @@ function hangUp() {
 }
 
 function stopDemo() { clearTimeout(timer); playing = false; }
-function playNext() {
-  const idx = lines.length;
-  if (idx >= DEMO_SCRIPT.length) { hangUp(); return; }
-  const step = DEMO_SCRIPT[idx];
+// 台本を1つ進める。自動再生は次までの待ち時間（ミリ秒）を返し、終わりなら null。manual=「次の発話」ボタン（電話を切る発話は、すぐに確定する）
+function advance(manual) {
+  if (scriptPos >= DEMO_SCRIPT.length || done || finished) return null;
+  const step = DEMO_SCRIPT[scriptPos];
+  scriptPos += 1;
   addUtterance(step.who, fillScript(step.text));
   if (step.action === 'confirmArea') confirmArea();
-  if (step.action === 'hangup') { timer = setTimeout(hangUp, 1500); return; }
-  timer = setTimeout(playNext, 1800 + step.text.length * 25);
+  if (step.action === 'hangup') {
+    if (manual) hangUp(); else timer = setTimeout(hangUp, 1500);
+    return null;
+  }
+  return 1800 + step.text.length * 25;
+}
+function playNext() {
+  const wait = advance(false);
+  if (wait !== null) timer = setTimeout(playNext, wait);
+}
+// 1発話ずつ手で進める（自動再生中なら、止めてから進める）
+function stepDemo() {
+  stopDemo();
+  advance(true);
+  renderTranscript();
 }
 function startDemo() {
   if (done) return;
-  if (finished) { lines = []; finished = false; }
+  if (finished) { lines = []; finished = false; scriptPos = 0; }
   playing = true; renderTranscript();
   timer = setTimeout(playNext, 400);
 }
-function resetDemo() { stopDemo(); lines = []; finished = false; form = blankForm(); weekStart = addDays(0); quoted = false; refresh(); renderTranscript(); }
+function resetDemo() { stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); quoted = false; refresh(); renderTranscript(); }
 
 function renderTranscript() {
   const el = $('#transcript');
   if (!el) return;
   const typed = $('[data-utter]')?.value ?? '';
-  el.innerHTML = transcriptHtml({ lines, playing, finished });
+  el.innerHTML = transcriptHtml({ lines, playing, finished, pos: scriptPos, total: DEMO_SCRIPT.length });
   const input = $('[data-utter]');
   if (input) input.value = typed;
   const chat = $('#chat');
@@ -286,7 +301,7 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest('button, [data-pick]');
   if (!t) return;
   const d = t.dataset;
-  if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
+  if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
   if (d.tab) { stopDemo(); tab = d.tab; render(); }
   else if (d.area) { form = { ...form, areaId: d.area, areaAddr: form.address.trim() }; renderDispatch(); }
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
@@ -304,13 +319,13 @@ document.addEventListener('click', (e) => {
     if (c) { form = { ...form, name: c.name, kana: c.kana, zip: c.zip, address: c.address }; quoted = true; refresh(); }
   }
   else if ('confirm' in d) confirmReservation();
-  else if ('new' in d) { stopDemo(); lines = []; finished = false; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
+  else if ('new' in d) { stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
   else if (d.bdate) { boardDate = d.bdate; render(); }
   else if (d.cancel) {
     const r = loadReservations().find((x) => x.id === d.cancel);
     if (r && confirm(`${r.receptionNo}（${r.customer.name} 様）の訪問を取り消します。営業の予定からも消えます。よろしいですか？`)) { removeReservation(r.id); render(); }
   }
-  else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); stopDemo(); lines = []; finished = false; form = blankForm(); weekStart = addDays(0); done = null; render(); } }
+  else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; render(); } }
 });
 
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
