@@ -10,6 +10,8 @@ import { esc } from '../src/format.js';
 import { OPERATORS, CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
 import { dispatcherHtml } from './dispatcherView.js';
+import { blankForm as makeBlankForm } from './form.js';
+import { sampleReservations } from './samples.js';
 import { callHistory } from '../src/callHistory.js';
 import { purchaseSummary, historyCustomers } from '../src/customerHistory.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
@@ -31,10 +33,7 @@ const shiftDay = (date, n) => { const [y, m, d] = date.split('-').map(Number); c
 const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); const next = ymdOf(new Date(y, m - 1, d + n)); const today = ymdOf(new Date()); return next < today ? today : next; };
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
-const blankForm = () => ({
-  phone: '', phone2: '', phone2None: false, lastName: '', firstName: '', lastKana: '', firstKana: '', gender: '', genderEst: false, age: '', ageEst: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
-  date: addDays(1), start: 10 * 60, dur: 90, userId: null,
-});
+const blankForm = () => makeBlankForm();
 
 let tab = 'new';
 let operator = pref('rq-mock-cc-operator', OPERATORS[0]);
@@ -462,7 +461,7 @@ document.addEventListener('click', (e) => {
       render();
     }
   }
-  else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; render(); } }
+  else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); try { localStorage.removeItem(SAMPLE_KEY); } catch { /* 消せなくても動作は継続 */ } seedSamples(); stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; render(); } }
 });
 
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
@@ -471,5 +470,14 @@ window.addEventListener('storage', (e) => {
   if (tab === 'new') renderDispatch(); else render();
 });
 
+// 最初に開いたときと、データ初期化のあとに、サンプルの受付を入れる（配車確定の画面などを、すぐ見られるように）
+const SAMPLE_KEY = 'rq-mock-cc-samples-v1';
+function seedSamples() {
+  if (pref(SAMPLE_KEY, '')) return;
+  setPref(SAMPLE_KEY, '1');
+  sampleReservations().forEach(addReservation);
+}
+
 initTheme();
+seedSamples();
 render();
