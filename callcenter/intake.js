@@ -8,6 +8,7 @@ export function missingFields(form, { areaConfirmed, selected, today }) {
   const missing = [];
   if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
   if (!form.lastName.trim() || !form.firstName.trim()) missing.push('お名前（姓・名）');
+  if (!form.lastKana.trim() || !form.firstKana.trim()) missing.push('フリガナ（セイ・メイ）');
   if (!form.gender) missing.push('性別');
   if (!String(form.age ?? '').trim() && !form.ageEst) missing.push('年齢（聞けない場合は、推測の年代）');
   if (!form.address.trim()) missing.push('訪問先の住所');
@@ -36,12 +37,12 @@ export const CHECK_ITEMS = [
   ['large', '大型品'], ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
 ];
 // 確定に必須の項目（足りないと確定できない）。それ以外は、聞き忘れの注意だけ出す
-export const REQUIRED_CHECKS = new Set(['phone', 'name', 'gender', 'age', 'address', 'flyer', 'wants']);
+export const REQUIRED_CHECKS = new Set(['phone', 'name', 'kana', 'gender', 'age', 'address', 'flyer', 'wants']);
 
 export function hearingChecklist(form) {
   const filled = (v) => String(v ?? '').trim() !== '';
   const asked = {
-    phone: /^0\d{9,10}$/.test(digits(form.phone)), phone2: filled(form.phone2) || Boolean(form.phone2None), name: filled(form.lastName) && filled(form.firstName), kana: filled(form.lastKana) || filled(form.firstKana), gender: filled(form.gender), age: filled(form.age) || filled(form.ageEst), zip: filled(form.zip), address: filled(form.address),
+    phone: /^0\d{9,10}$/.test(digits(form.phone)), phone2: filled(form.phone2) || Boolean(form.phone2None), name: filled(form.lastName) && filled(form.firstName), kana: filled(form.lastKana) && filled(form.firstKana), gender: filled(form.gender), age: filled(form.age) || filled(form.ageEst), zip: filled(form.zip), address: filled(form.address),
     when: Boolean(form.whenAsked), flyer: form.chirashi !== null, wants: hasWants(form), attendee: filled(form.attendee), companion: filled(form.companion),
     large: filled(form.large), parking: filled(form.parking), nameplate: filled(form.nameplate), contact: filled(form.contactFrom) || filled(form.contactTo), notes: filled(form.notes),
   };
@@ -49,6 +50,14 @@ export function hearingChecklist(form) {
   const estimated = { gender: form.genderEst && filled(form.gender), age: !filled(form.age) && filled(form.ageEst) };
   return CHECK_ITEMS.map(([key, label]) => ({ key, label, asked: asked[key], estimated: Boolean(estimated[key]), required: REQUIRED_CHECKS.has(key) }));
 }
+
+// お客様の売りたいものの分野（その他の商材・メイン商材・詳細の書き込みから）。営業の得意分野と合うかを見るのに使う
+const WANT_WORDS = [[/ヴィトン|シャネル|エルメス|グッチ|バッグ/, 'ブランドバッグ'], [/ロレックス|オメガ|時計/, '腕時計'], [/金|プラチナ|ネックレス|指輪|ダイヤ|ジュエリー/, '貴金属・ジュエリー'], [/カメラ|家電/, 'カメラ・家電'], [/ゲーム|フィギュア/, 'ゲーム・ホビー'], [/着物|骨董|掛け軸/, '着物・骨董']];
+export function wantedCategories(form) {
+  const fromText = WANT_WORDS.filter(([re]) => re.test(form.wants ?? '')).map(([, c]) => c);
+  return [...new Set([...(form.cats ?? []), ...MAIN_ITEMS.filter((k) => form.mainItems?.[k] > 0), ...fromText])];
+}
+export const matchedSpecialties = (specialties, form) => { const w = wantedCategories(form); return specialties.filter((s) => w.includes(s)); };
 
 export const fullName = (form) => joinName(form.lastName, form.firstName);
 export const fullKana = (form) => joinName(form.lastKana, form.firstKana);

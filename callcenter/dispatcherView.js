@@ -5,6 +5,7 @@ import { USERS } from '../src/dashboard.js';
 import { areaById, dispatchOptions, fairerAlternative } from '../src/dispatch.js';
 import { isTentative, isCancelled, needsReview, reviewDiffs } from '../src/reservations.js';
 import { dateLabel, genderLabel, rankBadge, statusBadge } from './view.js';
+import { avatarHtml } from './avatar.js';
 
 // 変更の内容（項目名 変更前→変更後）
 const diffText = (r) => reviewDiffs(r).map((d) => `${esc(d.label)}：${esc(trunc(d.from, 24))} → <b>${esc(trunc(d.to, 24))}</b>`).join('　／　');
@@ -25,7 +26,7 @@ function assignee(r, reservations, now) {
   const fairer = r.gender === 'f' && cur ? fairerAlternative(r.gender, cur, opts) : null; // 女性のお客様で、より担当の少ない空き営業がいれば知らせる
   const label = (o) => `${pickable.includes(o) && metric(o, r.gender) === fewest ? '⭐ ' : ''}${o.user.name}（${o.rank ?? '-'}）今月 ${statLabel(o.stats, r.gender)}${o.free || o.current ? '' : o.absent ? '　× 欠勤' : '　× 予定が重なる'}`;
   return `<select class="inp !w-auto" data-reassign="${r.id}" title="担当の営業を変更できます（⭐＝今月の担当が最も少ない人。欠勤・予定が重なる営業は選べません）">${opts.map((o) => `<option value="${o.user.id}" ${o.current ? 'selected' : ''} ${o.free || o.current ? '' : 'disabled'}>${esc(label(o))}</option>`).join('')}</select>
-    ${cur ? `<div class="mt-0.5 text-xs text-slate-600">${rankBadge(cur.rank)} 今月 ${statLabel(cur.stats, r.gender)}件</div>` : ''}
+    ${cur ? `<div class="mt-0.5 flex items-center gap-1 text-xs text-slate-600">${avatarHtml(cur.user, 20)}${rankBadge(cur.rank)} 今月 ${statLabel(cur.stats, r.gender)}件</div>` : ''}
     ${fairer ? `<div class="mt-0.5 text-xs text-rose-700">⚖ <b>${esc(fairer.user.name)}</b>の方が女性担当が少ない（${fairer.stats.female}件／選択中 ${cur.stats.female}件）</div>` : ''}`;
 }
 

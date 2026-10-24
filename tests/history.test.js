@@ -17,3 +17,11 @@ test('実績がない番号は0回。電話番号が複数でも、重複して�
   assert.equal(purchaseSummary(['080-8901-2345', '080-8901-2345']).count, 3);
   assert.equal(purchaseSummary(['080-8901-2345', '080-5678-9012']).count, 4); // 別の番号の実績は合算する
 });
+
+test('音声入力デモの山田 花子は、過去に3回の買取実績がある', async () => {
+  const { historyCustomers } = await import('../src/customerHistory.js');
+  const s = purchaseSummary(['090-2468-1357']);
+  assert.deepEqual([s.count, s.total, s.latest.total], [3, 185000 + 420000 + 95000, 185000]);
+  const c = historyCustomers().find((x) => x.phone === '090-2468-1357');
+  assert.equal(c.name, '山田 花子');
+});

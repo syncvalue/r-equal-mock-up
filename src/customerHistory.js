@@ -6,6 +6,13 @@ const at = (date) => new Date(`${date}T10:00:00`).getTime();
 
 // 電話番号をキーにした、過去のご利用（ダミー）。評価は、営業が記録した「お客様の評価」と同じ項目
 const SEED = {
+  // 音声入力デモで受電するお客様（山田 花子）。過去に3回の買取実績がある見本
+  '090-2468-1357': {
+    customer: { name: '山田 花子', kana: 'ヤマダ ハナコ', zip: '545-0052', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3', occupation: '主婦', birth: '1964-02-11' },
+    visits: [{ at: at('2026-08-03'), items: 'ブランドバッグ', total: 185000 }, { at: at('2026-04-12'), items: '腕時計', total: 420000 }, { at: at('2025-11-20'), items: '貴金属', total: 95000 }],
+    evals: [{ savedAt: at('2026-08-03'), by: '営業 佐々木 美咲', overall: 4, attitude: '良好', repeat: '高い', wealth: '普通', timing: '3か月以内',
+      cats: ['ブランドバッグ', '腕時計'], flags: ['紹介が見込める'], memo: 'ご主人の同意を得てから売却される。次は着物も見てほしいとのこと。' }],
+  },
   '080-2345-6789': {
     visits: [{ at: at('2026-07-14'), items: 'ジュエリー', total: 185000 }, { at: at('2026-03-02'), items: '貴金属', total: 92000 }],
     evals: [{ savedAt: at('2026-07-14'), by: '営業 鈴木 一郎', overall: 5, attitude: '良好', repeat: '高い', wealth: '高そう', timing: '3か月以内',
@@ -22,6 +29,9 @@ const SEED = {
       cats: ['ブランドバッグ', 'ジュエリー・貴金属'], flags: ['家族の同意が必要'], memo: 'ご主人の同意が必要なので、事前にご在宅を確認する。' }],
   },
 };
+
+// 履歴にお客様の情報（氏名・住所など）を持つ人。コールセンターが、電話番号から「過去にご利用あり」を出すのに使う
+export const historyCustomers = () => Object.entries(SEED).filter(([, v]) => v.customer).map(([phone, v]) => ({ ...v.customer, phone }));
 
 // 買取の実績のまとめ（コールセンターの受電時に見せる）。電話番号（複数可）に当たる、過去の買取を合わせる
 export function purchaseSummary(phones) {

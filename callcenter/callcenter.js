@@ -8,9 +8,10 @@ import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
 import { OPERATORS, CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
+import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
 import { dispatcherHtml } from './dispatcherView.js';
-import { purchaseSummary } from '../src/customerHistory.js';
+import { callHistory } from '../src/callHistory.js';
+import { purchaseSummary, historyCustomers } from '../src/customerHistory.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
@@ -46,6 +47,7 @@ let staffOpen = false;
 let calOnlyFree = false; // 日別表示で、希望の時間に空いている営業だけを出す
 let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別（営業ごとの列）
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
+let callLogOpen = false; // 受電履歴を開いているか
 let editBy = null; // 変更を始めた人（オペレーター／配車係）
 let editId = null; // 受付済みの予約の日時を変更しているとき、その予約
 let cancelId = null; // 取消の確認を出している予約
@@ -66,7 +68,7 @@ function findPast(f) {
   if (!mine.length) return null;
   const fromEvents = EVENTS.map((e) => e.customer);
   const fromRes = loadReservations().map((r) => r.customer);
-  return [...fromRes, ...fromEvents].find((c) => [c.phone, c.phone2].some((p) => mine.includes(digits(p)))) ?? null;
+  return [...fromRes, ...fromEvents, ...historyCustomers()].find((c) => [c.phone, c.phone2].some((p) => mine.includes(digits(p)))) ?? null;
 }
 
 function compute() {
@@ -142,7 +144,7 @@ function confirmReservation() {
   const center = locateAddress(form.address, area) ?? area; // 予定の地図表示は、住所の概算位置で代用（モック）
   const record = {
     id: `RS-${Date.now().toString(36).toUpperCase()}`, receptionNo: nextReceptionNo(reservations), receivedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }),
-    status: 'tentative', operator, userId: x.selected.user.id, apType: past ? '再' : '新',
+    receivedTs: Date.now(), status: 'tentative', operator, userId: x.selected.user.id, apType: past ? '再' : '新',
     ...buildRecordFields(form, { area, pos: center }),
   };
   addReservation(record);
@@ -263,7 +265,8 @@ function renderDispatch() {
 function renderHint() {
   const el = $('#hint');
   const past = findPast(form);
-  if (el) el.innerHTML = hintHtml(past, quoted, past ? purchaseSummary([form.phone, form.phone2, past.phone, past.phone2]) : null) + openResHtml(openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())));
+  const calls = callHistory([form.phone, form.phone2, past?.phone, past?.phone2], loadReservations());
+  if (el) el.innerHTML = hintHtml(past, quoted, past ? purchaseSummary([form.phone, form.phone2, past.phone, past.phone2]) : null) + callLogHtml(calls, callLogOpen) + openResHtml(openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())));
 }
 
 // 左に入力欄（①お客様 → ②日時 → ③ヒアリングを縦一列）、右に配車。それぞれ、はみ出す場合だけ縦にスクロールする
@@ -321,7 +324,8 @@ function onField(e) {
   if (k === 'contactFrom' || k === 'contactTo') { form = syncContact(form, k); updateChecklist(); refresh(); return; }
   if (k === 'phone' || k === 'phone2') quoted = false;
   if (k === 'phone2' && e.target.value && form.phone2None) { form = { ...form, phone2None: false }; document.querySelector('[data-phone2none]')?.classList.remove('on'); } // 番号を入れたら、「なし」は外す
-  if (k === 'age' && e.target.value) { form = { ...form, ageEst: '' }; document.querySelectorAll('[data-ageest]').forEach((el) => el.classList.remove('on')); } // 年齢を聞けたら、推測の年代は外す
+  if (k === 'age' && e.target.value) { form = { ...form, ageEst: '' }; const sel = document.querySelector('[data-f="ageEst"]'); if (sel) sel.value = ''; } // 年齢を聞けたら、推測の年代は外す
+  if (k === 'ageEst' && e.target.value) { form = { ...form, age: '' }; refresh(); return; } // 年代を選んだら、年齢の欄は空にする
   if (k === 'flyerId') { form = withFlyer(form, e.target.value); renderFlyerResult(); renderDispatch(); return; }
   if (k === 'date' && e.target.value) weekStart = weekStartFor(e.target.value);
   if (LIVE.has(k)) renderDispatch(); else updateChecklist();
@@ -398,7 +402,6 @@ document.addEventListener('click', (e) => {
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
   else if ('phone2none' in d) { form = { ...form, phone2None: !form.phone2None, phone2: form.phone2None ? form.phone2 : '' }; refresh(); }
   else if ('genderest' in d) { form = { ...form, genderEst: !form.genderEst }; refresh(); }
-  else if (d.ageest) { form = { ...form, ageEst: form.ageEst === d.ageest ? '' : d.ageest, age: '' }; refresh(); }
   else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi), flyerId: '' }; refresh(); }
   else if (d.cat) { form = { ...form, cats: form.cats.includes(d.cat) ? form.cats.filter((c) => c !== d.cat) : [...form.cats, d.cat] }; refresh(); }
   else if (d.yn) { const [k, v] = d.yn.split('|'); const on = form[k] !== v; form = { ...form, [k]: on ? v : '', ...(k === 'companion' && !(on && v === 'あり') ? { companionNote: '' } : {}) }; refresh(); }
@@ -433,6 +436,7 @@ document.addEventListener('click', (e) => {
   }
   else if ('confirm' in d) confirmReservation();
   else if ('new' in d) { editId = null; stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
+  else if ('calllog' in d) { callLogOpen = !callLogOpen; renderHint(); }
   else if (d.chg) startEdit(d.chg);
   else if ('editcancel' in d) { editId = null; form = blankForm(); weekStart = addDays(0); render(); }
   else if ('saveedit' in d) saveEdit();

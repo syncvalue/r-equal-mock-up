@@ -6,7 +6,7 @@ import { flyerOf } from '../callcenter/master.js';
 const TODAY = '2026-10-24';
 // オペレーターが手で入力した状態（音声入力を使わない）
 const typed = {
-  phone: '090-1234-5678', phone2: '', lastName: '山田', firstName: '花子', lastKana: '', firstKana: '', gender: 'f', genderEst: false, age: '62', ageEst: '', phone2None: false, zip: '', address: '大阪府大阪市阿倍野区1-2-3', areaId: 'osaka', areaAddr: '大阪府大阪市阿倍野区1-2-3',
+  phone: '090-1234-5678', phone2: '', lastName: '山田', firstName: '花子', lastKana: 'ヤマダ', firstKana: 'ハナコ', gender: 'f', genderEst: false, age: '62', ageEst: '', phone2None: false, zip: '', address: '大阪府大阪市阿倍野区1-2-3', areaId: 'osaka', areaAddr: '大阪府大阪市阿倍野区1-2-3',
   chirashi: flyerOf('N1019').chirashi, flyerId: 'N1019', cats: ['腕時計'], mainItems: { 背広: 0, 婦人服: 0, 婦人靴: 0, 紳士靴: 0 }, wants: '', attendee: 'ご本人', large: '', notes: '', companion: '', companionNote: '',
   parking: '', nameplate: '', contactFrom: '', contactTo: '', date: '2026-10-25', start: 600, dur: 90,
 };
@@ -17,8 +17,8 @@ test('手入力だけで、必須項目がそろえば確定できる（備考�
 });
 
 test('足りない項目を、それぞれ指摘する', () => {
-  const blank = { ...typed, phone: '', lastName: ' ', firstName: '', age: '', ageEst: '', gender: '', address: '', chirashi: null, flyerId: '', cats: [], wants: '', date: '' };
-  assert.deepEqual(missingFields(blank, { ...ready, areaConfirmed: false, selected: null }), ['電話番号', 'お名前（姓・名）', '性別', '年齢（聞けない場合は、推測の年代）', '訪問先の住所', '来電のきっかけ（チラシのID）', '売りたいもの', '希望日（今日以降）', '担当の営業']);
+  const blank = { ...typed, phone: '', lastName: ' ', firstName: '', lastKana: '', firstKana: ' ', age: '', ageEst: '', gender: '', address: '', chirashi: null, flyerId: '', cats: [], wants: '', date: '' };
+  assert.deepEqual(missingFields(blank, { ...ready, areaConfirmed: false, selected: null }), ['電話番号', 'お名前（姓・名）', 'フリガナ（セイ・メイ）', '性別', '年齢（聞けない場合は、推測の年代）', '訪問先の住所', '来電のきっかけ（チラシのID）', '売りたいもの', '希望日（今日以降）', '担当の営業']);
 });
 
 test('エリア未確認・存在しないチラシID・過去の日付', () => {
@@ -52,7 +52,7 @@ test('聞き取りの確認: 何も聞いていなければ全て未、「なし
   assert.deepEqual([asked.large, asked.notes, asked.parking, asked.companion, asked.contact, asked.attendee, asked.when, asked.nameplate], [true, true, true, true, true, true, true, false]);
   assert.equal(st({ ...blank, chirashi: 2 }).flyer, true);
   assert.equal(st({ ...blank, mainItems: { 背広: 6 } }).wants, true);
-  assert.equal(hearingChecklist(blank).filter((x) => x.required).length, 7); // 必須は、電話・名前・性別・年齢・住所・きっかけ・売りたいもの
+  assert.equal(hearingChecklist(blank).filter((x) => x.required).length, 8); // 必須は、電話・名前・フリガナ・性別・年齢・住所・きっかけ・売りたいもの
 });
 
 test('前日確認の連絡時間の記録', async () => {
