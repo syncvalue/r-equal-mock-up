@@ -170,7 +170,7 @@ export function extractFromUtterance(text, form, now = new Date(), dur = 90) {
     if (confirmCall) {
       const r = contactRangeOf(s);
       if (r) [patch.contactFrom, patch.contactTo] = r;
-      else if (/いつでも|指定(は)?(ありません|なし)/.test(s)) { patch.contactFrom = ''; patch.contactTo = ''; }
+      else if (/いつでも|指定(は)?(ありません|なし)/.test(s)) { patch.contactFrom = 'none'; patch.contactTo = 'none'; }
     }
     const large = s.match(/ゴルフクラブ|ゴルフ|ピアノ|家具|大型/);
     if (large) patch.large = `${large[0]}も売れるか質問あり`;

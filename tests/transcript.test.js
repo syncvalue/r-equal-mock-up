@@ -116,7 +116,7 @@ test('備考・補足: ご同席者・駐車スペース・表札・前日確認
   assert.equal(ex('近くのコインパーキングを使ってください。', blank, NOW).parking, 'なし');
   assert.deepEqual(contactRangeOf('午前10時半から12時'), ['10:30', '12:00']);
   assert.deepEqual(contactRangeOf('7時〜9時'), ['19:00', '20:00']); // 午後とみなし、21:00は20:00に収める
-  assert.equal(ex('前日はいつでも大丈夫です。', { ...blank }, NOW).contactFrom, '');
+  assert.equal(ex('前日はいつでも大丈夫です。', { ...blank }, NOW).contactFrom, 'none'); // 聞いて、指定なし
 });
 
 test('同席者が誰かも拾う', () => {

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { missingFields, companionText, wantsText, hasWants, mainSummary } from '../callcenter/intake.js';
+import { missingFields, companionText, wantsText, hasWants, mainSummary, hearingChecklist } from '../callcenter/intake.js';
 import { flyerOf } from '../callcenter/master.js';
 
 const TODAY = '2026-10-24';
@@ -42,4 +42,20 @@ test('売りたいもの: メイン商材の数量・その他の商材・詳細
   assert.equal(wantsText(f), '背広 1〜5点、婦人服 11〜15点、紳士靴 100点以上 ／ 腕時計・ブランドバッグ ／ ロレックス 2本');
   assert.equal(wantsText({ ...typed, cats: [], wants: '' }), '');
   assert.equal(hasWants({ ...typed, cats: [], wants: '' }), false);
+});
+
+test('聞き取りの確認: 何も聞いていなければ全て未、「なし」と聞いた場合も聞いた扱い', () => {
+  const blank = { phone: '', name: '', kana: '', gender: '', zip: '', address: '', chirashi: null, flyerId: '', cats: [], mainItems: { 背広: 0 }, wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', parking: '', nameplate: '', contactFrom: '', contactTo: '' };
+  const st = (f) => Object.fromEntries(hearingChecklist(f).map((x) => [x.key, x.asked]));
+  assert.ok(Object.values(st(blank)).every((v) => v === false));
+  const asked = st({ ...blank, large: 'なし', notes: '特になし', parking: 'なし', companion: 'なし', contactFrom: 'none', contactTo: 'none', attendee: 'ご本人', whenAsked: true });
+  assert.deepEqual([asked.large, asked.notes, asked.parking, asked.companion, asked.contact, asked.attendee, asked.when, asked.nameplate], [true, true, true, true, true, true, true, false]);
+  assert.equal(st({ ...blank, chirashi: 2 }).flyer, true);
+  assert.equal(st({ ...blank, mainItems: { 背広: 6 } }).wants, true);
+  assert.equal(hearingChecklist(blank).filter((x) => x.required).length, 6); // 必須は、電話・名前・性別・住所・きっかけ・売りたいもの
+});
+
+test('前日確認の連絡時間の記録', async () => {
+  const { contactText } = await import('../callcenter/master.js');
+  assert.deepEqual([contactText('', ''), contactText('none', 'none'), contactText('10:00', '12:00'), contactText('10:00', '')], ['未確認', '指定なし', '10:00〜12:00', '10:00〜']);
 });

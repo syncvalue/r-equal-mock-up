@@ -40,4 +40,6 @@ export const ATTENDEES = ['ご本人', 'ご主人', '奥様', 'ご家族', 'そ�
 // 備考・補足（ご同席者・駐車スペース・表札は、あり／なし。前日確認の連絡時間は、30分刻みで範囲を選ぶ）
 export const YESNO = ['あり', 'なし'];
 export const CONTACT_TIMES = Array.from({ length: 23 }, (_, i) => `${String(9 + Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`);
-export const contactText = (from, to) => (!from && !to ? '指定なし' : `${from || ''}〜${to || ''}`);
+// 前日確認の連絡時間: '' は未確認、'none' は「指定なし」と聞いた状態（どちらかが none なら、指定なし）
+export const NO_PREFERENCE = 'none';
+export const contactText = (from, to) => (from === NO_PREFERENCE || to === NO_PREFERENCE ? '指定なし' : !from && !to ? '未確認' : `${from || ''}〜${to || ''}`);

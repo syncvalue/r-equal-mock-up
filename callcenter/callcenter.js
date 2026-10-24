@@ -8,8 +8,8 @@ import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
 import { OPERATORS, blankMain, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml, demoWindowHtml, dateLabel, flyerResultHtml } from './view.js';
-import { missingFields, companionText, wantsText } from './intake.js';
+import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, dateLabel, flyerResultHtml } from './view.js';
+import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
 const $ = (s) => document.querySelector(s);
@@ -27,7 +27,7 @@ const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); c
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
 const blankForm = () => ({
-  phone: '', name: '', kana: '', gender: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: 'ご本人', large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
+  phone: '', name: '', kana: '', gender: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
   date: addDays(1), start: 10 * 60, dur: 90, userId: null,
 });
 
@@ -75,6 +75,7 @@ function compute() {
   return {
     area, proposal, confirmed, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
+    unasked: hearingChecklist(form).filter((x) => !x.asked && !REQUIRED_CHECKS.has(x.key)).map((x) => x.label),
   };
 }
 
@@ -90,8 +91,8 @@ function confirmReservation() {
     operator, userId: x.selected.user.id, date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), apType: past ? '再' : '新',
     gender: form.gender, areaId: area.id, lat: center.lat, lng: center.lng, flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyerOf(form.flyerId)?.id),
     hearing: {
-      trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee, wants: wantsText(form), mainItems: { ...form.mainItems },
-      large: form.large.trim() || 'なし', notes: form.notes.trim() || '特になし',
+      trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee || '未確認', wants: wantsText(form), mainItems: { ...form.mainItems },
+      large: form.large.trim() || '未確認', notes: form.notes.trim() || '未確認',
       companion: companionText(form), parking: form.parking || '未確認', nameplate: form.nameplate || '未確認', contact: contactText(form.contactFrom, form.contactTo),
     },
     customer: { name: form.name.trim(), kana: form.kana.trim(), phone: form.phone.trim(), zip: form.zip.trim(), address: form.address.trim() },
@@ -122,6 +123,7 @@ function addUtterance(who, text) {
       if (patch.phone) quoted = false;
       if (patch.flyerId) form = withFlyer(form, patch.flyerId);
       if (patch.date) weekStart = weekStartFor(patch.date);
+      if (patch.date || patch.start !== undefined) form = { ...form, whenAsked: true };
     }
   }
   lines = [...lines, { who, text, got }];
@@ -204,6 +206,7 @@ function renderDispatch() {
   if (!el) return;
   el.innerHTML = done ? doneHtml(done) : dispatchHtml(compute());
   renderHint();
+  updateChecklist();
 }
 function renderHint() {
   const el = $('#hint');
@@ -214,7 +217,7 @@ function renderHint() {
 function renderNew() {
   return `
   <div class="grid gap-3 p-3 h-[calc(100vh-52px)] grid-rows-[minmax(0,1fr)] grid-cols-[minmax(24rem,28rem)_1fr]">
-    <div id="form" class="flex flex-col gap-2 overflow-y-auto pr-1 ${done ? 'dim' : ''}">${formHtml(form, ymdOf(new Date()))}</div>
+    <div id="form" class="flex flex-col gap-2 overflow-y-auto pr-1 ${done ? 'dim' : ''}">${formHtml(form, ymdOf(new Date()), hearingChecklist(form))}</div>
     <div class="overflow-y-auto" id="dispatch"></div>
   </div>`;
 }
@@ -248,14 +251,16 @@ function onField(e) {
   const k = e.target.dataset.f;
   if (!k) return;
   form = { ...form, [k]: NUMERIC.has(k) ? Number(e.target.value) : e.target.value };
+  if (k === 'date' || k === 'start') form = { ...form, whenAsked: true };
+  if (k === 'contactFrom' || k === 'contactTo') { form = syncContact(form, k); updateChecklist(); refresh(); return; }
   if (k === 'phone') quoted = false;
   if (k === 'flyerId') { form = withFlyer(form, e.target.value); renderFlyerResult(); renderDispatch(); return; }
   if (k === 'date' && e.target.value) weekStart = weekStartFor(e.target.value);
-  if (LIVE.has(k)) renderDispatch();
+  if (LIVE.has(k)) renderDispatch(); else updateChecklist();
 }
 document.addEventListener('input', onField);
 document.addEventListener('change', (e) => {
-  if (e.target.matches('[data-main]')) { form = { ...form, mainItems: { ...form.mainItems, [e.target.dataset.main]: Number(e.target.value) } }; e.target.classList.toggle('sel', Number(e.target.value) > 0); return; }
+  if (e.target.matches('[data-main]')) { form = { ...form, mainItems: { ...form.mainItems, [e.target.dataset.main]: Number(e.target.value) } }; e.target.classList.toggle('sel', Number(e.target.value) > 0); updateChecklist(); return; }
   if (e.target.matches('[data-operator]')) { operator = e.target.value; setPref('rq-mock-cc-operator', operator); return; }
   if (e.target.matches('[data-bdate-input]')) { boardDate = e.target.value || boardDate; render(); return; }
   onField(e);
@@ -270,6 +275,13 @@ document.addEventListener('submit', (e) => {
   input.value = '';
   addUtterance('cu', text);
 });
+
+// 前日確認の連絡時間: 「指定なし」を選んだら、両方を指定なしにする。時刻を選んだら、もう一方の指定なしは外す
+function syncContact(f, k) {
+  const other = k === 'contactFrom' ? 'contactTo' : 'contactFrom';
+  if (f[k] === 'none') return { ...f, [other]: 'none' };
+  return f[other] === 'none' ? { ...f, [other]: '' } : f;
+}
 
 // チラシのIDが入力されたら、きっかけを自動で決める（IDがチラシに当たらなければ、チラシのきっかけは外す）
 function withFlyer(f, id) {
@@ -296,7 +308,15 @@ document.addEventListener('pointermove', (e) => {
 });
 document.addEventListener('pointerup', () => { drag = null; });
 
-const refresh = () => { $('#form').innerHTML = formHtml(form, ymdOf(new Date())); renderDispatch(); };
+const refresh = () => { $('#form').innerHTML = formHtml(form, ymdOf(new Date()), hearingChecklist(form)); renderDispatch(); };
+
+// 聞き取り状況（✔聞いた／未）を、入力に合わせて更新する。入力欄は作り直さない（入力中の文字を壊さない）
+function updateChecklist() {
+  const list = hearingChecklist(form);
+  const panel = $('#checklist');
+  if (panel) panel.innerHTML = checklistHtml(list);
+  list.forEach((x) => document.querySelectorAll(`[data-badge="${x.key}"]`).forEach((el) => { el.innerHTML = badgeHtml(x.asked); }));
+}
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button, [data-pick]');
   if (!t) return;
@@ -309,7 +329,13 @@ document.addEventListener('click', (e) => {
   else if (d.cat) { form = { ...form, cats: form.cats.includes(d.cat) ? form.cats.filter((c) => c !== d.cat) : [...form.cats, d.cat] }; refresh(); }
   else if (d.yn) { const [k, v] = d.yn.split('|'); const on = form[k] !== v; form = { ...form, [k]: on ? v : '', ...(k === 'companion' && !(on && v === 'あり') ? { companionNote: '' } : {}) }; refresh(); }
   else if (d.dur) { form = { ...form, dur: Number(d.dur) }; refresh(); }
-  else if (d.cell) { const [date, start] = d.cell.split('|'); form = { ...form, date, start: Number(start) }; refresh(); }
+  else if (d.cell) { const [date, start] = d.cell.split('|'); form = { ...form, date, start: Number(start), whenAsked: true }; refresh(); }
+  else if (d.none) { form = { ...form, [d.none]: d.none === 'notes' ? '特になし' : 'なし' }; refresh(); }
+  else if (d.goto) {
+    const el = document.querySelector(`[data-badge="${d.goto}"]`);
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el?.closest('div, label')?.querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
+  }
   else if (d.week) { weekStart = shiftWeek(Number(d.week)); renderDispatch(); }
   else if (d.pick) { form = { ...form, userId: d.pick }; renderDispatch(); }
   else if ('toggleOthers' in d) { showOthers = !showOthers; renderDispatch(); }

@@ -26,3 +26,23 @@ export const mainSummary = (form) => MAIN_ITEMS.filter((k) => form.mainItems?.[k
 export const hasWants = (form) => mainSummary(form).length > 0 || form.cats.length > 0 || form.wants.trim() !== '';
 // 営業のタブレットに出す文字: メイン商材（数量）／その他の商材／詳細
 export const wantsText = (form) => [mainSummary(form).join('、'), form.cats.join('・'), form.wants.trim()].filter(Boolean).join(' ／ ');
+
+// ---- 聞き取りの確認（聞き忘れ防止） ---------------------------------------------------------
+// 項目ごとに「聞いた／まだ聞いていない」を返す。「なし」「特になし」と聞いた場合も、聞いた扱い。
+export const CHECK_ITEMS = [
+  ['phone', '電話番号'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['zip', '郵便番号'], ['address', '住所'],
+  ['when', '希望日時'], ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'],
+  ['large', '大型品'], ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
+];
+// 確定に必須の項目（足りないと確定できない）。それ以外は、聞き忘れの注意だけ出す
+export const REQUIRED_CHECKS = new Set(['phone', 'name', 'gender', 'address', 'flyer', 'wants']);
+
+export function hearingChecklist(form) {
+  const filled = (v) => String(v ?? '').trim() !== '';
+  const asked = {
+    phone: /^0\d{9,10}$/.test(digits(form.phone)), name: filled(form.name), kana: filled(form.kana), gender: filled(form.gender), zip: filled(form.zip), address: filled(form.address),
+    when: Boolean(form.whenAsked), flyer: form.chirashi !== null, wants: hasWants(form), attendee: filled(form.attendee), companion: filled(form.companion),
+    large: filled(form.large), parking: filled(form.parking), nameplate: filled(form.nameplate), contact: filled(form.contactFrom) || filled(form.contactTo), notes: filled(form.notes),
+  };
+  return CHECK_ITEMS.map(([key, label]) => ({ key, label, asked: asked[key], required: REQUIRED_CHECKS.has(key) }));
+}
