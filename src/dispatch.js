@@ -313,20 +313,6 @@ export function salesDetail({ userId, date, start, dur, reservations, here = nul
   };
 }
 
-// 配車係が、仮確定の担当を確認・変更するための候補。その予約自身は、予定の重なりから除く
-export function dispatchOptions(rec, reservations, now = new Date()) {
-  const others = reservations.filter((r) => r.id !== rec.id);
-  const start = toMin(rec.start);
-  const end = toMin(rec.end);
-  const stats = fairnessStats(reservations, now);
-  return USERS.filter((u) => !rec.areaId || areaOfUser(u.id) === rec.areaId).map((user) => {
-    const att = attendanceOf(user.id, rec.date, now);
-    const absent = att.kind === 'absent';
-    const conflict = conflictOf(busyBlocks(user.id, rec.date, others, now), start, end, att);
-    return { user, rank: rankOfUser(user.id), att, absent, free: !conflict, conflict, current: user.id === rec.userId, stats: stats[user.id] };
-  });
-}
-
 // 配車係が、予約を別の営業・別の時刻に動かせるか。動かす予約自身は、重なりに数えない。同じ日の中で動かす
 export function canPlace(rec, userId, start, reservations, now = new Date()) {
   const end = start + (toMin(rec.end) - toMin(rec.start));

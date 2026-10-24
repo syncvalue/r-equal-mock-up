@@ -53,7 +53,6 @@ let editId = null; // 受付済みの予約の日時を変更しているとき�
 let staffInfoId = null; // 顔写真を押して、詳細をモーダルで見ている営業
 let cancelId = null; // 取消の確認を出している予約
 let cancelReason = CANCEL_REASONS[0];
-let dispView = 'board'; // 配車確定の表示: board=カレンダー / list=一覧
 let boardArea = 'osaka';
 let boardSel = null; // カレンダーで選んでいる予約
 let dispDate = addDays(2); // 配車係が確定する日（主に翌々日の予定を、毎日確定する）
@@ -312,7 +311,7 @@ function render() {
       <a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
-  ${tab === 'new' ? renderNew() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), view: dispView, area: boardArea, selId: boardSel })}
+  ${tab === 'new' ? renderNew() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
   ${staffInfoId && tab === 'dispatch' ? staffModalHtml({ userId: staffInfoId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
   ${cancelId ? cancelModalHtml(loadReservations().find((r) => r.id === cancelId), cancelReason) : ''}
@@ -344,7 +343,6 @@ document.addEventListener('change', (e) => {
   if (e.target.matches('[data-main]')) { form = { ...form, mainItems: { ...form.mainItems, [e.target.dataset.main]: Number(e.target.value) } }; e.target.classList.toggle('sel', Number(e.target.value) > 0); updateChecklist(); return; }
   if (e.target.matches('[data-operator]')) { operator = e.target.value; setPref('rq-mock-cc-operator', operator); return; }
   if (e.target.matches('[data-cancelreason]')) { cancelReason = e.target.value; return; }
-  if (e.target.matches('[data-reassign]')) { updateReservation(e.target.dataset.reassign, { userId: e.target.value }); render(); return; }
   if (e.target.matches('[data-ddate-input]')) { dispDate = e.target.value || dispDate; render(); return; }
   onField(e);
 });
@@ -460,7 +458,6 @@ document.addEventListener('click', (e) => {
   }
   else if (d.staffinfo) { staffInfoId = d.staffinfo; render(); }
   else if ('staffclose' in d) { staffInfoId = null; render(); }
-  else if (d.dview) { dispView = d.dview; render(); }
   else if (d.barea) { boardArea = d.barea; render(); }
   else if (d.bsel) { selectBlock(d.bsel, t); render(); }
   else if (d.ack) { acknowledgeReservation(d.ack); render(); }
