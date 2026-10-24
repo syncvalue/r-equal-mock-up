@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { USERS } from '../src/dashboard.js';
-import { salesDetail, RANKS, rankOfUser, haversineKm, locateAddress, travelAround, areaById, fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
+import { dispatchOptions, salesDetail, RANKS, rankOfUser, haversineKm, locateAddress, travelAround, areaById, fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
 import { nextReceptionNo, dayOffset, reservationToEvent } from '../src/reservations.js';
 
 const NOW = new Date(2026, 9, 21, 9, 0); // 2026-10-21
@@ -215,4 +215,22 @@ test('営業の詳細: 今月の実績・担当件数・その日の予定と、
   assert.ok(d.windows.every((w) => w.from >= 540)); // 営業時間内
   assert.ok(!d.windows.some((w) => w.from <= 600 && w.to >= 600)); // 10:00開始は、予定と重なるので含まない
   assert.equal(salesDetail({ userId: 'zzz', date: '2026-10-21', start: 600, dur: 60, reservations: [], now: NOW }), null);
+});
+
+test('配車係の担当変更: その予約自身は重なりに数えず、他の予約と重なる営業は不可になる', () => {
+  const a = res({ id: 'a', userId: 'u09', date: '2026-10-28', start: '13:00', end: '14:30', areaId: 'osaka', status: 'tentative' });
+  const b = res({ id: 'b', userId: 'u02', date: '2026-10-28', start: '13:30', end: '15:00', areaId: 'osaka', status: 'tentative' });
+  const opts = dispatchOptions(a, [a, b], NOW);
+  const byId = Object.fromEntries(opts.map((o) => [o.user.id, o]));
+  assert.equal(opts.length, 10); // 大阪エリアの営業
+  assert.equal(byId.u09.free, true); // 自分自身の予約とは重ならない
+  assert.equal(byId.u09.current, true);
+  assert.equal(byId.u02.free, false); // b と重なる
+});
+
+test('仮確定の予約も、営業の空きを埋める（二重に取らない）', () => {
+  const t = res({ userId: 'u04', date: '2026-10-25', start: '10:00', end: '11:00', status: 'tentative' });
+  const blocks = busyBlocks('u04', '2026-10-25', [t], NOW);
+  assert.equal(blocks.find((x) => x.source === 'reservation').status, 'tentative');
+  assert.equal(busyBlocks('u04', '2026-10-25', [{ ...t, status: undefined }], NOW).find((x) => x.source === 'reservation').status, 'confirmed'); // 古い記録は確定扱い
 });

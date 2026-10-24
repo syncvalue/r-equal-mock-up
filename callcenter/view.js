@@ -1,6 +1,7 @@
 // コールセンター画面の描画（状態 → HTML）。イベント処理は callcenter.js。
 import { esc } from '../src/format.js';
 import { USERS, isLeader } from '../src/dashboard.js';
+import { isTentative } from '../src/reservations.js';
 import { AREAS, areaById, areaOfUser, busyBlocks, conflictOf, conflictText, rankOfUser, WORK_START, WORK_END, DURATIONS, SLOT_STEP } from '../src/dispatch.js';
 import { minToHHMM } from '../src/reservations.js';
 import { CHIRASHI, CATEGORIES, AGE_BANDS, MAIN_ITEMS, MAIN_BANDS, ATTENDEES, YESNO, CONTACT_TIMES, flyerOf, isFlyerIndex } from './master.js';
@@ -13,12 +14,15 @@ const GENDER = { f: '女性', m: '男性' };
 export const genderLabel = (g) => GENDER[g] ?? '';
 
 // ---- 時間帯のバー ------------------------------------------------------------------
-const SRC = { event: ['bg-slate-500', '営業の訪問予定'], dummy: ['bg-slate-400', '営業の訪問予定'], reservation: ['bg-indigo-600', 'コールセンターで確定した受付'] };
+const SRC = { event: ['bg-slate-500', '営業の訪問予定'], dummy: ['bg-slate-400', '営業の訪問予定'], reservation: ['bg-indigo-700', 'コールセンターの受付'] };
+// コールセンターの受付は、仮確定が薄い青、配車係が確定したものが濃い青
+const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? 'bg-indigo-400' : SRC[b.source][0]);
+const blockKind = (b) => (b.source === 'reservation' ? `コールセンターの受付（${b.status === 'tentative' ? '仮確定' : '確定済'}）` : SRC[b.source][1]);
 
-// 帯の色の意味（日別表示・担当候補・空き状況の一覧で共通）。灰=営業が元から入れている訪問予定、青=コールセンターで確定した受付
+// 帯の色の意味（日別表示・担当候補・空き状況の一覧で共通）。灰=営業が元から入れている訪問予定、青=コールセンターの受付（薄い=仮確定、濃い=配車係が確定）
 export const legendHtml = ({ want = true } = {}) => `<span class="font-normal text-[11px] text-slate-600 flex flex-wrap items-center gap-x-3 gap-y-0.5">
   <span><i class="inline-block w-3 h-2.5 rounded-sm bg-slate-400 align-middle"></i> 灰：営業の訪問予定</span>
-  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-600 align-middle"></i> 青：コールセンターで確定した受付</span>
+  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-400 align-middle"></i><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-700 align-middle"></i> 青：コールセンターの受付（薄い＝仮確定／濃い＝確定済）</span>
   ${want ? '<span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-emerald-600 bg-emerald-400/25 align-middle"></i> 緑：希望時間帯（空き）</span><span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-rose-500 bg-rose-400/25 align-middle"></i> 赤：予定と重なる</span>' : ''}</span>`;
 
 // 営業のランク（S が最上位）
@@ -52,7 +56,7 @@ export const axis = () => `<div class="flex">${Array.from({ length: (WORK_END - 
 
 export function strip(blocks, req = null, { labels = false } = {}) {
   const lines = Array.from({ length: 9 }, (_, i) => `<div class="absolute top-0 bottom-0 border-l border-slate-300/60" style="left:${(i + 1) * 10}%"></div>`).join('');
-  const bars = blocks.map((b) => `<div class="absolute top-0 bottom-0 ${SRC[b.source][0]} text-white text-[10px] leading-6 px-1 truncate" style="left:${pct(b.start)}%;width:${pct(b.end) - pct(b.start)}%" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}（${SRC[b.source][1]}）`)}">${labels ? esc(b.label) : ''}</div>`).join('');
+  const bars = blocks.map((b) => `<div class="absolute top-0 bottom-0 ${blockCls(b)} text-white text-[10px] leading-6 px-1 truncate" style="left:${pct(b.start)}%;width:${pct(b.end) - pct(b.start)}%" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}（${blockKind(b)}）`)}">${labels ? esc(b.label) : ''}</div>`).join('');
   const r = req ? `<div class="absolute top-0.5 bottom-0.5 rounded border-2 ${req.free ? 'border-emerald-500 bg-emerald-400/40' : 'border-rose-500 bg-rose-400/40'}" style="left:${pct(req.start)}%;width:${pct(req.end) - pct(req.start)}%" title="希望の時間帯"></div>` : '';
   return `<div class="relative h-6 rounded bg-slate-100 overflow-hidden">${lines}${bars}${r}</div>`;
 }
@@ -253,7 +257,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
       const free = m + form.dur <= WORK_END && !conflictOf(c.blocks, m, m + form.dur);
       return `<button class="block w-full text-left ${free ? 'hover:bg-emerald-200/70 cursor-pointer' : 'cursor-not-allowed'}" style="height:${DAY_ROW}px" ${free ? `data-dcell="${c.user.id}|${m}" title="${esc(`${c.user.name} ${minToHHMM(m)}〜${minToHHMM(m + form.dur)} で選ぶ`)}"` : 'disabled'}></button>`;
     }).join('');
-    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${SRC[b.source][0]}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${SRC[b.source][1]}）`)}"><b>${b.source === 'reservation' ? '📞受付 ' : ''}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
+    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${blockKind(b)}）`)}"><b>${b.source === 'reservation' ? (b.status === 'tentative' ? '📞仮 ' : '📞確 ') : ''}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
     const sel = c.user.id === selectedId;
     const want = sel ? `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${c.free ? 'border-emerald-600 bg-emerald-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"><span class="absolute -top-px right-0 rounded-bl bg-white/80 px-1 text-[9px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}">希望 ${minToHHMM(form.start)}〜</span></div>` : '';
     return `<div class="relative border-l ${sel ? 'bg-teal-50/60' : ''}" style="height:${h}px;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)">${slots}${blocks}${want}</div>`;
@@ -331,10 +335,10 @@ export function dispatchHtml(x) {
       ${showOthers ? `<div class="space-y-1 mt-1">${ranking.others.map((c) => candidateRow(c, { selectedId, gender: form.gender, showArea: true })).join('')}</div>` : ''}</div>
     ${alt ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-3 py-1.5 text-xs text-rose-800">⚖ <b>${esc(alt.user.name)}</b>の方が女性担当が少ない（${alt.stats.female}件／選択中 ${sel.stats.female}件）</div>` : ''}
     <div class="rounded-lg border-2 border-teal-600 bg-white p-2 space-y-1.5 sticky bottom-0">
-      ${sel ? `<div class="text-sm">担当：<b class="text-base">${esc(sel.user.name)}</b>　${esc(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}　${esc(fullName(form) || 'お客様')} 様（${genderLabel(form.gender) || '性別未選択'}）</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
+      ${sel ? `<div class="text-sm">担当（仮）：<b class="text-base">${esc(sel.user.name)}</b>　${esc(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}　${esc(fullName(form) || 'お客様')} 様（${genderLabel(form.gender) || '性別未選択'}）</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
       ${missing.length ? `<div class="text-xs text-rose-600">未入力：${missing.map(esc).join('、')}</div>` : ''}
       ${unasked.length ? `<div class="text-xs text-amber-800">⚠ 聞き忘れ：${unasked.map(esc).join('、')}</div>` : ''}
-      <button class="b b-pri w-full" data-confirm ${missing.length ? 'disabled' : ''}>訪問を確定する</button>
+      <button class="b b-pri w-full" data-confirm ${missing.length ? 'disabled' : ''} title="オペレーターは仮確定まで。担当の確定は配車係が行います">仮確定する</button>
     </div>
   </div>`;
 }
@@ -343,15 +347,15 @@ export function doneHtml(r) {
   const u = USERS.find((x) => x.id === r.userId);
   return `
   <div class="rounded-lg border-2 border-emerald-500 bg-white p-5 space-y-3">
-    <div class="text-2xl font-bold text-emerald-700">✅ 訪問を確定しました</div>
+    <div class="text-2xl font-bold text-emerald-700">✅ 仮確定しました</div>
     <dl class="text-sm grid grid-cols-[7rem_1fr] gap-y-1">
       <dt class="text-slate-500">受付番号</dt><dd class="font-bold">${esc(r.receptionNo)}</dd>
       <dt class="text-slate-500">訪問日時</dt><dd class="font-bold">${esc(r.date)} ${esc(r.start)}〜${esc(r.end)}</dd>
       <dt class="text-slate-500">お客様</dt><dd class="font-bold">${esc(r.customer.name)} 様（${genderLabel(r.gender)}）　${esc(r.customer.phone)}${r.customer.phone2 ? ` ／ ${esc(r.customer.phone2)}` : ''}</dd>
       <dt class="text-slate-500">訪問先</dt><dd>${esc(r.customer.address)}</dd>
-      <dt class="text-slate-500">担当営業</dt><dd class="font-bold">${esc(u?.name)}（${esc(areaById(r.areaId)?.name ?? '例外対応')}）</dd>
+      <dt class="text-slate-500">担当営業（仮）</dt><dd class="font-bold">${esc(u?.name)}（${esc(areaById(r.areaId)?.name ?? '例外対応')}）</dd>
     </dl>
-    <p class="text-sm text-slate-600">営業のタブレットの予定に追加され、受電時のヒアリング内容も確認できます。お客様には、訪問日時と担当者名をお伝えください。</p>
+    <p class="text-sm text-slate-600">お客様には、<b>訪問日時だけ</b>お伝えください。担当営業は仮の決定のため、お名前は伝えません。配車係が確定すると（主に翌々日の予定を、毎日確定します）、営業のタブレットの予定に追加されます。</p>
     <div class="flex gap-2"><button class="b b-pri" data-new>次の受付へ</button><button class="b b-sec" data-map>🗺 訪問先をGoogleマップで開く</button></div>
   </div>`;
 }
@@ -359,6 +363,8 @@ export function doneHtml(r) {
 // ---- 配車ボード・履歴 ----------------------------------------------------------------
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 export const dateLabel = (s) => { const [y, m, d] = s.split('-').map(Number); return `${m}/${d}（${WEEK[new Date(y, m - 1, d).getDay()]}）`; };
+
+export const statusBadge = (r) => (isTentative(r) ? '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5">仮確定</span>' : '<span class="rounded bg-emerald-100 text-emerald-800 text-xs font-bold px-1.5 py-0.5">確定</span>');
 
 export function boardHtml({ date, reservations, stats, now, days }) {
   const groups = AREAS.map((a) => ({ a, users: USERS.filter((u) => areaOfUser(u.id) === a.id) }));
@@ -384,16 +390,16 @@ export function boardHtml({ date, reservations, stats, now, days }) {
         ${rows}
       </section>
       <section class="bg-white rounded-lg shadow overflow-x-auto">
-        <div class="p-3 font-bold">受付履歴（コールセンターで確定した訪問）</div>
-        ${reservations.length ? `<table class="w-full text-sm text-left"><thead class="bg-slate-100 text-slate-600"><tr><th>受付番号</th><th>訪問日時</th><th>お客様</th><th>訪問先</th><th>きっかけ</th><th>担当営業</th><th>受付者</th><th></th></tr></thead><tbody>
+        <div class="p-3 font-bold">受付履歴</div>
+        ${reservations.length ? `<table class="w-full text-sm text-left"><thead class="bg-slate-100 text-slate-600"><tr><th>受付番号</th><th>訪問日時</th><th>お客様</th><th>訪問先</th><th>きっかけ</th><th>状態</th><th>担当営業</th><th>受付者</th><th></th></tr></thead><tbody>
           ${reservations.map((r) => `<tr class="border-t"><td>${esc(r.receptionNo)}</td><td>${dateLabel(r.date)} ${esc(r.start)}</td><td>${esc(r.customer.name)} 様（${genderLabel(r.gender)}）</td>
-            <td class="max-w-[16rem] truncate" title="${esc(r.customer.address)}">${esc(r.customer.address)}</td><td>${esc(r.hearing.trigger)}</td><td>${esc(USERS.find((u) => u.id === r.userId)?.name)}</td><td>${esc(r.operator)}</td>
+            <td class="max-w-[16rem] truncate" title="${esc(r.customer.address)}">${esc(r.customer.address)}</td><td>${esc(r.hearing.trigger)}</td><td>${statusBadge(r)}</td><td>${esc(USERS.find((u) => u.id === r.userId)?.name)}${isTentative(r) ? '（仮）' : ''}</td><td>${esc(r.operator)}</td>
             <td><button class="text-rose-600 underline" data-cancel="${r.id}">取消</button></td></tr>`).join('')}</tbody></table>` : '<p class="p-6 text-center text-slate-400">まだ受付がありません</p>'}
       </section>
     </div>
     <aside class="bg-white rounded-lg shadow p-3 space-y-2 self-start">
       <b>⚖ 今月の担当件数（公平性の確認）</b>
-      <p class="text-xs text-slate-500">女性のお客様は客単価が高いため、女性の担当件数が偏らないように配分します。件数は、これまでの実績（ダミー）に、この画面で確定した受付を加えた数です。</p>
+      <p class="text-xs text-slate-500">女性のお客様は客単価が高いため、女性の担当件数が偏らないように配分します。件数は、これまでの実績（ダミー）に、この画面で受け付けた（仮確定を含む）受付を加えた数です。</p>
       ${fair.map(({ u, s }) => `<div class="text-sm"><div class="flex justify-between"><span>${esc(u.name)}</span><span class="text-xs text-slate-500">計${s.total}件 ／ 女性 <b class="text-slate-800">${s.female}</b> ・ 男性 ${s.male} ・ 女性比率 ${share(s)}</span></div>
         <div class="h-2 rounded bg-slate-200"><div class="h-2 rounded bg-rose-400" style="width:${(s.female / maxF) * 100}%"></div></div></div>`).join('')}
     </aside>

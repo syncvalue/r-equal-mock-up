@@ -1,14 +1,15 @@
 // コールセンター 受付・配車画面（ダミー・PC想定）。受電内容を聞き取り、訪問先のエリアの営業から、
-// 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を確定する。確定した予約は営業アプリの予定に出る。
+// 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を仮確定する。担当の確定は配車係が行い（配車確定タブ）、確定した予約が営業アプリの予定に出る。
 import { EVENTS } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
 import { areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairnessStats, fairerAlternative } from '../src/dispatch.js';
-import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
+import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, updateReservation, isTentative, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
 import { OPERATORS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, genderLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, dateLabel, flyerResultHtml } from './view.js';
+import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
+import { dispatcherHtml } from './dispatcherView.js';
 import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
@@ -42,6 +43,7 @@ let calOnlyFree = false; // 日別表示で、希望の時間に空いている�
 let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別（営業ごとの列）
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
 let boardDate = addDays(1);
+let dispDate = addDays(2); // 配車係が確定する日（主に翌々日の予定を、毎日確定する）
 let toast = '';
 let lines = []; // 文字起こし（{ who, text, got: 入力欄にセットした項目 }）
 let playing = false;
@@ -93,7 +95,7 @@ function confirmReservation() {
   const center = locateAddress(form.address, area) ?? area; // 予定の地図表示は、住所の概算位置で代用（モック）
   const record = {
     id: `RS-${Date.now().toString(36).toUpperCase()}`, receptionNo: nextReceptionNo(reservations), receivedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }),
-    operator, userId: x.selected.user.id, date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), apType: past ? '再' : '新',
+    status: 'tentative', operator, userId: x.selected.user.id, date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), apType: past ? '再' : '新',
     gender: form.gender, areaId: area.id, lat: center.lat, lng: center.lng, flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyerOf(form.flyerId)?.id),
     hearing: {
       trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee || '未確認', wants: wantsText(form), mainItems: { ...form.mainItems },
@@ -143,7 +145,7 @@ function addUtterance(who, text) {
 // 台本の {area}{sales}{when} を、いまの入力内容の名前に置き換える
 function fillScript(text) {
   const x = compute();
-  return text.replace('{area}', x.area?.name ?? 'ご担当エリア').replace('{sales}', x.selected?.user.name ?? '担当').replace('{when}', `${dateLabel(form.date)} ${minToHHMM(form.start)}`);
+  return text.replace('{area}', x.area?.name ?? 'ご担当エリア').replace('{when}', `${dateLabel(form.date)} ${minToHHMM(form.start)}`);
 }
 const addSystem = (text) => { lines = [...lines, { who: 'sys', text, got: [] }]; renderTranscript(); };
 
@@ -160,7 +162,7 @@ function confirmArea() {
 function hangUp() {
   playing = false; finished = true;
   const missing = compute().missing;
-  addSystem(missing.length ? `通話終了。未入力：${missing.join('、')}` : '通話終了。カレンダーの枠と担当を確認して、「訪問を確定する」を押してください');
+  addSystem(missing.length ? `通話終了。未入力：${missing.join('、')}` : '通話終了。カレンダーの枠と担当（仮）を確認して、「仮確定する」を押してください');
 }
 
 function stopDemo() { clearTimeout(timer); playing = false; }
@@ -228,6 +230,13 @@ function renderNew() {
   </div>`;
 }
 
+// 配車係が確定する日の候補（今日から5日分。翌々日に印）。日付ごとの、仮確定の件数を添える
+function dispatchChips() {
+  const list = loadReservations();
+  return [0, 1, 2, 3, 4].map((n) => { const date = addDays(n); return { date, label: ['今日', '明日', '翌々日', '3日後', '4日後'][n], tentative: list.filter((r) => r.date === date && isTentative(r)).length }; });
+}
+const tentativeBadge = () => { const n = loadReservations().filter(isTentative).length; return n ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-xs text-amber-950">${n}</span>` : ''; };
+
 function render() {
   $('#root').innerHTML = `
   <header class="bg-teal-800 text-white px-6 h-[52px] flex justify-between items-center">
@@ -235,6 +244,7 @@ function render() {
     <nav class="flex gap-1">
       <button class="rounded px-4 py-1.5 font-bold ${tab === 'new' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="new">新規受付</button>
       <button class="rounded px-4 py-1.5 font-bold ${tab === 'board' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="board">空き状況・受付履歴</button>
+      <button class="rounded px-4 py-1.5 font-bold ${tab === 'dispatch' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="dispatch">配車確定（配車係）${tentativeBadge()}</button>
     </nav>
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">受付者 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${OPERATORS.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
@@ -242,7 +252,7 @@ function render() {
       <a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
-  ${tab === 'new' ? renderNew() : boardHtml({ date: boardDate, reservations: loadReservations(), stats: fairnessStats(loadReservations()), now: new Date(), days: [0, 1, 2, 3, 4, 5, 6].map((n) => ({ date: addDays(n) })) })}
+  ${tab === 'new' ? renderNew() : tab === 'dispatch' ? dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips() }) : boardHtml({ date: boardDate, reservations: loadReservations(), stats: fairnessStats(loadReservations()), now: new Date(), days: [0, 1, 2, 3, 4, 5, 6].map((n) => ({ date: addDays(n) })) })}
   ${tab === 'new' && demoOpen ? demoWindowHtml(demoPos) : ''}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
   if (tab === 'new') { renderDispatch(); renderTranscript(); }
@@ -269,6 +279,8 @@ document.addEventListener('input', onField);
 document.addEventListener('change', (e) => {
   if (e.target.matches('[data-main]')) { form = { ...form, mainItems: { ...form.mainItems, [e.target.dataset.main]: Number(e.target.value) } }; e.target.classList.toggle('sel', Number(e.target.value) > 0); updateChecklist(); return; }
   if (e.target.matches('[data-operator]')) { operator = e.target.value; setPref('rq-mock-cc-operator', operator); return; }
+  if (e.target.matches('[data-reassign]')) { updateReservation(e.target.dataset.reassign, { userId: e.target.value }); render(); return; }
+  if (e.target.matches('[data-ddate-input]')) { dispDate = e.target.value || dispDate; render(); return; }
   if (e.target.matches('[data-bdate-input]')) { boardDate = e.target.value || boardDate; render(); return; }
   onField(e);
 });
@@ -365,6 +377,17 @@ document.addEventListener('click', (e) => {
   }
   else if ('confirm' in d) confirmReservation();
   else if ('new' in d) { stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
+  else if (d.ddate) { dispDate = d.ddate; render(); }
+  else if (d.fix) { updateReservation(d.fix, { status: 'confirmed', confirmedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }), confirmedBy: '配車係' }); render(); }
+  else if (d.unfix) { updateReservation(d.unfix, { status: 'tentative', confirmedAt: null, confirmedBy: null }); render(); }
+  else if ('fixall' in d) {
+    const targets = loadReservations().filter((r) => r.date === dispDate && isTentative(r));
+    if (targets.length && confirm(`${dateLabel(dispDate)}の仮確定 ${targets.length}件を、すべて確定します。確定した訪問は、営業のタブレットの予定に出ます。`)) {
+      const at = new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
+      targets.forEach((r) => updateReservation(r.id, { status: 'confirmed', confirmedAt: at, confirmedBy: '配車係' }));
+      render();
+    }
+  }
   else if (d.bdate) { boardDate = d.bdate; render(); }
   else if (d.cancel) {
     const r = loadReservations().find((x) => x.id === d.cancel);

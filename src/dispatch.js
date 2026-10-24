@@ -146,7 +146,7 @@ export function busyBlocks(userId, date, reservations, now = new Date()) {
   const base = real.length ? real : fillerBlocks(userId, date);
   const mine = reservations
     .filter((r) => r.userId === userId && r.date === date)
-    .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', lat: r.lat, lng: r.lng, place: r.customer.address }));
+    .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', status: r.status === 'tentative' ? 'tentative' : 'confirmed', lat: r.lat, lng: r.lng, place: r.customer.address }));
   return [...base, ...mine].sort((a, b) => a.start - b.start);
 }
 
@@ -259,4 +259,15 @@ export function salesDetail({ userId, date, start, dur, reservations, here = nul
     fairness: fairnessStats(reservations, now)[userId],
     blocks, windows, conflict, travel: travelAround(blocks, start, start + dur, here),
   };
+}
+
+// 配車係が、仮確定の担当を確認・変更するための候補。その予約自身は、予定の重なりから除く
+export function dispatchOptions(rec, reservations, now = new Date()) {
+  const others = reservations.filter((r) => r.id !== rec.id);
+  const start = toMin(rec.start);
+  const end = toMin(rec.end);
+  return USERS.filter((u) => !rec.areaId || areaOfUser(u.id) === rec.areaId).map((user) => {
+    const conflict = conflictOf(busyBlocks(user.id, rec.date, others, now), start, end);
+    return { user, rank: rankOfUser(user.id), free: !conflict, conflict, current: user.id === rec.userId };
+  });
 }
