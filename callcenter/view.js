@@ -1,5 +1,5 @@
 // コールセンター画面の描画（状態 → HTML）。イベント処理は callcenter.js。
-import { esc } from '../src/format.js';
+import { esc, yen } from '../src/format.js';
 import { CANCEL_REASONS } from './master.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { isTentative, isCancelled } from '../src/reservations.js';
@@ -158,11 +158,15 @@ export function formHtml(f, today, list = []) {
   return `<div id="checklist" class="sticky top-0 z-10">${checklistHtml(list)}</div>${customer}${when}${hearing}${notes}`;
 }
 
-export function hintHtml(found, applied) {
+export function hintHtml(found, applied, summary = null) {
   if (!found) return '';
-  return `<div class="rounded-lg bg-amber-50 border border-amber-300 px-2 py-1 text-xs flex justify-between items-center gap-2">
-    <span>📇 <b>過去にご利用あり</b>：${esc(found.name)} 様（${esc(found.address)}）</span>
-    ${applied ? '<span class="text-xs text-slate-500">反映済み</span>' : '<button class="b b-sec !min-h-0 !py-1 text-sm" data-quote>引用</button>'}</div>`;
+  const d = (t) => { const x = new Date(t); return `${x.getFullYear()}/${x.getMonth() + 1}/${x.getDate()}`; };
+  const buy = !summary ? '' : summary.count
+    ? `<div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 border-t border-amber-200 pt-1"><span>直近の買取 <b class="text-sm">${yen(summary.latest.total)}</b><span class="text-slate-500">（${d(summary.latest.at)}・${esc(summary.latest.items)}）</span></span><span>過去の依頼 <b class="text-sm">${summary.count}</b>回</span><span>総買取額 <b class="text-sm">${yen(summary.total)}</b></span></div>`
+    : '<div class="mt-1 border-t border-amber-200 pt-1 text-slate-500">買取の実績はまだありません</div>';
+  return `<div class="rounded-lg bg-amber-50 border border-amber-300 px-2 py-1 text-xs">
+    <div class="flex justify-between items-center gap-2"><span>📇 <b>過去にご利用あり</b>：${esc(found.name)} 様（${esc(found.address)}）</span>
+      ${applied ? '<span class="text-xs text-slate-500">反映済み</span>' : '<button class="b b-sec !min-h-0 !py-1 text-sm shrink-0" data-quote>引用</button>'}</div>${buy}</div>`;
 }
 
 // ---- 配車（候補・空き状況） ----------------------------------------------------------
@@ -377,9 +381,10 @@ export const statusBadge = (r) => {
 // ---- 受付済みの予約の変更・取消 ------------------------------------------------------------
 // お客様から折り返しの電話があったとき（やめる・日を変えたい）に、その番号で受け付け済みの予約を出す
 export function openResHtml(list) {
-  return list.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-xs">
+  if (!list.length) return '';
+  return `<div class="space-y-1"><div class="text-xs font-bold text-sky-800">📅 この電話番号で、すでに受け付けている予約（変更・取消はここから）</div>${list.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-xs">
     <span>📅 <b>受付済み</b>：${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</span>
-    <span class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-chg="${r.id}">日時を変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></span></div>`).join('');
+    <span class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-chg="${r.id}">日時を変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></span></div>`).join('')}</div>`;
 }
 
 // 受付済みの予約を変更中の、入力欄の上の表示。仮確定の変更と、確定済みの変更で、何が起きるかを伝える

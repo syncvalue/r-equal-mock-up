@@ -23,6 +23,15 @@ const SEED = {
   },
 };
 
+// 買取の実績のまとめ（コールセンターの受電時に見せる）。電話番号（複数可）に当たる、過去の買取を合わせる
+export function purchaseSummary(phones) {
+  const seen = new Set();
+  const visits = [...new Set(phones.filter(Boolean))].flatMap((p) => historyOf({ phone: p }).visits)
+    .filter((v) => { const k = `${v.at}/${v.total}`; return seen.has(k) ? false : (seen.add(k), true); })
+    .sort((a, b) => b.at - a.at);
+  return { count: visits.length, total: visits.reduce((n, v) => n + (v.total || 0), 0), latest: visits[0] ?? null };
+}
+
 // currentVisitId／before（今回の訪問の開始時刻）より前の記録だけを数える（今回の契約・評価は含めない）
 export function historyOf(customer, { visitId = null, before = Infinity } = {}) {
   const seed = SEED[customer.phone] ?? { visits: [], evals: [] };
