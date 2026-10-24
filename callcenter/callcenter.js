@@ -9,11 +9,11 @@ import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
 import { OPERATORS, CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
-import { dispatcherHtml, staffModalHtml, BOARD_ROW } from './dispatcherView.js';
+import { dispatcherHtml, staffModalHtml, customerModalHtml, BOARD_ROW } from './dispatcherView.js';
 import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
 import { callHistory } from '../src/callHistory.js';
-import { purchaseSummary, historyCustomers } from '../src/customerHistory.js';
+import { purchaseSummary, customerProfile, historyCustomers } from '../src/customerHistory.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
 import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
@@ -50,6 +50,7 @@ let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ず
 let callLogOpen = false; // 受電履歴を開いているか
 let editBy = null; // 変更を始めた人（オペレーター／配車係）
 let editId = null; // 受付済みの予約の日時を変更しているとき、その予約
+let custInfoRid = null; // 配車係が、お客様の詳細をモーダルで見ている予約
 let staffInfoId = null; // 顔写真を押して、詳細をモーダルで見ている営業
 let cancelId = null; // 取消の確認を出している予約
 let cancelReason = CANCEL_REASONS[0];
@@ -313,6 +314,7 @@ function render() {
   </header>
   ${tab === 'new' ? renderNew() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
+  ${custInfoRid && tab === 'dispatch' ? customerModalHtml({ rid: custInfoRid, reservations: loadReservations(), now: new Date() }) : ''}
   ${staffInfoId && tab === 'dispatch' ? staffModalHtml({ userId: staffInfoId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
   ${cancelId ? cancelModalHtml(loadReservations().find((r) => r.id === cancelId), cancelReason) : ''}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
@@ -400,7 +402,7 @@ function updateChecklist() {
   list.forEach((x) => document.querySelectorAll(`[data-badge="${x.key}"]`).forEach((el) => { el.innerHTML = badgeHtml(x.asked, x.estimated); }));
 }
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('button, [data-pick], [data-bsel], [data-staffclose]');
+  const t = e.target.closest('button, [data-pick], [data-bsel], [data-staffclose], [data-custclose]');
   if (!t) return;
   const d = t.dataset;
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
@@ -456,6 +458,8 @@ document.addEventListener('click', (e) => {
     if (editId === (r?.id ?? null)) { editId = null; form = blankForm(); }
     if (r) flash(`${r.customer.name} 様の受付を取り消しました`); else render();
   }
+  else if (d.custinfo) { custInfoRid = d.custinfo; render(); }
+  else if ('custclose' in d) { custInfoRid = null; render(); }
   else if (d.staffinfo) { staffInfoId = d.staffinfo; render(); }
   else if ('staffclose' in d) { staffInfoId = null; render(); }
   else if (d.barea) { boardArea = d.barea; render(); }
@@ -570,7 +574,7 @@ document.addEventListener('drop', (e) => {
 });
 
 
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && staffInfoId) { staffInfoId = null; render(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && (staffInfoId || custInfoRid)) { staffInfoId = null; custInfoRid = null; render(); } });
 
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
 window.addEventListener('storage', (e) => {

@@ -4,7 +4,10 @@ import { esc } from '../src/format.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { dayTravel, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, attendanceOf, inOffTime, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { isTentative, isCancelled, isReverted, needsReview, reviewDiffs } from '../src/reservations.js';
-import { dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock, blockMark } from './view.js';
+import { customerProfile, customerDossier } from '../src/customerHistory.js';
+import { callHistory } from '../src/callHistory.js';
+import { suggestStaff } from './assign.js';
+import { customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
 
 // 変更の内容（項目名 変更前→変更後）
@@ -48,6 +51,51 @@ export function staffModalHtml({ userId, date, reservations, now }) {
     </div></div>`;
 }
 
+// ---- お客様の詳細（配車係が、誰を当てるかを判断する材料。モーダルで出す） ------------------------------------
+const ymd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
+const yenText = (n) => `¥${Number(n || 0).toLocaleString('ja-JP')}`;
+const stars = (n) => '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
+
+export function customerModalHtml({ rid, reservations, now }) {
+  const r = reservations.find((x) => x.id === rid);
+  if (!r) return '';
+  const phones = [r.customer.phone, r.customer.phone2].filter(Boolean);
+  const d = customerDossier(phones);
+  const p = d.profile;
+  const suggestions = suggestStaff(r, reservations, p, now).slice(0, 5);
+  const user = USERS.find((u) => u.id === r.userId);
+  const h = r.hearing ?? {};
+  const box = (title, body) => `<section class="space-y-1 rounded-lg border bg-slate-50 p-2"><h3 class="text-xs font-bold text-slate-500">${title}</h3>${body}</section>`;
+  const row = (k, v) => `<div class="flex gap-2 text-xs"><span class="w-24 shrink-0 text-slate-500">${k}</span><span class="min-w-0">${v}</span></div>`;
+  const visits = d.visits.length ? `<table class="w-full text-xs"><tbody>${d.visits.slice(0, 8).map((v) => `<tr class="border-t"><td class="w-24 py-0.5 text-slate-500">${ymd(v.at)}</td><td>${esc(v.items)}</td><td class="text-right font-bold">${yenText(v.total)}</td></tr>`).join('')}</tbody></table>
+    <div class="text-xs text-slate-600">${d.count}回 ／ 総額 <b>${yenText(d.total)}</b> ／ 平均 ${yenText(d.average)}</div>` : '<div class="text-xs text-slate-500">買取の実績はありません（新規のお客様）</div>';
+  const evals = d.evals.length ? d.evals.slice(0, 3).map((e) => `<div class="rounded border bg-white p-1.5 text-xs"><div class="flex flex-wrap items-center gap-2"><b>${ymd(e.savedAt)}</b><span class="text-slate-500">${esc(e.by)}</span><span class="text-amber-500">${stars(e.overall)}</span>
+      <span>態度：${esc(e.attitude)}</span><span>再依頼：${esc(e.repeat)}</span><span>資産：${esc(e.wealth)}</span><span>売却の時期：${esc(e.timing)}</span></div>
+      ${e.flags?.length ? `<div class="mt-0.5">${e.flags.map((f) => `<span class="mr-1 rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-900">${esc(f)}</span>`).join('')}</div>` : ''}${e.memo ? `<div class="mt-0.5 text-slate-700">${esc(e.memo)}</div>` : ''}</div>`).join('') : '<div class="text-xs text-slate-500">営業の評価はまだありません</div>';
+  const calls = callHistory(phones, reservations).slice(0, 5);
+  return `<div class="fixed inset-0 z-[60] flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/40" data-custclose></div>
+    <div class="relative z-10 max-h-[92vh] w-[48rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">
+      <div class="flex items-start justify-between gap-3">
+        <div class="space-y-1"><div class="text-lg font-bold">${esc(r.customer.name)} 様 <span class="text-sm font-normal text-slate-500">${esc(r.customer.kana ?? '')}</span></div>
+          <div class="flex flex-wrap items-center gap-1.5">${custRankBadge(p)}${troubleBadge(p)}${cooloffBadge(p)}${h.profile ? `<span class="text-xs text-slate-600">${esc(h.profile)}</span>` : ''}</div>
+          <div class="text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc(phones.join(' ／ '))}</div></div>
+        <button class="b b-sec !min-h-0 !py-1" data-custclose title="閉じる（Esc）">✕ 閉じる</button></div>
+      ${box('誰を当てるかの判断の手がかり', `${customerProfileHtml(p, { advice: true })}
+        <div class="text-xs"><span class="text-slate-500">これまでの担当：</span>${d.staff.length ? d.staff.map((n) => `<b>${esc(n)}</b>`).join('、') : '<span class="text-slate-500">なし（新規・担当の記録なし）</span>'}</div>
+        <div class="text-xs"><span class="text-slate-500">この時間に空いている営業（お客様に合う順）：</span></div>
+        ${suggestions.length ? `<div class="grid grid-cols-1 gap-1">${suggestions.map((c) => `<div class="flex items-center gap-2 rounded border bg-white px-1.5 py-1 text-xs ${c.current ? 'border-teal-500' : ''}">${avatarHtml(c.user, 22)}<b>${esc(c.user.name)}</b>${rankBadge(c.rank)}${c.leader ? '<span class="rounded bg-slate-200 px-1 text-[10px]">L</span>' : ''}${c.current ? '<span class="rounded bg-teal-600 px-1 text-[10px] font-bold text-white">現在の担当</span>' : ''}<span class="flex flex-wrap gap-1">${specTags(c.user.id, r.formData ?? { cats: [], mainItems: {}, wants: h.wants ?? '' })}</span></div>`).join('')}</div>` : '<div class="text-xs text-rose-600">この時間に空いている営業がいません</div>'}`)}
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-3">
+          ${box('今回の予約', `${row('訪問', `${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}`)}${row('担当', `${isTentative(r) ? '（仮）' : ''}${esc(user?.name ?? '')}`)}${row('売りたいもの', esc(h.wants ?? ''))}
+            ${row('きっかけ', esc(h.trigger ?? ''))}${row('立会い・同席', `${esc(h.attendee ?? '')} ／ ${esc(h.companion ?? '')}`)}${row('駐車・表札', `${esc(h.parking ?? '')} ／ ${esc(h.nameplate ?? '')}`)}${row('大型品', esc(h.large ?? ''))}${row('前日連絡', esc(h.contact ?? ''))}${row('訪問時の注意', esc(h.notes ?? ''))}`)}
+          ${box('受電履歴', calls.length ? calls.map((c) => `<div class="flex gap-2 text-xs"><span class="w-24 shrink-0 text-slate-500">${ymd(c.at)}</span><span class="shrink-0 font-bold">${esc(c.kind)}</span><span class="min-w-0 truncate" title="${esc(c.note)}">${esc(c.note)}</span></div>`).join('') : '<div class="text-xs text-slate-500">履歴なし</div>')}</div>
+        <div class="space-y-3">
+          ${box('過去の買取履歴', visits)}
+          ${box('営業の評価・メモ', evals)}
+          ${box('クーリングオフ歴', p.cooloff.length ? p.cooloff.map((c) => `<div class="text-xs text-rose-700"><b>${ymd(c.at)}</b> ${esc(c.items)}${c.memo ? `<span class="text-slate-600">　${esc(c.memo)}</span>` : ''}</div>`).join('') : '<div class="text-xs text-slate-500">なし</div>')}</div></div>
+    </div></div>`;
+}
+
 export const BOARD_ROW = 26; // 30分あたりの高さ（px）
 const SLOTS = (WORK_END - WORK_START) / SLOT_STEP;
 const topOf = (m) => ((m - WORK_START) / SLOT_STEP) * BOARD_ROW;
@@ -71,18 +119,21 @@ function legsHtml(legs) {
   }).join('');
 }
 
+// お客様のランク・厄介度・クーリングオフ歴（電話番号から）
+const profileOf = (c) => (c ? customerProfile([c.phone, c.phone2]) : null);
+
 function blockHtml(b, selId, byId, att) {
   const off = att && inOffTime(att, b.start, b.end); // 休みと重なっている予定（あとから休みになった場合など）。配車係が動かして直す
   const offCls = off ? 'outline outline-2 outline-dashed outline-rose-500' : '';
   const top = topOf(b.start);
   const height = topOf(b.end) - top - 1;
   if (b.source !== 'reservation') { // 営業のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
-    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の営業・時間に動かせます`)}"><b>確 ${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
+    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の営業・時間に動かせます`)}"><b>確 ${esc(b.label)}</b>${customerMarks(profileOf(b.ev?.customer))} ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
   return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の営業・時間に動かせます`)}">
-    <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
+    <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b>${customerMarks(profileOf(r?.customer))} ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-indigo-800" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
 
@@ -126,6 +177,8 @@ function boardDetailHtml(r, reservations, now) {
     <div class="space-y-0.5"><div><b>${esc(r.customer.name)}</b> 様${genderParen(r.gender)}　${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}</div>
       <div class="text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
       <div class="text-xs">売りたいもの：${esc(r.hearing.wants)}</div>
+      ${r.customer.phone ? customerProfileHtml(profileOf(r.customer), { advice: true }) : ''}
+      <div><button class="text-xs font-bold text-fuchsia-700 underline" data-custinfo="${r.id}">👤 お客様の詳細（買取履歴・評価・当てはめの目安）</button></div>
       <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
       ${travel ? `<div class="text-[11px] leading-tight text-slate-600">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}
       ${revertedHtml(r)}</div>
