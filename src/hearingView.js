@@ -3,7 +3,8 @@ import { esc } from './format.js';
 import { hearingOf } from './schedule.js';
 
 const FIELDS = [
-  ['trigger', '来電のきっかけ'], ['attendee', '当日の立会い'], ['wants', '売りたいもの'], ['large', '大型品・その他の確認'], ['notes', '訪問時の注意'],
+  ['trigger', '来電のきっかけ'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'], ['wants', '売りたいもの'], ['large', '大型品・その他の確認'],
+  ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
 ];
 // 特に見落としたくない項目
 const KEY = new Set(['attendee', 'large']);
@@ -11,7 +12,7 @@ const KEY = new Set(['attendee', 'large']);
 // stack: 幅の狭い場所では、項目名を上に、内容を下に並べる
 export function hearingRows(e, { stack = false } = {}) {
   const h = hearingOf(e);
-  return FIELDS.map(([k, label]) => `
+  return FIELDS.filter(([k]) => h[k] != null).map(([k, label]) => `
     <div class="flex ${stack ? 'flex-col' : 'gap-2'} py-1.5 ${k === 'notes' ? 'rounded-lg bg-amber-50 px-2' : ''}"><dt class="${stack ? 'text-xs' : 'w-28 shrink-0'} text-slate-500">${label}</dt>
       <dd class="flex-1 min-w-0 ${KEY.has(k) || k === 'notes' ? 'font-bold' : ''}">${esc(h[k])}</dd></div>`).join('');
 }

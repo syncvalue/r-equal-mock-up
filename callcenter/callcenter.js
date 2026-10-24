@@ -7,8 +7,9 @@ import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, n
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
-import { OPERATORS, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText } from './master.js';
+import { OPERATORS, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml, demoWindowHtml, dateLabel, flyerResultHtml } from './view.js';
+import { missingFields, companionText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
 const $ = (s) => document.querySelector(s);
@@ -26,7 +27,7 @@ const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); c
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
 const blankForm = () => ({
-  phone: '', name: '', kana: '', gender: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], wants: '', attendee: 'ご本人', large: '', notes: '',
+  phone: '', name: '', kana: '', gender: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], wants: '', attendee: 'ご本人', large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
   date: addDays(1), start: 10 * 60, dur: 90, userId: null,
 });
 
@@ -69,16 +70,7 @@ function compute() {
   const calendar = ranking.inArea.length
     ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today }
     : null;
-  const missing = [];
-  if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
-  if (!form.name.trim()) missing.push('お名前');
-  if (!form.gender) missing.push('性別');
-  if (!form.address.trim()) missing.push('訪問先の住所');
-  else if (!confirmed) missing.push('営業エリアの確認（Googleマップ）');
-  if (form.chirashi === null) missing.push(form.flyerId.trim() ? 'チラシのID（該当なし）' : '来電のきっかけ（チラシのID）');
-  if (!form.cats.length && !form.wants.trim()) missing.push('売りたいもの');
-  if (!form.date || form.date < ymdOf(new Date())) missing.push('希望日（今日以降）');
-  if (!selected) missing.push('担当の営業');
+  const missing = missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
   return {
     area, proposal, confirmed, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
@@ -99,6 +91,7 @@ function confirmReservation() {
     hearing: {
       trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee, wants: [form.cats.join('・'), form.wants.trim() && `（${form.wants.trim()}）`].filter(Boolean).join(''),
       large: form.large.trim() || 'なし', notes: form.notes.trim() || '特になし',
+      companion: companionText(form), parking: form.parking || '未確認', nameplate: form.nameplate || '未確認', contact: contactText(form.contactFrom, form.contactTo),
     },
     customer: { name: form.name.trim(), kana: form.kana.trim(), phone: form.phone.trim(), zip: form.zip.trim(), address: form.address.trim() },
   };
@@ -109,7 +102,7 @@ function confirmReservation() {
 }
 
 // ---- 通話の文字起こし（デモ） ---------------------------------------------------------------
-const FLASH = { flyerId: '[data-f="flyerId"]', gender: '[data-gender].on', chirashi: '[data-chirashi].on', cats: '[data-cat].on', start: '[data-f="start"]', dur: '[data-dur].on' };
+const FLASH = { companion: '[data-yn^="companion|"].on', parking: '[data-yn^="parking|"].on', nameplate: '[data-yn^="nameplate|"].on', flyerId: '[data-f="flyerId"]', gender: '[data-gender].on', chirashi: '[data-chirashi].on', cats: '[data-cat].on', start: '[data-f="start"]', dur: '[data-dur].on' };
 function flashFields(keys) {
   keys.forEach((k) => document.querySelectorAll(FLASH[k] ?? `[data-f="${k}"]`).forEach((el) => {
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
@@ -221,7 +214,7 @@ function render() {
     </nav>
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">受付者 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${OPERATORS.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
-      ${tab === 'new' ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">📞 通話デモ${demoOpen ? 'を閉じる' : ''}</button>` : ''}
+      ${tab === 'new' ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">🎙 音声入力デモ${demoOpen ? 'を閉じる' : '（今後の拡張）'}</button>` : ''}
       <a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
@@ -298,6 +291,7 @@ document.addEventListener('click', (e) => {
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
   else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi), flyerId: '' }; refresh(); }
   else if (d.cat) { form = { ...form, cats: form.cats.includes(d.cat) ? form.cats.filter((c) => c !== d.cat) : [...form.cats, d.cat] }; refresh(); }
+  else if (d.yn) { const [k, v] = d.yn.split('|'); const on = form[k] !== v; form = { ...form, [k]: on ? v : '', ...(k === 'companion' && !(on && v === 'あり') ? { companionNote: '' } : {}) }; refresh(); }
   else if (d.dur) { form = { ...form, dur: Number(d.dur) }; refresh(); }
   else if (d.cell) { const [date, start] = d.cell.split('|'); form = { ...form, date, start: Number(start) }; refresh(); }
   else if (d.week) { weekStart = shiftWeek(Number(d.week)); renderDispatch(); }

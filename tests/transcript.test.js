@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractFromUtterance as ex, changedFields, DEMO_SCRIPT, dateOf, startOf } from '../callcenter/transcript.js';
+import { extractFromUtterance as ex, changedFields, DEMO_SCRIPT, dateOf, startOf, contactRangeOf } from '../callcenter/transcript.js';
 
 const NOW = new Date(2026, 9, 24, 9, 0); // 2026-10-24（土）
 const blank = { cats: [], wants: '' };
@@ -45,7 +45,8 @@ test('売りたいもの・点数', () => {
 test('立会い・大型品・訪問時の注意', () => {
   const p = ex('ゴルフクラブも売れるでしょうか。当日は主人も一緒に立ち会います。', blank, NOW);
   assert.equal(p.large, 'ゴルフクラブも売れるか質問あり');
-  assert.equal(p.attendee, 'ご夫婦で同席');
+  assert.equal(p.attendee, 'ご本人'); // 立ち会うのはお客様ご本人で、ご主人も一緒（同席者あり）
+  assert.equal(p.companion, 'あり');
   assert.equal(ex('1階のエントランスで待ち合わせたいです。', blank, NOW).notes, '1階のエントランスで待ち合わせたいです');
 });
 
@@ -98,4 +99,27 @@ test('デモ台本: マップでのエリア確認が住所のあとにあり、
   assert.equal(DEMO_SCRIPT.at(-1).action, 'hangup');
   assert.ok(DEMO_SCRIPT.some((l) => l.who === 'op' && l.text.includes('{sales}') && l.text.includes('{when}'))); // 電話を切る前に、担当と日時を読み上げて確認する
   assert.ok(DEMO_SCRIPT.filter((l) => l.who === 'cu').every((l) => !/[{}]/.test(l.text)));
+});
+
+test('備考・補足: ご同席者・駐車スペース・表札・前日確認の連絡時間', () => {
+  const p = ex('駐車スペースはありません。表札は出ています。前日の確認のお電話は、午後5時から7時の間でお願いします。', blank, NOW);
+  assert.deepEqual([p.parking, p.nameplate, p.contactFrom, p.contactTo], ['なし', 'あり', '17:00', '19:00']);
+  assert.equal(p.start, undefined); // 連絡時間を訪問の開始時刻と取り違えない
+  assert.equal(p.date, undefined);
+  assert.equal(ex('当日は主人も一緒に立ち会います。', blank, NOW).companion, 'あり');
+  const solo = ex('当日は主人が立ち会います。', blank, NOW); // 立ち会うのはご主人のみ（同席者の言及なし）
+  assert.deepEqual([solo.attendee, solo.companion], ['ご主人', undefined]);
+  assert.equal(ex('私が立ち会います。', blank, NOW).attendee, 'ご本人');
+  assert.equal(ex('同席者は娘が来る予定です。', blank, NOW).companion, 'あり');
+  assert.equal(ex('同席する人はいません。', blank, NOW).companion, 'なし');
+  assert.equal(ex('駐車場は敷地内に停められます。', blank, NOW).parking, 'あり');
+  assert.equal(ex('近くのコインパーキングを使ってください。', blank, NOW).parking, 'なし');
+  assert.deepEqual(contactRangeOf('午前10時半から12時'), ['10:30', '12:00']);
+  assert.deepEqual(contactRangeOf('7時〜9時'), ['19:00', '20:00']); // 午後とみなし、21:00は20:00に収める
+  assert.equal(ex('前日はいつでも大丈夫です。', { ...blank }, NOW).contactFrom, '');
+});
+
+test('同席者が誰かも拾う', () => {
+  assert.equal(ex('当日は主人も一緒に立ち会います。', blank, NOW).companionNote, 'ご主人');
+  assert.equal(ex('同席者は娘が来る予定です。', blank, NOW).companionNote, '娘様');
 });

@@ -20,4 +20,10 @@ export const triggerText = (chirashi, flyerId) => (chirashi === null ? '' : flye
 
 export const CATEGORIES = ['ブランドバッグ', '腕時計', '貴金属・ジュエリー', 'カメラ・家電', 'ゲーム・ホビー', '着物・骨董', 'その他'];
 
-export const ATTENDEES = ['ご本人', 'ご夫婦で同席', 'ご家族が同席', 'ご本人（ご家族は不在がち）', 'その他（備考に記入）'];
+// 当日、誰が立ち会うか（同席者がいるかどうかは、別項目の「ご同席者」で聞く）
+export const ATTENDEES = ['ご本人', 'ご主人', '奥様', 'ご家族', 'その他（備考に記入）'];
+
+// 備考・補足（ご同席者・駐車スペース・表札は、あり／なし。前日確認の連絡時間は、30分刻みで範囲を選ぶ）
+export const YESNO = ['あり', 'なし'];
+export const CONTACT_TIMES = Array.from({ length: 23 }, (_, i) => `${String(9 + Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`);
+export const contactText = (from, to) => (!from && !to ? '指定なし' : `${from || ''}〜${to || ''}`);

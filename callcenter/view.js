@@ -3,7 +3,7 @@ import { esc } from '../src/format.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser, busyBlocks, conflictText, WORK_START, WORK_END, DURATIONS, SLOT_STEP } from '../src/dispatch.js';
 import { minToHHMM } from '../src/reservations.js';
-import { CHIRASHI, CATEGORIES, ATTENDEES, flyerOf, isFlyerIndex } from './master.js';
+import { CHIRASHI, CATEGORIES, ATTENDEES, YESNO, CONTACT_TIMES, flyerOf, isFlyerIndex } from './master.js';
 import { FIELD_LABELS } from './transcript.js';
 
 export const mapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -25,7 +25,7 @@ export function strip(blocks, req = null, { labels = false } = {}) {
 
 // ---- 通話の文字起こし（デモ） -----------------------------------------------------------
 export const demoWindowHtml = (pos) => `<div id="demo-win" class="fixed z-50 w-[26rem] max-w-[calc(100vw-1rem)] rounded-lg bg-white shadow-2xl border-2 border-amber-400" style="left:${pos.x}px;top:${pos.y}px">
-  <div class="flex items-center justify-between bg-amber-400 text-slate-900 rounded-t px-3 py-1.5 cursor-move select-none" data-drag><b class="text-sm">📞 通話デモ（文字起こし）</b><button class="text-lg leading-none px-1" data-demo="close" title="閉じる">✕</button></div>
+  <div class="flex items-center justify-between bg-amber-400 text-slate-900 rounded-t px-3 py-1.5 cursor-move select-none" data-drag><b class="text-sm">🎙 音声入力デモ（文字起こし）</b><button class="text-lg leading-none px-1" data-demo="close" title="閉じる">✕</button></div>
   <div id="transcript" class="p-3"></div></div>`;
 
 export function transcriptHtml({ lines, playing, finished }) {
@@ -33,12 +33,12 @@ export function transcriptHtml({ lines, playing, finished }) {
     ? `<div class="text-center text-xs font-bold rounded bg-emerald-50 border border-emerald-300 text-emerald-800 px-2 py-1">${esc(l.text)}</div>`
     : `<div class="flex ${l.who === 'op' ? 'justify-start' : 'justify-end'}"><div class="max-w-[85%] rounded-lg px-3 py-1.5 text-sm ${l.who === 'op' ? 'bg-slate-100' : 'bg-teal-50 border border-teal-200'}">
       <div class="text-[10px] text-slate-500">${l.who === 'op' ? 'オペレーター' : 'お客様'}</div>${esc(l.text)}
-      ${l.got?.length ? `<div class="mt-1 flex flex-wrap gap-1">${l.got.map((k) => `<span class="rounded bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.5">✎ ${esc(FIELD_LABELS[k])}</span>`).join('')}</div>` : ''}</div></div>`;
+      ${l.got?.length ? `<div class="mt-1 flex flex-wrap gap-1">${[...new Set(l.got.map((k) => FIELD_LABELS[k]))].map((t) => `<span class="rounded bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.5">✎ ${esc(t)}</span>`).join('')}</div>` : ''}</div></div>`;
   return `<div class="space-y-2">
     <div class="flex items-center justify-between gap-2"><span class="text-xs bg-amber-100 text-amber-800 rounded px-1.5 py-0.5 font-bold">デモ</span>
       <div class="flex gap-1">${playing ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="stop">⏸ 止める</button>' : `<button class="b b-pri !min-h-0 !py-1 text-sm" data-demo="start">${lines.length && !finished ? '▶ 再開' : '▶ 通話デモを再生'}</button>`}
         ${lines.length ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="reset">やり直す</button>' : ''}</div></div>
-    <p class="text-xs text-slate-500">会話が文字になり、お客様の発話から項目を拾って、画面の入力欄に自動でセットします（<span class="bg-amber-200 rounded px-1">黄色</span>が今入った項目）。エリアの確定と担当営業の選択も会話の中で行い、<b>電話を切ると同時に訪問を確定</b>します。</p>
+    <p class="text-xs text-slate-500"><b>今後の拡張機能のデモです</b>（通常は、オペレーターが手で入力します）。会話が文字になり、お客様の発話から項目を拾って、画面の入力欄に自動でセットします（<span class="bg-amber-200 rounded px-1">黄色</span>が今入った項目）。エリアの確定と担当営業の選択も会話の中で行い、<b>電話を切ると同時に訪問を確定</b>します。</p>
     <div class="h-72 overflow-y-auto rounded border bg-white p-2 space-y-1.5" id="chat">${lines.length ? lines.map(bubble).join('') : '<p class="text-sm text-slate-400 text-center pt-24">「通話デモを再生」を押すと、受電の会話が始まります</p>'}
       ${playing ? '<div class="text-xs text-slate-400 animate-pulse">● 通話中…</div>' : ''}</div>
     <form class="flex gap-1" data-utter-form><input class="inp" data-utter placeholder="お客様の発話を入力して試す（例: 来週の月曜、午後3時でお願いします）" /><button class="b b-sec shrink-0" type="submit">反映</button></form>
@@ -87,11 +87,17 @@ export function formHtml(f, today) {
       <div class="flex flex-wrap gap-1 mt-0.5">${CATEGORIES.map((c) => `<button class="chip ${f.cats.includes(c) ? 'on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
       ${inp('wants', f.wants, { ph: '点数・ブランドなどの詳細（例: ヴィトン 3点、ロレックス 2本）' })}</div>
     <div class="grid grid-cols-2 gap-2">
-      ${lbl('当日の立会い', `<select class="inp mt-0.5" data-f="attendee">${ATTENDEES.map((a) => `<option ${a === f.attendee ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`)}
+      ${lbl('当日の立会い（誰が立ち会うか）', `<select class="inp mt-0.5" data-f="attendee">${ATTENDEES.map((a) => `<option ${a === f.attendee ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`)}
       ${lbl('大型品・その他の確認', inp('large', f.large, { ph: '例: ゴルフクラブも売れるか' }))}
     </div>
     ${lbl('訪問時の注意（営業のタブレットに表示）', `<textarea class="inp mt-0.5" rows="2" data-f="notes" placeholder="例: 1階エントランスで待ち合わせ。午前中が電話がつながりやすい">${esc(f.notes)}</textarea>`)}`);
-  return `${customer}${when}${hearing}`;
+  const yn = (key, label) => `<div><div class="text-xs font-bold">${label}</div><div class="flex gap-1 mt-0.5">${YESNO.map((o) => `<button class="b b-sec flex-1 !px-1 ${f[key] === o ? 'on' : ''}" data-yn="${key}|${o}">${o}</button>`).join('')}</div></div>`;
+  const time = (key) => `<select class="inp" data-f="${key}"><option value="">指定なし</option>${CONTACT_TIMES.map((t) => `<option ${t === f[key] ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+  const notes = sec('④ 備考・補足など', `
+    <div class="grid grid-cols-3 gap-2">${yn('companion', 'ご同席者（他に同席する人）')}${yn('parking', '駐車スペース')}${yn('nameplate', '表札')}</div>
+    ${f.companion === 'あり' ? inp('companionNote', f.companionNote, { ph: '誰が同席しますか？（例: ご主人、娘様）' }) : ''}
+    <div><div class="text-xs font-bold">前日確認の連絡時間</div><div class="flex items-center gap-1.5 mt-0.5">${time('contactFrom')}<span>〜</span>${time('contactTo')}</div></div>`);
+  return `${customer}${when}${hearing}${notes}`;
 }
 
 export function hintHtml(found, applied) {

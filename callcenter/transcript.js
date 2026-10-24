@@ -1,11 +1,11 @@
 // 通話の文字起こしから、ヒアリング項目を拾い出す（デモ）。実際は音声認識＋AIで行う処理を、キーワードと正規表現で代用している。
 // 画面に依存しない純関数。お客様の発話を1つ渡すと、入力欄にセットする項目だけを返す。
-import { CATEGORIES, ATTENDEES, flyerOf, normalizeFlyerId } from './master.js';
+import { CATEGORIES, flyerOf, normalizeFlyerId } from './master.js';
 import { ymdOf } from '../src/reservations.js';
 
 export const FIELD_LABELS = {
   phone: '電話番号', name: 'お名前', kana: 'フリガナ', gender: '性別', zip: '郵便番号', address: '住所', chirashi: '来電のきっかけ', flyerId: 'チラシのID',
-  cats: '売りたいもの', wants: '点数・ブランド', attendee: '当日の立会い', large: '大型品', notes: '訪問時の注意', date: '希望日', start: '開始時刻',
+  cats: '売りたいもの', wants: '点数・ブランド', attendee: '当日の立会い', companion: 'ご同席者', companionNote: 'ご同席者', parking: '駐車スペース', nameplate: '表札', contactFrom: '前日確認の連絡時間', contactTo: '前日確認の連絡時間', large: '大型品', notes: '訪問時の注意', date: '希望日', start: '開始時刻',
 };
 
 // 通話のデモ台本（op=オペレーター、cu=お客様）。お客様の発話だけから項目を拾う。
@@ -24,6 +24,8 @@ export const DEMO_SCRIPT = [
   { who: 'cu', text: 'ルイ・ヴィトンのバッグが3点と、ロレックスの時計が2本あります。あと金のネックレスも少し。' },
   { who: 'op', text: '大型のものなど、ほかにございますか？' },
   { who: 'cu', text: 'ゴルフクラブも売れるでしょうか。当日は主人も一緒に立ち会います。' },
+  { who: 'op', text: '駐車スペースと表札の有無、前日確認のお電話の時間帯も教えてください。' },
+  { who: 'cu', text: '駐車スペースはありません。表札は出ています。前日の確認のお電話は、午後5時から7時の間でお願いします。' },
   { who: 'op', text: '承知しました。訪問はいつ頃がよろしいですか？' },
   { who: 'cu', text: '来週の土曜日の午前中でお願いできますか。' },
   { who: 'op', text: '空き状況を見ながら、他の時間もご提案しますね。午後1時はいかがでしょうか？' },
@@ -48,7 +50,7 @@ const CATEGORY_RULES = [
   [/カメラ|家電/, 'カメラ・家電'], [/ゲーム|フィギュア/, 'ゲーム・ホビー'], [/着物|骨董|掛け軸/, '着物・骨董'],
 ];
 const ITEMS = [[/ルイ・?ヴィトン|ヴィトン/, 'ルイ・ヴィトン'], [/シャネル/, 'シャネル'], [/エルメス/, 'エルメス'], [/グッチ/, 'グッチ'], [/ロレックス/, 'ロレックス'], [/オメガ/, 'オメガ'], [/プラチナ/, 'プラチナ'], [/金のネックレス/, '金のネックレス'], [/指輪/, '指輪'], [/ダイヤ/, 'ダイヤ']];
-const NOTE_WORDS = /駐車|オートロック|エントランス|インターホン|犬|猫|ペット|午前中が|午後が|夜が/;
+const NOTE_WORDS = /オートロック|エントランス|インターホン|犬|猫|ペット|午前中が|午後が|夜が/;
 const WEEKDAYS = '日月火水木金土';
 
 function extractItems(sentence) {
@@ -132,12 +134,31 @@ export function extractFromUtterance(text, form, now = new Date(), dur = 90) {
       const have = (patch.wants ?? form.wants).split('、').filter(Boolean);
       patch.wants = [...have, ...items.filter((i) => !have.some((h) => h.split(' ')[0] === i.split(' ')[0]))].join('、');
     }
-    if (/(主人|夫|旦那|妻).*(一緒|同席|立ち会)/.test(s)) patch.attendee = ATTENDEES[1];
-    else if (/家族.*(一緒|同席|立ち会)/.test(s)) patch.attendee = ATTENDEES[2];
+    // 立会い（誰が立ち会うか）と、同席者（他に同席する人がいるか）は別に聞く
+    const DETAIL = { 主人: 'ご主人', 夫: 'ご主人', 旦那: 'ご主人', 奥さん: '奥様', 妻: '奥様', 家内: '奥様', 家族: 'ご家族', 娘: '娘様', 息子: '息子様', 母: 'お母様', 父: 'お父様' };
+    const who = s.match(/主人|夫|旦那|奥さん|妻|家内|家族|娘|息子|母|父/)?.[0];
+    const whoLabel = !who ? null : /主人|夫|旦那/.test(who) ? 'ご主人' : /奥さん|妻|家内/.test(who) ? '奥様' : 'ご家族';
+    if (/立ち会|対応|在宅|家にい|お迎え/.test(s)) {
+      if (whoLabel && /も|と|一緒|同席/.test(s)) { patch.attendee = 'ご本人'; patch.companion = 'あり'; patch.companionNote = DETAIL[who]; } // 「主人も一緒に立ち会います」→ ご本人が立ち会い、ご主人が同席
+      else if (whoLabel) patch.attendee = whoLabel; // 「主人が立ち会います」
+      else if (/私|本人/.test(s)) patch.attendee = 'ご本人';
+    }
+    if (/同席[^。]*(いません|おりません|なし|不要)|一人で|ひとりで|私だけ/.test(s)) { patch.companion = 'なし'; patch.companionNote = ''; }
+    else if (/同席(者)?(は|も)?[^。]*(います|おります|あり|予定|だけ)/.test(s) && !patch.companion) { patch.companion = 'あり'; if (who) patch.companionNote = DETAIL[who]; }
+    if (/駐車[^。]*(ありません|ない|なし|難しい|できません)|コインパーキング/.test(s)) patch.parking = 'なし';
+    else if (/駐車[^。]*(あります|ある|大丈夫|止められ|停められ|可能)/.test(s)) patch.parking = 'あり';
+    if (/表札[^。]*(ありません|ない|なし|出して(い)?ません|出てい(ま)?せん)/.test(s)) patch.nameplate = 'なし';
+    else if (/表札[^。]*(あります|ある|出て|出して)/.test(s)) patch.nameplate = 'あり';
+    const confirmCall = /前日|確認の?(お)?電話/.test(s);
+    if (confirmCall) {
+      const r = contactRangeOf(s);
+      if (r) [patch.contactFrom, patch.contactTo] = r;
+      else if (/いつでも|指定(は)?(ありません|なし)/.test(s)) { patch.contactFrom = ''; patch.contactTo = ''; }
+    }
     const large = s.match(/ゴルフクラブ|ゴルフ|ピアノ|家具|大型/);
     if (large) patch.large = `${large[0]}も売れるか質問あり`;
     if (NOTE_WORDS.test(s)) patch.notes = s.replace(/[。！？]$/, '');
-    if (!phone && !zip && !address && !/チラシ|折込|号/.test(s)) { // 住所・番号・広告の日付や数字を、訪問日と取り違えない
+    if (!phone && !zip && !address && !confirmCall && !/チラシ|折込|号/.test(s)) { // 住所・番号・広告の日付や数字を、訪問日と取り違えない
       const date = dateOf(s, now);
       if (date) patch.date = date;
       const start = startOf(s);
@@ -145,6 +166,18 @@ export function extractFromUtterance(text, form, now = new Date(), dur = 90) {
     }
   }
   return patch;
+}
+
+// 前日確認の連絡時間「午後5時から7時」→ ['17:00', '19:00']（30分刻み・9:00〜20:00に収める）
+export function contactRangeOf(s) {
+  const m = s.match(/(午前|午後)?\s*(\d{1,2})時(半)?\s*(?:から|〜|~|-)\s*(午前|午後)?\s*(\d{1,2})時(半)?/);
+  if (!m) return null;
+  const hour = (mer, h, half) => { let v = Number(h); if (mer === '午後' && v < 12) v += 12; else if (!mer && v < 9) v += 12; return v * 60 + (half ? 30 : 0); };
+  const from = hour(m[1], m[2], m[3]);
+  let to = hour(m[4] ?? m[1], m[5], m[6]); // 後ろに「午前・午後」がなければ、前と同じ
+  if (to <= from) to += 12 * 60; // 「7時から9時」のように、どちらにも付いていない場合は、終わりが始まりより後になる向きに合わせる
+  const fmt = (min) => { const c = Math.min(Math.max(Math.round(min / 30) * 30, 9 * 60), 20 * 60); return `${String(Math.floor(c / 60)).padStart(2, '0')}:${c % 60 ? '30' : '00'}`; };
+  return [fmt(from), fmt(to)];
 }
 
 // 実際に値が変わった項目だけ返す
