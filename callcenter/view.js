@@ -3,7 +3,7 @@ import { esc } from '../src/format.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser, busyBlocks, conflictText, WORK_START, WORK_END, DURATIONS, SLOT_STEP } from '../src/dispatch.js';
 import { minToHHMM } from '../src/reservations.js';
-import { CHIRASHI, CATEGORIES, ATTENDEES } from './master.js';
+import { CHIRASHI, CATEGORIES, ATTENDEES, flyerOf, isFlyerIndex } from './master.js';
 import { FIELD_LABELS } from './transcript.js';
 
 export const mapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -45,6 +45,12 @@ const lbl = (text, inner, { req = false, cls = '' } = {}) => `<label class="bloc
 const inp = (key, v, { type = 'text', ph = '', extra = '' } = {}) => `<input class="inp mt-1" data-f="${key}" type="${type}" value="${esc(v)}" placeholder="${esc(ph)}" ${extra} />`;
 const sec = (title, body) => `<section class="bg-white rounded-lg shadow p-4 space-y-3"><h2 class="font-bold text-teal-800">${title}</h2>${body}</section>`;
 
+export function flyerResultHtml(id) {
+  if (!String(id ?? '').trim()) return '<span class="text-slate-400">IDを入力すると、どのチラシか自動で表示します</span>';
+  const f = flyerOf(id);
+  return f ? `<span class="text-emerald-700 font-bold">✔ ${esc(CHIRASHI[f.chirashi])}</span>` : '<span class="text-amber-700 font-bold">該当するIDがありません。お客様にIDをもう一度ご確認ください</span>';
+}
+
 export function formHtml(f, today) {
   const times = [];
   for (let m = WORK_START; m < WORK_END; m += SLOT_STEP) times.push(m);
@@ -64,7 +70,9 @@ export function formHtml(f, today) {
     </div>`)}
   ${sec('② ヒアリング', `
     <div><div class="text-sm font-bold">何を見て電話してきましたか？<span class="text-rose-600 text-xs ml-1">必須</span></div>
-      <div class="flex flex-wrap gap-1.5 mt-1">${CHIRASHI.map((c, i) => `<button class="chip ${f.chirashi === i ? 'on' : ''}" data-chirashi="${i}">${esc(c)}</button>`).join('')}</div></div>
+      <div class="mt-1">${lbl('チラシに印刷されているIDをお聞きください', inp('flyerId', f.flyerId, { ph: '例: N1019' }))}<div id="flyer-result" class="text-sm mt-1">${flyerResultHtml(f.flyerId)}</div></div>
+      <div class="text-xs text-slate-500 mt-2">チラシ以外（IDがない場合）</div>
+      <div class="flex flex-wrap gap-1.5 mt-1">${CHIRASHI.map((c, i) => (isFlyerIndex(i) ? '' : `<button class="chip ${f.chirashi === i ? 'on' : ''}" data-chirashi="${i}">${esc(c)}</button>`)).join('')}</div></div>
     <div><div class="text-sm font-bold">何を売りたいですか？<span class="text-rose-600 text-xs ml-1">必須</span></div>
       <div class="flex flex-wrap gap-1.5 mt-1">${CATEGORIES.map((c) => `<button class="chip ${f.cats.includes(c) ? 'on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
       ${inp('wants', f.wants, { ph: '点数・ブランドなどの詳細（例: ヴィトン 3点、ロレックス 2本）' })}</div>

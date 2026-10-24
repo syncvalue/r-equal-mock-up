@@ -1,18 +1,20 @@
 // 通話の文字起こしから、ヒアリング項目を拾い出す（デモ）。実際は音声認識＋AIで行う処理を、キーワードと正規表現で代用している。
 // 画面に依存しない純関数。お客様の発話を1つ渡すと、入力欄にセットする項目だけを返す。
-import { CATEGORIES, ATTENDEES } from './master.js';
+import { CATEGORIES, ATTENDEES, flyerOf, normalizeFlyerId } from './master.js';
 import { ymdOf } from '../src/reservations.js';
 
 export const FIELD_LABELS = {
-  phone: '電話番号', name: 'お名前', kana: 'フリガナ', gender: '性別', zip: '郵便番号', address: '住所', chirashi: '来電のきっかけ',
+  phone: '電話番号', name: 'お名前', kana: 'フリガナ', gender: '性別', zip: '郵便番号', address: '住所', chirashi: '来電のきっかけ', flyerId: 'チラシのID',
   cats: '売りたいもの', wants: '点数・ブランド', attendee: '当日の立会い', large: '大型品', notes: '訪問時の注意', date: '希望日', start: '開始時刻',
 };
 
 // 通話のデモ台本（op=オペレーター、cu=お客様）。お客様の発話だけから項目を拾う
 export const DEMO_SCRIPT = [
   { who: 'op', text: 'お電話ありがとうございます。リクールでございます。' },
-  { who: 'cu', text: '10月19日のチラシを見て電話しました。不用品の買取をお願いしたいんです。' },
-  { who: 'op', text: 'ありがとうございます。お名前とお電話番号を教えていただけますか？' },
+  { who: 'cu', text: '新聞に入っていたチラシを見て電話しました。不用品の買取をお願いしたいんです。' },
+  { who: 'op', text: 'ありがとうございます。チラシに印刷されているIDを教えていただけますか？' },
+  { who: 'cu', text: 'えっと、N1019です。' },
+  { who: 'op', text: '確認できました。お名前とお電話番号を教えていただけますか？' },
   { who: 'cu', text: '山田花子と申します。フリガナはヤマダハナコです。電話番号は090-1234-5678です。' },
   { who: 'op', text: '訪問先のご住所をお願いします。' },
   { who: 'cu', text: '大阪府大阪市阿倍野区阿倍野筋1-2-3です。郵便番号は545-0052です。主婦をしておりまして、日中は家におります。' },
@@ -28,16 +30,15 @@ export const DEMO_SCRIPT = [
 ];
 
 const FULL = '０１２３４５６７８９－ー−';
-const normalize = (s) => s.replace(/[０-９]/g, (c) => String(FULL.indexOf(c))).replace(/[－ー−]/g, '-');
+const normalize = (s) => s.replace(/[Ａ-Ｚａ-ｚ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[０-９]/g, (c) => String(FULL.indexOf(c))).replace(/[－−]/g, '-').replace(/(?<=\d)ー(?=\d)/g, '-'); // 長音「ー」は、数字の間だけハイフンとみなす
 const KANJI_NUM = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
 const toNum = (s) => (KANJI_NUM[s] ?? Number(s));
 
 // ---- 項目ごとの規則 ------------------------------------------------------------------
 const ADDRESS = /(?:東京都|北海道|(?:京都|大阪)府|[一-龠]{2,3}県)[^。、\s]*?(?=です|。|、|$)/;
-const CHIRASHI_RULES = [
-  [/10(?:月|\/)12日?号?|10\/12/, 0], [/10(?:月|\/)19日?号?|10\/19/, 1], [/ポスティング/, 2], [/DM|ＤＭ|はがき|ハガキ/, 3],
-  [/ネット|検索|比較サイト/, 4], [/テレビ|ＣＭ|CM/, 5], [/紹介/, 6], [/前回|また(?:お願い|利用)/, 7], [/新聞|折込|チラシ/, 1],
-];
+// チラシは、お客様が伝えるIDで特定する（広告の種類だけでは、どの号か決められない）。IDのない広告だけ、言葉から判定する
+const CHIRASHI_RULES = [[/ネット|検索|比較サイト/, 4], [/テレビ|ＣＭ|CM/, 5], [/紹介/, 6], [/前回|また(?:お願い|利用)/, 7]];
+const FLYER_ID = /(?:^|[^A-Za-z])([NPD])\s*-?\s*(\d{4})(?!\d)/i;
 const CATEGORY_RULES = [
   [/バッグ|ヴィトン|シャネル|エルメス|グッチ/, 'ブランドバッグ'], [/時計|ロレックス|オメガ/, '腕時計'], [/金|プラチナ|指輪|ネックレス|ジュエリー|ダイヤ/, '貴金属・ジュエリー'],
   [/カメラ|家電/, 'カメラ・家電'], [/ゲーム|フィギュア/, 'ゲーム・ホビー'], [/着物|骨董|掛け軸/, '着物・骨董'],
@@ -114,9 +115,11 @@ export function extractFromUtterance(text, form, now = new Date(), dur = 90) {
     if (kana) patch.kana = kana[1];
     if (/主婦|私は女|女性の者/.test(s)) patch.gender = 'f';
     else if (/私は男|男性の者/.test(s)) patch.gender = 'm';
-    if (/チラシ|折込|ポスティング|はがき|ハガキ|DM|ネット|検索|テレビ|紹介|前回/.test(s)) {
+    const fid = s.match(FLYER_ID);
+    if (fid && flyerOf(fid[1] + fid[2])) patch.flyerId = normalizeFlyerId(fid[1] + fid[2]);
+    else {
       const hit = CHIRASHI_RULES.find(([re]) => re.test(s));
-      if (hit) patch.chirashi = hit[1];
+      if (hit) { patch.chirashi = hit[1]; patch.flyerId = ''; }
     }
     const cats = CATEGORY_RULES.filter(([re]) => re.test(s)).map(([, c]) => c).filter((c) => CATEGORIES.includes(c));
     if (cats.length) patch.cats = [...new Set([...(patch.cats ?? form.cats), ...cats])];

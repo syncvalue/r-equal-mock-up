@@ -7,8 +7,8 @@ import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, n
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
-import { OPERATORS, CHIRASHI } from './master.js';
-import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml } from './view.js';
+import { OPERATORS, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText } from './master.js';
+import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml, flyerResultHtml } from './view.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
 const $ = (s) => document.querySelector(s);
@@ -26,7 +26,7 @@ const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); c
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
 const blankForm = () => ({
-  phone: '', name: '', kana: '', gender: '', zip: '', address: '', chirashi: null, cats: [], wants: '', attendee: 'ご本人', large: '', notes: '',
+  phone: '', name: '', kana: '', gender: '', zip: '', address: '', chirashi: null, flyerId: '', cats: [], wants: '', attendee: 'ご本人', large: '', notes: '',
   date: addDays(1), start: 10 * 60, dur: 90, userId: null,
 });
 
@@ -69,7 +69,7 @@ function compute() {
   if (!form.name.trim()) missing.push('お名前');
   if (!form.gender) missing.push('性別');
   if (!area) missing.push('訪問先の住所（都道府県から）');
-  if (form.chirashi === null) missing.push('来電のきっかけ');
+  if (form.chirashi === null) missing.push(form.flyerId.trim() ? 'チラシのID（該当なし）' : '来電のきっかけ（チラシのID）');
   if (!form.cats.length && !form.wants.trim()) missing.push('売りたいもの');
   if (!form.date || form.date < ymdOf(new Date())) missing.push('希望日（今日以降）');
   if (!selected) missing.push('担当の営業');
@@ -89,9 +89,9 @@ function confirmReservation() {
   const record = {
     id: `RS-${Date.now().toString(36).toUpperCase()}`, receptionNo: nextReceptionNo(reservations), receivedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }),
     operator, userId: x.selected.user.id, date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), apType: past ? '再' : '新',
-    gender: form.gender, areaId: area?.id ?? null, lat: center.lat, lng: center.lng, chirashi: CHIRASHI[form.chirashi],
+    gender: form.gender, areaId: area?.id ?? null, lat: center.lat, lng: center.lng, flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyerOf(form.flyerId)?.id),
     hearing: {
-      trigger: CHIRASHI[form.chirashi], attendee: form.attendee, wants: [form.cats.join('・'), form.wants.trim() && `（${form.wants.trim()}）`].filter(Boolean).join(''),
+      trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee, wants: [form.cats.join('・'), form.wants.trim() && `（${form.wants.trim()}）`].filter(Boolean).join(''),
       large: form.large.trim() || 'なし', notes: form.notes.trim() || '特になし',
     },
     customer: { name: form.name.trim(), kana: form.kana.trim(), phone: form.phone.trim(), zip: form.zip.trim(), address: form.address.trim() },
@@ -103,7 +103,7 @@ function confirmReservation() {
 }
 
 // ---- 通話の文字起こし（デモ） ---------------------------------------------------------------
-const FLASH = { gender: '[data-gender].on', chirashi: '[data-chirashi].on', cats: '[data-cat].on', start: '[data-f="start"]', dur: '[data-dur].on' };
+const FLASH = { flyerId: '[data-f="flyerId"]', gender: '[data-gender].on', chirashi: '[data-chirashi].on', cats: '[data-cat].on', start: '[data-f="start"]', dur: '[data-dur].on' };
 function flashFields(keys) {
   keys.forEach((k) => document.querySelectorAll(FLASH[k] ?? `[data-f="${k}"]`).forEach((el) => {
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
@@ -120,6 +120,7 @@ function addUtterance(who, text) {
     if (got.length) {
       form = { ...form, ...patch };
       if (patch.phone) quoted = false;
+      if (patch.flyerId) form = withFlyer(form, patch.flyerId);
       if (patch.date) weekStart = weekStartFor(patch.date);
     }
   }
@@ -206,6 +207,7 @@ function onField(e) {
   if (!k) return;
   form = { ...form, [k]: NUMERIC.has(k) ? Number(e.target.value) : e.target.value };
   if (k === 'phone') quoted = false;
+  if (k === 'flyerId') { form = withFlyer(form, e.target.value); renderFlyerResult(); renderDispatch(); return; }
   if (k === 'date' && e.target.value) weekStart = weekStartFor(e.target.value);
   if (LIVE.has(k)) renderDispatch();
 }
@@ -226,6 +228,13 @@ document.addEventListener('submit', (e) => {
   addUtterance('cu', text);
 });
 
+// チラシのIDが入力されたら、きっかけを自動で決める（IDがチラシに当たらなければ、チラシのきっかけは外す）
+function withFlyer(f, id) {
+  const hit = flyerOf(id);
+  return { ...f, flyerId: id, chirashi: hit ? hit.chirashi : isFlyerIndex(f.chirashi) ? null : f.chirashi };
+}
+const renderFlyerResult = () => { const el = $('#flyer-result'); if (el) el.innerHTML = flyerResultHtml(form.flyerId); };
+
 const refresh = () => { $('#form').innerHTML = formHtml(form, ymdOf(new Date())); renderDispatch(); };
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button, [data-pick]');
@@ -234,7 +243,7 @@ document.addEventListener('click', (e) => {
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo })[d.demo](); return; }
   if (d.tab) { tab = d.tab; render(); }
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
-  else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi) }; refresh(); }
+  else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi), flyerId: '' }; refresh(); }
   else if (d.cat) { form = { ...form, cats: form.cats.includes(d.cat) ? form.cats.filter((c) => c !== d.cat) : [...form.cats, d.cat] }; refresh(); }
   else if (d.dur) { form = { ...form, dur: Number(d.dur) }; refresh(); }
   else if (d.cell) { const [date, start] = d.cell.split('|'); form = { ...form, date, start: Number(start) }; refresh(); }

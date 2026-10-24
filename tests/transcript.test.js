@@ -5,10 +5,19 @@ import { extractFromUtterance as ex, changedFields, DEMO_SCRIPT, dateOf, startOf
 const NOW = new Date(2026, 9, 24, 9, 0); // 2026-10-24（土）
 const blank = { cats: [], wants: '' };
 
-test('チラシの号と、広告の日付を訪問日と取り違えない', () => {
+test('チラシはIDで特定する。号の日付を訪問日と取り違えず、IDなしの発言ではチラシを決めない', () => {
   const p = ex('10月19日のチラシを見て電話しました。', blank, NOW);
-  assert.equal(p.chirashi, 1);
+  assert.equal(p.chirashi, undefined);
+  assert.equal(p.flyerId, undefined);
   assert.equal(p.date, undefined);
+  assert.equal(ex('えっと、N1019です。', blank, NOW).flyerId, 'N1019');
+  assert.equal(ex('ｎ１０１２ です', blank, NOW).flyerId, 'N1012'); // 全角・小文字
+  assert.equal(ex('P-1015です', blank, NOW).flyerId, 'P1015');
+  assert.equal(ex('N9999です', blank, NOW).flyerId, undefined); // 一覧にないID
+});
+
+test('IDのない広告は、言葉から判定する', () => {
+  assert.deepEqual([ex('ネットで検索して見つけました', blank, NOW).chirashi, ex('知人の紹介です', blank, NOW).chirashi], [4, 6]);
 });
 
 test('名前・フリガナ・電話番号', () => {
@@ -61,9 +70,23 @@ test('デモ台本を流すと、必須項目がそろう', () => {
   assert.equal(form.gender, 'f');
   assert.equal(form.date, '2026-10-31');
   assert.equal(form.start, 780); // 午前中 → 午後1時に変更
-  assert.ok(form.address.startsWith('大阪府') && form.cats.length === 3 && form.chirashi === 1);
+  assert.ok(form.address.startsWith('大阪府') && form.cats.length === 3 && form.flyerId === 'N1019');
 });
 
 test('変わった項目だけ返す', () => {
   assert.deepEqual(changedFields({ name: 'A', kana: 'B' }, { name: 'A', kana: '' }), ['kana']);
+});
+
+test('チラシのIDの正規化と、チラシの特定', async () => {
+  const { flyerOf, triggerText, isFlyerIndex } = await import('../callcenter/master.js');
+  assert.equal(flyerOf(' ｎ-1019 ').chirashi, 1);
+  assert.equal(flyerOf('X0000'), null);
+  assert.equal(flyerOf(''), null);
+  assert.equal(triggerText(1, 'N1019'), '新聞折込チラシ（10/19号）（ID: N1019）');
+  assert.equal(triggerText(null, ''), '');
+  assert.ok(isFlyerIndex(0) && !isFlyerIndex(4));
+});
+
+test('フリガナの長音は壊さない', () => {
+  assert.equal(ex('フリガナはサトウユーコです', blank, NOW).kana, 'サトウユーコ');
 });
