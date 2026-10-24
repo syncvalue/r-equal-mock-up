@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>コールセンター 受付・配車（ダミー）</title>
+  <script>(function(){try{var t=localStorage.getItem('rq-theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}})()</script>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <style>
+    body { font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; }
+    .inp { border: 1px solid #94a3b8; border-radius: .375rem; padding: .5rem .7rem; width: 100%; background: #fff; }
+    .b { border-radius: .375rem; padding: .55rem 1.1rem; font-weight: 700; min-height: 40px; }
+    .b-pri { background: #0f766e; color: #fff; } .b-sec { background: #fff; border: 1px solid #94a3b8; }
+    .b.on { background: #0f766e; color: #fff; border-color: #0f766e; }
+    .b:disabled { opacity: .4; cursor: not-allowed; }
+    .chip { border: 1px solid #94a3b8; border-radius: 9999px; padding: .3rem .8rem; font-weight: 700; font-size: .875rem; background: #fff; }
+    .chip.on { background: #0f766e; color: #fff; border-color: #0f766e; }
+    html.dark .chip { background: #0f172a; color: #e2e8f0; border-color: #2f405a; }
+    html.dark .chip.on { background: #0d9488; border-color: #0d9488; color: #fff; }
+  </style>
+  <link rel="stylesheet" href="/src/theme.css" />
+</head>
+<body class="bg-slate-100 text-slate-800 overflow-hidden">
+  <div id="root"></div>
+  <script type="module" src="/callcenter/callcenter.js"></script>
+</body>
+</html>

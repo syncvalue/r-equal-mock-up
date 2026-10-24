@@ -1,4 +1,6 @@
 // 買取アプリ ⇄ GMOサイン(ダミー) 間の受け渡し。別タブでも共有できるよう localStorage を使う。
+import { RESERVATION_KEY } from './reservations.js';
+
 const KEY = 'rq-mock-contracts';
 
 export const loadContracts = () => {
@@ -100,14 +102,16 @@ export const SESSION_KEY = 'rq-mock-session';
 // 買取商品の持ち帰り（実物1点ごとの入庫状況）
 export const STOCK_KEY = 'rq-mock-stock';
 
+export { RESERVATION_KEY };
+
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, STOCK_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, STOCK_KEY, RESERVATION_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
 };
 
-export const RESET_CONFIRM = '契約・査定依頼・コメント・訪問状況・始業終業・経費・持ち帰りのデータをすべて初期化します。よろしいですか？（商品マスタは消えません）';
+export const RESET_CONFIRM = '契約・査定依頼・コメント・訪問状況・始業終業・経費・持ち帰り・コールセンターの受付のデータをすべて初期化します。よろしいですか？（商品マスタは消えません）';
 
 // 買取承認（本社査定部が、商品が登録された時点から随時 承認／差戻し）。承認時点の金額・ランク・数量のスナップショットを持つ
 export const APPROVAL_KEY = 'rq-mock-approvals';

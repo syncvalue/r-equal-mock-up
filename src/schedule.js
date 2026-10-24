@@ -1,3 +1,5 @@
+import { reservationEvents } from './reservations.js';
+
 // 訪問予定（静的なダミーデータ）。日付は「今日からの日数」で持ち、常に今日を起点に3日分を表示する。
 export const OFFICE = { name: '営業所', address: '大阪府大阪市天王寺区上汐5丁目1-1', lat: 34.6623, lng: 135.5174 };
 
@@ -47,8 +49,10 @@ EVENTS.push(
   d0('ev-0-d8', 'u07', '16:00', '17:00', 78, '渡辺', '新', 'ゲーム・ホビー', 34.7211, 135.3613, c('清水 拓也', 'シミズ タクヤ', '080-1111-2208', '663-8152', '兵庫県西宮市甲子園町1-82（阪神甲子園球場）', '会社員', '1992-06-02'), 'notyet'),
 );
 
-export const eventsOfDay = (day, userId = null) => EVENTS.filter((e) => e.day === day && (!userId || e.userId === userId)).sort((a, b) => a.start.localeCompare(b.start));
-export const eventById = (id) => EVENTS.find((e) => e.id === id);
+// 静的なダミーの予定に、コールセンターが確定した予約を加えたもの
+const allEvents = () => [...EVENTS, ...reservationEvents()];
+export const eventsOfDay = (day, userId = null) => allEvents().filter((e) => e.day === day && (!userId || e.userId === userId)).sort((a, b) => a.start.localeCompare(b.start));
+export const eventById = (id) => allEvents().find((e) => e.id === id);
 export const toMin = (hhmm) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
 export const dayDate = (day, now = new Date()) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + day);
 
@@ -90,6 +94,7 @@ const H_LARGE = ['なし', 'なし', '大きな物（家具・自転車など）
 const hashOf = (id) => [...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
 
 export function hearingOf(e) {
+  if (e.hearing) return e.hearing; // コールセンターの受付で入力された内容
   if (HEARING[e.id]) return HEARING[e.id];
   const h = hashOf(e.id);
   return {
