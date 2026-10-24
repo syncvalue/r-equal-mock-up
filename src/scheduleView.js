@@ -4,8 +4,8 @@ import { loadLive, loadEvals } from './store.js';
 import { outcomeOf } from './workday.js';
 import { EVENTS, OFFICE, eventById, eventsOfDay, dayDate, toMin } from './schedule.js';
 import { legsOf, mapEmbedUrl, mapOpenUrl } from './route.js';
-import { historyOf, customerProfile } from './customerHistory.js';
-import { salesCustomerCard, customerMarks } from './customerProfileView.js';
+import { historyOf, customerProfile, declinedList } from './customerHistory.js';
+import { salesCustomerCard, salesDeclinedCard, customerMarks } from './customerProfileView.js';
 import { repeatBadge, pastEvalView } from './customerHistoryView.js';
 import { hearingRows, hearingMeta } from './hearingView.js';
 
@@ -88,6 +88,7 @@ function detailPanel(s) {
     <div><div class="text-xs text-slate-500">${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${e.start}–${e.end}</div>
       <h3 class="text-xl font-bold flex items-center gap-2 flex-wrap">${esc(e.customer.name)} 様 ${repeatBadge(h)}</h3></div>
     ${salesCustomerCard(customerProfile([e.customer.phone, e.customer.phone2]))}
+    ${salesDeclinedCard(declinedList([e.customer.phone, e.customer.phone2]))}
     ${h.isRepeat ? `<details class="rounded-xl border border-indigo-200 bg-indigo-50/50 px-3 py-2"><summary class="cursor-pointer text-sm font-bold">⭐ 過去の評価を見る${h.latestEval ? `<span class="ml-1 text-amber-500">${'★'.repeat(h.latestEval.overall)}</span>` : ''}${(h.latestEval?.flags ?? []).includes('クレーム注意') ? '<span class="ml-1 text-xs rounded bg-rose-600 text-white px-1.5">クレーム注意</span>' : ''}</summary><div class="mt-2">${pastEvalView(h)}</div></details>` : ''}
     <dl class="text-sm space-y-1.5">
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">住所</dt><dd class="font-bold">${esc(e.customer.address)}</dd></div>

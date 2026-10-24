@@ -2,6 +2,7 @@
 // 過去の利用・評価は、ダミーの履歴に加えて、このアプリで保存した契約・評価も数える。
 import { loadContracts, loadEvals } from './store.js';
 import { loadCustomerEval, saveCustomerEval, customerEvalFromVisit } from './customerEval.js';
+import { loadDeclined } from './declined.js';
 
 // 買取の品目の1行（名前・数量・金額）。品目の内訳がない記録は、品目名と合計から1行にする
 const L = (name, price, qty = 1) => ({ name, qty, price });
@@ -14,6 +15,7 @@ const at = (date) => new Date(`${date}T10:00:00`).getTime();
 const SEED = {
   // 音声入力デモで受電するお客様（山田 花子）。過去に3回の買取実績がある見本
   '090-2468-1357': {
+    declined: [{ at: at('2026-04-12'), items: [{ name: 'ロレックス エクスプローラー', category: '腕時計', qty: 1, price: 450000, reason: 'お客様が売るのをやめた' }] }],
     profile: { rank: 'A', trouble: { level: 'none', tags: [] }, cooloff: [] },
     customer: { name: '山田 花子', kana: 'ヤマダ ハナコ', zip: '545-0052', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3', occupation: '主婦', birth: '1964-02-11' },
     visits: [
@@ -41,6 +43,7 @@ const SEED = {
       cats: ['腕時計'], flags: ['価格交渉が強い', '他社と比較中'], memo: 'デイトナを売却。他社の見積もりを提示して交渉された。型番・相場を事前に調べておくとスムーズ。' }],
   },
   '080-8901-2345': {
+    declined: [{ at: at('2026-09-05'), items: [{ name: 'エルメス ケリー28', category: 'ブランドバッグ', qty: 1, price: 380000, reason: 'ご家族の同意が得られない' }, { name: 'ヴィトン ダミエ ボストン', category: 'ブランドバッグ', qty: 1, price: 60000, reason: 'お客様が売るのをやめた' }] }, { at: at('2026-05-18'), items: [{ name: '真珠のネックレス（形見）', category: 'ジュエリー・貴金属', qty: 1, price: 120000, reason: '手元に残したい（思い入れ）' }] }],
     profile: { rank: 'A', trouble: { level: 'caution', tags: ['家族の同意が必要'], memo: 'ご主人の同意が必要。事前にご在宅を確認する' }, cooloff: [{ at: at('2026-01-30'), items: 'ブランドバッグ', memo: 'ご家族の反対で、契約の翌日に連絡あり' }] },
     visits: [
       { at: at('2026-09-05'), items: 'ブランドバッグ', total: 310000, lines: [L('ルイ・ヴィトン ネヴァーフル MM', 145000), L('ルイ・ヴィトン ポシェット', 95000), L('シャネル チェーンウォレット', 70000)] },
@@ -51,6 +54,7 @@ const SEED = {
   },
   // 以下は、サンプルの受付のお客様（ランク・厄介度・クーリングオフ歴の見本）
   '090-5050-6060': {
+    declined: [{ at: at('2026-09-12'), items: [{ name: 'パテック・フィリップ カラトラバ', category: '腕時計', qty: 1, price: 1200000, reason: '金額に納得いただけなかった' }, { name: 'ルイ・ヴィトン トランク（大）', category: 'ブランドバッグ', qty: 1, price: 150000, reason: '他社と比較する' }] }, { at: at('2026-02-18'), items: [{ name: 'ダイヤ ネックレス 2.0ct', category: 'ジュエリー・貴金属', qty: 1, price: 780000, reason: '金額に納得いただけなかった' }] }],
     customer: { name: '前川 玲子', kana: 'マエカワ レイコ', zip: '543-0001', address: '大阪府大阪市天王寺区上本町6-3-2' },
     profile: { rank: 'S', trouble: { level: 'alert', tags: ['クレームが多い', '売却に至らないことが多い'], memo: '資産は多いが、査定額への不満が強く、成約まで時間がかかる。リーダーなど経験のある営業が対応する' }, cooloff: [{ at: at('2026-06-20'), items: 'エルメス', memo: '契約の3日後に、金額への不満でクーリングオフ' }, { at: at('2025-12-04'), items: '宝飾品', memo: '契約の翌日に、家族の意向で' }] },
     visits: [
@@ -66,6 +70,7 @@ const SEED = {
         cats: ['着物・骨董'], flags: [], memo: '骨董を中心に売却。初回は穏やかだった。' }],
   },
   '06-6334-9988': {
+    declined: [{ at: at('2026-08-25'), items: [{ name: 'ダイヤ リング 3.0ct', category: 'ジュエリー・貴金属', qty: 1, price: 900000, reason: 'ご家族の同意が得られない' }] }],
     customer: { name: '小山 敏子', kana: 'コヤマ トシコ', zip: '561-0881', address: '大阪府豊中市庄内西町3-4-5' },
     profile: { rank: 'S', trouble: { level: 'none', tags: [] }, cooloff: [] },
     visits: [{ at: at('2026-08-25'), items: 'ジュエリー', total: 980000 }, { at: at('2026-03-30'), items: '貴金属', total: 420000 }],
@@ -114,7 +119,7 @@ export function customerProfile(phones) {
   return {
     rank: manual?.rank ?? autoRank, rankAuto: !manual?.rank && Boolean(autoRank), purchase: sum,
     trouble: { level: trouble.level, tags: trouble.tags ?? [], memo: trouble.memo ?? '' }, cooloff,
-    memo: manual?.memo ?? '', meta: stored ? { by: stored.updatedBy, at: stored.updatedAt, source: stored.source } : null,
+    declined: declinedList(list).length, memo: manual?.memo ?? '', meta: stored ? { by: stored.updatedBy, at: stored.updatedAt, source: stored.source } : null,
     known: Boolean(manual) || sum.count > 0,
   };
 }
@@ -122,6 +127,15 @@ export function customerProfile(phones) {
 // 営業の評価・メモは、アポ（訪問）ごとに登録される。その訪問の評価を探す（訪問の識別子があればそれ、なければ同じ日）
 const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
 export const evalOfVisit = (v, evals) => evals.find((e) => (v.visitId && e.visitId ? e.visitId === v.visitId : sameDay(e.savedAt, v.at))) ?? null;
+
+// 査定したが、売らなかったもの（見送り品）。電話番号（複数可）。新しい回の品から。サンプルの履歴と、営業のタブレットで記録したものを合わせる
+export function declinedList(phones) {
+  const list = [...new Set(phones.filter(Boolean))];
+  const seeds = list.flatMap((p) => (SEED[p]?.declined ?? []).map((d) => ({ ...d, visitId: null })));
+  const digitsOf = (x) => String(x ?? '').replace(/\D/g, '');
+  const stored = loadDeclined().filter((r) => list.some((p) => digitsOf(p) === digitsOf(r.phone)));
+  return [...seeds, ...stored].sort((a, b) => b.at - a.at).flatMap((d) => d.items.map((i) => ({ ...i, at: d.at, visitId: d.visitId })));
+}
 
 // お客様の詳細（配車係が、誰を当てるかを判断するための材料）。買取の履歴、営業の評価、前回までの担当、ランク・厄介度・クーリングオフ歴をまとめる。電話番号は複数可
 export function customerDossier(phones) {
@@ -135,8 +149,9 @@ export function customerDossier(phones) {
   const profile = customerProfile(list);
   const visitsWithEval = visits.map((v) => ({ ...v, eval: evalOfVisit(v, evals) })); // 各回に、その回の評価・メモを結びつける
   const total = visits.reduce((n, v) => n + (v.total || 0), 0);
+  const declined = declinedList(list);
   return {
-    profile, visits: visitsWithEval, evals, total, count: visits.length, average: visits.length ? Math.round(total / visits.length) : 0,
+    profile, declined, visits: visitsWithEval, evals, total, count: visits.length, average: visits.length ? Math.round(total / visits.length) : 0,
     staff: [...new Set(evals.map((e) => String(e.by).replace(/^営業\s*/, '')))], // これまでに担当した営業（評価を残した順に、新しい方から）
   };
 }

@@ -6,7 +6,7 @@ import { dayTravel, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, attend
 import { isTentative, isCancelled, isReverted, needsReview, reviewDiffs } from '../src/reservations.js';
 import { customerProfile, customerDossier, visitLines, lineTotal } from '../src/customerHistory.js';
 import { callHistory } from '../src/callHistory.js';
-import { assignAdvice } from '../src/customerProfileView.js';
+import { assignAdvice, declinedCardHtml } from '../src/customerProfileView.js';
 import { customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
 
@@ -110,6 +110,7 @@ export function customerModalHtml({ rid, reservations, now }) {
           <div class="text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc(phones.join(' ／ '))}</div></div>
         <button class="b b-sec !min-h-0 !py-1" data-custclose title="閉じる（Esc）">✕ 閉じる</button></div>
       ${box('お客様の評価（お客様情報に紐づく。アポごとの評価とは別）', `${customerProfileHtml(p)}${customerEvalEditor(p, r.customer.phone || r.customer.phone2)}`)}
+      ${box('査定したが売らなかったもの（お手元に持っている可能性）', declinedCardHtml(d.declined, { empty: true }))}
       ${box('誰を当てるかの判断の手がかり', `${assignAdvice(p) || '<div class="text-xs text-slate-500">特に注意する点はありません</div>'}
         <div class="text-xs"><span class="text-slate-500">これまでの担当：</span>${d.staff.length ? d.staff.map((n) => `<b>${esc(n)}</b>`).join('、') : '<span class="text-slate-500">なし（新規・担当の記録なし）</span>'}</div>`)}
       ${box('過去の買取履歴（アポごとの品目と、営業の評価・メモ）', visits)}

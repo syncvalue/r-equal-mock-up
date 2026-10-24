@@ -12,6 +12,7 @@ import { initTheme } from './theme.js';
 import { userById, isLeader } from './dashboard.js';
 import { ACCOUNTS } from './auth.js';
 import { setFirstVisitCustomerEval } from './customerHistory.js';
+import { recordDeclined } from './declined.js';
 const ACCOUNTS_BY_USER = (userId) => ACCOUNTS.find((a) => a.userId === userId) ?? null;
 import { messagesFor, hqMessagesFor, leaderMessagesFor } from './messages.js';
 import { EVENTS, eventById, eventsOfDay } from './schedule.js';
@@ -170,7 +171,7 @@ function publish() {
     customerName: state.customer.name,
     callInfo: state.callInfo,
     outcome: state.outcome ? { ...state.outcome, label: outcomeOf(state.outcome.type).label } : null,
-    items: state.items.map(({ id, name, category, rank, qty, price, sell, aiAppraisal }) => ({ id, name, category, rank, qty, price, sell, aiAppraisal })),
+    items: state.items.map(({ id, name, category, rank, qty, price, sell, aiAppraisal, declineReason }) => ({ id, name, category, rank, qty, price, sell, aiAppraisal, declineReason })),
     updatedAt: Date.now(),
   });
 }
@@ -514,6 +515,8 @@ const actions = {
   finish: () => {
     if (V.leaveRemaining(state) !== 0) return;
     set({ visitEndedAt: Date.now() });
+    // 査定はしたが売らなかったもの（見送り品）を、お客様ごとの記録に残す。次回の訪問や、営業の当てはめの判断に使う
+    recordDeclined({ visitId: state.visitId, phone: state.customer.phone, customerName: state.customer.name, at: Date.now(), items: state.items.filter((i) => !i.sell) });
     const sel = V.selectedItems(state);
     const day = loadDay(state.user);
     if (day && !saveDay(recordVisit(day, { visitId: state.visitId, customerName: state.customer.name, itemCount: sel.reduce((n, i) => n + i.qty, 0), total: V.total(sel) }))) {
@@ -658,6 +661,7 @@ document.addEventListener('change', (e) => {
     set({ [key]: { ...state[key], checks: { ...state[key].checks, [el.dataset.key]: el.checked } } });
     rerenderKeepScroll();
   }
+  if (el.dataset.decline !== undefined) { updateItems(el.dataset.decline, { declineReason: el.value }); publish(); } // 見送りの理由（記録のみ）
   if (el.dataset.expPhoto !== undefined && el.files[0]) {
     shrinkImage(el.files[0], 1000)
       .then((img) => { set({ expDraft: { ...state.expDraft, photo: img } }); readReceiptAi(receiptSampleFor(img.length)); rerenderKeepScroll(); })

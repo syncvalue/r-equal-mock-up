@@ -4,8 +4,9 @@ import { approvalState, latestApproval } from './store.js';
 import { themeToggleHtml } from './theme.js';
 import { roleLabel, userById } from './dashboard.js';
 import { eventById } from './schedule.js';
-import { historyOf, customerProfile } from './customerHistory.js';
-import { salesCustomerCard } from './customerProfileView.js';
+import { historyOf, customerProfile, declinedList } from './customerHistory.js';
+import { salesCustomerCard, salesDeclinedCard } from './customerProfileView.js';
+import { DECLINE_REASONS } from './declined.js';
 import { repeatBadge, pastEvalView } from './customerHistoryView.js';
 import { dashVisitsModal, dashReportsModal } from './dashboardView.js';
 import { hearingModal } from './hearingView.js';
@@ -254,7 +255,7 @@ export function customerView(s) {
         <span class="text-sm text-slate-500">受付 ${esc(call.receptionNo)} ／ ${esc(call.receivedAt)} ／ 担当 ${esc(call.operator)}</span>
       </div>
       <p class="text-slate-600">ご本人かどうか、確認してください。</p>
-      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 担当者用の情報（過去の評価）を隠す' : '担当者用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
+      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 担当者用の情報（過去の評価）を隠す' : '担当者用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
       <dl class="grid grid-cols-[8rem_1fr] gap-y-2 text-xl">
         ${row('氏名', c.name)}${row('フリガナ', c.kana)}${row('生年月日', c.birth)}
         ${row('電話番号', c.phone2 ? `${c.phone} ／ ${c.phone2}` : c.phone)}${row('住所', `${c.zip} ${c.address}`)}${row('職業', c.occupation)}
@@ -441,6 +442,7 @@ export function selectView(s) {
           <div class="text-2xl font-bold w-36 text-right ${i.sell ? '' : 'line-through'}">${yen(i.price)}</div>
           <button class="btn w-40 !py-2 ${i.sell ? 'btn-primary' : 'btn-secondary'}" data-action="toggle-sell" data-id="${i.id}">${i.sell ? '✓ 売却する' : '今回は見送る'}</button>
         </div>
+        ${staff && !i.sell ? `<div class="mt-1 flex items-center gap-2 text-sm"><span class="font-bold text-violet-800">見送りの理由（記録のみ・お客様には見せません）</span><select class="inp !w-auto !py-1" data-decline="${i.id}"><option value="">（選ぶ）</option>${DECLINE_REASONS.map((r) => `<option ${i.declineReason === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></div>` : ''}
         ${staff && a?.state === 'ng' ? `<p class="text-sm text-rose-700 font-bold mt-1">差戻し理由：${esc(a.rec.comment)}</p>` : ''}
         ${staff && a?.state === 'stale' ? '<p class="text-sm text-orange-700 font-bold mt-1">承認後に変更されたため、再承認が必要です。</p>' : ''}
       </div>`;

@@ -1,5 +1,6 @@
 // 買取アプリ ⇄ GMOサイン(ダミー) 間の受け渡し。別タブでも共有できるよう localStorage を使う。
 import { RESERVATION_KEY, MOVED_KEY } from './reservations.js';
+import { DECLINED_KEY } from './declined.js';
 
 const KEY = 'rq-mock-contracts';
 
@@ -106,7 +107,7 @@ export { RESERVATION_KEY };
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, STOCK_KEY, RESERVATION_KEY, MOVED_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, STOCK_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
 };
