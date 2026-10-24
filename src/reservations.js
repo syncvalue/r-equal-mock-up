@@ -26,6 +26,7 @@ const save = (list) => localStorage.setItem(RESERVATION_KEY, JSON.stringify(list
 
 export const addReservation = (record) => save([record, ...loadReservations()]);
 export const removeReservation = (id) => save(loadReservations().filter((r) => r.id !== id));
+export const removeReservations = (predicate) => save(loadReservations().filter((r) => !predicate(r)));
 export const updateReservation = (id, patch) => save(loadReservations().map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
 // 受付の状態。オペレーターは「仮確定」まで。誰が訪問するかは、配車係が確定する（主に翌々日の予定を、毎日確定していく）。

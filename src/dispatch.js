@@ -68,6 +68,9 @@ export const ATTENDANCE_LABEL = { absent: '欠勤', pm: '午後出社', am: '午
 const NOON = 13 * 60; // 午前と午後の境
 const FIXED_ATTENDANCE = { u03: { 2: 'am' }, u12: { 2: 'pm' }, u15: { 1: 'pm' }, u16: { 3: 'am' }, u14: { 2: 'absent' } }; // 今日からの日数 → 勤怠
 
+// 予定が、休みの時間（欠勤の日・午前休・午後半休）にかかっているか
+export const inOffTime = (att, start, end) => att.kind === 'absent' || start < att.from || end > att.to;
+
 export function attendanceOf(userId, date, now = new Date()) {
   const day = dayOffset(date, now);
   let kind = 'present';
@@ -153,14 +156,17 @@ const LIGHT_SCHEDULE = new Set(['u09']);
 // 配車係が別の営業・時間に動かして、予約として取り込んだ元の予定（動かしたあとは、元の位置には出さない）。画面側が、保存先から入れる
 export const hiddenBlocks = new Set();
 
-function fillerBlocks(userId, date, hidden) {
+function fillerBlocks(userId, date, hidden, now) {
   if (LIGHT_SCHEDULE.has(userId)) return [];
+  const att = attendanceOf(userId, date, now);
+  if (att.kind === 'absent') return []; // 欠勤の日に、予定は入らない
   const rnd = hash(`${userId}/${date}`);
   const blocks = [];
   for (let i = 0, n = Math.floor(rnd() * 3); i < n; i += 1) {
     const start = 570 + Math.floor(rnd() * 14) * SLOT_STEP;
     const end = start + (rnd() < 0.5 ? 60 : 90);
-    if (!blocks.some((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER)) {
+    // 午後出社・午後半休の日は、休みの時間帯に予定は入らない。乱数の並びは変えず、働く時間の外に出る予定だけを外す
+    if (start >= att.from && end <= att.to && !blocks.some((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER)) {
       const areaId = areaOfUser(userId);
       const pick = Math.floor(hash(`${userId}/${date}/${start}/客`)() * 100); // 空き状況の乱数列を変えないよう、別の乱数で決める
       const gid = `flr:${userId}/${date}/${start}`;
@@ -179,7 +185,7 @@ export function busyBlocks(userId, date, reservations, now = new Date(), extraHi
   const hidden = extraHidden ? new Set([...hiddenBlocks, ...extraHidden]) : hiddenBlocks;
   const realAll = EVENTS.filter((e) => e.userId === userId && e.day === day);
   const real = realAll.filter((e) => !hidden.has(e.id)).map((e) => ({ gid: e.id, ev: e, start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event', lat: e.lat, lng: e.lng, place: e.customer.address }));
-  const base = realAll.length ? real : fillerBlocks(userId, date, hidden); // 既存の予定がある日は、ダミーを足さない（動かして空になっても、ダミーは出さない）
+  const base = realAll.length ? real : fillerBlocks(userId, date, hidden, now); // 既存の予定がある日は、ダミーを足さない（動かして空になっても、ダミーは出さない）
   const mine = reservations
     .filter((r) => r.userId === userId && r.date === date && r.status !== 'cancelled')
     .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', rid: r.id, review: Boolean(r.needsReview), status: r.status === 'tentative' ? 'tentative' : 'confirmed', lat: r.lat, lng: r.lng, place: r.customer.address }));

@@ -3,7 +3,7 @@
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
 import { canPlace, hiddenBlocks, busyBlocks, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
-import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, holdReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
+import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, removeReservations, holdReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
@@ -582,10 +582,11 @@ window.addEventListener('storage', (e) => {
 });
 
 // 最初に開いたときと、データ初期化のあとに、サンプルの受付を入れる（配車確定の画面などを、すぐ見られるように）
-const SAMPLE_KEY = 'rq-mock-cc-samples-v1';
+const SAMPLE_KEY = 'rq-mock-cc-samples-v2'; // v2: 休みの時間に予定が入らないように作り直した（古いサンプルは入れ替える）
 function seedSamples() {
   if (pref(SAMPLE_KEY, '')) return;
   setPref(SAMPLE_KEY, '1');
+  removeReservations((r) => /^SMP-/.test(r.id)); // 古いサンプルを外してから、入れ直す
   sampleReservations().forEach(addReservation);
 }
 

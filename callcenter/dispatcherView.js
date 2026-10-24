@@ -2,7 +2,7 @@
 // 確定した訪問だけが、営業のタブレットの予定に出る。
 import { esc } from '../src/format.js';
 import { USERS, isLeader } from '../src/dashboard.js';
-import { conflictText, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, attendanceOf, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
+import { conflictText, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, attendanceOf, inOffTime, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { isTentative, isCancelled, needsReview, reviewDiffs } from '../src/reservations.js';
 import { dateLabel, genderLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock } from './view.js';
 import { avatarHtml } from './avatar.js';
@@ -78,16 +78,18 @@ function boardColumns(date, reservations, now, areaId) {
   }));
 }
 
-function blockHtml(b, selId, byId) {
+function blockHtml(b, selId, byId, att) {
+  const off = att && inOffTime(att, b.start, b.end); // 休みと重なっている予定（あとから休みになった場合など）。配車係が動かして直す
+  const offCls = off ? 'outline outline-2 outline-dashed outline-rose-500' : '';
   const top = topOf(b.start);
   const height = topOf(b.end) - top - 1;
   if (b.source !== 'reservation') { // 営業のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
-    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の営業・時間に動かせます`)}"><b>確 ${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
+    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の営業・時間に動かせます`)}"><b>確 ${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
-  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${b.review ? 'ring-2 ring-rose-500' : ''} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の営業・時間に動かせます`)}">
-    <b>${b.review ? '⚠ ' : ''}${tent ? '仮 ' : '確 '}${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
+  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls} ${b.review ? 'ring-2 ring-rose-500' : ''} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の営業・時間に動かせます`)}">
+    <b>${off ? '⚠休み ' : b.review ? '⚠ ' : ''}${tent ? '仮 ' : '確 '}${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-indigo-800" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
 
@@ -103,7 +105,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => `<div class="relative border-l" data-bcol="${c.user.id}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW}px)`}">
-    ${c.blocks.map((b) => blockHtml(b, selId, byId)).join('')}${attShade(c.att, BOARD_ROW)}
+    ${c.blocks.map((b) => blockHtml(b, selId, byId, c.att)).join('')}${attShade(c.att, BOARD_ROW)}
     ${c.absent ? '<div class="pointer-events-none absolute inset-x-0 top-2 z-20 text-center"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : ''}</div>`).join('');
   return `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axis}${body}</div></div>`;
 }
