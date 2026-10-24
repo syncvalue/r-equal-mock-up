@@ -25,14 +25,20 @@ const checkRow = (form, c, done) => `
     <input type="checkbox" class="w-7 h-7 shrink-0" data-action="wd-check" data-form="${form.name}" data-key="${c.key}" ${form.checks[c.key] ? 'checked' : ''} ${done ? 'disabled' : ''} />
     ${c.icon ? `<span class="text-2xl">${c.icon}</span>` : ''}<span class="flex-1 ${form.checks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`;
 
+const startButton = (s) => {
+  const ready = startReady(s.startForm, s.user);
+  return `<button class="btn btn-primary w-full text-xl !py-3" data-action="wd-start" ${ready ? '' : 'disabled'}>${ready ? '☀ 始業する（点検結果を記録）' : startHint(s, carryoverFor(s.user).amount)}</button>`;
+};
+// 縦画面では、上から順に（繰越金 → お知らせ → 点検）進められるよう、始業ボタンを画面の一番下に置く
+export const wdStartBottomView = (s) => (s.phase === 'before' ? `<div class="hidden portrait:block">${startButton(s)}</div>` : '');
+
 // 入力のたびに差し替える部分（差異の表示と、確定ボタン）
 export function wdLiveView(s) {
   if (s.phase === 'before') {
     const carry = carryoverFor(s.user).amount;
-    const ready = startReady(s.startForm, s.user);
     return `
     ${s.startForm.countedSet ? diffBox(s.startForm.counted - carry, '前日からの繰越金') : '<div class="rounded-xl bg-slate-50 border p-3 text-center text-sm text-slate-500">いま手元にある現金を数えて、入力してください</div>'}
-    <button class="btn btn-primary w-full text-xl !py-3" data-action="wd-start" ${ready ? '' : 'disabled'}>${ready ? '☀ 始業する（点検結果を記録）' : startHint(s, carry)}</button>`;
+    <div class="portrait:hidden">${startButton(s)}</div>`;
   }
   const day = s.day;
   const ready = closeReady(s.closeForm, day, s.user, isVisiting(s));
@@ -62,10 +68,10 @@ function messagesCard(s) {
   const read = new Set(loadReadIds(s.user));
   const unread = list.filter((m) => !read.has(m.id)).length;
   return `
-  <div class="card !p-4 flex-[2] flex flex-col gap-2 min-h-0">
+  <div class="card !p-4 flex-[2] portrait:flex-none flex flex-col gap-2 min-h-0">
     <div class="flex items-center justify-between"><h2 class="text-lg font-bold">📢 本社からのお知らせ・注意事項</h2>
       ${unread ? `<span class="text-xs font-bold rounded-full bg-rose-600 text-white px-2 py-0.5">未読 ${unread}</span>` : '<span class="text-xs text-emerald-700 font-bold">すべて確認済み</span>'}</div>
-    <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="wdMsgs">
+    <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1 portrait:flex-none portrait:max-h-64" data-scroll="wdMsgs">
       ${list.map((m) => `<button class="w-full text-left rounded-xl border-2 px-3 py-2 ${m.important ? 'border-rose-300' : 'border-slate-200'} ${read.has(m.id) ? '' : 'bg-amber-50'}" data-action="msg-open" data-id="${m.id}">
         <span class="flex items-center gap-2"><span class="text-xs font-bold rounded px-1.5 py-0.5 shrink-0 ${m.important ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-600'}">${m.important ? '重要' : 'お知らせ'}</span>
           <span class="font-bold flex-1 min-w-0 truncate">${esc(m.title)}</span>${read.has(m.id) ? '' : '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>'}</span>
@@ -81,8 +87,8 @@ function startScreen(s) {
   const form = { ...s.startForm, name: 'start' };
   const left = START_CHECKS.filter((c) => !form.checks[c.key]).length;
   return `
-  <section class="${SEC} flex gap-3 portrait:flex-col">
-    <div class="card !p-4 w-[28rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[52%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="wdStartL">
+  <section class="${SEC} flex gap-3 portrait:flex-col portrait:overflow-y-auto" data-scroll="wdStartPage">
+    <div class="card !p-4 w-[28rem] shrink-0 portrait:w-full portrait:flex-none flex flex-col gap-3 min-h-0 overflow-y-auto portrait:overflow-visible" data-scroll="wdStartL">
       <div><div class="text-sm text-slate-500">${dateLabel(dateKey())}</div>
         <h2 class="text-2xl font-bold">☀ 始業</h2>
         <p class="text-sm text-slate-600">${esc(u.name)} さん、おはようございます。点検を済ませると現地買取を始められます。</p></div>
@@ -96,15 +102,16 @@ function startScreen(s) {
       </div>
       <div id="wd-live" class="space-y-2">${wdLiveView(s)}</div>
     </div>
-    <div class="flex-1 min-w-0 flex flex-col gap-3 min-h-0">
+    <div class="flex-1 min-w-0 flex flex-col gap-3 min-h-0 portrait:flex-none">
     ${messagesCard(s)}
-    <div class="card !p-4 flex-[3] flex flex-col gap-2 min-h-0">
+    <div class="card !p-4 flex-[3] portrait:flex-none flex flex-col gap-2 min-h-0">
       <div class="flex items-center justify-between"><h2 class="text-lg font-bold">✅ 始業点検</h2>
         <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${START_CHECKS.length - left} / ${START_CHECKS.length}</span></div>
-      <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="wdChecks">${START_CHECKS.map((c) => checkRow(form, c, false)).join('')}</div>
+      <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1 portrait:flex-none portrait:overflow-visible" data-scroll="wdChecks">${START_CHECKS.map((c) => checkRow(form, c, false)).join('')}</div>
       <div class="flex justify-end gap-3 text-xs text-slate-400"><button class="underline" data-action="wd-demo-start">（デモ用）すべてチェックして繰越金を一致させる</button></div>
     </div>
     </div>
+    <div id="wd-start-bottom" class="portrait:flex-none">${wdStartBottomView(s)}</div>
   </section>`;
 }
 

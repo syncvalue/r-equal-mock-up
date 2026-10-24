@@ -760,6 +760,7 @@ document.addEventListener('input', (e) => {
     }[el.dataset.wd];
     set(patch);
     if ($('#wd-live')) $('#wd-live').innerHTML = V.wdLiveView(state);
+    if ($('#wd-start-bottom')) $('#wd-start-bottom').innerHTML = V.wdStartBottomView(state);
     if ($('#exp-live')) $('#exp-live').innerHTML = V.expLiveView(state);
     if ($('#oc-live')) $('#oc-live').innerHTML = V.ocLiveView(state);
     return;

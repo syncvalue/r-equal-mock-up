@@ -905,5 +905,5 @@ export { masterBodyView } from './masterView.js';
 export { dashboardView } from './dashboardView.js';
 export { scheduleView } from './scheduleView.js';
 export { authView } from './authView.js';
-export { workdayView, expenseView, receiptModalView, outcomeModalView, outcomeResultView, wdLiveView, expLiveView, ocLiveView } from './workdayView.js';
+export { workdayView, expenseView, receiptModalView, outcomeModalView, outcomeResultView, wdLiveView, wdStartBottomView, expLiveView, ocLiveView } from './workdayView.js';
 export { stockView } from './stockView.js';
