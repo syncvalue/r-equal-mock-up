@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { extractFromUtterance as ex, changedFields, DEMO_SCRIPT, dateOf, startOf, contactRangeOf } from '../callcenter/transcript.js';
 
 const NOW = new Date(2026, 9, 24, 9, 0); // 2026-10-24（土）
-const blank = { cats: [], wants: '' };
+const blank = { cats: [], wants: '', mainItems: { 背広: 0, 婦人服: 0, 婦人靴: 0, 紳士靴: 0 } };
 
 test('チラシはIDで特定する。号の日付を訪問日と取り違えず、IDなしの発言ではチラシを決めない', () => {
   const p = ex('10月19日のチラシを見て電話しました。', blank, NOW);
@@ -122,4 +122,18 @@ test('備考・補足: ご同席者・駐車スペース・表札・前日確認
 test('同席者が誰かも拾う', () => {
   assert.equal(ex('当日は主人も一緒に立ち会います。', blank, NOW).companionNote, 'ご主人');
   assert.equal(ex('同席者は娘が来る予定です。', blank, NOW).companionNote, '娘様');
+});
+
+test('メイン商材と数量を拾う（選べる数量に丸める）', () => {
+  const p = ex('背広が5着と、婦人服が12点、婦人靴が3足あります。紳士靴は40足くらい。', blank, NOW);
+  assert.deepEqual(p.mainItems, { 背広: 1, 婦人服: 11, 婦人靴: 1, 紳士靴: 31 }); // 5着→1〜5、12点→11〜15、40足→31〜（範囲の下限で持つ）
+  assert.equal(p.cats, undefined); // 背広や靴は、その他の商材には入れない
+  const more = ex('革靴も2足あります。', { ...blank, mainItems: { ...blank.mainItems, 背広: 6 } }, NOW);
+  assert.deepEqual(more.mainItems, { 背広: 6, 婦人服: 0, 婦人靴: 0, 紳士靴: 1 }); // 既に入力した数量は残す
+});
+
+test('数量の範囲', async () => {
+  const { snapQty, qtyLabel } = await import('../callcenter/master.js');
+  assert.deepEqual([0, 1, 5, 6, 20, 21, 30, 31, 70, 71, 100, 101, 500].map(snapQty), [0, 1, 1, 6, 16, 21, 21, 31, 51, 71, 71, 101, 101]);
+  assert.deepEqual([1, 6, 21, 51, 101, 99].map(qtyLabel), ['1〜5点', '6〜10点', '21点以上', '51〜70点', '100点以上', '']);
 });

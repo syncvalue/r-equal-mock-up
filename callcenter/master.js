@@ -18,6 +18,20 @@ export const isFlyerIndex = (i) => FLYERS.some((f) => f.chirashi === i);
 // 来電のきっかけの記録用の文字（チラシはIDも残す）
 export const triggerText = (chirashi, flyerId) => (chirashi === null ? '' : flyerId ? `${CHIRASHI[chirashi]}（ID: ${flyerId}）` : CHIRASHI[chirashi]);
 
+// メイン商材（数量を選んで入力）。数量は範囲で選ぶ。値は範囲の下限（1, 6, 11 …）で持つ。0 は未選択
+export const MAIN_ITEMS = ['背広', '婦人服', '婦人靴', '紳士靴'];
+export const MAIN_BANDS = [
+  { min: 1, max: 5, label: '1〜5' }, { min: 6, max: 10, label: '6〜10' }, { min: 11, max: 15, label: '11〜15' }, { min: 16, max: 20, label: '16〜20' },
+  { min: 21, max: 30, label: '21〜' }, { min: 31, max: 40, label: '31〜' }, { min: 41, max: 50, label: '41〜' }, { min: 51, max: 70, label: '51〜70' },
+  { min: 71, max: 100, label: '71〜100' }, { min: 101, max: Infinity, label: '100〜' },
+];
+// 記録用の文字（例: 6〜10点、21点以上）
+export const qtyLabel = (min) => { const b = MAIN_BANDS.find((x) => x.min === min); return !b ? '' : b.label.endsWith('〜') && b.min !== 1 ? `${b.label.slice(0, -1)}点以上` : `${b.label}点`; };
+// 言われた数量が入る範囲を返す（範囲の下限）
+export const snapQty = (n) => MAIN_BANDS.find((b) => n >= b.min && n <= b.max)?.min ?? 0;
+export const blankMain = () => Object.fromEntries(MAIN_ITEMS.map((k) => [k, 0]));
+
+// その他の商材（複数選択）
 export const CATEGORIES = ['ブランドバッグ', '腕時計', '貴金属・ジュエリー', 'カメラ・家電', 'ゲーム・ホビー', '着物・骨董', 'その他'];
 
 // 当日、誰が立ち会うか（同席者がいるかどうかは、別項目の「ご同席者」で聞く）

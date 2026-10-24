@@ -3,7 +3,7 @@ import { esc } from '../src/format.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser, busyBlocks, conflictText, WORK_START, WORK_END, DURATIONS, SLOT_STEP } from '../src/dispatch.js';
 import { minToHHMM } from '../src/reservations.js';
-import { CHIRASHI, CATEGORIES, ATTENDEES, YESNO, CONTACT_TIMES, flyerOf, isFlyerIndex } from './master.js';
+import { CHIRASHI, CATEGORIES, MAIN_ITEMS, MAIN_BANDS, ATTENDEES, YESNO, CONTACT_TIMES, flyerOf, isFlyerIndex } from './master.js';
 import { FIELD_LABELS } from './transcript.js';
 
 export const mapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -84,8 +84,12 @@ export function formHtml(f, today) {
       <div class="flex items-center gap-2 mt-0.5"><div class="w-36 shrink-0">${inp('flyerId', f.flyerId, { ph: 'チラシのID 例: N1019' })}</div><div id="flyer-result" class="text-xs">${flyerResultHtml(f.flyerId)}</div></div>
       <div class="flex flex-wrap items-center gap-1 mt-1"><span class="text-xs text-slate-500">IDなし：</span>${CHIRASHI.map((c, i) => (isFlyerIndex(i) ? '' : `<button class="chip ${f.chirashi === i ? 'on' : ''}" data-chirashi="${i}">${esc(c)}</button>`)).join('')}</div></div>
     <div><div class="text-xs font-bold">何を売りたいですか？<span class="text-rose-600 text-xs ml-1">必須</span></div>
+      <div class="text-[11px] text-slate-500 mt-0.5">メイン商材（数量を選択）</div>
+      <div class="grid grid-cols-2 gap-1 mt-0.5">${MAIN_ITEMS.map((k) => `<div class="flex"><span class="w-14 shrink-0 flex items-center justify-center rounded-l border border-r-0 border-slate-400 bg-slate-100 text-xs font-bold">${k}</span>
+        <select class="inp !rounded-l-none ${f.mainItems[k] ? 'sel' : ''}" data-main="${k}"><option value="0">(数量)</option>${MAIN_BANDS.map((b) => `<option value="${b.min}" ${f.mainItems[k] === b.min ? 'selected' : ''}>${b.label}</option>`).join('')}</select></div>`).join('')}</div>
+      <div class="text-[11px] text-slate-500 mt-1.5">その他の商材（複数選択）</div>
       <div class="flex flex-wrap gap-1 mt-0.5">${CATEGORIES.map((c) => `<button class="chip ${f.cats.includes(c) ? 'on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-      ${inp('wants', f.wants, { ph: '点数・ブランドなどの詳細（例: ヴィトン 3点、ロレックス 2本）' })}</div>
+      ${inp('wants', f.wants, { ph: 'ブランド・点数などの詳細（例: ヴィトン 3点、ロレックス 2本）' })}</div>
     <div class="grid grid-cols-2 gap-2">
       ${lbl('当日の立会い（誰が立ち会うか）', `<select class="inp mt-0.5" data-f="attendee">${ATTENDEES.map((a) => `<option ${a === f.attendee ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`)}
       ${lbl('大型品・その他の確認', inp('large', f.large, { ph: '例: ゴルフクラブも売れるか' }))}

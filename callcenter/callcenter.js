@@ -7,9 +7,9 @@ import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, n
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
-import { OPERATORS, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
+import { OPERATORS, blankMain, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml, demoWindowHtml, dateLabel, flyerResultHtml } from './view.js';
-import { missingFields, companionText } from './intake.js';
+import { missingFields, companionText, wantsText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
 const $ = (s) => document.querySelector(s);
@@ -27,7 +27,7 @@ const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); c
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
 const blankForm = () => ({
-  phone: '', name: '', kana: '', gender: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], wants: '', attendee: 'ご本人', large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
+  phone: '', name: '', kana: '', gender: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: 'ご本人', large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
   date: addDays(1), start: 10 * 60, dur: 90, userId: null,
 });
 
@@ -89,7 +89,7 @@ function confirmReservation() {
     operator, userId: x.selected.user.id, date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), apType: past ? '再' : '新',
     gender: form.gender, areaId: area.id, lat: center.lat, lng: center.lng, flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyerOf(form.flyerId)?.id),
     hearing: {
-      trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee, wants: [form.cats.join('・'), form.wants.trim() && `（${form.wants.trim()}）`].filter(Boolean).join(''),
+      trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee, wants: wantsText(form), mainItems: { ...form.mainItems },
       large: form.large.trim() || 'なし', notes: form.notes.trim() || '特になし',
       companion: companionText(form), parking: form.parking || '未確認', nameplate: form.nameplate || '未確認', contact: contactText(form.contactFrom, form.contactTo),
     },
@@ -102,7 +102,7 @@ function confirmReservation() {
 }
 
 // ---- 通話の文字起こし（デモ） ---------------------------------------------------------------
-const FLASH = { companion: '[data-yn^="companion|"].on', parking: '[data-yn^="parking|"].on', nameplate: '[data-yn^="nameplate|"].on', flyerId: '[data-f="flyerId"]', gender: '[data-gender].on', chirashi: '[data-chirashi].on', cats: '[data-cat].on', start: '[data-f="start"]', dur: '[data-dur].on' };
+const FLASH = { mainItems: '[data-main].sel', companion: '[data-yn^="companion|"].on', parking: '[data-yn^="parking|"].on', nameplate: '[data-yn^="nameplate|"].on', flyerId: '[data-f="flyerId"]', gender: '[data-gender].on', chirashi: '[data-chirashi].on', cats: '[data-cat].on', start: '[data-f="start"]', dur: '[data-dur].on' };
 function flashFields(keys) {
   keys.forEach((k) => document.querySelectorAll(FLASH[k] ?? `[data-f="${k}"]`).forEach((el) => {
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
@@ -240,6 +240,7 @@ function onField(e) {
 }
 document.addEventListener('input', onField);
 document.addEventListener('change', (e) => {
+  if (e.target.matches('[data-main]')) { form = { ...form, mainItems: { ...form.mainItems, [e.target.dataset.main]: Number(e.target.value) } }; e.target.classList.toggle('sel', Number(e.target.value) > 0); return; }
   if (e.target.matches('[data-operator]')) { operator = e.target.value; setPref('rq-mock-cc-operator', operator); return; }
   if (e.target.matches('[data-bdate-input]')) { boardDate = e.target.value || boardDate; render(); return; }
   onField(e);

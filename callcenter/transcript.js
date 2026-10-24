@@ -1,11 +1,11 @@
 // 通話の文字起こしから、ヒアリング項目を拾い出す（デモ）。実際は音声認識＋AIで行う処理を、キーワードと正規表現で代用している。
 // 画面に依存しない純関数。お客様の発話を1つ渡すと、入力欄にセットする項目だけを返す。
-import { CATEGORIES, flyerOf, normalizeFlyerId } from './master.js';
+import { CATEGORIES, MAIN_ITEMS, snapQty, flyerOf, normalizeFlyerId } from './master.js';
 import { ymdOf } from '../src/reservations.js';
 
 export const FIELD_LABELS = {
   phone: '電話番号', name: 'お名前', kana: 'フリガナ', gender: '性別', zip: '郵便番号', address: '住所', chirashi: '来電のきっかけ', flyerId: 'チラシのID',
-  cats: '売りたいもの', wants: '点数・ブランド', attendee: '当日の立会い', companion: 'ご同席者', companionNote: 'ご同席者', parking: '駐車スペース', nameplate: '表札', contactFrom: '前日確認の連絡時間', contactTo: '前日確認の連絡時間', large: '大型品', notes: '訪問時の注意', date: '希望日', start: '開始時刻',
+  cats: '売りたいもの', mainItems: 'メイン商材（数量）', wants: '点数・ブランド', attendee: '当日の立会い', companion: 'ご同席者', companionNote: 'ご同席者', parking: '駐車スペース', nameplate: '表札', contactFrom: '前日確認の連絡時間', contactTo: '前日確認の連絡時間', large: '大型品', notes: '訪問時の注意', date: '希望日', start: '開始時刻',
 };
 
 // 通話のデモ台本（op=オペレーター、cu=お客様）。お客様の発話だけから項目を拾う。
@@ -21,7 +21,7 @@ export const DEMO_SCRIPT = [
   { who: 'cu', text: '大阪府大阪市阿倍野区阿倍野筋1-2-3です。郵便番号は545-0052です。主婦をしておりまして、日中は家におります。' },
   { who: 'op', text: 'ありがとうございます。Googleマップで場所を確認しますね。…はい、{area}の担当になります。', action: 'confirmArea' },
   { who: 'op', text: 'どのようなものをお売りになりたいですか？' },
-  { who: 'cu', text: 'ルイ・ヴィトンのバッグが3点と、ロレックスの時計が2本あります。あと金のネックレスも少し。' },
+  { who: 'cu', text: '背広が5着と、婦人服が12点、婦人靴が3足あります。それと、ルイ・ヴィトンのバッグが3点、ロレックスの時計が2本、金のネックレスも少し。' },
   { who: 'op', text: '大型のものなど、ほかにございますか？' },
   { who: 'cu', text: 'ゴルフクラブも売れるでしょうか。当日は主人も一緒に立ち会います。' },
   { who: 'op', text: '駐車スペースと表札の有無、前日確認のお電話の時間帯も教えてください。' },
@@ -50,6 +50,7 @@ const CATEGORY_RULES = [
   [/カメラ|家電/, 'カメラ・家電'], [/ゲーム|フィギュア/, 'ゲーム・ホビー'], [/着物|骨董|掛け軸/, '着物・骨董'],
 ];
 const ITEMS = [[/ルイ・?ヴィトン|ヴィトン/, 'ルイ・ヴィトン'], [/シャネル/, 'シャネル'], [/エルメス/, 'エルメス'], [/グッチ/, 'グッチ'], [/ロレックス/, 'ロレックス'], [/オメガ/, 'オメガ'], [/プラチナ/, 'プラチナ'], [/金のネックレス/, '金のネックレス'], [/指輪/, '指輪'], [/ダイヤ/, 'ダイヤ']];
+const MAIN_RULES = [['背広', /背広|スーツ/], ['婦人服', /婦人服|レディース服|洋服/], ['婦人靴', /婦人靴|レディースシューズ|パンプス/], ['紳士靴', /紳士靴|革靴|メンズシューズ/]];
 const NOTE_WORDS = /オートロック|エントランス|インターホン|犬|猫|ペット|午前中が|午後が|夜が/;
 const WEEKDAYS = '日月火水木金土';
 
@@ -64,6 +65,20 @@ function extractItems(sentence) {
     }
   }
   return found;
+}
+
+// 「背広が5着、婦人服が10点」→ { 背広: 5, 婦人服: 10 }（数量は、選べる数量に丸める）
+function extractMain(sentence) {
+  const out = {};
+  for (const clause of sentence.split(/[、。]/)) {
+    for (const [label, re] of MAIN_RULES.filter(([l]) => MAIN_ITEMS.includes(l))) {
+      const m = clause.match(re);
+      if (!m) continue;
+      const n = clause.slice(m.index + m[0].length).match(/[^\d一二三四五六七八九十]{0,6}?([\d一二三四五六七八九十]+)\s*(?:点|着|足|枚|個|つ|セット)/);
+      if (n) out[label] = snapQty(toNum(n[1]));
+    }
+  }
+  return out;
 }
 
 export function dateOf(s, now) {
@@ -129,6 +144,8 @@ export function extractFromUtterance(text, form, now = new Date(), dur = 90) {
     }
     const cats = CATEGORY_RULES.filter(([re]) => re.test(s)).map(([, c]) => c).filter((c) => CATEGORIES.includes(c));
     if (cats.length) patch.cats = [...new Set([...(patch.cats ?? form.cats), ...cats])];
+    const main = extractMain(s);
+    if (Object.keys(main).length) patch.mainItems = { ...(patch.mainItems ?? form.mainItems), ...main };
     const items = extractItems(s);
     if (items.length) {
       const have = (patch.wants ?? form.wants).split('、').filter(Boolean);
