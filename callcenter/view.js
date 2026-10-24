@@ -336,7 +336,8 @@ export function dispatchHtml(x) {
     ${x.editing ? `<div class="rounded-lg border-2 border-sky-500 bg-white p-2 space-y-1.5 sticky bottom-0">
       <div class="text-xs text-slate-500">変更前：${dateLabel(x.editing.date)} ${esc(x.editing.start)}〜${esc(x.editing.end)}　${esc(USERS.find((u) => u.id === x.editing.userId)?.name ?? '')}</div>
       ${sel ? `<div class="text-sm">変更後：担当（仮）<b class="text-base">${esc(sel.user.name)}</b>　${dateLabel(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
-      <button class="b b-pri w-full !bg-sky-600" data-saveedit ${sel ? '' : 'disabled'}>日時を変更する（仮確定に戻ります）</button>
+      ${missing.length ? `<div class="text-xs text-rose-600">未入力：${missing.map(esc).join('、')}</div>` : ''}
+      <button class="b b-pri w-full ${isTentative(x.editing) ? '!bg-sky-600' : '!bg-rose-600'}" data-saveedit ${sel && !missing.length ? '' : 'disabled'}>${isTentative(x.editing) ? '変更を保存する（仮確定のまま）' : '変更を保存する（仮確定に戻り、配車係に知らされます）'}</button>
     </div>` : `<div class="rounded-lg border-2 border-teal-600 bg-white p-2 space-y-1.5 sticky bottom-0">
       ${sel ? `<div class="text-sm">担当（仮）：<b class="text-base">${esc(sel.user.name)}</b>　${esc(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}　${esc(fullName(form) || 'お客様')} 様（${genderLabel(form.gender) || '性別未選択'}）</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
       ${missing.length ? `<div class="text-xs text-rose-600">未入力：${missing.map(esc).join('、')}</div>` : ''}
@@ -369,7 +370,7 @@ export const dateLabel = (s) => { const [y, m, d] = s.split('-').map(Number); re
 
 export const statusBadge = (r) => {
   if (isCancelled(r)) return '<span class="rounded bg-slate-300 text-slate-700 text-xs font-bold px-1.5 py-0.5">取消</span>';
-  const changed = r.changes?.length ? '<span class="ml-1 rounded bg-sky-100 text-sky-800 text-[10px] font-bold px-1 py-0.5" title="日時・担当を変更しました">変更あり</span>' : '';
+  const changed = r.needsReview ? '<span class="ml-1 rounded bg-rose-600 text-white text-[10px] font-bold px-1 py-0.5" title="確定済みの予約が変更されて、仮確定に戻りました">確定→変更</span>' : '';
   return `${isTentative(r) ? '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5">仮確定</span>' : '<span class="rounded bg-emerald-100 text-emerald-800 text-xs font-bold px-1.5 py-0.5">確定</span>'}${changed}`;
 };
 
@@ -381,20 +382,13 @@ export function openResHtml(list) {
     <span class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-chg="${r.id}">日時を変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></span></div>`).join('');
 }
 
-// 日時の変更中の、左側のお客様の表示（入力欄の代わり）
-export function editCardHtml(r) {
-  const row = (k, v) => `<div class="flex gap-2"><dt class="w-16 shrink-0 text-slate-500">${k}</dt><dd class="min-w-0 flex-1">${v}</dd></div>`;
-  return `<section class="space-y-2 rounded-lg border-2 border-sky-500 bg-white p-3 shadow">
-    <div class="flex items-center justify-between gap-2"><h2 class="text-sm font-bold text-sky-800">✎ 日時の変更</h2><button class="text-xs underline text-slate-500" data-editcancel>変更をやめる</button></div>
-    <dl class="space-y-1 text-sm">
-      ${row('お客様', `<b>${esc(r.customer.name)}</b> 様（${genderLabel(r.gender)}）`)}
-      ${row('電話', esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ ')))}
-      ${row('訪問先', esc(r.customer.address))}
-      ${row('売りたいもの', esc(r.hearing.wants))}
-      ${row('いまの予約', `${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}`)}
-    </dl>
-    <p class="text-xs text-slate-500">右のカレンダーで、新しい日時と担当を選んでください。変更すると仮確定に戻り、配車係が確定し直します（確定済みだった場合、確定し直すまで営業のタブレットの予定から外れます）。</p>
-  </section>`;
+// 受付済みの予約を変更中の、入力欄の上の表示。仮確定の変更と、確定済みの変更で、何が起きるかを伝える
+export function editBannerHtml(r) {
+  const confirmed = !isTentative(r);
+  return `<div class="rounded-lg border-2 ${confirmed ? 'border-rose-500 bg-rose-50' : 'border-sky-500 bg-sky-50'} px-3 py-2 text-xs">
+    <div class="flex items-center justify-between gap-2"><b class="text-sm ${confirmed ? 'text-rose-800' : 'text-sky-800'}">✎ 受付済みの予約を変更中</b><button class="underline text-slate-600" data-editcancel>変更をやめる</button></div>
+    <div class="mt-0.5">${esc(r.receptionNo)}　${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}</div>
+    <div class="mt-0.5 ${confirmed ? 'font-bold text-rose-700' : 'text-slate-600'}">${confirmed ? '確定済みの予約です。変更を保存すると<u>仮確定に戻り</u>、配車係に知らされます。' : '仮確定のため、保存しても仮確定のままです（誰にも知らせません）。'}</div></div>`;
 }
 
 // 取消の確認（理由を選ぶ）

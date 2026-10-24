@@ -25,14 +25,26 @@ export const isCancelled = (r) => r.status === 'cancelled';
 const stamp = () => new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
 
 // 取消。記録は残す（誰が・いつ・なぜ）。取り消した予約は、営業の空き・担当件数・営業のタブレットの予定から外れる
-export const cancelReservation = (id, reason, by) => updateReservation(id, { status: 'cancelled', cancelReason: reason, cancelledAt: stamp(), cancelledBy: by });
+export const cancelReservation = (id, reason, by) => updateReservation(id, { status: 'cancelled', needsReview: false, cancelReason: reason, cancelledAt: stamp(), cancelledBy: by });
 
-// 日時・担当の変更。変更したら、仮確定に戻る（配車係が、もう一度確定する）。変更の履歴を残す
-export function rescheduleReservation(id, to, by) {
+// 受付済みの予約の変更（どの項目でも）。仮確定の変更は、仮確定のまま（誰にも知らせない）。
+// 確定済みの変更は、仮確定に戻し、配車係に分かるよう needsReview を立てる（配車係が確定し直す・確認するまで）。変更の履歴（変更前後の差分）を残す
+export function amendReservation(id, fields, by, diff = [], { notify = true } = {}) { // notify=false: 配車係自身の変更（自分には知らせない）
   const r = loadReservations().find((x) => x.id === id);
   if (!r) return;
-  const from = { date: r.date, start: r.start, end: r.end, userId: r.userId };
-  updateReservation(id, { ...to, status: 'tentative', confirmedAt: null, confirmedBy: null, changes: [...(r.changes ?? []), { at: stamp(), by, from, to, wasConfirmed: !isTentative(r) }] });
+  const wasConfirmed = !isTentative(r);
+  const revert = wasConfirmed ? { confirmedAt: null, confirmedBy: null, needsReview: notify, revertedAt: stamp() } : {};
+  updateReservation(id, { ...fields, status: 'tentative', ...revert, changes: [...(r.changes ?? []), { at: stamp(), by, wasConfirmed, diff }] });
+}
+
+// 配車係が確認すべき変更（確定済みだった予約が、変更されて仮確定に戻った）
+export const needsReview = (r) => Boolean(r.needsReview) && !isCancelled(r);
+export const acknowledgeReservation = (id) => updateReservation(id, { needsReview: false });
+// 仮確定に戻った時点からの、変更の差分（その間に複数回変更されたら、すべて）
+export function reviewDiffs(r) {
+  const list = r.changes ?? [];
+  const from = list.map((c) => c.wasConfirmed).lastIndexOf(true);
+  return list.slice(Math.max(0, from)).flatMap((c) => c.diff ?? []);
 }
 
 // お客様から電話があったとき、その番号で受け付け済みの（まだ訪問していない・取り消していない）予約を探す

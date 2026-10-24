@@ -3,8 +3,11 @@
 import { esc } from '../src/format.js';
 import { USERS } from '../src/dashboard.js';
 import { areaById, dispatchOptions, fairerAlternative } from '../src/dispatch.js';
-import { isTentative, isCancelled } from '../src/reservations.js';
+import { isTentative, isCancelled, needsReview, reviewDiffs } from '../src/reservations.js';
 import { dateLabel, genderLabel, rankBadge, statusBadge } from './view.js';
+
+// 変更の内容（項目名 変更前→変更後）
+const diffText = (r) => reviewDiffs(r).map((d) => `${esc(d.label)}：${esc(trunc(d.from, 24))} → <b>${esc(trunc(d.to, 24))}</b>`).join('　／　');
 
 const trunc = (s, n) => (String(s).length > n ? `${String(s).slice(0, n)}…` : String(s));
 
@@ -29,22 +32,30 @@ function assignee(r, reservations, now) {
 export function dispatcherHtml({ date, reservations, now, chips }) {
   const rows = reservations.filter((r) => r.date === date).sort((a, b) => a.start.localeCompare(b.start) || a.receptionNo.localeCompare(b.receptionNo));
   const tent = rows.filter(isTentative).length;
+  const reviews = reservations.filter(needsReview).sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
   const actions = (r) => (isCancelled(r) ? `<span class="text-xs text-slate-500" title="${esc(`${r.cancelledAt ?? ''} ${r.cancelledBy ?? ''}`)}">${esc(r.cancelReason ?? '')}</span>`
     : `${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1" data-fix="${r.id}">確定</button>` : `<button class="text-xs underline text-slate-500" data-unfix="${r.id}">仮に戻す</button>`}
       <div class="mt-1 flex gap-2 text-xs"><button class="underline text-sky-700" data-chg="${r.id}">日時変更</button><button class="underline text-rose-700" data-cancelres="${r.id}">取消</button></div>`);
-  const body = rows.map((r) => `<tr class="border-t align-top ${isCancelled(r) ? 'bg-slate-100 text-slate-400 line-through' : isTentative(r) ? '' : 'bg-emerald-50/50'}">
+  const body = rows.map((r) => `<tr class="border-t align-top ${isCancelled(r) ? 'bg-slate-100 text-slate-400 line-through' : needsReview(r) ? 'bg-rose-50' : isTentative(r) ? '' : 'bg-emerald-50/50'}">
       <td class="whitespace-nowrap font-bold">${esc(r.start)}〜${esc(r.end)}</td>
-      <td><b>${esc(r.customer.name)}</b> 様（${genderLabel(r.gender)}）<div class="text-xs text-slate-500">${esc(r.receptionNo)} ／ ${esc(r.customer.phone)}</div></td>
+      <td><b>${esc(r.customer.name)}</b> 様（${genderLabel(r.gender)}）<div class="text-xs text-slate-500">${esc(r.receptionNo)} ／ ${esc(r.customer.phone)}</div>${needsReview(r) ? `<div class="mt-0.5 text-xs text-rose-700">変更：${diffText(r) || '—'}</div>` : ''}</td>
       <td class="max-w-[16rem]" title="${esc(r.customer.address)}">${esc(trunc(r.customer.address, 26))}<div class="text-xs text-slate-500">${esc(areaById(r.areaId)?.name ?? '例外対応')}</div></td>
       <td class="max-w-[14rem] text-xs" title="${esc(r.hearing.wants)}">${esc(trunc(r.hearing.wants, 40))}</td>
       <td>${assignee(r, reservations, now)}</td>
       <td>${statusBadge(r)}</td>
       <td class="whitespace-nowrap">${actions(r)}</td></tr>`).join('');
+  const banner = reviews.length ? `<section class="space-y-1.5 rounded-lg border-2 border-rose-500 bg-rose-50 p-3">
+      <b class="text-rose-800">⚠ 確定済みの予約が変更されて、仮確定に戻りました（${reviews.length}件）</b>
+      ${reviews.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded bg-white px-2 py-1 text-sm">
+        <div><b>${dateLabel(r.date)} ${esc(r.start)}</b>　${esc(r.customer.name)} 様　<span class="text-xs text-slate-500">${esc(r.revertedAt ?? '')} 変更</span><div class="text-xs text-rose-700">${diffText(r) || '（変更内容なし）'}</div></div>
+        <div class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-showday="${r.date}">この日を表示</button><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-ack="${r.id}" title="内容を確認した（確定はそのまま、仮確定のまま残ります）">確認した</button></div></div>`).join('')}
+    </section>` : '';
   return `
   <div class="p-4 space-y-3 h-[calc(100vh-52px)] overflow-y-auto">
+    ${banner}
     <section class="bg-white rounded-lg shadow">
       <div class="p-3 flex items-center gap-2 flex-wrap"><b class="mr-2">配車確定（配車係）</b>
-        ${chips.map((c) => `<button class="chip ${c.date === date ? 'on' : ''}" data-ddate="${c.date}">${esc(c.label)}　${dateLabel(c.date)}${c.tentative ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-[11px] text-amber-950">仮${c.tentative}</span>` : ''}</button>`).join('')}
+        ${chips.map((c) => `<button class="chip ${c.date === date ? 'on' : ''}" data-ddate="${c.date}">${esc(c.label)}　${dateLabel(c.date)}${c.tentative ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-[11px] text-amber-950">仮${c.tentative}</span>` : ''}${c.review ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-[11px] text-white">変更${c.review}</span>` : ''}</button>`).join('')}
         <input class="inp !w-auto" type="date" value="${date}" data-ddate-input />
         <button class="b b-pri ml-auto" data-fixall ${tent ? '' : 'disabled'}>この日の仮確定 ${tent}件を、すべて確定</button></div>
       <p class="px-3 pb-2 text-xs text-slate-500">オペレーターが仮確定した訪問の担当を確認し、確定します。確定した訪問だけが、営業のタブレットの予定に出ます（主に翌々日の予定を、毎日確定します）。</p>

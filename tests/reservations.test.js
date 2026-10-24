@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // 保存先（localStorage）の代わり
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
-const { addReservation, loadReservations, updateReservation, reservationEvents, isTentative, isCancelled, cancelReservation, rescheduleReservation, openReservationsFor } = await import('../src/reservations.js');
+const { addReservation, loadReservations, updateReservation, reservationEvents, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, reviewDiffs, openReservationsFor } = await import('../src/reservations.js');
 
 const NOW = new Date(2026, 9, 24, 9, 0);
 const rec = (o) => ({
@@ -46,17 +46,34 @@ test('取消: 記録は残し、営業のタブレットの予定からは外れ
   assert.equal(reservationEvents(NOW).length, 0);
 });
 
-test('日時の変更: 仮確定に戻り、変更の履歴が残る（確定済みだったことも）', () => {
-  addReservation(rec({ status: 'confirmed', confirmedBy: '配車係' }));
-  rescheduleReservation('r1', { date: '2026-10-28', start: '13:00', end: '14:30', userId: 'u02' }, '渡辺');
+test('仮確定の変更: 仮確定のまま。配車係への知らせ（needsReview）は立てない', () => {
+  addReservation(rec({ status: 'tentative' }));
+  amendReservation('r1', { date: '2026-10-28', start: '13:00', end: '14:30', userId: 'u02' }, '渡辺', [{ label: '訪問日時', from: 'a', to: 'b' }]);
   const r = loadReservations()[0];
-  assert.deepEqual([r.date, r.start, r.userId, r.status, r.confirmedBy], ['2026-10-28', '13:00', 'u02', 'tentative', null]);
+  assert.deepEqual([r.date, r.start, r.userId, r.status, needsReview(r)], ['2026-10-28', '13:00', 'u02', 'tentative', false]);
   assert.equal(r.changes.length, 1);
-  assert.deepEqual([r.changes[0].from.date, r.changes[0].from.userId, r.changes[0].wasConfirmed, r.changes[0].by], ['2026-10-26', 'u01', true, '渡辺']);
+  assert.equal(r.changes[0].wasConfirmed, false);
+});
+
+test('確定済みの変更: 仮確定に戻り、配車係が知れる（needsReview）。確定し直す・確認すると外れる', () => {
+  addReservation(rec({ status: 'confirmed', confirmedBy: '配車係', confirmedAt: 'x' }));
+  amendReservation('r1', { date: '2026-10-28', userId: 'u02', customer: { name: 'A', phone: '', address: '大阪' } }, '渡辺', [{ label: '訪問日時', from: '10/26', to: '10/28' }]);
+  const r = loadReservations()[0];
+  assert.deepEqual([r.status, r.confirmedBy, r.confirmedAt, needsReview(r), r.changes[0].wasConfirmed, r.changes[0].by], ['tentative', null, null, true, true, '渡辺']);
   assert.equal(reservationEvents(NOW).length, 0); // 再確定されるまで、営業の予定には出ない
-  rescheduleReservation('r1', { date: '2026-10-29', start: '10:00', end: '11:00', userId: 'u02' }, '佐藤');
-  assert.equal(loadReservations()[0].changes.length, 2);
-  assert.equal(loadReservations()[0].changes[1].wasConfirmed, false);
+  amendReservation('r1', { start: '09:30' }, '佐藤', [{ label: '訪問日時', from: '13:00', to: '09:30' }]); // 戻った後の再変更でも、知らせは残る
+  assert.equal(needsReview(loadReservations()[0]), true);
+  assert.deepEqual(reviewDiffs(loadReservations()[0]).map((d) => d.to), ['10/28', '09:30']); // 仮確定に戻った時点からの差分
+  acknowledgeReservation('r1');
+  assert.equal(needsReview(loadReservations()[0]), false);
+});
+
+test('取消すと、確認待ちの知らせは外れる', () => {
+  addReservation(rec({ status: 'confirmed' }));
+  amendReservation('r1', { start: '09:30' }, '佐藤', []);
+  assert.equal(needsReview(loadReservations()[0]), true);
+  cancelReservation('r1', 'その他', '配車係');
+  assert.equal(needsReview(loadReservations()[0]), false);
 });
 
 test('電話番号から、これから訪問する未取消の受付を探す（電話番号2でも）', () => {
@@ -67,4 +84,11 @@ test('電話番号から、これから訪問する未取消の受付を探す�
   assert.deepEqual(openReservationsFor([a, b, c, d], ['09012345678'], '2026-10-25').map((r) => r.id), ['a']);
   assert.deepEqual(openReservationsFor([a, d], ['', '06-1111-2222'], '2026-10-25').map((r) => r.id), ['a']);
   assert.deepEqual(openReservationsFor([a], ['090-12'], '2026-10-25'), []); // 短い番号では探さない
+});
+
+test('配車係自身が確定済みを変更した場合は、仮確定に戻るが、配車係への知らせは立てない', () => {
+  addReservation(rec({ status: 'confirmed' }));
+  amendReservation('r1', { start: '09:30' }, '配車係', [], { notify: false });
+  const r = loadReservations()[0];
+  assert.deepEqual([r.status, needsReview(r)], ['tentative', false]);
 });

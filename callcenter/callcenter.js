@@ -3,13 +3,14 @@
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
 import { areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
-import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, isTentative, cancelReservation, rescheduleReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
+import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
 import { OPERATORS, CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, editCardHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
+import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
 import { dispatcherHtml } from './dispatcherView.js';
+import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
@@ -44,6 +45,7 @@ let staffOpen = false;
 let calOnlyFree = false; // 日別表示で、希望の時間に空いている営業だけを出す
 let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別（営業ごとの列）
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
+let editBy = null; // 変更を始めた人（オペレーター／配車係）
 let editId = null; // 受付済みの予約の日時を変更しているとき、その予約
 let cancelId = null; // 取消の確認を出している予約
 let cancelReason = CANCEL_REASONS[0];
@@ -87,7 +89,7 @@ function compute() {
   const calendar = ranking.inArea.length
     ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today, mode: calMode, hasHere: Boolean(here), onlyFree: calOnlyFree }
     : null;
-  const missing = editId ? (selected ? [] : ['担当の営業']) : missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
+  const missing = missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
   return {
     detail: calMode === 'day' && selected ? salesDetail({ userId: selected.user.id, date: form.date, start: form.start, dur: form.dur, reservations, here }) : null,
     editing: editId ? loadReservations().find((r) => r.id === editId) ?? null : null,
@@ -101,28 +103,33 @@ function compute() {
 // 受付済みの予約の日時・担当を変更する。お客様の情報はそのまま、右のカレンダーで新しい日時と担当を選ぶ
 function startEdit(id) {
   const r = loadReservations().find((x) => x.id === id);
-  if (!r) return;
+  if (!r || isCancelled(r)) return;
   stopDemo();
   editId = id;
-  form = {
-    ...blankForm(), phone: r.customer.phone, lastName: r.customer.lastName ?? r.customer.name, firstName: r.customer.firstName ?? '', gender: r.gender,
-    address: r.customer.address, areaId: r.areaId, areaAddr: r.customer.address, date: r.date, start: toMin(r.start), dur: toMin(r.end) - toMin(r.start), userId: r.userId, whenAsked: true,
-  };
+  editBy = tab === 'dispatch' ? '配車係' : operator;
+  form = formFromRecord(r, blankForm()); // 受付時の入力を、そのまま戻す（全項目を変更できる）
+  quoted = false;
   weekStart = weekStartFor(r.date);
   tab = 'new';
   render();
 }
 
+// 変更を保存する。仮確定の変更は仮確定のまま（誰にも知らせない）。確定済みの変更は仮確定に戻り、配車係に分かる
 function saveEdit() {
   const x = compute();
-  if (!editId || !x.selected) return;
-  rescheduleReservation(editId, { date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), userId: x.selected.user.id }, tab === 'dispatch' ? '配車係' : operator);
+  const before = loadReservations().find((r) => r.id === editId);
+  if (!before || x.missing.length || !x.selected) return;
+  const area = x.confirmed;
+  const fields = { ...buildRecordFields(form, { area, pos: locateAddress(form.address, area) }), userId: x.selected.user.id };
+  const nameOf = (id) => USERS.find((u) => u.id === id)?.name ?? id;
+  const wasConfirmed = !isTentative(before);
+  amendReservation(editId, fields, editBy, diffRecords(before, { ...before, ...fields }, nameOf), { notify: editBy !== '配車係' }); // 配車係自身の変更は、配車係に知らせない
   dispDate = form.date;
   editId = null;
   form = blankForm();
   weekStart = addDays(0);
   tab = 'dispatch';
-  flash('日時を変更しました（仮確定に戻りました。配車係が確定し直します）');
+  flash(wasConfirmed ? (editBy === '配車係' ? '変更しました。確定済みだったため、仮確定に戻りました' : '変更しました。確定済みだったため、仮確定に戻り、配車係に知らせました') : '変更しました（仮確定のままです）');
 }
 
 function confirmReservation() {
@@ -134,17 +141,8 @@ function confirmReservation() {
   const center = locateAddress(form.address, area) ?? area; // 予定の地図表示は、住所の概算位置で代用（モック）
   const record = {
     id: `RS-${Date.now().toString(36).toUpperCase()}`, receptionNo: nextReceptionNo(reservations), receivedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }),
-    status: 'tentative', operator, userId: x.selected.user.id, date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), apType: past ? '再' : '新',
-    gender: form.gender, areaId: area.id, lat: center.lat, lng: center.lng, flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyerOf(form.flyerId)?.id),
-    hearing: {
-      trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee || '未確認', wants: wantsText(form), mainItems: { ...form.mainItems },
-      large: form.large.trim() || '未確認', notes: form.notes.trim() || '未確認',
-      profile: profileText(form, genderLabel), companion: companionText(form), parking: form.parking || '未確認', nameplate: form.nameplate || '未確認', contact: contactText(form.contactFrom, form.contactTo),
-    },
-    customer: {
-      name: fullName(form), lastName: form.lastName.trim(), firstName: form.firstName.trim(), kana: fullKana(form), lastKana: form.lastKana.trim(), firstKana: form.firstKana.trim(),
-      phone: form.phone.trim(), phone2: form.phone2.trim(), zip: form.zip.trim(), address: form.address.trim(),
-    },
+    status: 'tentative', operator, userId: x.selected.user.id, apType: past ? '再' : '新',
+    ...buildRecordFields(form, { area, pos: center }),
   };
   addReservation(record);
   stopDemo();
@@ -278,9 +276,14 @@ function renderNew() {
 // 配車係が確定する日の候補（今日から5日分。翌々日に印）。日付ごとの、仮確定の件数を添える
 function dispatchChips() {
   const list = loadReservations();
-  return [0, 1, 2, 3, 4].map((n) => { const date = addDays(n); return { date, label: ['今日', '明日', '翌々日', '3日後', '4日後'][n], tentative: list.filter((r) => r.date === date && isTentative(r)).length }; });
+  return [0, 1, 2, 3, 4].map((n) => { const date = addDays(n); return { date, label: ['今日', '明日', '翌々日', '3日後', '4日後'][n], tentative: list.filter((r) => r.date === date && isTentative(r)).length, review: list.filter((r) => r.date === date && needsReview(r)).length }; });
 }
-const tentativeBadge = () => { const n = loadReservations().filter(isTentative).length; return n ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-xs text-amber-950">${n}</span>` : ''; };
+const tentativeBadge = () => {
+  const list = loadReservations();
+  const n = list.filter(isTentative).length;
+  const rv = list.filter(needsReview).length; // 確定済みが変更されて、仮確定に戻ったもの
+  return `${n ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-xs text-amber-950" title="仮確定">${n}</span>` : ''}${rv ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-xs text-white" title="確定済みが変更されて、仮確定に戻りました">変更${rv}</span>` : ''}`;
+};
 
 function render() {
   $('#root').innerHTML = `
@@ -373,7 +376,7 @@ document.addEventListener('pointermove', (e) => {
 });
 document.addEventListener('pointerup', () => { drag = null; });
 
-const formMarkup = () => (editId ? editCardHtml(loadReservations().find((r) => r.id === editId)) : formHtml(form, ymdOf(new Date()), hearingChecklist(form)));
+const formMarkup = () => (editId ? editBannerHtml(loadReservations().find((r) => r.id === editId)) : '') + formHtml(form, ymdOf(new Date()), hearingChecklist(form));
 const refresh = () => { $('#form').innerHTML = formMarkup(); renderDispatch(); };
 
 // 聞き取り状況（✔聞いた／未）を、入力に合わせて更新する。入力欄は作り直さない（入力中の文字を壊さない）
@@ -440,14 +443,16 @@ document.addEventListener('click', (e) => {
     if (editId === (r?.id ?? null)) { editId = null; form = blankForm(); }
     if (r) flash(`${r.customer.name} 様の受付を取り消しました`); else render();
   }
+  else if (d.ack) { acknowledgeReservation(d.ack); render(); }
+  else if (d.showday) { dispDate = d.showday; render(); }
   else if (d.ddate) { dispDate = d.ddate; render(); }
-  else if (d.fix) { updateReservation(d.fix, { status: 'confirmed', confirmedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }), confirmedBy: '配車係' }); render(); }
+  else if (d.fix) { updateReservation(d.fix, { status: 'confirmed', needsReview: false, confirmedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }), confirmedBy: '配車係' }); render(); }
   else if (d.unfix) { updateReservation(d.unfix, { status: 'tentative', confirmedAt: null, confirmedBy: null }); render(); }
   else if ('fixall' in d) {
     const targets = loadReservations().filter((r) => r.date === dispDate && isTentative(r));
     if (targets.length && confirm(`${dateLabel(dispDate)}の仮確定 ${targets.length}件を、すべて確定します。確定した訪問は、営業のタブレットの予定に出ます。`)) {
       const at = new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
-      targets.forEach((r) => updateReservation(r.id, { status: 'confirmed', confirmedAt: at, confirmedBy: '配車係' }));
+      targets.forEach((r) => updateReservation(r.id, { status: 'confirmed', needsReview: false, confirmedAt: at, confirmedBy: '配車係' }));
       render();
     }
   }
