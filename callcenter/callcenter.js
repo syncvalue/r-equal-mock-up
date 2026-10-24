@@ -192,6 +192,12 @@ function playNext() {
   const wait = advance(false);
   if (wait !== null) timer = setTimeout(playNext, wait);
 }
+// 最後まで一気に進める（待たずに、残りの発話をすべて流す）
+function finishDemo() {
+  stopDemo();
+  while (!finished && !done && scriptPos < DEMO_SCRIPT.length) advance(true);
+  renderTranscript();
+}
 // 1発話ずつ手で進める（自動再生中なら、止めてから進める）
 function stepDemo() {
   stopDemo();
@@ -350,7 +356,7 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest('button, [data-pick]');
   if (!t) return;
   const d = t.dataset;
-  if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
+  if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
   if (d.tab) { stopDemo(); tab = d.tab; render(); }
   else if (d.area) { form = { ...form, areaId: d.area, areaAddr: form.address.trim() }; renderDispatch(); }
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
