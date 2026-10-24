@@ -1,7 +1,7 @@
 // 本社 経理部デスク画面（ダミー・PC想定）。営業の手持ち現金の確認、入金（営業・お客様）、経費の入力代行、経費の全体状況。
 import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY } from '../src/store.js';
 import { USERS, userById } from '../src/dashboard.js';
-import { AREAS, areaOfUser } from '../src/dispatch.js';
+import { AREAS, areaById, areaOfUser } from '../src/dispatch.js';
 import { addDeposit, depositsOf, carryoverFor, todayRows, loadDay, loadDays, saveDay, newId, dateKey, EXPENSE_TYPES, typeOf } from '../src/workday.js';
 import {
   flagsOf, expenseStats, officeUsers, onlyOffice, canProxy, proxyExpense, PAY_REASONS, reasonOf, paymentReady, loadCustomerPayments, addCustomerPayment, markPaid,
@@ -23,6 +23,8 @@ const blankExp = () => ({ userId: scoped()[0]?.id ?? '', type: '', amount: 0, me
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 let office = AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : ''; // 絞り込み中の営業所（空は全営業所）
 const scoped = () => officeUsers(USERS, office, areaOfUser);
+const officeOf = (userId) => areaById(areaOfUser(userId))?.name.replace('エリア', '') ?? '所属不明'; // 営業の所属する営業所（短い名前）
+const withOffice = (u) => `${u.name}（${officeOf(u.id)}）`;
 const scopedIds = () => scoped().map((u) => u.id);
 let tab = 'cash';
 let selUser = null; // 所持金の確認で、明細を開いている営業
@@ -34,16 +36,16 @@ let dirty = false; // 入力中に届いた更新を、入力完了後に反映�
 
 const signed = (n) => (n ? `${n > 0 ? '+' : '−'}${yen(Math.abs(n))}` : '一致');
 const badge = (cls, text) => `<span class="rounded px-2 py-0.5 text-xs font-bold whitespace-normal ${cls}">${text}</span>`;
-const userSelect = (key, value) => `<select class="inp mt-1 font-normal" data-f="${key}">${scoped().map((u) => `<option value="${u.id}" ${value === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>`;
+const userSelect = (key, value) => `<select class="inp mt-1 font-normal" data-f="${key}">${scoped().map((u) => `<option value="${u.id}" ${value === u.id ? 'selected' : ''}>${esc(withOffice(u))}</option>`).join('')}</select>`;
 const card = (label, value, cls = '') => `<div class="rounded-xl bg-white border p-3 flex-1 min-w-[10rem]"><div class="text-xs text-slate-500">${label}</div><div class="text-2xl font-bold ${cls}">${value}</div></div>`;
 
 // ---- 所持金の確認 ---------------------------------------------------------------
 function expenseDetail(row) {
   const { user, day } = row;
   const s = row.summary;
-  return `<tr class="bg-slate-50"><td colspan="9" class="!whitespace-normal">
+  return `<tr class="bg-slate-50"><td colspan="10" class="!whitespace-normal">
     <div class="p-2 space-y-2 text-sm">
-      <b>${esc(user.name)} さんの今日の明細</b>
+      <b>${esc(withOffice(user))} さんの今日の明細</b>
       ${row.flags.length ? `<div class="flex flex-wrap gap-1">${row.flags.map((f) => badge(LEVEL[f.level], esc(f.text))).join('')}</div>` : '<div class="text-emerald-700">確認が必要な事項はありません。</div>'}
       <table class="w-full"><thead><tr class="text-left text-slate-500 border-b"><th>時刻</th><th>種類</th><th class="text-right">金額</th><th>内容</th><th>レシート</th></tr></thead><tbody>
         ${s.expenses.length ? s.expenses.map((e) => `<tr class="border-b"><td>${fmtTime(e.at).slice(0, 5)}</td><td>${typeOf(e.type).icon} ${typeOf(e.type).label}${e.proxy ? ' <span class="text-xs text-teal-700">（経理代行）</span>' : ''}</td>
@@ -71,11 +73,11 @@ function cashTab() {
     ${card('業務中・終業済み', `${started.length} / ${rows.length} 人`)}
     ${card('確認が必要な営業', `${flagged.length} 人`, flagged.length ? 'text-rose-600' : 'text-emerald-700')}
   </div>
-  <table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>営業</th><th>状況</th><th class="text-right">始業時の金額<div class="font-normal text-xs">未始業は前日繰越</div></th><th class="text-right">入金</th><th class="text-right">経費</th><th class="text-right">帳簿残高</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th>確認事項</th></tr></thead><tbody>
+  <table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>営業</th><th>営業所</th><th>状況</th><th class="text-right">始業時の金額<div class="font-normal text-xs">未始業は前日繰越</div></th><th class="text-right">入金</th><th class="text-right">経費</th><th class="text-right">帳簿残高</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th>確認事項</th></tr></thead><tbody>
     ${rows.map((r) => {
       const { user, day, phase, summary: sm, cash } = r;
       return `<tr class="border-b ${sm ? 'cursor-pointer hover:bg-slate-50' : ''}" ${sm ? `data-sel-user="${user.id}"` : ''}>
-        <td class="font-bold">${esc(user.name)}</td><td>${badge(PHASE[phase][1], PHASE[phase][0])}</td>
+        <td class="font-bold">${esc(user.name)}</td><td>${esc(officeOf(user.id))}</td><td>${badge(PHASE[phase][1], PHASE[phase][0])}</td>
         <td class="text-right">${yen(cash.opening)}${sm ? '' : '<div class="text-xs text-slate-400">前日繰越</div>'}</td><td class="text-right">${yen(cash.depositTotal)}</td><td class="text-right">${yen(cash.expenseTotal)}</td>
         <td class="text-right font-bold ${cash.balance < 0 ? 'text-rose-600' : ''}">${cash.balance < 0 ? `−${yen(-cash.balance)}` : yen(cash.balance)}</td><td class="text-right">${day?.closedAt ? yen(day.close.counted) : '-'}</td>
         <td class="text-right font-bold ${day?.close?.diff ? 'text-rose-600' : 'text-emerald-700'}">${day?.closedAt ? signed(day.close.diff) : '-'}</td>
@@ -104,7 +106,7 @@ function depositTab() {
       <div class="text-sm font-bold">今日 登録した入金 <span class="font-normal text-xs text-slate-500">（毎朝の定例入金は除く）</span></div>
       <table class="w-full text-sm"><tbody>
         ${today.length ? '' : '<tr><td class="text-slate-400">登録はありません。</td></tr>'}
-        ${today.map((d) => `<tr class="border-b"><td>${fmtTime(d.at).slice(0, 5)}</td><td class="font-bold">${esc(d.name)}</td><td class="text-right">${yen(d.amount)}</td><td class="!whitespace-normal text-slate-500">${esc(d.memo)}</td></tr>`).join('')}
+        ${today.map((d) => `<tr class="border-b"><td>${fmtTime(d.at).slice(0, 5)}</td><td class="font-bold">${esc(d.name)}（${esc(officeOf(d.userId))}）</td><td class="text-right">${yen(d.amount)}</td><td class="!whitespace-normal text-slate-500">${esc(d.memo)}</td></tr>`).join('')}
       </tbody></table>
     </section>
     <section class="rounded-xl border bg-white p-4 space-y-3">
@@ -114,13 +116,13 @@ function depositTab() {
         <label class="text-sm font-bold">お客様名<input class="inp mt-1 font-normal" data-f="pay.customerName" value="${esc(pay.customerName)}" placeholder="例: 山田 花子" /></label>
         <label class="text-sm font-bold">金額${moneyInputHtml({ attrs: 'data-f="pay.amount"', value: pay.amount, placeholder: '120,000', cls: 'inp mt-1 font-normal' })}</label>
         <label class="text-sm font-bold">理由<select class="inp mt-1 font-normal" data-f="pay.reason"><option value="">選んでください</option>${PAY_REASONS.map((r) => `<option value="${r.key}" ${pay.reason === r.key ? 'selected' : ''}>${r.label}</option>`).join('')}</select></label>
-        <label class="text-sm font-bold">担当した営業<select class="inp mt-1 font-normal" data-f="pay.userId"><option value="">（指定なし）</option>${scoped().map((u) => `<option value="${u.id}" ${pay.userId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
+        <label class="text-sm font-bold">担当した営業<select class="inp mt-1 font-normal" data-f="pay.userId"><option value="">（指定なし）</option>${scoped().map((u) => `<option value="${u.id}" ${pay.userId === u.id ? 'selected' : ''}>${esc(withOffice(u))}</option>`).join('')}</select></label>
         <label class="text-sm font-bold sm:col-span-2">メモ（振込先の口座など）<input class="inp mt-1 font-normal" data-f="pay.memo" value="${esc(pay.memo)}" placeholder="${pay.reason === 'other' ? '理由を記入してください' : '例: ○○銀行 △△支店 普通 1234567'}" /></label>
       </div>
       <button class="b b-pri" data-pay-add>振込の依頼を登録</button>
       <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>登録</th><th>お客様</th><th class="text-right">金額</th><th>理由・担当</th><th>状況</th></tr></thead><tbody>
         ${pays.length ? pays.map((p) => `<tr class="border-b"><td>${fmtTime(p.at).slice(0, 5)}</td><td class="font-bold">${esc(p.customerName)} 様</td><td class="text-right">${yen(p.amount)}</td>
-          <td class="!whitespace-normal text-xs">${esc(reasonOf(p.reason).label)}${p.userId ? `／${esc(userById(p.userId).name)}` : ''}${p.memo ? `<br><span class="text-slate-500">${esc(p.memo)}</span>` : ''}</td>
+          <td class="!whitespace-normal text-xs">${esc(reasonOf(p.reason).label)}${p.userId ? `／${esc(withOffice(userById(p.userId)))}` : ''}${p.memo ? `<br><span class="text-slate-500">${esc(p.memo)}</span>` : ''}</td>
           <td>${p.status === 'done' ? badge('bg-emerald-100 text-emerald-800', `振込済 ${fmtTime(p.paidAt).slice(0, 5)}`) : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-pay-done="${p.id}">振込済みにする</button>`}</td></tr>`).join('')
           : '<tr><td colspan="5" class="text-slate-400">登録はありません。</td></tr>'}
       </tbody></table>
@@ -144,7 +146,7 @@ function expenseTab() {
         ${EXPENSE_TYPES.map((t) => `<button class="b b-sec ${exp.type === t.key ? 'on' : ''}" data-exp-type="${t.key}">${t.icon} ${t.label}</button>`).join('')}</div></div>
       <label class="text-sm font-bold sm:col-span-2">内容・代行する理由（必須）<input class="inp mt-1 font-normal" data-f="exp.memo" value="${esc(exp.memo)}" placeholder="例: レシートを紛失したと営業から連絡あり" /></label>
     </div>
-    ${why ? `<div class="rounded bg-amber-50 text-amber-800 text-sm font-bold p-2">${esc(userById(exp.userId).name)} さんは、${why}</div>` : ''}
+    ${why ? `<div class="rounded bg-amber-50 text-amber-800 text-sm font-bold p-2">${esc(withOffice(userById(exp.userId)))} さんは、${why}</div>` : ''}
     <button class="b b-pri" data-exp-add ${ok ? '' : 'disabled'}>経費として計上する</button>
   </section>`;
 }
@@ -164,7 +166,7 @@ function overviewTab() {
       ${st.byType.length ? st.byType.map((t) => `<div class="mb-2 text-sm"><div class="flex justify-between"><span>${t.icon} ${t.label}（${t.count}件）</span><b>${yen(t.amount)}</b></div>
         <div class="h-2 rounded bg-slate-100"><div class="h-2 rounded bg-teal-600" style="width:${Math.round((t.amount / max) * 100)}%"></div></div></div>`).join('') : '<div class="text-slate-400 text-sm">経費の記録はありません。</div>'}</section>
     <section class="rounded-xl border bg-white p-4"><h2 class="font-bold mb-2">営業別</h2>
-      <table class="w-full text-sm"><tbody>${st.byUser.length ? st.byUser.map((u) => `<tr class="border-b"><td class="font-bold">${esc(userById(u.userId).name)}</td><td class="text-right">${u.count}件</td><td class="text-right">${yen(u.amount)}</td></tr>`).join('') : '<tr><td class="text-slate-400">経費の記録はありません。</td></tr>'}</tbody></table></section>
+      <table class="w-full text-sm"><tbody>${st.byUser.length ? st.byUser.map((u) => `<tr class="border-b"><td class="font-bold">${esc(withOffice(userById(u.userId)))}</td><td class="text-right">${u.count}件</td><td class="text-right">${yen(u.amount)}</td></tr>`).join('') : '<tr><td class="text-slate-400">経費の記録はありません。</td></tr>'}</tbody></table></section>
   </div>
   <p class="text-xs text-slate-500">会社全体の固定費などの管理は、業務フローの確認後に追加します。</p>`;
 }
