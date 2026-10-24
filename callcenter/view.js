@@ -116,11 +116,11 @@ export function formHtml(f, today, list = []) {
       <div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">大型品・その他の確認${b('large')}</span>${none('large', '特になし')}</div>${inp('large', f.large, { ph: '例: ゴルフクラブも売れるか' })}</div>
     </div>
     <div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">訪問時の注意（営業のタブレットに表示）${b('notes')}</span>${none('notes', '特になし')}</div><textarea class="inp mt-0.5" rows="2" data-f="notes" placeholder="例: 1階エントランスで待ち合わせ。午前中が電話がつながりやすい">${esc(f.notes)}</textarea></div>`);
-  const yn = (key, label) => `<div><div class="text-xs font-bold">${label}${b(key)}</div><div class="flex gap-1 mt-0.5">${YESNO.map((o) => `<button class="b b-sec flex-1 !px-1 ${f[key] === o ? 'on' : ''}" data-yn="${key}|${o}">${o}</button>`).join('')}</div></div>`;
+  const yn = (key, label, hint = '') => `<div title="${hint}"><div class="text-xs font-bold whitespace-nowrap">${label}${b(key)}</div><div class="flex gap-1 mt-0.5">${YESNO.map((o) => `<button class="b b-sec flex-1 !px-1 ${f[key] === o ? 'on' : ''}" data-yn="${key}|${o}">${o}</button>`).join('')}</div></div>`;
   const time = (key) => `<select class="inp" data-f="${key}"><option value="">（未確認）</option><option value="none" ${f[key] === 'none' ? 'selected' : ''}>指定なし</option>${CONTACT_TIMES.map((t) => `<option ${t === f[key] ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
   const notes = sec('④ 備考・補足など', `
-    <div class="grid grid-cols-3 gap-2">${yn('companion', 'ご同席者（他に同席する人）')}${yn('parking', '駐車スペース')}${yn('nameplate', '表札')}</div>
-    ${f.companion === 'あり' ? inp('companionNote', f.companionNote, { ph: '誰が同席しますか？（例: ご主人、娘様）' }) : ''}
+    <div class="grid grid-cols-3 items-end gap-2">${yn('companion', 'ご同席者', '立ち会う人のほかに、同席する人がいるか')}${yn('parking', '駐車スペース')}${yn('nameplate', '表札')}</div>
+    ${f.companion === 'あり' ? inp('companionNote', f.companionNote, { ph: 'ご同席者は誰ですか？（例: ご主人、娘様）' }) : ''}
     <div><div class="text-xs font-bold">前日確認の連絡時間${b('contact')}</div><div class="flex items-center gap-1.5 mt-0.5">${time('contactFrom')}<span>〜</span>${time('contactTo')}</div></div>`);
   return `<div id="checklist" class="sticky top-0 z-10">${checklistHtml(list)}</div>${customer}${when}${hearing}${notes}`;
 }
