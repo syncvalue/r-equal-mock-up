@@ -185,7 +185,7 @@ const dayHead = (date) => { const [y, m, d] = date.split('-').map(Number); const
 export function weekCalendarHtml({ week, form, today, names, canPrev }) {
   const first = dayHead(week[0].date);
   const last = dayHead(week[week.length - 1].date);
-  const head = week.map((d) => { const h = dayHead(d.date); return `<th class="px-0.5 py-0.5 text-center text-xs font-bold leading-tight ${h.cls} ${d.date === form.date ? 'bg-teal-100' : ''}">${h.md}<div class="text-[10px] font-normal leading-none">${h.w}${d.date === today ? '・今日' : ''}</div></th>`; }).join('');
+  const head = week.map((d) => { const h = dayHead(d.date); return `<th class="px-0.5 py-0.5 text-center text-xs font-bold leading-tight ${h.cls} ${d.date === form.date ? 'bg-teal-100' : ''}"><button class="w-full rounded hover:bg-slate-100 ${d.date < today ? 'opacity-40 cursor-not-allowed' : 'underline decoration-dotted'}" data-gotoday="${d.date}" ${d.date < today ? 'disabled' : ''} title="この日の予定を、営業ごとに見る">${h.md}<div class="text-[10px] font-normal leading-none">${h.w}${d.date === today ? '・今日' : ''}</div></button></th>`; }).join('');
   const rows = week[0].slots.map((_, i) => `<tr><th class="pr-1 text-right text-[11px] font-normal text-slate-500 whitespace-nowrap">${minToHHMM(week[0].slots[i].start)}</th>${week.map((d) => {
     const s = d.slots[i];
     const n = s.freeIds.length;
@@ -209,7 +209,7 @@ export function weekCalendarHtml({ week, form, today, names, canPrev }) {
 }
 
 // 日別の表示。営業ごとの列に、その日の予定を時間軸で並べる。空いている枠を押すと、その営業・その時刻を選ぶ
-const DAY_ROW = 20; // 30分あたりの高さ（px）
+const DAY_ROW = 26; // 30分あたりの高さ（px）
 const DAY_SLOTS = (WORK_END - WORK_START) / SLOT_STEP;
 const topOf = (m) => ((m - WORK_START) / SLOT_STEP) * DAY_ROW;
 
@@ -218,7 +218,8 @@ export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
   const dh = dayHead(form.date);
   const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(0,1fr))`;
   const end = form.start + form.dur;
-  const head = cols.map((c) => `<div class="px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'}"><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${isLeader(c.user) ? '<span class="ml-0.5 text-[9px] rounded bg-slate-200 px-1">L</span>' : ''}</div>`).join('');
+  const head = cols.map((c) => `<div class="px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'}"><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${isLeader(c.user) ? '<span class="ml-0.5 text-[9px] rounded bg-slate-200 px-1">L</span>' : ''}
+    <div class="text-[10px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}" title="${esc(`${minToHHMM(form.start)}〜${minToHHMM(end)} の希望時間帯`)}">${c.free ? '希望時間 空き' : '希望時間 不可'}</div></div>`).join('');
   const travel = cols.map((c) => `<div class="px-1 py-0.5 text-[10px] leading-tight text-slate-600 border-b min-h-[2.1rem]" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${esc(legText(c.travel.prev, 'prev'))}</div>${c.travel.next ? `<div class="truncate">${esc(legText(c.travel.next, 'next'))}</div>` : ''}` : ''}</div>`).join('');
   const axisCol = `<div class="relative" style="height:${h}px">${Array.from({ length: DAY_SLOTS / 2 }, (_, i) => `<span class="absolute right-1 text-[10px] text-slate-400 -translate-y-1/2" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => {
@@ -227,9 +228,9 @@ export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
       const free = m + form.dur <= WORK_END && !conflictOf(c.blocks, m, m + form.dur);
       return `<button class="block w-full text-left ${free ? 'hover:bg-emerald-200/70 cursor-pointer' : 'cursor-not-allowed'}" style="height:${DAY_ROW}px" ${free ? `data-dcell="${c.user.id}|${m}" title="${esc(`${c.user.name} ${minToHHMM(m)}〜${minToHHMM(m + form.dur)} で選ぶ`)}"` : 'disabled'}></button>`;
     }).join('');
-    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-tight text-white ${SRC[b.source][0]}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${SRC[b.source][1]}）`)}">${minToHHMM(b.start)}–${minToHHMM(b.end)}<br />${esc(b.label)}</div>`).join('');
+    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${SRC[b.source][0]}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${SRC[b.source][1]}）`)}"><b>${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
     const sel = c.user.id === selectedId;
-    const want = `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${sel ? '' : 'border-dashed'} ${c.free ? 'border-emerald-600 bg-emerald-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"></div>`;
+    const want = sel ? `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${c.free ? 'border-emerald-600 bg-emerald-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"><span class="absolute -top-px right-0 rounded-bl bg-white/80 px-1 text-[9px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}">希望 ${minToHHMM(form.start)}〜</span></div>` : '';
     return `<div class="relative border-l ${sel ? 'bg-teal-50/60' : ''}" style="height:${h}px;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)">${slots}${blocks}${want}</div>`;
   }).join('');
   return `<div class="rounded-lg border bg-white p-1.5">
@@ -239,7 +240,8 @@ export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="1" title="次の日">▶</button></div>
     <div class="grid" style="${grid}"><div class="border-b"></div>${head}<div class="border-b text-[10px] text-slate-400 text-right pr-1">距離</div>${travel}${axisCol}${body}</div>
     ${hasHere ? '' : '<div class="text-[11px] text-slate-400 mt-0.5">住所を入力すると、前後のアポからの距離を表示します</div>'}
-    <div class="text-[11px] text-slate-400 mt-0.5">空いている枠を押すと、その営業・その時刻を選びます　距離は住所からの概算です（直前のアポがなければ営業所から）</div>
+    <div class="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3"><span><i class="inline-block w-3 h-2 border-2 border-emerald-600 bg-emerald-400/25 align-middle"></i> 選択中の営業の希望時間帯（空き）</span><span><i class="inline-block w-3 h-2 border-2 border-rose-500 bg-rose-400/25 align-middle"></i> （予定と重なる）</span><span>空いている枠を押すと選べます</span></div>
+    <div class="text-[11px] text-slate-400">距離は住所からの概算（直前のアポがなければ営業所から）</div>
   </div>`;
 }
 

@@ -343,6 +343,7 @@ document.addEventListener('click', (e) => {
     el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     el?.closest('div, label')?.querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
   }
+  else if (d.gotoday) { form = { ...form, date: d.gotoday, whenAsked: true }; calMode = 'day'; weekStart = weekStartFor(d.gotoday); refresh(); }
   else if (d.calmode) { calMode = d.calmode; renderDispatch(); }
   else if (d.day) { form = { ...form, date: shiftDay(form.date, Number(d.day)), whenAsked: true }; weekStart = weekStartFor(form.date); refresh(); }
   else if (d.dcell) { const [userId, start] = d.dcell.split('|'); form = { ...form, userId, start: Number(start), whenAsked: true }; refresh(); }

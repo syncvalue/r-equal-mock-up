@@ -107,6 +107,15 @@ export function travelAround(blocks, start, end, here) {
   };
 }
 
+// ダミーの他の訪問のお客様名と住所（エリアごと）。日別の表示で、予定のお客様と住所が分かるように
+const DUMMY_NAMES = ['岡田 恵子', '石川 正一', '村上 久美', '前田 隆', '藤田 直子', '近藤 浩二', '長谷川 淳', '清水 明美'];
+const DUMMY_ADDRESS = {
+  osaka: ['大阪府大阪市中央区難波3-1-5', '大阪府堺市堺区南瓦町1-1', '大阪府豊中市本町2-3-4', '大阪府東大阪市長堂1-6-8'],
+  hyogo: ['兵庫県神戸市中央区三宮町1-2-3', '京都府京都市下京区四条通3-4', '兵庫県西宮市池田町2-5', '滋賀県大津市浜大津1-3'],
+  kanto: ['東京都新宿区西新宿2-8-1', '神奈川県横浜市西区みなとみらい3-1', '埼玉県さいたま市大宮区桜木町1-2', '千葉県千葉市中央区中央3-4'],
+  tokai: ['愛知県名古屋市中村区名駅1-1', '愛知県豊田市西町3-5', '静岡県浜松市中区砂山町2-1', '岐阜県岐阜市橋本町1-10'],
+};
+
 // 予定のない日は、営業ごとに日付で決まる「他の訪問」（ダミー）を入れて、空き状況が見本になるようにする
 function fillerBlocks(userId, date) {
   const rnd = hash(`${userId}/${date}`);
@@ -115,7 +124,12 @@ function fillerBlocks(userId, date) {
     const start = 570 + Math.floor(rnd() * 14) * SLOT_STEP;
     const end = start + (rnd() < 0.5 ? 60 : 90);
     if (!blocks.some((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER)) {
-      blocks.push({ start, end, label: '訪問予定', source: 'dummy', ...locateAddress(`${userId}/${date}/${start}`, areaById(areaOfUser(userId))), place: '' });
+      const areaId = areaOfUser(userId);
+      const pick = Math.floor(hash(`${userId}/${date}/${start}/客`)() * 100); // 空き状況の乱数列を変えないよう、別の乱数で決める
+      blocks.push({
+        start, end, label: `${DUMMY_NAMES[pick % DUMMY_NAMES.length]} 様`, source: 'dummy',
+        ...locateAddress(`${userId}/${date}/${start}`, areaById(areaId)), place: (DUMMY_ADDRESS[areaId] ?? [''])[Math.floor(pick / 8) % 4],
+      });
     }
   }
   return blocks;
