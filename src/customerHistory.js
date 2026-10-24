@@ -15,7 +15,7 @@ const at = (date) => new Date(`${date}T10:00:00`).getTime();
 const SEED = {
   // 音声入力デモで受電するお客様（山田 花子）。過去に3回の買取実績がある見本
   '090-2468-1357': {
-    declined: [{ at: at('2026-04-12'), items: [{ name: 'ロレックス エクスプローラー', category: '腕時計', qty: 1, price: 450000, reason: 'お客様が売るのをやめた' }] }],
+    declined: [{ at: at('2026-04-12'), items: [{ name: 'ロレックス エクスプローラー', category: '腕時計', qty: 1, price: 450000 }] }],
     profile: { rank: 'A', trouble: { level: 'none', tags: [] }, cooloff: [] },
     customer: { name: '山田 花子', kana: 'ヤマダ ハナコ', zip: '545-0052', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3', occupation: '主婦', birth: '1964-02-11' },
     visits: [
@@ -43,7 +43,7 @@ const SEED = {
       cats: ['腕時計'], flags: ['価格交渉が強い', '他社と比較中'], memo: 'デイトナを売却。他社の見積もりを提示して交渉された。型番・相場を事前に調べておくとスムーズ。' }],
   },
   '080-8901-2345': {
-    declined: [{ at: at('2026-09-05'), items: [{ name: 'エルメス ケリー28', category: 'ブランドバッグ', qty: 1, price: 380000, reason: 'ご家族の同意が得られない' }, { name: 'ヴィトン ダミエ ボストン', category: 'ブランドバッグ', qty: 1, price: 60000, reason: 'お客様が売るのをやめた' }] }, { at: at('2026-05-18'), items: [{ name: '真珠のネックレス（形見）', category: 'ジュエリー・貴金属', qty: 1, price: 120000, reason: '手元に残したい（思い入れ）' }] }],
+    declined: [{ at: at('2026-09-05'), items: [{ name: 'エルメス ケリー28', category: 'ブランドバッグ', qty: 1, price: 380000 }, { name: 'ヴィトン ダミエ ボストン', category: 'ブランドバッグ', qty: 1, price: 60000 }] }, { at: at('2026-05-18'), items: [{ name: '真珠のネックレス（形見）', category: 'ジュエリー・貴金属', qty: 1, price: 120000 }] }],
     profile: { rank: 'A', trouble: { level: 'caution', tags: ['家族の同意が必要'], memo: 'ご主人の同意が必要。事前にご在宅を確認する' }, cooloff: [{ at: at('2026-01-30'), items: 'ブランドバッグ', memo: 'ご家族の反対で、契約の翌日に連絡あり' }] },
     visits: [
       { at: at('2026-09-05'), items: 'ブランドバッグ', total: 310000, lines: [L('ルイ・ヴィトン ネヴァーフル MM', 145000), L('ルイ・ヴィトン ポシェット', 95000), L('シャネル チェーンウォレット', 70000)] },
@@ -54,7 +54,7 @@ const SEED = {
   },
   // 以下は、サンプルの受付のお客様（ランク・厄介度・クーリングオフ歴の見本）
   '090-5050-6060': {
-    declined: [{ at: at('2026-09-12'), items: [{ name: 'パテック・フィリップ カラトラバ', category: '腕時計', qty: 1, price: 1200000, reason: '金額に納得いただけなかった' }, { name: 'ルイ・ヴィトン トランク（大）', category: 'ブランドバッグ', qty: 1, price: 150000, reason: '他社と比較する' }] }, { at: at('2026-02-18'), items: [{ name: 'ダイヤ ネックレス 2.0ct', category: 'ジュエリー・貴金属', qty: 1, price: 780000, reason: '金額に納得いただけなかった' }] }],
+    declined: [{ at: at('2026-09-12'), items: [{ name: 'パテック・フィリップ カラトラバ', category: '腕時計', qty: 1, price: 1200000 }, { name: 'ルイ・ヴィトン トランク（大）', category: 'ブランドバッグ', qty: 1, price: 150000 }] }, { at: at('2026-02-18'), items: [{ name: 'ダイヤ ネックレス 2.0ct', category: 'ジュエリー・貴金属', qty: 1, price: 780000 }] }],
     customer: { name: '前川 玲子', kana: 'マエカワ レイコ', zip: '543-0001', address: '大阪府大阪市天王寺区上本町6-3-2' },
     profile: { rank: 'S', trouble: { level: 'alert', tags: ['クレームが多い', '売却に至らないことが多い'], memo: '資産は多いが、査定額への不満が強く、成約まで時間がかかる。リーダーなど経験のある営業が対応する' }, cooloff: [{ at: at('2026-06-20'), items: 'エルメス', memo: '契約の3日後に、金額への不満でクーリングオフ' }, { at: at('2025-12-04'), items: '宝飾品', memo: '契約の翌日に、家族の意向で' }] },
     visits: [
@@ -70,7 +70,7 @@ const SEED = {
         cats: ['着物・骨董'], flags: [], memo: '骨董を中心に売却。初回は穏やかだった。' }],
   },
   '06-6334-9988': {
-    declined: [{ at: at('2026-08-25'), items: [{ name: 'ダイヤ リング 3.0ct', category: 'ジュエリー・貴金属', qty: 1, price: 900000, reason: 'ご家族の同意が得られない' }] }],
+    declined: [{ at: at('2026-08-25'), items: [{ name: 'ダイヤ リング 3.0ct', category: 'ジュエリー・貴金属', qty: 1, price: 900000 }] }],
     customer: { name: '小山 敏子', kana: 'コヤマ トシコ', zip: '561-0881', address: '大阪府豊中市庄内西町3-4-5' },
     profile: { rank: 'S', trouble: { level: 'none', tags: [] }, cooloff: [] },
     visits: [{ at: at('2026-08-25'), items: 'ジュエリー', total: 980000 }, { at: at('2026-03-30'), items: '貴金属', total: 420000 }],

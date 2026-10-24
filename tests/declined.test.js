@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
-const { recordDeclined, loadDeclined, DECLINE_REASONS } = await import('../src/declined.js');
+const { recordDeclined, loadDeclined } = await import('../src/declined.js');
 const { declinedList, customerProfile, customerDossier } = await import('../src/customerHistory.js');
 const { declinedCardHtml, salesDeclinedCard, customerMarks } = await import('../src/customerProfileView.js');
 const { customerModalHtml } = await import('../callcenter/dispatcherView.js');
@@ -12,20 +12,20 @@ const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 beforeEach(() => store.clear());
 
 const items = [
-  { name: 'ロレックス デイトナ', category: '腕時計', rank: 'A', qty: 1, price: 900000, sell: false, declineReason: '金額に納得いただけなかった' },
+  { name: 'ロレックス デイトナ', category: '腕時計', rank: 'A', qty: 1, price: 900000, sell: false },
   { name: 'ゴルフクラブ セット', category: 'その他', rank: 'B', qty: 2, price: 40000, sell: false },
 ];
 
 test('見送り品の記録: 訪問ごとに1件。見送りがなければ残さない。あとから売ることにしたら消える', () => {
   recordDeclined({ visitId: 'V1', phone: '090-1111-2222', customerName: 'A', at: Date.UTC(2026, 9, 20), items });
   assert.equal(loadDeclined().length, 1);
-  assert.deepEqual(loadDeclined()[0].items.map((i) => [i.name, i.qty, i.price, i.reason]), [['ロレックス デイトナ', 1, 900000, '金額に納得いただけなかった'], ['ゴルフクラブ セット', 2, 40000, '']]);
+  assert.deepEqual(loadDeclined()[0].items.map((i) => [i.name, i.qty, i.price]), [['ロレックス デイトナ', 1, 900000], ['ゴルフクラブ セット', 2, 40000]]);
+  assert.ok(loadDeclined()[0].items.every((i) => !('reason' in i))); // 売らなかった理由は、聴取していないので、記録しない
   recordDeclined({ visitId: 'V1', phone: '090-1111-2222', customerName: 'A', at: Date.UTC(2026, 9, 20), items: [items[0]] }); // 同じ訪問は、上書き
   assert.equal(loadDeclined().length, 1);
   assert.equal(loadDeclined()[0].items.length, 1);
   recordDeclined({ visitId: 'V1', phone: '090-1111-2222', customerName: 'A', at: 1, items: [] }); // すべて売ることにした
   assert.equal(loadDeclined().length, 0);
-  assert.ok(DECLINE_REASONS.length >= 5);
 });
 
 test('見送り品の一覧: 電話番号から、新しい訪問の品から。サンプルの履歴と、記録したものを合わせる', () => {
@@ -44,7 +44,8 @@ test('見送り品の一覧: 電話番号から、新しい訪問の品から。
 test('見送り品の表示: 点数・査定額の合計・分野・訪問ごとの内訳・理由', () => {
   recordDeclined({ visitId: 'V1', phone: '090-1111-2222', customerName: 'A', at: Date.UTC(2026, 9, 20), items });
   const t = text(declinedCardHtml(declinedList(['090-1111-2222'])));
-  assert.ok(['3点', '査定額の合計 ¥980,000', '腕時計', 'その他', 'ロレックス デイトナ', 'ゴルフクラブ セット ×2', '¥80,000', '金額に納得いただけなかった', '2026/10/20の訪問'].every((k) => t.includes(k)), t);
+  assert.ok(['3点', '査定額の合計 ¥980,000', '腕時計', 'その他', 'ロレックス デイトナ', 'ゴルフクラブ セット ×2', '¥80,000', '2026/10/20の訪問'].every((k) => t.includes(k)), t);
+  assert.ok(!/納得|やめた|理由|同意が得られ/.test(t)); // 理由は出さない
   assert.match(text(salesDeclinedCard(declinedList(['090-1111-2222']))), /前に査定したが、売らなかったもの/);
   assert.equal(salesDeclinedCard([]), ''); // なければ、出さない
   assert.match(text(declinedCardHtml([], { empty: true })), /ありません/);

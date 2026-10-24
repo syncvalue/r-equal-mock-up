@@ -171,7 +171,7 @@ function publish() {
     customerName: state.customer.name,
     callInfo: state.callInfo,
     outcome: state.outcome ? { ...state.outcome, label: outcomeOf(state.outcome.type).label } : null,
-    items: state.items.map(({ id, name, category, rank, qty, price, sell, aiAppraisal, declineReason }) => ({ id, name, category, rank, qty, price, sell, aiAppraisal, declineReason })),
+    items: state.items.map(({ id, name, category, rank, qty, price, sell, aiAppraisal }) => ({ id, name, category, rank, qty, price, sell, aiAppraisal })),
     updatedAt: Date.now(),
   });
 }
@@ -661,7 +661,6 @@ document.addEventListener('change', (e) => {
     set({ [key]: { ...state[key], checks: { ...state[key].checks, [el.dataset.key]: el.checked } } });
     rerenderKeepScroll();
   }
-  if (el.dataset.decline !== undefined) { updateItems(el.dataset.decline, { declineReason: el.value }); publish(); } // 見送りの理由（記録のみ）
   if (el.dataset.expPhoto !== undefined && el.files[0]) {
     shrinkImage(el.files[0], 1000)
       .then((img) => { set({ expDraft: { ...state.expDraft, photo: img } }); readReceiptAi(receiptSampleFor(img.length)); rerenderKeepScroll(); })

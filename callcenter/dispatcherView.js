@@ -110,7 +110,9 @@ export function customerModalHtml({ rid, reservations, now }) {
           <div class="text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc(phones.join(' ／ '))}</div></div>
         <button class="b b-sec !min-h-0 !py-1" data-custclose title="閉じる（Esc）">✕ 閉じる</button></div>
       ${box('お客様の評価（お客様情報に紐づく。アポごとの評価とは別）', `${customerProfileHtml(p)}${customerEvalEditor(p, r.customer.phone || r.customer.phone2)}`)}
-      ${box('査定したが売らなかったもの（お手元に持っている可能性）', declinedCardHtml(d.declined, { empty: true }))}
+      <section class="space-y-1 rounded-lg border-2 ${d.declined.length ? 'border-violet-400 bg-violet-50' : 'border-slate-200 bg-slate-50'} p-2 ${d.declined.length ? 'shadow-sm' : ''}">
+        <h3 class="text-xs font-bold ${d.declined.length ? 'text-violet-900' : 'text-slate-500'}">📦 査定したが売らなかったもの（お手元に持っている可能性）${d.declined.length ? `<span class="ml-2 rounded-full bg-violet-600 px-2 py-0.5 text-[11px] text-white">${d.declined.reduce((n, i) => n + (i.qty ?? 1), 0)}点</span>` : ''}</h3>
+        ${declinedCardHtml(d.declined, { empty: true })}</section>
       ${box('誰を当てるかの判断の手がかり', `${assignAdvice(p) || '<div class="text-xs text-slate-500">特に注意する点はありません</div>'}
         <div class="text-xs"><span class="text-slate-500">これまでの担当：</span>${d.staff.length ? d.staff.map((n) => `<b>${esc(n)}</b>`).join('、') : '<span class="text-slate-500">なし（新規・担当の記録なし）</span>'}</div>`)}
       ${box('過去の買取履歴（アポごとの品目と、営業の評価・メモ）', visits)}

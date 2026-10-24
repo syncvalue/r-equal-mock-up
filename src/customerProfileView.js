@@ -51,7 +51,7 @@ export function declinedCardHtml(items, { empty = false } = {}) {
   items.forEach((i) => { const last = byDate[byDate.length - 1]; if (last && last.at === i.at && last.visitId === i.visitId) last.items.push(i); else byDate.push({ at: i.at, visitId: i.visitId, items: [i] }); });
   return `<div class="space-y-1 text-xs"><div class="flex flex-wrap items-center gap-x-3 gap-y-0.5"><span><b>${count}点</b>　査定額の合計 <b>${yen(total)}</b></span>
       ${cats.map((c) => `<span class="rounded bg-violet-100 px-1.5 text-[11px] font-bold text-violet-900">${esc(c)}</span>`).join('')}</div>
-    <div class="max-h-48 space-y-1 overflow-y-auto rounded border bg-white p-1.5">${byDate.map((g) => `<div><div class="font-bold text-slate-500">${dateYmd(g.at)}の訪問</div>${g.items.map((i) => `<div class="flex items-start gap-2 border-t py-0.5 first:border-t-0"><span class="min-w-0 flex-1">${esc(i.name)}${(i.qty ?? 1) > 1 ? ` ×${i.qty}` : ''}${i.reason ? `<span class="block text-[11px] text-slate-500">${esc(i.reason)}</span>` : ''}</span><b class="shrink-0">${yen(i.price * (i.qty ?? 1))}</b></div>`).join('')}</div>`).join('')}</div></div>`;
+    <div class="max-h-48 space-y-1 overflow-y-auto rounded border bg-white p-1.5">${byDate.map((g) => `<div><div class="font-bold text-slate-500">${dateYmd(g.at)}の訪問</div>${g.items.map((i) => `<div class="flex items-start gap-2 border-t py-0.5 first:border-t-0"><span class="min-w-0 flex-1">${esc(i.name)}${(i.qty ?? 1) > 1 ? ` ×${i.qty}` : ''}</span><b class="shrink-0">${yen(i.price * (i.qty ?? 1))}</b></div>`).join('')}</div>`).join('')}</div></div>`;
 }
 
 // 営業のタブレット用のカード
