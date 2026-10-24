@@ -26,9 +26,9 @@ export function pastEvalView(h) {
   if (!h.isRepeat) return '<div class="rounded-xl border bg-slate-50 p-3 text-sm text-slate-500">初めてのお客様です。</div>';
   const visit = (v, open) => {
     const lines = visitLines(v);
-    return `<details class="rounded-lg border bg-white" ${open ? 'open' : ''}>
-      <summary class="cursor-pointer px-2 py-1.5 text-sm"><div class="flex items-center gap-2"><span class="shrink-0 text-slate-500">${dateStr(v.at)}</span><span class="min-w-0 flex-1 truncate">${esc(lines[0].name)}${lines.length > 1 ? `<span class="text-slate-500"> ほか${lines.length - 1}品目</span>` : ''}</span>${v.eval ? starsHtml(v.eval.overall) : ''}<b class="shrink-0">${yen(v.total)}</b></div>
-        ${v.eval?.memo ? `<div class="truncate text-xs text-slate-500">${esc(String(v.eval.by).replace(/^営業\s*/, ''))}：${esc(v.eval.memo)}</div>` : ''}</summary>
+    return `<details class="group rounded-lg border bg-white" ${open ? 'open' : ''}>
+      <summary class="cursor-pointer px-2 py-1.5 text-sm"><div class="flex items-center gap-2"><span class="shrink-0 text-slate-500">${dateStr(v.at)}</span><span class="min-w-0 flex-1 truncate">${esc(lines[0].name)}${lines.length > 1 ? `<span class="text-slate-500"> ほか${lines.length - 1}品目</span>` : ''}</span>${v.eval ? `<span class="group-open:hidden">${starsHtml(v.eval.overall)}</span>` : ''}<b class="shrink-0">${yen(v.total)}</b></div>
+        ${v.eval?.memo ? `<div class="truncate text-xs text-slate-500 group-open:hidden">${esc(String(v.eval.by).replace(/^営業\s*/, ''))}：${esc(v.eval.memo)}</div>` : ''}</summary>
       <div class="space-y-2 border-t px-2 py-1.5"><div class="max-h-40 overflow-y-auto"><table class="w-full text-sm"><tbody>${lines.map((l) => `<tr class="border-t first:border-t-0"><td class="py-0.5">${esc(l.name)}</td><td class="w-10 text-right text-slate-500">${(l.qty ?? 1) > 1 ? `×${l.qty}` : ''}</td><td class="w-24 text-right">${yen(lineTotal(l))}</td></tr>`).join('')}</tbody></table></div>
         ${visitEvalHtml(v.eval)}</div></details>`;
   };

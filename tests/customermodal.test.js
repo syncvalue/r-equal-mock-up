@@ -13,8 +13,8 @@ const rec = (phone) => ({ id: 'r1', userId: 'u09', date: '2026-10-26', start: '1
 test('お客様の詳細: 買取の履歴は、1回ごとに折りたたみ、品目を全件（品名・数量・金額）出す', () => {
   const html = customerModalHtml({ rid: 'r1', reservations: [rec('090-5050-6060')], now: NOW });
   const t = text(html);
-  assert.equal((html.match(/<details class="rounded border bg-white"/g) || []).length, 3); // 3回分（ほかの<details>は、お客様の評価の登録欄）
-  assert.match(html, /<details class="rounded border bg-white" open>/); // 直近の1回は、開いておく
+  assert.equal((html.match(/<details class="group rounded border bg-white"/g) || []).length, 3); // 3回分（ほかの<details>は、お客様の評価の登録欄）
+  assert.match(html, /<details class="group rounded border bg-white" open>/); // 直近の1回は、開いておく
   assert.ok(['エルメス バーキン30', 'ロレックス サブマリーナ', 'シャネル ボーイシャネル', 'ダイヤ リング 1.2ct', '銀製 茶托', '伊万里焼 大皿'].every((k) => t.includes(k)), t); // 全品目
   assert.ok(t.includes('×10') && t.includes('¥60,000')); // 数量と、金額（単価×数量）
   assert.ok(t.includes('ほか5品目') && t.includes('6点')); // 折りたたんだ状態の要約

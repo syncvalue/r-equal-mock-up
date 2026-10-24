@@ -64,6 +64,6 @@ test('営業のタブレット: 過去のアポごとの評価を、アポの数
   const t = text(pastEvalView(h));
   assert.match(t, /過去のアポごとの評価（3回）/);
   assert.ok(['バーキンの査定額に不満が強く', '査定額への不満を繰り返し言われた', '骨董を中心に売却', 'エルメス バーキン30'].every((k) => t.includes(k)), t); // 回ごとの評価・メモと、品目
-  assert.equal((pastEvalView(h).match(/<details class="rounded-lg border bg-white"/g) || []).length, 3);
+  assert.equal((pastEvalView(h).match(/<details class="group rounded-lg border bg-white"/g) || []).length, 3);
   assert.match(text(pastEvalView({ isRepeat: false })), /初めてのお客様/);
 });

@@ -88,11 +88,11 @@ export function customerModalHtml({ rid, reservations, now }) {
     const lines = visitLines(v);
     const count = lines.reduce((n, l) => n + (l.qty ?? 1), 0);
     const e = v.eval;
-    return `<details class="rounded border bg-white" ${open ? 'open' : ''}>
+    return `<details class="group rounded border bg-white" ${open ? 'open' : ''}>
       <summary class="cursor-pointer px-1.5 py-1 text-xs"><div class="flex items-center gap-2"><span class="w-20 shrink-0 text-slate-500">${ymd(v.at)}</span>
         <span class="min-w-0 flex-1 truncate" title="${esc(lines.map((l) => l.name).join('、'))}">${esc(lines[0].name)}${lines.length > 1 ? `<span class="text-slate-500"> ほか${lines.length - 1}品目</span>` : ''}</span>
-        ${e ? `<span class="shrink-0 text-amber-500" title="営業の評価">${stars(e.overall)}</span>` : ''}<span class="shrink-0 text-slate-500">${count}点</span><b class="shrink-0">${yenText(v.total)}</b></div>
-        ${e?.memo ? `<div class="ml-[5.5rem] truncate text-[11px] text-slate-500" title="${esc(e.memo)}">${esc(String(e.by).replace(/^営業\s*/, ''))}：${esc(e.memo)}</div>` : ''}</summary>
+        ${e ? `<span class="shrink-0 text-amber-500 group-open:hidden" title="営業の評価">${stars(e.overall)}</span>` : ''}<span class="shrink-0 text-slate-500">${count}点</span><b class="shrink-0">${yenText(v.total)}</b></div>
+        ${e?.memo ? `<div class="ml-[5.5rem] truncate text-[11px] text-slate-500 group-open:hidden" title="${esc(e.memo)}">${esc(String(e.by).replace(/^営業\s*/, ''))}：${esc(e.memo)}</div>` : ''}</summary>
       <div class="space-y-1 border-t px-1.5 py-1"><div class="max-h-44 overflow-y-auto"><table class="w-full text-xs"><tbody>${lines.map((l) => `<tr class="border-t first:border-t-0"><td class="py-0.5">${esc(l.name)}</td><td class="w-10 text-right text-slate-500">${(l.qty ?? 1) > 1 ? `×${l.qty}` : ''}</td><td class="w-20 text-right">${yenText(lineTotal(l))}</td></tr>`).join('')}</tbody></table></div>
         ${evalHtml(e)}</div></details>`;
   };
