@@ -9,6 +9,7 @@ export function missingFields(form, { areaConfirmed, selected, today }) {
   if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
   if (!form.lastName.trim() || !form.firstName.trim()) missing.push('お名前（姓・名）');
   if (!form.gender) missing.push('性別');
+  if (!String(form.age ?? '').trim() && !form.ageEst) missing.push('年齢（聞けない場合は、推測の年代）');
   if (!form.address.trim()) missing.push('訪問先の住所');
   else if (!areaConfirmed) missing.push('営業エリアの確認（Googleマップ）');
   if (form.chirashi === null) missing.push(form.flyerId.trim() ? 'チラシのID（該当なし）' : '来電のきっかけ（チラシのID）');
@@ -30,17 +31,17 @@ export const wantsText = (form) => [mainSummary(form).join('、'), form.cats.joi
 // ---- 聞き取りの確認（聞き忘れ防止） ---------------------------------------------------------
 // 項目ごとに「聞いた／まだ聞いていない」を返す。「なし」「特になし」と聞いた場合も、聞いた扱い。
 export const CHECK_ITEMS = [
-  ['phone', '電話番号'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['age', '年齢'], ['zip', '郵便番号'], ['address', '住所'],
+  ['phone', '電話番号1'], ['phone2', '電話番号2'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['age', '年齢'], ['zip', '郵便番号'], ['address', '住所'],
   ['when', '希望日時'], ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'],
   ['large', '大型品'], ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
 ];
 // 確定に必須の項目（足りないと確定できない）。それ以外は、聞き忘れの注意だけ出す
-export const REQUIRED_CHECKS = new Set(['phone', 'name', 'gender', 'address', 'flyer', 'wants']);
+export const REQUIRED_CHECKS = new Set(['phone', 'name', 'gender', 'age', 'address', 'flyer', 'wants']);
 
 export function hearingChecklist(form) {
   const filled = (v) => String(v ?? '').trim() !== '';
   const asked = {
-    phone: /^0\d{9,10}$/.test(digits(form.phone)), name: filled(form.lastName) && filled(form.firstName), kana: filled(form.lastKana) || filled(form.firstKana), gender: filled(form.gender), age: filled(form.age) || filled(form.ageEst), zip: filled(form.zip), address: filled(form.address),
+    phone: /^0\d{9,10}$/.test(digits(form.phone)), phone2: filled(form.phone2) || Boolean(form.phone2None), name: filled(form.lastName) && filled(form.firstName), kana: filled(form.lastKana) || filled(form.firstKana), gender: filled(form.gender), age: filled(form.age) || filled(form.ageEst), zip: filled(form.zip), address: filled(form.address),
     when: Boolean(form.whenAsked), flyer: form.chirashi !== null, wants: hasWants(form), attendee: filled(form.attendee), companion: filled(form.companion),
     large: filled(form.large), parking: filled(form.parking), nameplate: filled(form.nameplate), contact: filled(form.contactFrom) || filled(form.contactTo), notes: filled(form.notes),
   };

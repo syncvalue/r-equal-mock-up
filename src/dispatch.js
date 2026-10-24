@@ -1,7 +1,7 @@
 // コールセンターの配車ロジック（画面に依存しない純関数）。
 // 訪問先の住所 → 担当エリア → そのエリアの営業のうち、希望日時に空いている人 → 女性のお客様の担当が偏らないように選ぶ。
 import { USERS, stats, monthProgress, rangeOf } from './dashboard.js';
-import { EVENTS, OFFICE, toMin } from './schedule.js';
+import { EVENTS, toMin } from './schedule.js';
 import { dayOffset, minToHHMM, ymdOf } from './reservations.js';
 
 // ---- エリア ----------------------------------------------------------------------
@@ -51,6 +51,14 @@ const USER_RANK = { u01: 'B', u02: 'S', u03: 'A', u04: 'C', u05: 'B', u06: 'S', 
 export const RANKS = ['S', 'A', 'B', 'C'];
 export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
 
+// ---- 出勤状況 ------------------------------------------------------------------------
+// 全員が出勤しているとは限らない。欠勤の営業は、担当に選べない（ダミー: 営業×日付で決まる。予定の入っている日は出勤）
+export function isAbsent(userId, date, now = new Date()) {
+  const day = dayOffset(date, now);
+  if (EVENTS.some((e) => e.userId === userId && e.day === day)) return false;
+  return mixedRandom(`${userId}/${date}/欠勤`)() < 0.12;
+}
+
 // ---- 位置と移動距離（概算） ----------------------------------------------------------------
 // 住所の座標は、モックのため、エリアの中心から住所の文字で決まる位置（約10km圏内）で代用する。本番は、Googleマップの住所検索で座標を取得する
 const AVG_SPEED_KMH = 25; // 市街地の移動の目安
@@ -91,7 +99,7 @@ export function locateAddress(address, area) {
   return { lat: area.lat + (rnd() - 0.5) * 0.18, lng: area.lng + (rnd() - 0.5) * 0.22 };
 }
 
-// 直前・直後の予定から、今回のお客様の住所までの距離。直前の予定がなければ営業所から。km は小数1桁、min は移動時間の目安（分）
+// 直前・直後の予定から、今回のお客様の住所までの距離。直前・直後の予定がなければ、その側は null。km は小数1桁、min は移動時間の目安（分）
 export function travelAround(blocks, start, end, here) {
   if (!here) return null;
   const leg = (from, label, at) => {
@@ -102,7 +110,7 @@ export function travelAround(blocks, start, end, here) {
   const before = [...blocks].filter((b) => b.end <= start).sort((a, b) => b.end - a.end)[0];
   const after = blocks.find((b) => b.start >= end);
   return {
-    prev: before ? leg(before, before.label, before.end) : leg(OFFICE, '営業所', null),
+    prev: before ? leg(before, before.label, before.end) : null, // 直前のアポがなければ、距離は出さない（営業所からの距離は見ない）
     next: after ? leg(after, after.label, after.start) : null,
   };
 }
@@ -161,6 +169,7 @@ export function conflictOf(blocks, start, end) {
 export const conflictText = (c) => {
   if (!c) return '';
   if (c.kind === 'hours') return '営業時間外（9:00〜19:00）';
+  if (c.kind === 'absent') return '欠勤';
   const t = `${minToHHMM(c.block.start)}–${minToHHMM(c.block.end)} ${c.block.label}`;
   return c.kind === 'overlap' ? `${t} の予定と重なる` : `${t} の予定の前後30分（移動時間）にかかる`;
 };
@@ -197,8 +206,9 @@ export function rankCandidates({ gender, areaId, date, start, dur, reservations,
   const end = start + dur;
   const all = USERS.map((user) => {
     const blocks = busyBlocks(user.id, date, reservations, now);
-    const conflict = conflictOf(blocks, start, end);
-    return { user, areaId: areaOfUser(user.id), rank: rankOfUser(user.id), blocks, free: !conflict, conflict, travel: travelAround(blocks, start, end, here), stats: stats[user.id], recommended: false };
+    const absent = isAbsent(user.id, date, now);
+    const conflict = absent ? { kind: 'absent', block: null } : conflictOf(blocks, start, end);
+    return { user, areaId: areaOfUser(user.id), rank: rankOfUser(user.id), blocks, absent, free: !conflict, conflict, travel: travelAround(blocks, start, end, here), stats: stats[user.id], recommended: false };
   });
   const inArea = all.filter((c) => areaId && c.areaId === areaId).sort(byFairness(gender));
   const others = all.filter((c) => !inArea.includes(c)).sort(byFairness(gender));
@@ -228,7 +238,7 @@ export function findWeekSlots({ userIds, startDate, days = 7, dur, reservations,
   const [y, m, d] = startDate.split('-').map(Number);
   return Array.from({ length: days }, (_, i) => {
     const date = ymdOf(new Date(y, m - 1, d + i));
-    const blocks = userIds.map((id) => ({ id, blocks: busyBlocks(id, date, reservations, now) }));
+    const blocks = userIds.filter((id) => !isAbsent(id, date, now)).map((id) => ({ id, blocks: busyBlocks(id, date, reservations, now) })); // 欠勤の営業は数えない
     const slots = [];
     for (let start = WORK_START; start + dur <= WORK_END; start += SLOT_STEP) {
       slots.push({ start, freeIds: blocks.filter((b) => !conflictOf(b.blocks, start, start + dur)).map((b) => b.id) });
@@ -244,17 +254,18 @@ export function salesDetail({ userId, date, start, dur, reservations, here = nul
   const month = stats([user], rangeOf('month', now), now);
   const progress = monthProgress([user], now);
   const blocks = busyBlocks(userId, date, reservations, now);
+  const absent = isAbsent(userId, date, now);
   const starts = [];
-  for (let m = WORK_START; m + dur <= WORK_END; m += SLOT_STEP) if (!conflictOf(blocks, m, m + dur)) starts.push(m);
+  if (!absent) for (let m = WORK_START; m + dur <= WORK_END; m += SLOT_STEP) if (!conflictOf(blocks, m, m + dur)) starts.push(m);
   // 開始できる時刻を、つながっている範囲にまとめる（例: 9:00〜10:30）
   const windows = starts.reduce((acc, m) => {
     const last = acc[acc.length - 1];
     if (last && m - last.to === SLOT_STEP) last.to = m; else acc.push({ from: m, to: m });
     return acc;
   }, []);
-  const conflict = conflictOf(blocks, start, start + dur);
+  const conflict = absent ? { kind: 'absent', block: null } : conflictOf(blocks, start, start + dur);
   return {
-    user, rank: rankOfUser(userId), areaId: areaOfUser(userId),
+    user, absent, rank: rankOfUser(userId), areaId: areaOfUser(userId),
     month: { ...month, target: user.target, achieve: progress.rate, pace: progress.pace },
     fairness: fairnessStats(reservations, now)[userId],
     blocks, windows, conflict, travel: travelAround(blocks, start, start + dur, here),
@@ -266,8 +277,10 @@ export function dispatchOptions(rec, reservations, now = new Date()) {
   const others = reservations.filter((r) => r.id !== rec.id);
   const start = toMin(rec.start);
   const end = toMin(rec.end);
+  const stats = fairnessStats(reservations, now);
   return USERS.filter((u) => !rec.areaId || areaOfUser(u.id) === rec.areaId).map((user) => {
-    const conflict = conflictOf(busyBlocks(user.id, rec.date, others, now), start, end);
-    return { user, rank: rankOfUser(user.id), free: !conflict, conflict, current: user.id === rec.userId };
+    const absent = isAbsent(user.id, rec.date, now);
+    const conflict = absent ? { kind: 'absent', block: null } : conflictOf(busyBlocks(user.id, rec.date, others, now), start, end);
+    return { user, rank: rankOfUser(user.id), absent, free: !conflict, conflict, current: user.id === rec.userId, stats: stats[user.id] };
   });
 }

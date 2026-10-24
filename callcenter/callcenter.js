@@ -29,7 +29,7 @@ const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); c
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
 const blankForm = () => ({
-  phone: '', phone2: '', lastName: '', firstName: '', lastKana: '', firstKana: '', gender: '', genderEst: false, age: '', ageEst: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
+  phone: '', phone2: '', phone2None: false, lastName: '', firstName: '', lastKana: '', firstKana: '', gender: '', genderEst: false, age: '', ageEst: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
   date: addDays(1), start: 10 * 60, dur: 90, userId: null,
 });
 
@@ -39,6 +39,8 @@ let form = blankForm();
 let done = null; // 確定した直後の予約（確定画面を表示している間）
 let quoted = false; // 過去のお客様情報を引用済みか
 let showOthers = false;
+let calStaff = []; // 営業を絞り込む（空なら全員）。「この案件はAさんかBさんが適任」のときに、その人たちだけを表示する
+let staffOpen = false;
 let calOnlyFree = false; // 日別表示で、希望の時間に空いている営業だけを出す
 let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別（営業ごとの列）
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
@@ -69,7 +71,13 @@ function compute() {
   const confirmed = form.areaId && form.areaAddr === form.address.trim() ? areaById(form.areaId) : null;
   const area = confirmed ?? proposal;
   const here = area?.lat != null ? locateAddress(form.address, area) : null; // 今回のお客様の住所の位置（概算）。前のアポからの距離に使う
-  const ranking = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here });
+  const full = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here });
+  // 営業の絞り込み。絞ったときは、表示している営業の中で、おすすめ（担当が最も少ない人）を決め直す
+  const staffSel = calStaff.filter((id) => full.inArea.some((c) => c.user.id === id));
+  const shownIn = full.inArea.filter((c) => !staffSel.length || staffSel.includes(c.user.id)).map((c) => ({ ...c, recommended: false }));
+  const firstFree = shownIn.find((c) => c.free);
+  if (firstFree) firstFree.recommended = true;
+  const ranking = { inArea: shownIn, others: full.others };
   const all = [...ranking.inArea, ...ranking.others];
   const manual = all.find((c) => c.user.id === form.userId && c.free);
   const selected = manual ?? ranking.inArea.find((c) => c.recommended) ?? null; // 手動で選ばなければ、おすすめを自動で選ぶ
@@ -80,6 +88,7 @@ function compute() {
   const missing = missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
   return {
     detail: calMode === 'day' && selected ? salesDetail({ userId: selected.user.id, date: form.date, start: form.start, dur: form.dur, reservations, here }) : null,
+    staff: [...full.inArea].sort((a, b) => a.user.id.localeCompare(b.user.id)), staffSel, staffOpen,
     area, proposal, confirmed, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
     unasked: hearingChecklist(form).filter((x) => !x.asked && !REQUIRED_CHECKS.has(x.key)).map((x) => x.label),
@@ -270,6 +279,7 @@ function onField(e) {
   if (k === 'date' || k === 'start') form = { ...form, whenAsked: true };
   if (k === 'contactFrom' || k === 'contactTo') { form = syncContact(form, k); updateChecklist(); refresh(); return; }
   if (k === 'phone' || k === 'phone2') quoted = false;
+  if (k === 'phone2' && e.target.value && form.phone2None) { form = { ...form, phone2None: false }; document.querySelector('[data-phone2none]')?.classList.remove('on'); } // 番号を入れたら、「なし」は外す
   if (k === 'age' && e.target.value) { form = { ...form, ageEst: '' }; document.querySelectorAll('[data-ageest]').forEach((el) => el.classList.remove('on')); } // 年齢を聞けたら、推測の年代は外す
   if (k === 'flyerId') { form = withFlyer(form, e.target.value); renderFlyerResult(); renderDispatch(); return; }
   if (k === 'date' && e.target.value) weekStart = weekStartFor(e.target.value);
@@ -344,6 +354,7 @@ document.addEventListener('click', (e) => {
   if (d.tab) { stopDemo(); tab = d.tab; render(); }
   else if (d.area) { form = { ...form, areaId: d.area, areaAddr: form.address.trim() }; renderDispatch(); }
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
+  else if ('phone2none' in d) { form = { ...form, phone2None: !form.phone2None, phone2: form.phone2None ? form.phone2 : '' }; refresh(); }
   else if ('genderest' in d) { form = { ...form, genderEst: !form.genderEst }; refresh(); }
   else if (d.ageest) { form = { ...form, ageEst: form.ageEst === d.ageest ? '' : d.ageest, age: '' }; refresh(); }
   else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi), flyerId: '' }; refresh(); }
@@ -358,6 +369,9 @@ document.addEventListener('click', (e) => {
     el?.closest('div, label')?.querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
   }
   else if (d.gotoday) { form = { ...form, date: d.gotoday, whenAsked: true }; calMode = 'day'; weekStart = weekStartFor(d.gotoday); refresh(); }
+  else if ('staffpanel' in d) { staffOpen = !staffOpen; renderDispatch(); }
+  else if ('staffclear' in d) { calStaff = []; renderDispatch(); }
+  else if (d.staff) { calStaff = calStaff.includes(d.staff) ? calStaff.filter((id) => id !== d.staff) : [...calStaff, d.staff]; renderDispatch(); }
   else if ('onlyfree' in d) { calOnlyFree = !calOnlyFree; renderDispatch(); }
   else if (d.calmode) { calMode = d.calmode; renderDispatch(); }
   else if (d.day) { form = { ...form, date: shiftDay(form.date, Number(d.day)), whenAsked: true }; weekStart = weekStartFor(form.date); refresh(); }
