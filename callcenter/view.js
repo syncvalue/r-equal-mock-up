@@ -91,8 +91,7 @@ export function formHtml(f, today) {
       ${lbl('大型品・その他の確認', inp('large', f.large, { ph: '例: ゴルフクラブも売れるか' }))}
     </div>
     ${lbl('訪問時の注意（営業のタブレットに表示）', `<textarea class="inp mt-0.5" rows="2" data-f="notes" placeholder="例: 1階エントランスで待ち合わせ。午前中が電話がつながりやすい">${esc(f.notes)}</textarea>`)}`);
-  const col = 'flex flex-col gap-2 min-[1400px]:overflow-y-auto min-[1400px]:pr-1';
-  return `<div class="${col}">${customer}${when}</div><div class="${col}">${hearing}</div>`;
+  return `${customer}${when}${hearing}`;
 }
 
 export function hintHtml(found, applied) {

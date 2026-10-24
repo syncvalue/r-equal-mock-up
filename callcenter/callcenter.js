@@ -202,11 +202,11 @@ function renderHint() {
   if (el) el.innerHTML = hintHtml(findPast(form.phone), quoted);
 }
 
-// 広い画面（1400px以上）は、左から「お客様・日時」「ヒアリング」「配車」の3列で、縦のスクロールをなくす。狭い画面は、入力欄を1列にして2列で表示する
+// 左に入力欄（①お客様 → ②日時 → ③ヒアリングを縦一列）、右に配車。それぞれ、はみ出す場合だけ縦にスクロールする
 function renderNew() {
   return `
-  <div class="grid gap-3 p-3 h-[calc(100vh-52px)] grid-rows-[minmax(0,1fr)] grid-cols-[minmax(24rem,28rem)_1fr] min-[1400px]:grid-cols-[22rem_24rem_1fr]">
-    <div id="form" class="flex flex-col gap-2 overflow-y-auto pr-1 min-[1400px]:contents ${done ? 'dim' : ''}">${formHtml(form, ymdOf(new Date()))}</div>
+  <div class="grid gap-3 p-3 h-[calc(100vh-52px)] grid-rows-[minmax(0,1fr)] grid-cols-[minmax(24rem,28rem)_1fr]">
+    <div id="form" class="flex flex-col gap-2 overflow-y-auto pr-1 ${done ? 'dim' : ''}">${formHtml(form, ymdOf(new Date()))}</div>
     <div class="overflow-y-auto" id="dispatch"></div>
   </div>`;
 }
