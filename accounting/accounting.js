@@ -1,10 +1,11 @@
 // 本社 経理部デスク画面（ダミー・PC想定）。営業の手持ち現金の確認、入金（営業・お客様）、経費の入力代行、経費の全体状況。
 import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY } from '../src/store.js';
 import { USERS, userById } from '../src/dashboard.js';
-import { addDeposit, depositsOf, todayRows, loadDay, loadDays, saveDay, newId, dateKey, EXPENSE_TYPES, typeOf } from '../src/workday.js';
+import { addDeposit, depositsOf, carryoverFor, todayRows, loadDay, loadDays, saveDay, newId, dateKey, EXPENSE_TYPES, typeOf } from '../src/workday.js';
 import {
   flagsOf, expenseStats, canProxy, proxyExpense, PAY_REASONS, reasonOf, paymentReady, loadCustomerPayments, addCustomerPayment, markPaid,
 } from '../src/accounting.js';
+import { seedSample } from '../src/accountingSample.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
 import { yen, fmtTime, esc } from '../src/format.js';
@@ -50,22 +51,28 @@ function expenseDetail(row) {
 }
 
 function cashTab() {
-  const rows = todayRows().map((r) => ({ ...r, flags: r.summary ? flagsOf(r.day, r.summary) : [] }));
+  // 未始業でも、前日の繰越金（と今日の入金）は手元にあるものとして扱う
+  const rows = todayRows().map((r) => {
+    const opening = carryoverFor(r.user.id).amount;
+    const depositTotal = depositsOf(r.user.id).reduce((n, d) => n + d.amount, 0);
+    const cash = r.summary ?? { opening, depositTotal, expenseTotal: 0, balance: opening + depositTotal };
+    return { ...r, cash, flags: r.summary ? flagsOf(r.day, r.summary) : [] };
+  });
   const started = rows.filter((r) => r.summary);
   const flagged = started.filter((r) => r.flags.length);
   return `
   <div class="flex flex-wrap gap-3">
-    ${card('営業の帳簿残高の合計', yen(started.reduce((n, r) => n + r.summary.balance, 0)))}
+    ${card('営業の帳簿残高の合計', yen(rows.reduce((n, r) => n + r.cash.balance, 0)))}
     ${card('業務中・終業済み', `${started.length} / ${rows.length} 人`)}
     ${card('確認が必要な営業', `${flagged.length} 人`, flagged.length ? 'text-rose-600' : 'text-emerald-700')}
   </div>
-  <table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>営業</th><th>状況</th><th class="text-right">始業時の金額</th><th class="text-right">入金</th><th class="text-right">経費</th><th class="text-right">帳簿残高</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th>確認事項</th></tr></thead><tbody>
+  <table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>営業</th><th>状況</th><th class="text-right">始業時の金額<div class="font-normal text-xs">未始業は前日繰越</div></th><th class="text-right">入金</th><th class="text-right">経費</th><th class="text-right">帳簿残高</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th>確認事項</th></tr></thead><tbody>
     ${rows.map((r) => {
-      const { user, day, phase, summary: sm } = r;
+      const { user, day, phase, summary: sm, cash } = r;
       return `<tr class="border-b ${sm ? 'cursor-pointer hover:bg-slate-50' : ''}" ${sm ? `data-sel-user="${user.id}"` : ''}>
         <td class="font-bold">${esc(user.name)}</td><td>${badge(PHASE[phase][1], PHASE[phase][0])}</td>
-        <td class="text-right">${sm ? yen(sm.opening) : '-'}</td><td class="text-right">${sm ? yen(sm.depositTotal) : '-'}</td><td class="text-right">${sm ? yen(sm.expenseTotal) : '-'}</td>
-        <td class="text-right font-bold ${sm?.balance < 0 ? 'text-rose-600' : ''}">${sm ? yen(sm.balance) : '-'}</td><td class="text-right">${day?.closedAt ? yen(day.close.counted) : '-'}</td>
+        <td class="text-right">${yen(cash.opening)}${sm ? '' : '<div class="text-xs text-slate-400">前日繰越</div>'}</td><td class="text-right">${yen(cash.depositTotal)}</td><td class="text-right">${yen(cash.expenseTotal)}</td>
+        <td class="text-right font-bold ${cash.balance < 0 ? 'text-rose-600' : ''}">${cash.balance < 0 ? `−${yen(-cash.balance)}` : yen(cash.balance)}</td><td class="text-right">${day?.closedAt ? yen(day.close.counted) : '-'}</td>
         <td class="text-right font-bold ${day?.close?.diff ? 'text-rose-600' : 'text-emerald-700'}">${day?.closedAt ? signed(day.close.diff) : '-'}</td>
         <td class="!whitespace-normal">${r.flags.length ? badge(r.flags.some((f) => f.level === 'danger') ? LEVEL.danger : LEVEL.warn, `${r.flags.length}件（明細を見る）`) : sm ? '<span class="text-emerald-700 text-xs font-bold">問題なし</span>' : '-'}</td></tr>
         ${selUser === user.id && sm ? expenseDetail(r) : ''}`;
@@ -166,7 +173,7 @@ function render() {
   $('#root').innerHTML = `
   <header class="bg-teal-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">本社 経理部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">確認が必要な営業 <b class="text-lg">${alerts}</b>人 ／ 振込待ち <b class="text-lg">${pending}</b>件 ${themeToggleHtml()}</div>
+    <div class="text-sm">確認が必要な営業 <b class="text-lg">${alerts}</b>人 ／ 振込待ち <b class="text-lg">${pending}</b>件 <button class="ml-3 text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <nav class="bg-white border-b px-6 flex gap-1">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 ${tab === k ? 'border-teal-700 text-teal-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}</nav>
   <main class="p-4 space-y-4 overflow-y-auto" style="height:calc(100vh - 112px)">${VIEWS[tab]()}</main>`;
@@ -198,6 +205,7 @@ document.addEventListener('click', (e) => {
   if (d.tab) tab = d.tab;
   else if (d.selUser) selUser = selUser === d.selUser ? null : d.selUser;
   else if (d.period) period = d.period;
+  else if ('sample' in d) { if (!confirm('営業の始業・経費・入金・お客様への入金のデータを、サンプルデータに置き換えます。よろしいですか？')) return; seedSample(Date.now(), true); selUser = null; }
   else if ('depSend' in d) sendDeposit();
   else if ('payAdd' in d) addPayment();
   else if (d.payDone) markPaid(d.payDone);
@@ -231,5 +239,6 @@ window.addEventListener('storage', (e) => {
 });
 document.addEventListener('focusout', () => { if (dirty) setTimeout(() => !isEditing() && ((dirty = false), render()), 0); });
 
+seedSample(); // 初めて開いたとき（記録が空のとき）だけ、サンプルデータを入れる
 initTheme();
 render();
