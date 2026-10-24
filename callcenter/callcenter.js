@@ -2,13 +2,13 @@
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を確定する。確定した予約は営業アプリの予定に出る。
 import { EVENTS } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
-import { areaById, areaOfAddress, areaOfUser, rankCandidates, findWeekSlots, fairnessStats, fairerAlternative } from '../src/dispatch.js';
+import { areaById, areaOfAddress, rankCandidates, findWeekSlots, fairnessStats, fairerAlternative } from '../src/dispatch.js';
 import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
 import { OPERATORS, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText } from './master.js';
-import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml, flyerResultHtml } from './view.js';
+import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml, demoWindowHtml, dateLabel, flyerResultHtml } from './view.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
 const $ = (s) => document.querySelector(s);
@@ -26,7 +26,7 @@ const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); c
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
 const blankForm = () => ({
-  phone: '', name: '', kana: '', gender: '', zip: '', address: '', chirashi: null, flyerId: '', cats: [], wants: '', attendee: 'ご本人', large: '', notes: '',
+  phone: '', name: '', kana: '', gender: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], wants: '', attendee: 'ご本人', large: '', notes: '',
   date: addDays(1), start: 10 * 60, dur: 90, userId: null,
 });
 
@@ -43,6 +43,8 @@ let lines = []; // 文字起こし（{ who, text, got: 入力欄にセットし�
 let playing = false;
 let finished = false;
 let timer = null;
+let demoOpen = false; // 通話デモのウィンドウ
+let demoPos = { x: Math.max(8, window.innerWidth - 26 * 16 - 16), y: 64 };
 
 // 電話番号が一致する、過去のお客様（既存の訪問予定・コールセンターの予約から探す）
 function findPast(phone) {
@@ -55,7 +57,10 @@ function findPast(phone) {
 
 function compute() {
   const reservations = loadReservations();
-  const area = areaOfAddress(form.address);
+  // 住所からの判定は提案。オペレーターがGoogleマップで確認して選んだエリア（confirmed）が、その住所のものであれば、それを使う
+  const proposal = areaOfAddress(form.address);
+  const confirmed = form.areaId && form.areaAddr === form.address.trim() ? areaById(form.areaId) : null;
+  const area = confirmed ?? proposal;
   const ranking = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations });
   const all = [...ranking.inArea, ...ranking.others];
   const manual = all.find((c) => c.user.id === form.userId && c.free);
@@ -68,13 +73,14 @@ function compute() {
   if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
   if (!form.name.trim()) missing.push('お名前');
   if (!form.gender) missing.push('性別');
-  if (!area) missing.push('訪問先の住所（都道府県から）');
+  if (!form.address.trim()) missing.push('訪問先の住所');
+  else if (!confirmed) missing.push('営業エリアの確認（Googleマップ）');
   if (form.chirashi === null) missing.push(form.flyerId.trim() ? 'チラシのID（該当なし）' : '来電のきっかけ（チラシのID）');
   if (!form.cats.length && !form.wants.trim()) missing.push('売りたいもの');
   if (!form.date || form.date < ymdOf(new Date())) missing.push('希望日（今日以降）');
   if (!selected) missing.push('担当の営業');
   return {
-    area, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
+    area, proposal, confirmed, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
   };
 }
@@ -84,12 +90,12 @@ function confirmReservation() {
   if (x.missing.length || !x.selected) return;
   const reservations = x.reservations;
   const past = findPast(form.phone);
-  const area = x.area?.id ? x.area : null;
-  const center = area ?? areaById(areaOfUser(x.selected.user.id)); // 対応エリア外（例外対応）は、担当営業のエリアの中心で代用
+  const area = x.confirmed;
+  const center = area; // 予定の地図表示は、エリアの中心で代用（モック）
   const record = {
     id: `RS-${Date.now().toString(36).toUpperCase()}`, receptionNo: nextReceptionNo(reservations), receivedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }),
     operator, userId: x.selected.user.id, date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), apType: past ? '再' : '新',
-    gender: form.gender, areaId: area?.id ?? null, lat: center.lat, lng: center.lng, flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyerOf(form.flyerId)?.id),
+    gender: form.gender, areaId: area.id, lat: center.lat, lng: center.lng, flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyerOf(form.flyerId)?.id),
     hearing: {
       trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee, wants: [form.cats.join('・'), form.wants.trim() && `（${form.wants.trim()}）`].filter(Boolean).join(''),
       large: form.large.trim() || 'なし', notes: form.notes.trim() || '特になし',
@@ -130,12 +136,40 @@ function addUtterance(who, text) {
   flashFields(got);
 }
 
+// 台本の {area}{sales}{when} を、いまの入力内容の名前に置き換える
+function fillScript(text) {
+  const x = compute();
+  return text.replace('{area}', x.area?.name ?? 'ご担当エリア').replace('{sales}', x.selected?.user.name ?? '担当').replace('{when}', `${dateLabel(form.date)} ${minToHHMM(form.start)}`);
+}
+const addSystem = (text) => { lines = [...lines, { who: 'sys', text, got: [] }]; renderTranscript(); };
+
+// マップで位置を確認した → 住所の判定のエリアで、営業エリアを確定する
+function confirmArea() {
+  const p = compute().proposal;
+  if (!p?.id) { addSystem('住所からエリアを判定できませんでした。エリアを選んでください'); return; }
+  form = { ...form, areaId: p.id, areaAddr: form.address.trim() };
+  renderDispatch();
+  document.querySelectorAll('[data-area].on').forEach((el) => { el.classList.add('flash'); });
+}
+
+// 電話を切る。この時点で全て決まっている（あとから「その時間は行けない」と連絡し直さないため）ので、訪問を確定する
+function hangUp() {
+  playing = false; finished = true;
+  const x = compute();
+  if (x.missing.length) { addSystem(`通話終了。未入力があるため確定できませんでした：${x.missing.join('、')}`); return; }
+  confirmReservation();
+  addSystem(`✅ 通話終了：訪問を確定しました（受付番号 ${done.receptionNo}）`);
+}
+
 function stopDemo() { clearTimeout(timer); playing = false; }
 function playNext() {
   const idx = lines.length;
-  if (idx >= DEMO_SCRIPT.length) { playing = false; finished = true; renderTranscript(); return; }
-  addUtterance(DEMO_SCRIPT[idx].who, DEMO_SCRIPT[idx].text);
-  timer = setTimeout(playNext, 1800 + DEMO_SCRIPT[idx].text.length * 25);
+  if (idx >= DEMO_SCRIPT.length) { hangUp(); return; }
+  const step = DEMO_SCRIPT[idx];
+  addUtterance(step.who, fillScript(step.text));
+  if (step.action === 'confirmArea') confirmArea();
+  if (step.action === 'hangup') { timer = setTimeout(hangUp, 1500); return; }
+  timer = setTimeout(playNext, 1800 + step.text.length * 25);
 }
 function startDemo() {
   if (done) return;
@@ -149,7 +183,7 @@ function renderTranscript() {
   const el = $('#transcript');
   if (!el) return;
   const typed = $('[data-utter]')?.value ?? '';
-  el.innerHTML = transcriptHtml({ lines, playing, finished, total: DEMO_SCRIPT.length });
+  el.innerHTML = transcriptHtml({ lines, playing, finished });
   const input = $('[data-utter]');
   if (input) input.value = typed;
   const chat = $('#chat');
@@ -172,7 +206,6 @@ function renderNew() {
   return `
   <div class="grid grid-cols-[minmax(26rem,32rem)_1fr] gap-4 p-4 h-[calc(100vh-52px)]">
     <div class="overflow-y-auto space-y-3 pr-1">
-      <div id="transcript" class="${done ? 'pointer-events-none opacity-60' : ''}"></div>
       <div class="space-y-3 ${done ? 'pointer-events-none opacity-60' : ''}" id="form">${formHtml(form, ymdOf(new Date()))}</div>
     </div>
     <div class="overflow-y-auto" id="dispatch"></div>
@@ -189,10 +222,12 @@ function render() {
     </nav>
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">受付者 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${OPERATORS.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
+      ${tab === 'new' ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">📞 通話デモ${demoOpen ? 'を閉じる' : ''}</button>` : ''}
       <a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
   ${tab === 'new' ? renderNew() : boardHtml({ date: boardDate, reservations: loadReservations(), stats: fairnessStats(loadReservations()), now: new Date(), days: [0, 1, 2, 3, 4, 5, 6].map((n) => ({ date: addDays(n) })) })}
+  ${tab === 'new' && demoOpen ? demoWindowHtml(demoPos) : ''}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
   if (tab === 'new') { renderDispatch(); renderTranscript(); }
 }
@@ -235,13 +270,32 @@ function withFlyer(f, id) {
 }
 const renderFlyerResult = () => { const el = $('#flyer-result'); if (el) el.innerHTML = flyerResultHtml(form.flyerId); };
 
+function toggleDemo() { demoOpen = !demoOpen; if (!demoOpen) stopDemo(); render(); }
+
+// 通話デモのウィンドウは、タイトル部分をつかんで動かせる（入力欄や候補を隠さないように）
+let drag = null;
+document.addEventListener('pointerdown', (e) => {
+  const h = e.target.closest('[data-drag]');
+  if (!h || e.target.closest('button')) return;
+  const win = $('#demo-win');
+  drag = { dx: e.clientX - win.offsetLeft, dy: e.clientY - win.offsetTop, win };
+  h.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  demoPos = { x: Math.min(Math.max(0, e.clientX - drag.dx), window.innerWidth - 80), y: Math.min(Math.max(0, e.clientY - drag.dy), window.innerHeight - 40) };
+  drag.win.style.left = `${demoPos.x}px`; drag.win.style.top = `${demoPos.y}px`;
+});
+document.addEventListener('pointerup', () => { drag = null; });
+
 const refresh = () => { $('#form').innerHTML = formHtml(form, ymdOf(new Date())); renderDispatch(); };
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button, [data-pick]');
   if (!t) return;
   const d = t.dataset;
-  if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo })[d.demo](); return; }
-  if (d.tab) { tab = d.tab; render(); }
+  if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
+  if (d.tab) { stopDemo(); tab = d.tab; render(); }
+  else if (d.area) { form = { ...form, areaId: d.area, areaAddr: form.address.trim() }; renderDispatch(); }
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
   else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi), flyerId: '' }; refresh(); }
   else if (d.cat) { form = { ...form, cats: form.cats.includes(d.cat) ? form.cats.filter((c) => c !== d.cat) : [...form.cats, d.cat] }; refresh(); }

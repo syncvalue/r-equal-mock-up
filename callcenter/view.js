@@ -24,20 +24,25 @@ export function strip(blocks, req = null, { labels = false } = {}) {
 }
 
 // ---- 通話の文字起こし（デモ） -----------------------------------------------------------
-export function transcriptHtml({ lines, playing, finished, total }) {
-  const bubble = (l) => `<div class="flex ${l.who === 'op' ? 'justify-start' : 'justify-end'}"><div class="max-w-[85%] rounded-lg px-3 py-1.5 text-sm ${l.who === 'op' ? 'bg-slate-100' : 'bg-teal-50 border border-teal-200'}">
+export const demoWindowHtml = (pos) => `<div id="demo-win" class="fixed z-50 w-[26rem] max-w-[calc(100vw-1rem)] rounded-lg bg-white shadow-2xl border-2 border-amber-400" style="left:${pos.x}px;top:${pos.y}px">
+  <div class="flex items-center justify-between bg-amber-400 text-slate-900 rounded-t px-3 py-1.5 cursor-move select-none" data-drag><b class="text-sm">📞 通話デモ（文字起こし）</b><button class="text-lg leading-none px-1" data-demo="close" title="閉じる">✕</button></div>
+  <div id="transcript" class="p-3"></div></div>`;
+
+export function transcriptHtml({ lines, playing, finished }) {
+  const bubble = (l) => l.who === 'sys'
+    ? `<div class="text-center text-xs font-bold rounded bg-emerald-50 border border-emerald-300 text-emerald-800 px-2 py-1">${esc(l.text)}</div>`
+    : `<div class="flex ${l.who === 'op' ? 'justify-start' : 'justify-end'}"><div class="max-w-[85%] rounded-lg px-3 py-1.5 text-sm ${l.who === 'op' ? 'bg-slate-100' : 'bg-teal-50 border border-teal-200'}">
       <div class="text-[10px] text-slate-500">${l.who === 'op' ? 'オペレーター' : 'お客様'}</div>${esc(l.text)}
       ${l.got?.length ? `<div class="mt-1 flex flex-wrap gap-1">${l.got.map((k) => `<span class="rounded bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.5">✎ ${esc(FIELD_LABELS[k])}</span>`).join('')}</div>` : ''}</div></div>`;
-  return `<section class="bg-white rounded-lg shadow p-4 space-y-2">
-    <div class="flex items-center justify-between gap-2 flex-wrap"><h2 class="font-bold text-teal-800">📝 通話の文字起こし <span class="text-xs font-normal bg-amber-100 text-amber-800 rounded px-1.5 py-0.5">デモ</span></h2>
+  return `<div class="space-y-2">
+    <div class="flex items-center justify-between gap-2"><span class="text-xs bg-amber-100 text-amber-800 rounded px-1.5 py-0.5 font-bold">デモ</span>
       <div class="flex gap-1">${playing ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="stop">⏸ 止める</button>' : `<button class="b b-pri !min-h-0 !py-1 text-sm" data-demo="start">${lines.length && !finished ? '▶ 再開' : '▶ 通話デモを再生'}</button>`}
         ${lines.length ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="reset">やり直す</button>' : ''}</div></div>
-    <p class="text-xs text-slate-500">会話が文字になり、お客様の発話から項目を拾って、下の入力欄に自動でセットします（<span class="bg-amber-200 rounded px-1">黄色</span>が今入った項目）。拾った内容は、オペレーターが直接直せます。</p>
-    <div class="h-56 overflow-y-auto rounded border bg-white p-2 space-y-1.5" id="chat">${lines.length ? lines.map(bubble).join('') : '<p class="text-sm text-slate-400 text-center pt-16">「通話デモを再生」を押すと、受電の会話が始まります</p>'}
+    <p class="text-xs text-slate-500">会話が文字になり、お客様の発話から項目を拾って、画面の入力欄に自動でセットします（<span class="bg-amber-200 rounded px-1">黄色</span>が今入った項目）。エリアの確定と担当営業の選択も会話の中で行い、<b>電話を切ると同時に訪問を確定</b>します。</p>
+    <div class="h-72 overflow-y-auto rounded border bg-white p-2 space-y-1.5" id="chat">${lines.length ? lines.map(bubble).join('') : '<p class="text-sm text-slate-400 text-center pt-24">「通話デモを再生」を押すと、受電の会話が始まります</p>'}
       ${playing ? '<div class="text-xs text-slate-400 animate-pulse">● 通話中…</div>' : ''}</div>
     <form class="flex gap-1" data-utter-form><input class="inp" data-utter placeholder="お客様の発話を入力して試す（例: 来週の月曜、午後3時でお願いします）" /><button class="b b-sec shrink-0" type="submit">反映</button></form>
-    ${finished ? `<p class="text-xs text-emerald-700 font-bold">通話が終わりました（${total}発話）。入力内容を確認して、右側で営業を選び、訪問を確定してください。</p>` : ''}
-  </section>`;
+  </div>`;
 }
 
 // ---- 入力フォーム ------------------------------------------------------------------
@@ -154,22 +159,27 @@ export function weekCalendarHtml({ week, form, today, names, canPrev }) {
 </div>`;
 }
 
-const areaBanner = (area, hasAddress) => {
-  if (!hasAddress) return '<div class="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-500">訪問先の住所を入力すると、担当エリアを判定します。</div>';
-  if (!area) return '<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-2 text-sm text-amber-800">住所から都道府県を判定できません。<b>都道府県から</b>入力してください。</div>';
-  if (area.outside) return `<div class="rounded-lg bg-rose-50 border border-rose-300 px-3 py-2 text-sm text-rose-800"><b>${esc(area.pref)}</b>は対応エリア外です。お断りするか、例外対応として他エリアの営業から選んでください。</div>`;
-  return `<div class="rounded-lg bg-teal-50 border border-teal-300 px-3 py-2 text-sm text-teal-900">訪問先 <b>${esc(area.pref)}</b> → 担当は <b class="text-base">${esc(area.name)}</b> の営業です。</div>`;
+// 住所からのエリア判定は「提案」。オペレーターがGoogleマップで正確な位置を確認して、営業エリアを確定する
+const areaBanner = ({ proposal, confirmed, hasAddress }) => {
+  if (!hasAddress) return '<div class="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-500">訪問先の住所を入力すると、Googleマップで位置を確認して、営業エリアを確定できます。</div>';
+  const judge = !proposal ? '住所から都道府県を判定できません（都道府県から入力すると判定します）' : proposal.outside ? `<b>${esc(proposal.pref)}</b>は対応エリア外です（例外対応の場合は、エリアを選んでください）` : `住所の判定：<b>${esc(proposal.name)}</b>（${esc(proposal.pref)}）`;
+  const btns = AREAS.map((a) => `<button class="chip ${confirmed?.id === a.id ? 'on' : ''}" data-area="${a.id}">${esc(a.name)}${proposal?.id === a.id ? '<span class="opacity-70 text-xs ml-1">住所の判定</span>' : ''}</button>`).join('');
+  const differ = confirmed && proposal?.id !== confirmed.id ? '<span class="text-xs text-amber-700 ml-2">※住所の判定と異なります（マップの位置で確定）</span>' : '';
+  return `<div class="rounded-lg border px-3 py-2 space-y-1.5 ${confirmed ? 'bg-teal-50 border-teal-300 text-teal-900' : 'bg-amber-50 border-amber-300 text-amber-900'}">
+    <div class="flex justify-between items-center gap-2 text-sm"><span>${judge}</span><button class="b b-sec !min-h-0 !py-1 text-sm shrink-0 !text-slate-800" data-map>🗺 Googleマップで位置を確認</button></div>
+    <div class="text-sm font-bold">${confirmed ? `✔ 営業エリア確定：<span class="text-base">${esc(confirmed.name)}</span>${differ}` : 'Googleマップで位置を確認して、営業エリアを選んで確定してください'}</div>
+    <div class="flex flex-wrap gap-1.5">${btns}</div></div>`;
 };
 
 export function dispatchHtml(x) {
-  const { area, hasAddress, ranking, calendar, form, selectedId, alt, missing, showOthers } = x;
+  const { area, proposal, confirmed, hasAddress, ranking, calendar, form, selectedId, alt, missing, showOthers } = x;
   const req = (c) => ({ start: form.start, end: form.start + form.dur, free: c.free });
   const maxFemale = Math.max(1, ...[...ranking.inArea, ...ranking.others].map((c) => c.stats.female));
   const card = (c) => candidateCard(c, { selectedId, gender: form.gender, req: req(c), maxFemale });
   const sel = [...ranking.inArea, ...ranking.others].find((c) => c.user.id === selectedId);
   return `
   <div class="space-y-3">
-    ${areaBanner(area, hasAddress)}
+    ${areaBanner({ proposal, confirmed, hasAddress })}
     ${ranking.inArea.length ? `
       <div><div class="text-sm font-bold mb-1">候補日を選ぶ（${esc(area.name)}の営業の空き状況）<span class="font-normal text-xs text-slate-500 ml-2">お客様の希望日が埋まっていたら、前後の日をご提案ください</span></div>${weekCalendarHtml(calendar)}</div>
       <div><div class="text-sm font-bold mb-1">担当の候補（${esc(area.name)}）<span class="font-normal text-xs text-slate-500 ml-2">▮灰=既存の予定 ▮紺=コールセンター確定 □緑/赤=希望の時間帯</span></div>

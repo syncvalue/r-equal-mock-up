@@ -90,3 +90,12 @@ test('チラシのIDの正規化と、チラシの特定', async () => {
 test('フリガナの長音は壊さない', () => {
   assert.equal(ex('フリガナはサトウユーコです', blank, NOW).kana, 'サトウユーコ');
 });
+
+test('デモ台本: マップでのエリア確認が住所のあとにあり、電話を切る発話で終わる', () => {
+  const iAddr = DEMO_SCRIPT.findIndex((l) => l.who === 'cu' && /阿倍野/.test(l.text));
+  const iArea = DEMO_SCRIPT.findIndex((l) => l.action === 'confirmArea');
+  assert.ok(iAddr >= 0 && iArea > iAddr);
+  assert.equal(DEMO_SCRIPT.at(-1).action, 'hangup');
+  assert.ok(DEMO_SCRIPT.some((l) => l.who === 'op' && l.text.includes('{sales}') && l.text.includes('{when}'))); // 電話を切る前に、担当と日時を読み上げて確認する
+  assert.ok(DEMO_SCRIPT.filter((l) => l.who === 'cu').every((l) => !/[{}]/.test(l.text)));
+});
