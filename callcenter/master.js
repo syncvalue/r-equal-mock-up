@@ -37,6 +37,9 @@ export const CATEGORIES = ['ブランドバッグ', '腕時計', '貴金属・�
 // 当日、誰が立ち会うか（同席者がいるかどうかは、別項目の「ご同席者」で聞く）
 export const ATTENDEES = ['ご本人', 'ご主人', '奥様', 'ご家族', 'その他（備考に記入）'];
 
+// 受付を取り消す理由
+export const CANCEL_REASONS = ['お客様のご都合（やめる）', '入力ミス・重複受付', '会社の都合（対応できない）', 'その他'];
+
 // 備考・補足（ご同席者・駐車スペース・表札は、あり／なし。前日確認の連絡時間は、30分刻みで範囲を選ぶ）
 export const YESNO = ['あり', 'なし'];
 export const CONTACT_TIMES = Array.from({ length: 23 }, (_, i) => `${String(9 + Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`);

@@ -1,14 +1,14 @@
 // コールセンター 受付・配車画面（ダミー・PC想定）。受電内容を聞き取り、訪問先のエリアの営業から、
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を仮確定する。担当の確定は配車係が行い（配車確定タブ）、確定した予約が営業アプリの予定に出る。
-import { EVENTS } from '../src/schedule.js';
+import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
 import { areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
-import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, isTentative, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
+import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, isTentative, cancelReservation, rescheduleReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
-import { OPERATORS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
+import { OPERATORS, CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
+import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, editCardHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
 import { dispatcherHtml } from './dispatcherView.js';
 import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
@@ -44,6 +44,9 @@ let staffOpen = false;
 let calOnlyFree = false; // 日別表示で、希望の時間に空いている営業だけを出す
 let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別（営業ごとの列）
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
+let editId = null; // 受付済みの予約の日時を変更しているとき、その予約
+let cancelId = null; // 取消の確認を出している予約
+let cancelReason = CANCEL_REASONS[0];
 let dispDate = addDays(2); // 配車係が確定する日（主に翌々日の予定を、毎日確定する）
 let toast = '';
 let lines = []; // 文字起こし（{ who, text, got: 入力欄にセットした項目 }）
@@ -64,7 +67,7 @@ function findPast(f) {
 }
 
 function compute() {
-  const reservations = loadReservations();
+  const reservations = loadReservations().filter((r) => r.id !== editId); // 変更中の予約は、自分の枠を空けて考える
   // 住所からの判定は提案。オペレーターがGoogleマップで確認して選んだエリア（confirmed）が、その住所のものであれば、それを使う
   const proposal = areaOfAddress(form.address);
   const confirmed = form.areaId && form.areaAddr === form.address.trim() ? areaById(form.areaId) : null;
@@ -84,14 +87,42 @@ function compute() {
   const calendar = ranking.inArea.length
     ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today, mode: calMode, hasHere: Boolean(here), onlyFree: calOnlyFree }
     : null;
-  const missing = missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
+  const missing = editId ? (selected ? [] : ['担当の営業']) : missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
   return {
     detail: calMode === 'day' && selected ? salesDetail({ userId: selected.user.id, date: form.date, start: form.start, dur: form.dur, reservations, here }) : null,
+    editing: editId ? loadReservations().find((r) => r.id === editId) ?? null : null,
     staff: [...full.inArea].sort((a, b) => a.user.id.localeCompare(b.user.id)), staffSel, staffOpen,
     area, proposal, confirmed, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
     unasked: hearingChecklist(form).filter((x) => !x.asked && !REQUIRED_CHECKS.has(x.key)).map((x) => x.label),
   };
+}
+
+// 受付済みの予約の日時・担当を変更する。お客様の情報はそのまま、右のカレンダーで新しい日時と担当を選ぶ
+function startEdit(id) {
+  const r = loadReservations().find((x) => x.id === id);
+  if (!r) return;
+  stopDemo();
+  editId = id;
+  form = {
+    ...blankForm(), phone: r.customer.phone, lastName: r.customer.lastName ?? r.customer.name, firstName: r.customer.firstName ?? '', gender: r.gender,
+    address: r.customer.address, areaId: r.areaId, areaAddr: r.customer.address, date: r.date, start: toMin(r.start), dur: toMin(r.end) - toMin(r.start), userId: r.userId, whenAsked: true,
+  };
+  weekStart = weekStartFor(r.date);
+  tab = 'new';
+  render();
+}
+
+function saveEdit() {
+  const x = compute();
+  if (!editId || !x.selected) return;
+  rescheduleReservation(editId, { date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), userId: x.selected.user.id }, tab === 'dispatch' ? '配車係' : operator);
+  dispDate = form.date;
+  editId = null;
+  form = blankForm();
+  weekStart = addDays(0);
+  tab = 'dispatch';
+  flash('日時を変更しました（仮確定に戻りました。配車係が確定し直します）');
 }
 
 function confirmReservation() {
@@ -232,14 +263,14 @@ function renderDispatch() {
 }
 function renderHint() {
   const el = $('#hint');
-  if (el) el.innerHTML = hintHtml(findPast(form), quoted);
+  if (el) el.innerHTML = hintHtml(findPast(form), quoted) + openResHtml(openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())));
 }
 
 // 左に入力欄（①お客様 → ②日時 → ③ヒアリングを縦一列）、右に配車。それぞれ、はみ出す場合だけ縦にスクロールする
 function renderNew() {
   return `
   <div class="grid gap-3 p-3 h-[calc(100vh-52px)] grid-rows-[minmax(0,1fr)] grid-cols-[minmax(24rem,28rem)_1fr]">
-    <div id="form" class="flex flex-col gap-2 overflow-y-auto pr-1 ${done ? 'dim' : ''}">${formHtml(form, ymdOf(new Date()), hearingChecklist(form))}</div>
+    <div id="form" class="flex flex-col gap-2 overflow-y-auto pr-1 ${done ? 'dim' : ''}">${formMarkup()}</div>
     <div class="overflow-y-auto" id="dispatch"></div>
   </div>`;
 }
@@ -261,12 +292,13 @@ function render() {
     </nav>
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">受付者 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${OPERATORS.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
-      ${tab === 'new' ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">🎙 音声入力デモ${demoOpen ? 'を閉じる' : '（今後の拡張）'}</button>` : ''}
+      ${tab === 'new' && !editId ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">🎙 音声入力デモ${demoOpen ? 'を閉じる' : '（今後の拡張）'}</button>` : ''}
       <a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
   ${tab === 'new' ? renderNew() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips() })}
-  ${tab === 'new' && demoOpen ? demoWindowHtml(demoPos) : ''}
+  ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
+  ${cancelId ? cancelModalHtml(loadReservations().find((r) => r.id === cancelId), cancelReason) : ''}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
   if (tab === 'new') { renderDispatch(); renderTranscript(); }
 }
@@ -293,6 +325,7 @@ document.addEventListener('input', onField);
 document.addEventListener('change', (e) => {
   if (e.target.matches('[data-main]')) { form = { ...form, mainItems: { ...form.mainItems, [e.target.dataset.main]: Number(e.target.value) } }; e.target.classList.toggle('sel', Number(e.target.value) > 0); updateChecklist(); return; }
   if (e.target.matches('[data-operator]')) { operator = e.target.value; setPref('rq-mock-cc-operator', operator); return; }
+  if (e.target.matches('[data-cancelreason]')) { cancelReason = e.target.value; return; }
   if (e.target.matches('[data-reassign]')) { updateReservation(e.target.dataset.reassign, { userId: e.target.value }); render(); return; }
   if (e.target.matches('[data-ddate-input]')) { dispDate = e.target.value || dispDate; render(); return; }
   onField(e);
@@ -340,7 +373,8 @@ document.addEventListener('pointermove', (e) => {
 });
 document.addEventListener('pointerup', () => { drag = null; });
 
-const refresh = () => { $('#form').innerHTML = formHtml(form, ymdOf(new Date()), hearingChecklist(form)); renderDispatch(); };
+const formMarkup = () => (editId ? editCardHtml(loadReservations().find((r) => r.id === editId)) : formHtml(form, ymdOf(new Date()), hearingChecklist(form)));
+const refresh = () => { $('#form').innerHTML = formMarkup(); renderDispatch(); };
 
 // 聞き取り状況（✔聞いた／未）を、入力に合わせて更新する。入力欄は作り直さない（入力中の文字を壊さない）
 function updateChecklist() {
@@ -393,7 +427,19 @@ document.addEventListener('click', (e) => {
     }
   }
   else if ('confirm' in d) confirmReservation();
-  else if ('new' in d) { stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
+  else if ('new' in d) { editId = null; stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
+  else if (d.chg) startEdit(d.chg);
+  else if ('editcancel' in d) { editId = null; form = blankForm(); weekStart = addDays(0); render(); }
+  else if ('saveedit' in d) saveEdit();
+  else if (d.cancelres) { cancelId = d.cancelres; cancelReason = CANCEL_REASONS[0]; render(); }
+  else if ('cancelclose' in d) { cancelId = null; render(); }
+  else if ('cancelgo' in d) {
+    const r = loadReservations().find((x) => x.id === cancelId);
+    if (r) cancelReservation(r.id, cancelReason, tab === 'dispatch' ? '配車係' : operator);
+    cancelId = null;
+    if (editId === (r?.id ?? null)) { editId = null; form = blankForm(); }
+    if (r) flash(`${r.customer.name} 様の受付を取り消しました`); else render();
+  }
   else if (d.ddate) { dispDate = d.ddate; render(); }
   else if (d.fix) { updateReservation(d.fix, { status: 'confirmed', confirmedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }), confirmedBy: '配車係' }); render(); }
   else if (d.unfix) { updateReservation(d.unfix, { status: 'tentative', confirmedAt: null, confirmedBy: null }); render(); }

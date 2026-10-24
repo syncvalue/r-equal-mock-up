@@ -252,3 +252,12 @@ test('仮確定の予約も、営業の空きを埋める（二重に取らな�
   assert.equal(blocks.find((x) => x.source === 'reservation').status, 'tentative');
   assert.equal(busyBlocks('u04', '2026-10-25', [{ ...t, status: undefined }], NOW).find((x) => x.source === 'reservation').status, 'confirmed'); // 古い記録は確定扱い
 });
+
+test('取り消した予約は、営業の空きを埋めず、担当件数にも数えない', () => {
+  const r = res({ userId: 'u04', date: '2026-10-25', start: '10:00', end: '11:00', gender: 'f' });
+  const before = fairnessStats([], NOW).u04;
+  assert.equal(busyBlocks('u04', '2026-10-25', [r], NOW).some((b) => b.source === 'reservation'), true);
+  assert.equal(busyBlocks('u04', '2026-10-25', [{ ...r, status: 'cancelled' }], NOW).some((b) => b.source === 'reservation'), false);
+  assert.equal(fairnessStats([r], NOW).u04.total, before.total + 1);
+  assert.deepEqual(fairnessStats([{ ...r, status: 'cancelled' }], NOW).u04, before);
+});

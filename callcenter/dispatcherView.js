@@ -3,7 +3,7 @@
 import { esc } from '../src/format.js';
 import { USERS } from '../src/dashboard.js';
 import { areaById, dispatchOptions, fairerAlternative } from '../src/dispatch.js';
-import { isTentative } from '../src/reservations.js';
+import { isTentative, isCancelled } from '../src/reservations.js';
 import { dateLabel, genderLabel, rankBadge, statusBadge } from './view.js';
 
 const trunc = (s, n) => (String(s).length > n ? `${String(s).slice(0, n)}…` : String(s));
@@ -14,7 +14,7 @@ const statLabel = (st, gender) => (gender === 'f' ? `女性${st.female}・計${s
 
 function assignee(r, reservations, now) {
   const name = USERS.find((u) => u.id === r.userId)?.name ?? '';
-  if (!isTentative(r)) return `<b>${esc(name)}</b>`;
+  if (!isTentative(r)) return `<b>${esc(name)}</b>`; // 確定済み・取消済みは、変更できない
   const opts = dispatchOptions(r, reservations, now);
   const pickable = opts.filter((o) => o.free || o.current);
   const fewest = Math.min(...pickable.map((o) => metric(o, r.gender)));
@@ -29,14 +29,17 @@ function assignee(r, reservations, now) {
 export function dispatcherHtml({ date, reservations, now, chips }) {
   const rows = reservations.filter((r) => r.date === date).sort((a, b) => a.start.localeCompare(b.start) || a.receptionNo.localeCompare(b.receptionNo));
   const tent = rows.filter(isTentative).length;
-  const body = rows.map((r) => `<tr class="border-t align-top ${isTentative(r) ? '' : 'bg-emerald-50/50'}">
+  const actions = (r) => (isCancelled(r) ? `<span class="text-xs text-slate-500" title="${esc(`${r.cancelledAt ?? ''} ${r.cancelledBy ?? ''}`)}">${esc(r.cancelReason ?? '')}</span>`
+    : `${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1" data-fix="${r.id}">確定</button>` : `<button class="text-xs underline text-slate-500" data-unfix="${r.id}">仮に戻す</button>`}
+      <div class="mt-1 flex gap-2 text-xs"><button class="underline text-sky-700" data-chg="${r.id}">日時変更</button><button class="underline text-rose-700" data-cancelres="${r.id}">取消</button></div>`);
+  const body = rows.map((r) => `<tr class="border-t align-top ${isCancelled(r) ? 'bg-slate-100 text-slate-400 line-through' : isTentative(r) ? '' : 'bg-emerald-50/50'}">
       <td class="whitespace-nowrap font-bold">${esc(r.start)}〜${esc(r.end)}</td>
       <td><b>${esc(r.customer.name)}</b> 様（${genderLabel(r.gender)}）<div class="text-xs text-slate-500">${esc(r.receptionNo)} ／ ${esc(r.customer.phone)}</div></td>
       <td class="max-w-[16rem]" title="${esc(r.customer.address)}">${esc(trunc(r.customer.address, 26))}<div class="text-xs text-slate-500">${esc(areaById(r.areaId)?.name ?? '例外対応')}</div></td>
       <td class="max-w-[14rem] text-xs" title="${esc(r.hearing.wants)}">${esc(trunc(r.hearing.wants, 40))}</td>
       <td>${assignee(r, reservations, now)}</td>
       <td>${statusBadge(r)}</td>
-      <td class="whitespace-nowrap">${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1" data-fix="${r.id}">確定</button>` : `<button class="text-xs underline text-slate-500" data-unfix="${r.id}">仮に戻す</button>`}</td></tr>`).join('');
+      <td class="whitespace-nowrap">${actions(r)}</td></tr>`).join('');
   return `
   <div class="p-4 space-y-3 h-[calc(100vh-52px)] overflow-y-auto">
     <section class="bg-white rounded-lg shadow">

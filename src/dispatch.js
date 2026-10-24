@@ -153,7 +153,7 @@ export function busyBlocks(userId, date, reservations, now = new Date()) {
   const real = EVENTS.filter((e) => e.userId === userId && e.day === day).map((e) => ({ start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event', lat: e.lat, lng: e.lng, place: e.customer.address }));
   const base = real.length ? real : fillerBlocks(userId, date);
   const mine = reservations
-    .filter((r) => r.userId === userId && r.date === date)
+    .filter((r) => r.userId === userId && r.date === date && r.status !== 'cancelled')
     .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', status: r.status === 'tentative' ? 'tentative' : 'confirmed', lat: r.lat, lng: r.lng, place: r.customer.address }));
   return [...base, ...mine].sort((a, b) => a.start - b.start);
 }
@@ -185,7 +185,7 @@ export function fairnessStats(reservations, now = new Date()) {
   const out = {};
   USERS.forEach((u) => {
     const [total, female] = SEED[u.id] ?? [0, 0];
-    const mine = reservations.filter((r) => r.userId === u.id && r.date.startsWith(month));
+    const mine = reservations.filter((r) => r.userId === u.id && r.date.startsWith(month) && r.status !== 'cancelled');
     const f = female + mine.filter((r) => r.gender === 'f').length;
     const t = total + mine.length;
     out[u.id] = { total: t, female: f, male: t - f, femaleShare: t ? f / t : 0 };
