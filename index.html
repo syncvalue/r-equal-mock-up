@@ -11,6 +11,10 @@
     body { margin: 0; background: var(--bg); color: var(--text); font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; line-height: 1.6; }
     main { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
     h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    h2 { font-size: 1rem; margin: 28px 0 10px; color: var(--sub); }
+    h2 .sub { font-weight: 400; font-size: .8rem; margin-left: 6px; }
+    .card.external { border-style: dashed; background: transparent; }
+    .card.external .who { color: var(--sub); background: transparent; border: 1px solid var(--line); }
     .lead { color: var(--sub); margin: 0 0 24px; font-size: .9rem; }
     .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
     .card { display: flex; flex-direction: column; gap: 6px; min-height: 140px; padding: 18px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; color: inherit; text-decoration: none; }
@@ -27,6 +31,7 @@
   <h1>🗂 画面一覧</h1>
   <p class="lead">要件定義用の、各画面への入口です（便宜上のページで、アプリの一部ではありません）。</p>
 
+  <h2>本システムの画面</h2>
   <div class="grid">
     <a class="card" href="/callcenter/?tab=new">
       <span class="who">オペレーター</span>
@@ -53,10 +58,24 @@
       <b>💴 経理部</b>
       <span class="desc">画面は、まだ作っていません（準備中）。</span>
     </div>
-    <a class="card" href="/gmosign/">
-      <span class="who">契約</span>
+    <div class="card disabled" aria-disabled="true">
+      <span class="who">倉庫・物流</span>
+      <b>🏭 倉庫・物流</b>
+      <span class="desc">画面は、まだ作っていません（準備中）。</span>
+    </div>
+    <div class="card disabled" aria-disabled="true">
+      <span class="who">データ分析</span>
+      <b>📈 データ分析</b>
+      <span class="desc">画面は、まだ作っていません（準備中）。</span>
+    </div>
+  </div>
+
+  <h2>外部サービス<span class="sub">（本システムの対象外）</span></h2>
+  <div class="grid">
+    <a class="card external" href="/gmosign/">
+      <span class="who">外部サービス</span>
       <b>✍ GMOサイン</b>
-      <span class="desc">営業のタブレットから送った買取契約の、本人確認と署名（ダミー）。</span>
+      <span class="desc">営業のタブレットから送った買取契約の、本人確認と署名（本システムの対象外。画面は、ダミー）。</span>
     </a>
   </div>
 
