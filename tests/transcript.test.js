@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { extractFromUtterance as ex, changedFields, DEMO_SCRIPT, dateOf, startOf, contactRangeOf } from '../callcenter/transcript.js';
 
 const NOW = new Date(2026, 9, 24, 9, 0); // 2026-10-24（土）
-const blank = { cats: [], wants: '', mainItems: { 背広: 0, 婦人服: 0, 婦人靴: 0, 紳士靴: 0 } };
+const blank = { lastName: '', firstName: '', cats: [], wants: '', mainItems: { 背広: 0, 婦人服: 0, 婦人靴: 0, 紳士靴: 0 } };
 
 test('チラシはIDで特定する。号の日付を訪問日と取り違えず、IDなしの発言ではチラシを決めない', () => {
   const p = ex('10月19日のチラシを見て電話しました。', blank, NOW);
@@ -21,9 +21,13 @@ test('IDのない広告は、言葉から判定する', () => {
 });
 
 test('名前・フリガナ・電話番号', () => {
-  const p = ex('山田花子と申します。フリガナはヤマダハナコです。電話番号は090-1234-5678です。', blank, NOW);
-  assert.deepEqual([p.name, p.kana, p.phone], ['山田花子', 'ヤマダハナコ', '090-1234-5678']);
-  assert.equal(ex('私は田中と申します', blank, NOW).name, '田中');
+  const p = ex('姓は山田、名は花子です。フリガナはヤマダ、ハナコです。', blank, NOW);
+  assert.deepEqual([p.lastName, p.firstName, p.lastKana, p.firstKana], ['山田', '花子', 'ヤマダ', 'ハナコ']);
+  assert.equal(ex('電話番号は090-1234-5678です。', blank, NOW).phone, '090-1234-5678');
+  const w = ex('山田花子と申します。フリガナはヤマダハナコです。', blank, NOW); // 分けずに名乗った場合は、姓を2文字として分ける
+  assert.deepEqual([w.lastName, w.firstName, w.lastKana, w.firstKana], ['山田', '花子', 'ヤマダ', 'ハナコ']);
+  assert.deepEqual([ex('山田 太郎と申します', blank, NOW).lastName, ex('山田 太郎と申します', blank, NOW).firstName], ['山田', '太郎']);
+  assert.equal(ex('私は田中と申します', blank, NOW).lastName, '田中');
   assert.equal(ex('電話番号は０９０－１１１１－２２２２です', blank, NOW).phone, '090-1111-2222');
 });
 
@@ -67,7 +71,7 @@ test('日付と時刻', () => {
 test('デモ台本を流すと、必須項目がそろう', () => {
   let form = { ...blank };
   for (const l of DEMO_SCRIPT.filter((x) => x.who === 'cu')) form = { ...form, ...ex(l.text, form, NOW) };
-  assert.equal(form.name, '山田花子');
+  assert.deepEqual([form.lastName, form.firstName, form.age, form.phone, form.phone2], ['山田', '花子', '62', '090-1234-5678', '06-1234-5678']);
   assert.equal(form.gender, 'f');
   assert.equal(form.date, '2026-10-31');
   assert.equal(form.start, 780); // 午前中 → 午後1時に変更
@@ -75,7 +79,7 @@ test('デモ台本を流すと、必須項目がそろう', () => {
 });
 
 test('変わった項目だけ返す', () => {
-  assert.deepEqual(changedFields({ name: 'A', kana: 'B' }, { name: 'A', kana: '' }), ['kana']);
+  assert.deepEqual(changedFields({ lastName: 'A', lastKana: 'B' }, { lastName: 'A', lastKana: '' }), ['lastKana']);
 });
 
 test('チラシのIDの正規化と、チラシの特定', async () => {
@@ -89,7 +93,7 @@ test('チラシのIDの正規化と、チラシの特定', async () => {
 });
 
 test('フリガナの長音は壊さない', () => {
-  assert.equal(ex('フリガナはサトウユーコです', blank, NOW).kana, 'サトウユーコ');
+  assert.equal(ex('フリガナはサトウユーコです', blank, NOW).lastKana, 'サトウユーコ'); // 姓名の区切りが不明なら、まとめて姓の欄へ
 });
 
 test('デモ台本: マップでのエリア確認が住所のあとにあり、電話を切る発話で終わる', () => {
@@ -136,4 +140,13 @@ test('数量の範囲', async () => {
   const { snapQty, qtyLabel } = await import('../callcenter/master.js');
   assert.deepEqual([0, 1, 5, 6, 20, 21, 30, 31, 70, 71, 100, 101, 500].map(snapQty), [0, 1, 1, 6, 16, 21, 21, 31, 51, 71, 71, 101, 101]);
   assert.deepEqual([1, 6, 21, 51, 101, 99].map(qtyLabel), ['1〜5点', '6〜10点', '21点以上', '51〜70点', '100点以上', '']);
+});
+
+test('電話番号を2つ言われたら、2つ目は電話番号2に入れる。年齢は歳・年代で拾う', () => {
+  const p = ex('電話番号は携帯が090-1234-5678、自宅が06-1234-5678です。', blank, NOW);
+  assert.deepEqual([p.phone, p.phone2], ['090-1234-5678', '06-1234-5678']);
+  const later = ex('自宅の電話番号は06-1111-2222です。', { ...blank, phone: '090-1234-5678' }, NOW); // すでに1つ目があれば、2つ目へ
+  assert.deepEqual([later.phone, later.phone2], [undefined, '06-1111-2222']);
+  assert.equal(p.date, undefined);
+  assert.deepEqual([ex('年齢は62歳です', blank, NOW).age, ex('60代です', blank, NOW).age], ['62', '60代']);
 });

@@ -43,3 +43,9 @@ export const CONTACT_TIMES = Array.from({ length: 23 }, (_, i) => `${String(9 + 
 // 前日確認の連絡時間: '' は未確認、'none' は「指定なし」と聞いた状態（どちらかが none なら、指定なし）
 export const NO_PREFERENCE = 'none';
 export const contactText = (from, to) => (from === NO_PREFERENCE || to === NO_PREFERENCE ? '指定なし' : !from && !to ? '未確認' : `${from || ''}〜${to || ''}`);
+
+// お客様の氏名・年齢
+export const AGE_BANDS = ['20代', '30代', '40代', '50代', '60代', '70代', '80代以上']; // 年齢を聞けない場合に、声から推測して選ぶ
+export const joinName = (last, first) => [last, first].map((x) => String(x ?? '').trim()).filter(Boolean).join(' ');
+// 「山田 太郎」→ ['山田', '太郎']。空白がなければ、全体を姓とする（過去のお客様の引用用）
+export const splitName = (full) => { const parts = String(full ?? '').trim().split(/[\s　]+/); return parts.length >= 2 ? [parts[0], parts.slice(1).join(' ')] : [parts[0] ?? '', '']; };

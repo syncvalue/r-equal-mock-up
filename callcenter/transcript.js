@@ -1,10 +1,10 @@
 // 通話の文字起こしから、ヒアリング項目を拾い出す（デモ）。実際は音声認識＋AIで行う処理を、キーワードと正規表現で代用している。
 // 画面に依存しない純関数。お客様の発話を1つ渡すと、入力欄にセットする項目だけを返す。
-import { CATEGORIES, MAIN_ITEMS, snapQty, flyerOf, normalizeFlyerId } from './master.js';
+import { CATEGORIES, MAIN_ITEMS, snapQty, flyerOf, normalizeFlyerId, splitName } from './master.js';
 import { ymdOf } from '../src/reservations.js';
 
 export const FIELD_LABELS = {
-  phone: '電話番号', name: 'お名前', kana: 'フリガナ', gender: '性別', zip: '郵便番号', address: '住所', chirashi: '来電のきっかけ', flyerId: 'チラシのID',
+  phone: '電話番号', phone2: '電話番号2', lastName: 'お名前', firstName: 'お名前', lastKana: 'フリガナ', firstKana: 'フリガナ', age: '年齢', ageEst: '年齢', gender: '性別', zip: '郵便番号', address: '住所', chirashi: '来電のきっかけ', flyerId: 'チラシのID',
   cats: '売りたいもの', mainItems: 'メイン商材（数量）', wants: '点数・ブランド', attendee: '当日の立会い', companion: 'ご同席者', companionNote: 'ご同席者', parking: '駐車スペース', nameplate: '表札', contactFrom: '前日確認の連絡時間', contactTo: '前日確認の連絡時間', large: '大型品', notes: '訪問時の注意', date: '希望日', start: '開始時刻',
 };
 
@@ -15,8 +15,8 @@ export const DEMO_SCRIPT = [
   { who: 'cu', text: '新聞に入っていたチラシを見て電話しました。不用品の買取をお願いしたいんです。' },
   { who: 'op', text: 'ありがとうございます。チラシに印刷されているIDを教えていただけますか？' },
   { who: 'cu', text: 'えっと、N1019です。' },
-  { who: 'op', text: '確認できました。お名前とお電話番号を教えていただけますか？' },
-  { who: 'cu', text: '山田花子と申します。フリガナはヤマダハナコです。電話番号は090-1234-5678です。' },
+  { who: 'op', text: '確認できました。お名前は姓と名を分けて、フリガナとご年齢、お電話番号も教えていただけますか？' },
+  { who: 'cu', text: '姓は山田、名は花子です。フリガナはヤマダ、ハナコです。年齢は62歳です。電話番号は携帯が090-1234-5678、自宅が06-1234-5678です。' },
   { who: 'op', text: '訪問先のご住所をお願いします。' },
   { who: 'cu', text: '大阪府大阪市阿倍野区阿倍野筋1-2-3です。郵便番号は545-0052です。主婦をしておりまして、日中は家におります。' },
   { who: 'op', text: 'ありがとうございます。Googleマップで場所を確認しますね。…はい、{area}の担当になります。', action: 'confirmArea' },
@@ -127,13 +127,34 @@ export function extractFromUtterance(text, form, now = new Date(), dur = 90) {
     const phone = s.match(/0\d{1,4}-?\d{1,4}-?\d{3,4}/);
     const zip = s.match(/\b\d{3}-?\d{4}\b/);
     const address = s.match(ADDRESS);
-    if (phone && /電話|携帯|番号/.test(s)) patch.phone = phone[0];
+    if (phone && /電話|携帯|番号|自宅|連絡/.test(s)) {
+      for (const [n] of s.matchAll(/0\d{1,4}-?\d{1,4}-?\d{3,4}/g)) { // 1つ目は電話番号1、2つ目以降は電話番号2
+        if (!(patch.phone ?? form.phone)) patch.phone = n;
+        else if (n !== (patch.phone ?? form.phone)) patch.phone2 = n;
+      }
+    }
     if (zip && !phone) patch.zip = zip[0].replace(/^(\d{3})(\d{4})$/, '$1-$2');
     if (address) patch.address = address[0];
-    const name = s.match(/([^\s、。]{2,8}?)(?:と申します|といいます)/);
-    if (name) patch.name = name[1].replace(/^(?:私|わたし|わたくし)は?/, '');
-    const kana = s.match(/(?:フリガナ|読み方?)は([ァ-ヶー]{2,})/);
-    if (kana) patch.kana = kana[1];
+    const split = s.match(/姓は([^\s、。]+)[、,\s]*名は([^\s、。]+?)(?:です|と申|。|$)/); // 「姓は山田、名は花子です」
+    const whole = s.match(/([^、。]{2,10}?)(?:と申します|といいます)/);
+    if (split) { patch.lastName = split[1]; patch.firstName = split[2]; }
+    else if (whole) { // 姓と名を分けずに名乗った場合は、空白で分ける。空白がなければ、姓を2文字として分ける（目安）
+      const full = whole[1].replace(/^(?:私|わたし|わたくし)は?/, '');
+      const [last, first] = splitName(full);
+      [patch.lastName, patch.firstName] = first || full.length < 3 ? [last, first] : [full.slice(0, 2), full.slice(2)];
+    }
+    const kana = s.match(/(?:フリガナ|読み方?)は([ァ-ヶー]+)(?:[、,\s]+([ァ-ヶー]+))?/);
+    if (kana) {
+      if (kana[2]) { patch.lastKana = kana[1]; patch.firstKana = kana[2]; }
+      else { // 続けて言われた場合は、姓名の文字数の比で分ける（目安）
+        const ln = (patch.lastName ?? form.lastName ?? '').length;
+        const fn = (patch.firstName ?? form.firstName ?? '').length;
+        const cut = ln && fn ? Math.round((kana[1].length * ln) / (ln + fn)) : kana[1].length;
+        patch.lastKana = kana[1].slice(0, cut); patch.firstKana = kana[1].slice(cut);
+      }
+    }
+    const age = s.match(/(\d{1,3})\s*歳/) ?? s.match(/([2-9]0)代/);
+    if (age && !/歳.*(年|月)|築|歳月/.test(s)) { patch.age = /歳/.test(age[0]) ? age[1] : `${age[1]}代`; patch.ageEst = ''; } // 本人から聞けた年齢（推測の年代は外す）
     if (/主婦|私は女|女性の者/.test(s)) patch.gender = 'f';
     else if (/私は男|男性の者/.test(s)) patch.gender = 'm';
     const fid = s.match(FLYER_ID);

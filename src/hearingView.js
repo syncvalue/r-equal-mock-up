@@ -3,7 +3,7 @@ import { esc } from './format.js';
 import { hearingOf } from './schedule.js';
 
 const FIELDS = [
-  ['trigger', '来電のきっかけ'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'], ['wants', '売りたいもの'], ['large', '大型品・その他の確認'],
+  ['profile', '性別・年齢'], ['trigger', '来電のきっかけ'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'], ['wants', '売りたいもの'], ['large', '大型品・その他の確認'],
   ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
 ];
 // 特に見落としたくない項目

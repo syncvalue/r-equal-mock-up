@@ -7,9 +7,9 @@ import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, n
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
-import { OPERATORS, blankMain, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, dateLabel, flyerResultHtml } from './view.js';
-import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS } from './intake.js';
+import { OPERATORS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
+import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, genderLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, dateLabel, flyerResultHtml } from './view.js';
+import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
 const $ = (s) => document.querySelector(s);
@@ -27,7 +27,7 @@ const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); c
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
 const blankForm = () => ({
-  phone: '', name: '', kana: '', gender: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
+  phone: '', phone2: '', lastName: '', firstName: '', lastKana: '', firstKana: '', gender: '', genderEst: false, age: '', ageEst: '', zip: '', address: '', areaId: null, areaAddr: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '', contactFrom: '', contactTo: '',
   date: addDays(1), start: 10 * 60, dur: 90, userId: null,
 });
 
@@ -49,12 +49,12 @@ let demoOpen = false; // 通話デモのウィンドウ
 let demoPos = { x: Math.max(8, window.innerWidth - 26 * 16 - 16), y: 64 };
 
 // 電話番号が一致する、過去のお客様（既存の訪問予定・コールセンターの予約から探す）
-function findPast(phone) {
-  const d = digits(phone);
-  if (d.length < 10) return null;
+function findPast(f) {
+  const mine = [f.phone, f.phone2].map(digits).filter((d) => d.length >= 10);
+  if (!mine.length) return null;
   const fromEvents = EVENTS.map((e) => e.customer);
   const fromRes = loadReservations().map((r) => r.customer);
-  return [...fromRes, ...fromEvents].find((c) => digits(c.phone) === d) ?? null;
+  return [...fromRes, ...fromEvents].find((c) => [c.phone, c.phone2].some((p) => mine.includes(digits(p)))) ?? null;
 }
 
 function compute() {
@@ -83,7 +83,7 @@ function confirmReservation() {
   const x = compute();
   if (x.missing.length || !x.selected) return;
   const reservations = x.reservations;
-  const past = findPast(form.phone);
+  const past = findPast(form);
   const area = x.confirmed;
   const center = area; // 予定の地図表示は、エリアの中心で代用（モック）
   const record = {
@@ -93,9 +93,12 @@ function confirmReservation() {
     hearing: {
       trigger: triggerText(form.chirashi, flyerOf(form.flyerId)?.id), attendee: form.attendee || '未確認', wants: wantsText(form), mainItems: { ...form.mainItems },
       large: form.large.trim() || '未確認', notes: form.notes.trim() || '未確認',
-      companion: companionText(form), parking: form.parking || '未確認', nameplate: form.nameplate || '未確認', contact: contactText(form.contactFrom, form.contactTo),
+      profile: profileText(form, genderLabel), companion: companionText(form), parking: form.parking || '未確認', nameplate: form.nameplate || '未確認', contact: contactText(form.contactFrom, form.contactTo),
     },
-    customer: { name: form.name.trim(), kana: form.kana.trim(), phone: form.phone.trim(), zip: form.zip.trim(), address: form.address.trim() },
+    customer: {
+      name: fullName(form), lastName: form.lastName.trim(), firstName: form.firstName.trim(), kana: fullKana(form), lastKana: form.lastKana.trim(), firstKana: form.firstKana.trim(),
+      phone: form.phone.trim(), phone2: form.phone2.trim(), zip: form.zip.trim(), address: form.address.trim(),
+    },
   };
   addReservation(record);
   stopDemo();
@@ -108,7 +111,7 @@ const FLASH = { mainItems: '[data-main].sel', companion: '[data-yn^="companion|"
 function flashFields(keys) {
   keys.forEach((k) => document.querySelectorAll(FLASH[k] ?? `[data-f="${k}"]`).forEach((el) => {
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
-    if (k === 'phone' || k === 'name') el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (k === 'phone' || k === 'lastName') el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }));
 }
 
@@ -120,7 +123,7 @@ function addUtterance(who, text) {
     got = changedFields(patch, form);
     if (got.length) {
       form = { ...form, ...patch };
-      if (patch.phone) quoted = false;
+      if (patch.phone || patch.phone2) quoted = false;
       if (patch.flyerId) form = withFlyer(form, patch.flyerId);
       if (patch.date) weekStart = weekStartFor(patch.date);
       if (patch.date || patch.start !== undefined) form = { ...form, whenAsked: true };
@@ -210,7 +213,7 @@ function renderDispatch() {
 }
 function renderHint() {
   const el = $('#hint');
-  if (el) el.innerHTML = hintHtml(findPast(form.phone), quoted);
+  if (el) el.innerHTML = hintHtml(findPast(form), quoted);
 }
 
 // 左に入力欄（①お客様 → ②日時 → ③ヒアリングを縦一列）、右に配車。それぞれ、はみ出す場合だけ縦にスクロールする
@@ -245,7 +248,7 @@ function render() {
 const flash = (msg) => { toast = msg; render(); setTimeout(() => { toast = ''; render(); }, 2500); };
 
 // ---- イベント ------------------------------------------------------------------------
-const LIVE = new Set(['address', 'date', 'start', 'dur', 'phone', 'name', 'wants']);
+const LIVE = new Set(['address', 'date', 'start', 'dur', 'phone', 'phone2', 'wants']);
 const NUMERIC = new Set(['start', 'dur']);
 function onField(e) {
   const k = e.target.dataset.f;
@@ -253,7 +256,8 @@ function onField(e) {
   form = { ...form, [k]: NUMERIC.has(k) ? Number(e.target.value) : e.target.value };
   if (k === 'date' || k === 'start') form = { ...form, whenAsked: true };
   if (k === 'contactFrom' || k === 'contactTo') { form = syncContact(form, k); updateChecklist(); refresh(); return; }
-  if (k === 'phone') quoted = false;
+  if (k === 'phone' || k === 'phone2') quoted = false;
+  if (k === 'age' && e.target.value) { form = { ...form, ageEst: '' }; document.querySelectorAll('[data-ageest]').forEach((el) => el.classList.remove('on')); } // 年齢を聞けたら、推測の年代は外す
   if (k === 'flyerId') { form = withFlyer(form, e.target.value); renderFlyerResult(); renderDispatch(); return; }
   if (k === 'date' && e.target.value) weekStart = weekStartFor(e.target.value);
   if (LIVE.has(k)) renderDispatch(); else updateChecklist();
@@ -315,7 +319,7 @@ function updateChecklist() {
   const list = hearingChecklist(form);
   const panel = $('#checklist');
   if (panel) panel.innerHTML = checklistHtml(list);
-  list.forEach((x) => document.querySelectorAll(`[data-badge="${x.key}"]`).forEach((el) => { el.innerHTML = badgeHtml(x.asked); }));
+  list.forEach((x) => document.querySelectorAll(`[data-badge="${x.key}"]`).forEach((el) => { el.innerHTML = badgeHtml(x.asked, x.estimated); }));
 }
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button, [data-pick]');
@@ -325,6 +329,8 @@ document.addEventListener('click', (e) => {
   if (d.tab) { stopDemo(); tab = d.tab; render(); }
   else if (d.area) { form = { ...form, areaId: d.area, areaAddr: form.address.trim() }; renderDispatch(); }
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
+  else if ('genderest' in d) { form = { ...form, genderEst: !form.genderEst }; refresh(); }
+  else if (d.ageest) { form = { ...form, ageEst: form.ageEst === d.ageest ? '' : d.ageest, age: '' }; refresh(); }
   else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi), flyerId: '' }; refresh(); }
   else if (d.cat) { form = { ...form, cats: form.cats.includes(d.cat) ? form.cats.filter((c) => c !== d.cat) : [...form.cats, d.cat] }; refresh(); }
   else if (d.yn) { const [k, v] = d.yn.split('|'); const on = form[k] !== v; form = { ...form, [k]: on ? v : '', ...(k === 'companion' && !(on && v === 'あり') ? { companionNote: '' } : {}) }; refresh(); }
@@ -341,8 +347,13 @@ document.addEventListener('click', (e) => {
   else if ('toggleOthers' in d) { showOthers = !showOthers; renderDispatch(); }
   else if ('map' in d) { const a = done?.customer.address ?? form.address.trim(); if (a) window.open(mapUrl(a), '_blank', 'noopener'); else flash('住所を入力してください'); }
   else if ('quote' in d) {
-    const c = findPast(form.phone);
-    if (c) { form = { ...form, name: c.name, kana: c.kana, zip: c.zip, address: c.address }; quoted = true; refresh(); }
+    const c = findPast(form);
+    if (c) {
+      const [last, first] = c.lastName !== undefined ? [c.lastName, c.firstName] : splitName(c.name);
+      const [lastK, firstK] = c.lastKana !== undefined ? [c.lastKana, c.firstKana] : splitName(c.kana);
+      form = { ...form, lastName: last, firstName: first, lastKana: lastK, firstKana: firstK, phone2: form.phone2 || c.phone2 || '', zip: c.zip, address: c.address };
+      quoted = true; refresh();
+    }
   }
   else if ('confirm' in d) confirmReservation();
   else if ('new' in d) { stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }

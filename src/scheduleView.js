@@ -89,7 +89,7 @@ function detailPanel(s) {
     ${h.isRepeat ? `<details class="rounded-xl border border-indigo-200 bg-indigo-50/50 px-3 py-2"><summary class="cursor-pointer text-sm font-bold">⭐ 過去の評価を見る${h.latestEval ? `<span class="ml-1 text-amber-500">${'★'.repeat(h.latestEval.overall)}</span>` : ''}${(h.latestEval?.flags ?? []).includes('クレーム注意') ? '<span class="ml-1 text-xs rounded bg-rose-600 text-white px-1.5">クレーム注意</span>' : ''}</summary><div class="mt-2">${pastEvalView(h)}</div></details>` : ''}
     <dl class="text-sm space-y-1.5">
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">住所</dt><dd class="font-bold">${esc(e.customer.address)}</dd></div>
-      <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">電話</dt><dd><a class="text-teal-700 underline font-bold" href="tel:${esc(e.customer.phone)}">${esc(e.customer.phone)}</a></dd></div>
+      <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">電話</dt><dd><a class="text-teal-700 underline font-bold" href="tel:${esc(e.customer.phone)}">${esc(e.customer.phone)}</a>${e.customer.phone2 ? ` ／ <a class="text-teal-700 underline font-bold" href="tel:${esc(e.customer.phone2)}">${esc(e.customer.phone2)}</a>` : ''}</dd></div>
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">商材</dt><dd>${esc(e.items)}</dd></div>
     </dl>
     <div class="rounded-xl border p-2.5"><div class="font-bold text-sm">📞 受電時のヒアリング</div><div class="text-[11px] text-slate-400">${hearingMeta(e)}</div>

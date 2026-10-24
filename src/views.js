@@ -256,7 +256,7 @@ export function customerView(s) {
       ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 担当者用の情報（過去の評価）を隠す' : '担当者用の情報（過去の評価）を表示'}</button>${s.showStaff ? pastEvalView(h) : ''}</div>` : ''}
       <dl class="grid grid-cols-[8rem_1fr] gap-y-2 text-xl">
         ${row('氏名', c.name)}${row('フリガナ', c.kana)}${row('生年月日', c.birth)}
-        ${row('電話番号', c.phone)}${row('住所', `${c.zip} ${c.address}`)}${row('職業', c.occupation)}
+        ${row('電話番号', c.phone2 ? `${c.phone} ／ ${c.phone2}` : c.phone)}${row('住所', `${c.zip} ${c.address}`)}${row('職業', c.occupation)}
       </dl>
       <div class="grid grid-cols-2 gap-4">
         <button class="btn btn-secondary" data-action="edit-customer">相違あり（修正する）</button>

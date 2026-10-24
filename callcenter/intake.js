@@ -1,5 +1,5 @@
 // 受付の入力チェック（画面に依存しない純関数）。オペレーターが手で入力して確定できる条件をここで決める。
-import { MAIN_ITEMS, qtyLabel } from './master.js';
+import { MAIN_ITEMS, qtyLabel, joinName } from './master.js';
 
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
@@ -7,7 +7,7 @@ const digits = (s) => String(s ?? '').replace(/\D/g, '');
 export function missingFields(form, { areaConfirmed, selected, today }) {
   const missing = [];
   if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
-  if (!form.name.trim()) missing.push('お名前');
+  if (!form.lastName.trim() || !form.firstName.trim()) missing.push('お名前（姓・名）');
   if (!form.gender) missing.push('性別');
   if (!form.address.trim()) missing.push('訪問先の住所');
   else if (!areaConfirmed) missing.push('営業エリアの確認（Googleマップ）');
@@ -30,7 +30,7 @@ export const wantsText = (form) => [mainSummary(form).join('、'), form.cats.joi
 // ---- 聞き取りの確認（聞き忘れ防止） ---------------------------------------------------------
 // 項目ごとに「聞いた／まだ聞いていない」を返す。「なし」「特になし」と聞いた場合も、聞いた扱い。
 export const CHECK_ITEMS = [
-  ['phone', '電話番号'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['zip', '郵便番号'], ['address', '住所'],
+  ['phone', '電話番号'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['age', '年齢'], ['zip', '郵便番号'], ['address', '住所'],
   ['when', '希望日時'], ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'],
   ['large', '大型品'], ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
 ];
@@ -40,9 +40,22 @@ export const REQUIRED_CHECKS = new Set(['phone', 'name', 'gender', 'address', 'f
 export function hearingChecklist(form) {
   const filled = (v) => String(v ?? '').trim() !== '';
   const asked = {
-    phone: /^0\d{9,10}$/.test(digits(form.phone)), name: filled(form.name), kana: filled(form.kana), gender: filled(form.gender), zip: filled(form.zip), address: filled(form.address),
+    phone: /^0\d{9,10}$/.test(digits(form.phone)), name: filled(form.lastName) && filled(form.firstName), kana: filled(form.lastKana) || filled(form.firstKana), gender: filled(form.gender), age: filled(form.age) || filled(form.ageEst), zip: filled(form.zip), address: filled(form.address),
     when: Boolean(form.whenAsked), flyer: form.chirashi !== null, wants: hasWants(form), attendee: filled(form.attendee), companion: filled(form.companion),
     large: filled(form.large), parking: filled(form.parking), nameplate: filled(form.nameplate), contact: filled(form.contactFrom) || filled(form.contactTo), notes: filled(form.notes),
   };
-  return CHECK_ITEMS.map(([key, label]) => ({ key, label, asked: asked[key], required: REQUIRED_CHECKS.has(key) }));
+  // 聞けなくて、声色から推測した性別・年齢は、入力済みとして数えるが、「推測」として区別する
+  const estimated = { gender: form.genderEst && filled(form.gender), age: !filled(form.age) && filled(form.ageEst) };
+  return CHECK_ITEMS.map(([key, label]) => ({ key, label, asked: asked[key], estimated: Boolean(estimated[key]), required: REQUIRED_CHECKS.has(key) }));
+}
+
+export const fullName = (form) => joinName(form.lastName, form.firstName);
+export const fullKana = (form) => joinName(form.lastKana, form.firstKana);
+
+// 営業のタブレットに出す、お客様の性別・年齢（聞けずに声色から推測した場合は、その旨）
+export function profileText(form, genderLabel) {
+  const g = form.gender ? `${genderLabel(form.gender)}${form.genderEst ? '（推測）' : ''}` : '性別未確認';
+  const age = String(form.age ?? '').trim();
+  const a = age ? (/^\d+$/.test(age) ? `${age}歳` : age) : form.ageEst ? `${form.ageEst}（推測）` : '年齢未確認';
+  return `${g}／${a}`;
 }

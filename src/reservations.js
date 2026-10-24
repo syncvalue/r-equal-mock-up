@@ -40,7 +40,7 @@ export function reservationToEvent(r, now = new Date()) {
     id: r.id, userId: r.userId, day: dayOffset(r.date, now), start: r.start, end: r.end,
     receptionNo: r.receptionNo, receivedAt: r.receivedAt, operator: r.operator, apType: r.apType,
     items: r.hearing.wants, memo: r.hearing.notes, lat: r.lat, lng: r.lng, hearing: r.hearing,
-    customer: { name: r.customer.name, kana: r.customer.kana, phone: r.customer.phone, zip: r.customer.zip, address: r.customer.address, occupation: '', birth: '' },
+    customer: { name: r.customer.name, kana: r.customer.kana, phone: r.customer.phone, phone2: r.customer.phone2 ?? '', zip: r.customer.zip, address: r.customer.address, occupation: '', birth: '' },
   };
 }
 
