@@ -1,5 +1,6 @@
 // コールセンター画面の描画（状態 → HTML）。イベント処理は callcenter.js。
 import { esc, yen } from '../src/format.js';
+import { customerProfileHtml } from '../src/customerProfileView.js';
 import { CANCEL_REASONS } from './master.js';
 import { avatarHtml } from './avatar.js';
 import { matchedSpecialties } from './intake.js';
@@ -94,28 +95,8 @@ export function checklistHtml(list) {
   </div>`;
 }
 
-// ---- お客様のランク・厄介度・クーリングオフ歴 ----------------------------------------------------
-// 顧客ランクは、営業のランクと見分けがつくよう、紫で「顧客S」のように出す。厄介度は、ランクとは別の軸（注意＝橙、要注意＝赤）
-const CRANK_CLS = { S: 'bg-fuchsia-700 text-white', A: 'bg-fuchsia-500 text-white', B: 'bg-fuchsia-200 text-fuchsia-900', C: 'bg-slate-200 text-slate-700' };
-const dateYmd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
-
-export const custRankBadge = (p) => (p?.rank ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${CRANK_CLS[p.rank]}" title="お客様のランク（資産・売却の見込み）${p.rankAuto ? '。総買取額から自動で決めています' : ''}">顧客${esc(p.rank)}</span>` : (p?.known === false ? '<span class="inline-block rounded bg-sky-100 px-1.5 text-[11px] font-bold leading-4 text-sky-800" title="買取の実績がありません">新規</span>' : ''));
-export const troubleBadge = (p) => (p && p.trouble.level !== 'none' ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${p.trouble.level === 'alert' ? 'bg-rose-600 text-white' : 'bg-amber-200 text-amber-900'}" title="${esc(`${p.trouble.tags.join('、')}${p.trouble.memo ? `　${p.trouble.memo}` : ''}`)}">${p.trouble.level === 'alert' ? '🚨 要注意' : '⚠ 注意'}</span>` : '');
-export const cooloffBadge = (p) => (p?.cooloff.length ? `<span class="inline-block rounded border border-rose-500 bg-white px-1.5 text-[11px] font-bold leading-4 text-rose-700" title="${esc(p.cooloff.map((c) => `${dateYmd(c.at)} ${c.items}${c.memo ? `（${c.memo}）` : ''}`).join(' ／ '))}">クーリングオフ ${p.cooloff.length}回</span>` : '');
-
-// 帯の中に出す、小さな印（ランク・厄介度・クーリングオフ）
-export const customerMarks = (p) => (!p?.known ? '' : `<span class="ml-0.5 inline-flex gap-0.5 align-middle">${p.rank ? `<i class="rounded bg-white/90 px-1 text-[9px] font-bold not-italic text-fuchsia-700" title="顧客ランク">顧${esc(p.rank)}</i>` : ''}${p.trouble.level !== 'none' ? `<i class="rounded px-1 text-[9px] font-bold not-italic ${p.trouble.level === 'alert' ? 'bg-rose-600 text-white' : 'bg-amber-200 text-amber-900'}" title="${esc(p.trouble.tags.join('、'))}">${p.trouble.level === 'alert' ? '要注意' : '注意'}</i>` : ''}${p.cooloff.length ? `<i class="rounded bg-white/90 px-1 text-[9px] font-bold not-italic text-rose-700" title="クーリングオフ歴">CO${p.cooloff.length}</i>` : ''}</span>`);
-
-// お客様の評価のまとめ（詳細）
-export function customerProfileHtml(p, { advice = false } = {}) {
-  if (!p) return '';
-  const hot = p.trouble.level === 'alert' || p.cooloff.length >= 2;
-  return `<div class="space-y-0.5 text-xs"><div class="flex flex-wrap items-center gap-1.5"><span class="text-slate-500">お客様</span>${custRankBadge(p)}${troubleBadge(p) || '<span class="text-slate-400">厄介度：なし</span>'}${cooloffBadge(p) || '<span class="text-slate-400">クーリングオフ歴：なし</span>'}
-    ${p.purchase.count ? `<span class="text-slate-500">買取 ${p.purchase.count}回・総額 ${yen(p.purchase.total)}</span>` : ''}</div>
-    ${p.trouble.tags.length ? `<div class="text-slate-700">${esc(p.trouble.tags.join('、'))}${p.trouble.memo ? `<span class="text-slate-500">　${esc(p.trouble.memo)}</span>` : ''}</div>` : ''}
-    ${p.cooloff.length ? `<div class="text-rose-700">クーリングオフ：${p.cooloff.map((c) => `${dateYmd(c.at)} ${esc(c.items)}${c.memo ? `（${esc(c.memo)}）` : ''}`).join(' ／ ')}</div>` : ''}
-    ${advice && (hot || p.rank === 'S') ? `<div class="font-bold text-fuchsia-800">${hot ? '要注意のお客様です。リーダーなど、経験のある上位ランクの営業の担当をおすすめします' : '資産の多いお客様です。上位ランクの営業の担当をおすすめします'}</div>` : ''}</div>`;
-}
+// ---- お客様のランク・厄介度・クーリングオフ歴（表示は src/customerProfileView.js） -----------------------------
+export { custRankBadge, troubleBadge, cooloffBadge, customerMarks, customerProfileHtml } from '../src/customerProfileView.js';
 
 // ---- 入力フォーム ------------------------------------------------------------------
 const lbl = (text, inner, { req = false, cls = '' } = {}) => `<label class="block ${cls}"><span class="text-xs font-bold">${text}${req ? '<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>' : ''}</span>${inner}</label>`;

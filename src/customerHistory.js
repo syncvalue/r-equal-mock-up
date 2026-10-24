@@ -74,16 +74,14 @@ export const historyCustomers = () => Object.entries(SEED).filter(([, v]) => v.c
 export const CUSTOMER_RANKS = ['S', 'A', 'B', 'C'];
 export const TROUBLE_LABEL = { none: '', caution: '注意', alert: '要注意' };
 const AUTO_RANK = [[1000000, 'S'], [500000, 'A'], [200000, 'B'], [1, 'C']];
-const CAUTION_FLAGS = ['価格交渉が強い', '他社と比較中', '家族の同意が必要']; // 営業の評価のフラグのうち、注意として扱うもの
 
 export function customerProfile(phones) {
   const list = [...new Set(phones.filter(Boolean))];
   const seeds = list.map((p) => SEED[p]).filter(Boolean);
   const manual = seeds.find((s) => s.profile)?.profile ?? null;
   const sum = purchaseSummary(list);
-  const evalFlags = [...new Set(seeds.flatMap((s) => s.evals ?? []).flatMap((e) => e.flags ?? []).filter((f) => CAUTION_FLAGS.includes(f)))];
   const autoRank = AUTO_RANK.find(([min]) => sum.total >= min)?.[1] ?? null;
-  const trouble = manual?.trouble ?? { level: evalFlags.length ? 'caution' : 'none', tags: evalFlags };
+  const trouble = manual?.trouble ?? { level: 'none', tags: [] }; // 厄介度は、人が登録したものだけ（営業の評価から、自動では上げない）
   const cooloff = [...(manual?.cooloff ?? [])].sort((a, b) => b.at - a.at);
   return {
     rank: manual?.rank ?? autoRank, rankAuto: !manual?.rank && Boolean(autoRank), purchase: sum,

@@ -4,7 +4,8 @@ import { approvalState, latestApproval } from './store.js';
 import { themeToggleHtml } from './theme.js';
 import { roleLabel, userById } from './dashboard.js';
 import { eventById } from './schedule.js';
-import { historyOf } from './customerHistory.js';
+import { historyOf, customerProfile } from './customerHistory.js';
+import { salesCustomerCard } from './customerProfileView.js';
 import { repeatBadge, pastEvalView } from './customerHistoryView.js';
 import { dashVisitsModal, dashReportsModal } from './dashboardView.js';
 import { hearingModal } from './hearingView.js';
@@ -253,7 +254,7 @@ export function customerView(s) {
         <span class="text-sm text-slate-500">受付 ${esc(call.receptionNo)} ／ ${esc(call.receivedAt)} ／ 担当 ${esc(call.operator)}</span>
       </div>
       <p class="text-slate-600">ご本人かどうか、確認してください。</p>
-      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 担当者用の情報（過去の評価）を隠す' : '担当者用の情報（過去の評価）を表示'}</button>${s.showStaff ? pastEvalView(h) : ''}</div>` : ''}
+      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 担当者用の情報（過去の評価）を隠す' : '担当者用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
       <dl class="grid grid-cols-[8rem_1fr] gap-y-2 text-xl">
         ${row('氏名', c.name)}${row('フリガナ', c.kana)}${row('生年月日', c.birth)}
         ${row('電話番号', c.phone2 ? `${c.phone} ／ ${c.phone2}` : c.phone)}${row('住所', `${c.zip} ${c.address}`)}${row('職業', c.occupation)}
