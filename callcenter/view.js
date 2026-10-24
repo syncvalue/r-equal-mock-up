@@ -159,27 +159,23 @@ export function hintHtml(found, applied) {
 // ---- 配車（候補・空き状況） ----------------------------------------------------------
 const share = (s) => `${Math.round(s.femaleShare * 100)}%`;
 
-function statsLine(c, maxFemale) {
-  const w = maxFemale ? (c.stats.female / maxFemale) * 100 : 0;
-  return `<div class="text-[11px] leading-tight text-slate-600">今月${c.stats.total}件 女性<b>${c.stats.female}</b>（${share(c.stats)}）
-    <div class="h-1 w-28 rounded bg-slate-200 mt-0.5"><div class="h-1 rounded bg-rose-400" style="width:${w}%"></div></div></div>`;
-}
+// 今月の担当件数。女性のお客様なら女性の件数、男性のお客様なら全体の件数が、配分の基準なので太字にする
+const statText = (st, gender) => (gender === 'f' ? `今月 女性<b class="text-slate-900">${st.female}</b>件・計${st.total}件` : `今月 計<b class="text-slate-900">${st.total}</b>件・女性${st.female}件`);
+const starTitle = (gender) => (gender === 'f' ? '空いている営業のうち、女性のお客様の担当が今月最も少ない人（公平な配分）' : '空いている営業のうち、担当が今月最も少ない人（公平な配分）');
+const leaderTag = (u) => (isLeader(u) ? '<span class="ml-0.5 text-[9px] rounded bg-slate-200 px-1">L</span>' : '');
 
-function candidateCard(c, { selectedId, gender, req, maxFemale }) {
+// 担当候補の1行（週表示用）。日別表示では、同じ情報を営業ごとの列の見出しに出すので、この一覧は出さない
+function candidateRow(c, { selectedId, gender, showArea = false }) {
   const on = c.user.id === selectedId;
-  const reason = gender === 'f' ? `女性担当が最少（${c.stats.female}件）` : `担当が最少（${c.stats.total}件）`;
-  const tag = (cls, t) => `<span class="rounded ${cls} text-[11px] font-bold px-1.5 py-0.5">${t}</span>`;
+  const tag = (cls, t, title = '') => `<span class="rounded ${cls} text-[11px] font-bold px-1.5 py-0.5" ${title ? `title="${esc(title)}"` : ''}>${t}</span>`;
   return `
-  <div class="rounded-lg border-2 px-2 py-1.5 space-y-1 bg-white ${c.free ? 'cursor-pointer hover:border-teal-500' : 'opacity-70'} ${on ? 'border-teal-600 ring-2 ring-teal-300' : 'border-slate-200'}" ${c.free ? `data-pick="${c.user.id}"` : ''}>
-    <div class="flex justify-between items-center gap-2">
-      <div><b>${esc(c.user.name)}</b> ${rankBadge(c.rank)}${isLeader(c.user) ? '<span class="ml-1 text-[10px] rounded bg-slate-200 px-1.5 py-0.5">リーダー</span>' : ''}
-        <span class="ml-1 text-[11px] text-slate-500">${esc(areaById(c.areaId)?.name ?? '')}</span></div>
-      <div class="flex gap-1 shrink-0">${c.recommended ? tag('bg-amber-400 text-slate-900', '⭐ おすすめ') : ''}
-        ${c.free ? tag('bg-emerald-100 text-emerald-800', '空き') : tag('bg-rose-100 text-rose-700', '不可')}
-        </div></div>
-    <div class="grid grid-cols-[9rem_1fr] gap-2 items-center">${statsLine(c, maxFemale)}${strip(c.blocks, req)}</div>
-    ${c.travel ? `<div class="text-[11px] text-slate-600 truncate" title="${esc(travelTitle(c.travel))}">🚗 ${esc(legText(c.travel.prev, 'prev'))}${c.travel.next ? `　${esc(legText(c.travel.next, 'next'))}` : ''}</div>` : ''}
-    ${c.recommended ? `<div class="text-[11px] text-amber-700 font-bold">${reason}</div>` : ''}
+  <div class="rounded-lg border-2 px-2 py-1 bg-white ${c.free ? 'cursor-pointer hover:border-teal-500' : 'opacity-70'} ${on ? 'border-teal-600 ring-2 ring-teal-300' : 'border-slate-200'}" ${c.free ? `data-pick="${c.user.id}"` : ''}>
+    <div class="grid grid-cols-[8rem_6.5rem_9.5rem_1fr] items-center gap-2 text-xs">
+      <div class="truncate"><b class="text-sm">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)}${showArea ? `<span class="ml-1 text-[10px] text-slate-500">${esc(areaById(c.areaId)?.name ?? '')}</span>` : ''}</div>
+      <div class="flex gap-1">${c.recommended ? tag('bg-amber-400 text-slate-900', '⭐', starTitle(gender)) : ''}${c.free ? tag('bg-emerald-100 text-emerald-800', '空き') : tag('bg-rose-100 text-rose-700', '不可')}</div>
+      <div class="text-slate-600">${statText(c.stats, gender)}</div>
+      <div class="truncate text-slate-600" title="${esc(travelTitle(c.travel))}">${c.travel ? `🚗 ${esc(legText(c.travel.prev, 'prev'))}` : ''}</div>
+    </div>
     ${c.free ? '' : `<div class="text-[11px] text-rose-600">${esc(conflictText(c.conflict))}</div>`}
   </div>`;
 }
@@ -224,8 +220,13 @@ export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
   const dh = dayHead(form.date);
   const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(0,1fr))`;
   const end = form.start + form.dur;
-  const head = cols.map((c) => `<div class="px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'}"><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${isLeader(c.user) ? '<span class="ml-0.5 text-[9px] rounded bg-slate-200 px-1">L</span>' : ''}
-    <div class="text-[10px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}" title="${esc(`${minToHHMM(form.start)}〜${minToHHMM(end)} の希望時間帯`)}">${c.free ? '希望時間 空き' : '希望時間 不可'}</div></div>`).join('');
+  const head = cols.map((c) => {
+    const tag = c.free ? 'button' : 'div';
+    return `<${tag} class="block w-full px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'} ${c.free ? 'cursor-pointer hover:bg-teal-50' : 'opacity-80'}" ${c.free ? `data-pick="${c.user.id}" title="この営業を担当にする"` : `title="${esc(conflictText(c.conflict))}"`}>
+      <b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)}${c.recommended ? `<span class="ml-0.5 rounded bg-amber-400 px-1 text-[10px] font-bold" title="${esc(starTitle(form.gender))}">⭐</span>` : ''}
+      <div class="text-[10px] text-slate-600 leading-tight">${statText(c.stats, form.gender)}</div>
+      <div class="text-[10px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}">${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}</div></${tag}>`;
+  }).join('');
   const travel = cols.map((c) => `<div class="px-1 py-0.5 text-[10px] leading-tight text-slate-600 border-b min-h-[2.1rem]" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${esc(legText(c.travel.prev, 'prev'))}</div>${c.travel.next ? `<div class="truncate">${esc(legText(c.travel.next, 'next'))}</div>` : ''}` : ''}</div>`).join('');
   const axisCol = `<div class="relative" style="height:${h}px">${Array.from({ length: DAY_SLOTS / 2 }, (_, i) => `<span class="absolute right-1 text-[10px] text-slate-400 -translate-y-1/2" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => {
@@ -264,9 +265,7 @@ const areaBanner = ({ proposal, confirmed, hasAddress }) => {
 
 export function dispatchHtml(x) {
   const { area, proposal, confirmed, hasAddress, ranking, calendar, form, selectedId, alt, missing, unasked, showOthers } = x;
-  const req = (c) => ({ start: form.start, end: form.start + form.dur, free: c.free });
-  const maxFemale = Math.max(1, ...[...ranking.inArea, ...ranking.others].map((c) => c.stats.female));
-  const card = (c) => candidateCard(c, { selectedId, gender: form.gender, req: req(c), maxFemale });
+  const card = (c) => candidateRow(c, { selectedId, gender: form.gender });
   const sel = [...ranking.inArea, ...ranking.others].find((c) => c.user.id === selectedId);
   return `
   <div class="space-y-2">
@@ -275,11 +274,10 @@ export function dispatchHtml(x) {
       <div><div class="flex items-center justify-between mb-0.5"><div class="text-sm font-bold">空き状況（${esc(area.name)}）</div>
         <div class="flex gap-1">${[['week', '週'], ['day', '日別']].map(([k, t]) => `<button class="chip ${calendar.mode === k ? 'on' : ''}" data-calmode="${k}">${t}</button>`).join('')}</div></div>
         ${calendar.mode === 'day' ? dayViewHtml({ cols: [...ranking.inArea, ...(showOthers ? ranking.others : [])].sort((a, b) => a.user.id.localeCompare(b.user.id)), form, selectedId, canPrev: form.date > calendar.today, hasHere: Boolean(calendar.hasHere) }) : weekCalendarHtml(calendar)}</div>
-      <div><div class="text-sm font-bold mb-0.5 flex flex-wrap items-baseline gap-x-3">担当候補${legendHtml()}</div>
-        <div class="grid grid-cols-[9rem_1fr] gap-2 px-[10px]"><span></span>${axis()}</div>
-        <div class="space-y-1.5">${ranking.inArea.map(card).join('')}</div></div>` : ''}
+      ${calendar.mode === 'day' ? '' : `<div><div class="text-sm font-bold mb-0.5 flex flex-wrap items-baseline gap-x-3">担当候補<span class="font-normal text-[11px] text-slate-500">${minToHHMM(form.start)}〜 の空き　⭐＝空いている中で、${form.gender === 'f' ? '女性のお客様の担当' : '担当'}が今月最も少ない人</span></div>
+        <div class="space-y-1">${ranking.inArea.map(card).join('')}</div></div>`}` : ''}
     <div><button class="text-sm underline text-slate-500" data-toggle-others>${showOthers ? '▼' : '▶'} 他エリア（例外）</button>
-      ${showOthers ? `<div class="grid grid-cols-[9rem_1fr] gap-2 px-[10px] mt-1"><span></span>${axis()}</div><div class="space-y-1.5">${ranking.others.map(card).join('')}</div>` : ''}</div>
+      ${showOthers && calendar?.mode !== 'day' ? `<div class="space-y-1 mt-1">${ranking.others.map((c) => candidateRow(c, { selectedId, gender: form.gender, showArea: true })).join('')}</div>` : ''}</div>
     ${alt ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-3 py-1.5 text-xs text-rose-800">⚖ <b>${esc(alt.user.name)}</b>の方が女性担当が少ない（${alt.stats.female}件／選択中 ${sel.stats.female}件）</div>` : ''}
     <div class="rounded-lg border-2 border-teal-600 bg-white p-2 space-y-1.5 sticky bottom-0">
       ${sel ? `<div class="text-sm">担当：<b class="text-base">${esc(sel.user.name)}</b>　${esc(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}　${esc(fullName(form) || 'お客様')} 様（${genderLabel(form.gender) || '性別未選択'}）</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
