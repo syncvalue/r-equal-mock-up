@@ -1,10 +1,10 @@
 // 配車係の画面（ダミー）。オペレーターが仮確定した訪問の、担当営業を確認・変更して、確定する。主に翌々日の予定を、毎日確定していく。
 // 確定した訪問だけが、営業のタブレットの予定に出る。
 import { esc } from '../src/format.js';
-import { USERS } from '../src/dashboard.js';
-import { conflictText, AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, attendanceOf, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
+import { USERS, isLeader } from '../src/dashboard.js';
+import { conflictText, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, attendanceOf, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { isTentative, isCancelled, needsReview, reviewDiffs } from '../src/reservations.js';
-import { dateLabel, genderLabel, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock } from './view.js';
+import { dateLabel, genderLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock } from './view.js';
 import { avatarHtml } from './avatar.js';
 
 // 変更の内容（項目名 変更前→変更後）
@@ -31,6 +31,39 @@ function assignee(r, reservations, now) {
 }
 
 // ---- カレンダー（営業ごとの列）。オペレーターの日別表示と同じ見た目。予約の帯をドラッグして、別の営業・時間に動かす ----------------------------
+// ---- 営業の詳細（顔写真を押すと、モーダルで出す） ---------------------------------------------------------
+const wan = (n) => `${Math.round(n / 10000).toLocaleString('ja-JP')}万円`;
+const pct = (x) => `${Math.round(x * 100)}%`;
+
+export function staffModalHtml({ userId, date, reservations, now }) {
+  const d = salesDetail({ userId, date, start: WORK_START, dur: 90, reservations, now });
+  if (!d) return '';
+  const { user, month, fairness: f } = d;
+  const area = areaById(d.areaId);
+  const box = (title, body) => `<section class="space-y-1 rounded-lg border bg-slate-50 p-2"><h3 class="text-xs font-bold text-slate-500">${title}</h3>${body}</section>`;
+  const plans = d.blocks.length ? d.blocks.map((b) => `<div class="flex items-start gap-1.5 text-xs"><b class="w-24 shrink-0">${hhmm(b.start)}–${hhmm(b.end)}</b><span class="min-w-0"><span class="mr-1 rounded px-1 text-[10px] font-bold text-white ${blockCls(b)}">${isTentativeBlock(b) ? '仮' : '確'}</span>${esc(b.label)}${b.place ? `<span class="block truncate text-slate-500">${esc(b.place)}</span>` : ''}</span></div>`).join('') : '<div class="text-xs text-slate-500">予定なし</div>';
+  return `<div class="fixed inset-0 z-[60] flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/40" data-staffclose></div>
+    <div class="relative z-10 max-h-[90vh] w-[40rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-3">${avatarHtml(user, 72)}<div class="space-y-0.5">
+          <div class="text-lg font-bold">${esc(user.name)} ${rankBadge(d.rank)}${isLeader(user) ? '<span class="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[11px]">リーダー</span>' : ''}</div>
+          <div class="text-sm text-slate-600">グループ${esc(user.group)}・${esc(area?.name ?? '')}</div>
+          <div class="text-xs">${dateLabel(date)}：<b>${esc(d.att.label)}</b>${d.att.kind === 'pm' || d.att.kind === 'am' ? `（${hhmm(d.att.from)}〜${hhmm(d.att.to)}）` : ''}</div></div></div>
+        <button class="b b-sec !min-h-0 !py-1" data-staffclose title="閉じる（Esc）">✕ 閉じる</button></div>
+      ${box('得意分野', `<div class="flex flex-wrap gap-1">${specTags(user.id, {})}</div>`)}
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-3">
+          ${box('今月の実績', `<div class="text-sm">訪問 <b>${month.visits}</b>件 ／ 成約 <b>${month.contracts}</b>件（${pct(month.rate)}）</div>
+            <div class="text-sm">売上 <b>${wan(month.amount)}</b> ／ 目標 ${wan(month.target)}</div>
+            <div class="relative h-2 rounded bg-slate-200"><div class="h-2 rounded ${month.achieve >= month.pace ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${Math.min(100, month.achieve * 100)}%"></div><div class="absolute -top-0.5 h-3 w-0.5 bg-slate-700" style="left:${Math.min(100, month.pace * 100)}%" title="今月の経過（${pct(month.pace)}）"></div></div>
+            <div class="text-xs text-slate-500">達成 ${pct(month.achieve)}（今月の経過 ${pct(month.pace)}）　平均単価 ${wan(month.avg)}</div>`)}
+          ${box('今月の担当件数', `<div class="text-sm">計 <b>${f.total}</b>件 ／ 女性 <b>${f.female}</b>件（${pct(f.femaleShare)}）／ 男性 ${f.male}件</div>`)}</div>
+        <div class="space-y-3">
+          ${box(`${dateLabel(date)}の予定（${d.blocks.length}件）`, `${plans}`)}
+          ${box('90分で開始できる時刻', d.windows.length ? `<div class="text-sm">${d.windows.map((w) => `<b>${hhmm(w.from)}${w.to > w.from ? `〜${hhmm(w.to)}` : ''}</b>`).join('、')}</div>` : '<div class="text-sm text-rose-600">なし</div>')}</div></div>
+    </div></div>`;
+}
+
 export const BOARD_ROW = 26; // 30分あたりの高さ（px）
 const SLOTS = (WORK_END - WORK_START) / SLOT_STEP;
 const topOf = (m) => ((m - WORK_START) / SLOT_STEP) * BOARD_ROW;
@@ -49,7 +82,7 @@ function blockHtml(b, selId, byId) {
   const top = topOf(b.start);
   const height = topOf(b.end) - top - 1;
   if (b.source !== 'reservation') { // 営業のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
-    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の営業・時間に動かせます`)}"><b>確 ${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
+    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の営業・時間に動かせます`)}"><b>確 ${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
@@ -65,7 +98,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(7.5rem,1fr));min-width:${2.25 + cols.length * 7.5}rem`;
   const head = cols.map((c) => {
     const t = c.mine.filter(isTentative).length;
-    return `<div class="border-b bg-slate-50 px-1 py-0.5 text-center"><div>${avatarHtml(c.user, 26)}</div><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id))}
+    return `<div class="border-b bg-slate-50 px-1 py-0.5 text-center"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id))}
       ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-600' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div></div>`;
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
@@ -83,7 +116,7 @@ function boardDetailHtml(r, reservations, now) {
   const others = reservations.filter((x) => x.id !== r.id && !isCancelled(x));
   const travel = area ? travelAround(busyBlocks(r.userId, r.date, others, now), minOf(r.start), minOf(r.end), locateAddress(r.customer.address, area)) : null;
   return `<div class="grid grid-cols-[1fr_auto] gap-3 px-3 py-2 text-sm">
-    <div class="space-y-0.5"><div><b>${esc(r.customer.name)}</b> 様（${genderLabel(r.gender)}）　${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}</div>
+    <div class="space-y-0.5"><div><b>${esc(r.customer.name)}</b> 様${genderParen(r.gender)}　${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}</div>
       <div class="text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
       <div class="text-xs">売りたいもの：${esc(r.hearing.wants)}</div>
       <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
@@ -103,7 +136,7 @@ export function dispatcherHtml({ date, reservations, now, chips, view = 'board',
       <div class="mt-1 flex gap-2 text-xs"><button class="underline text-sky-700" data-chg="${r.id}">日時変更</button><button class="underline text-rose-700" data-cancelres="${r.id}">取消</button></div>`);
   const body = rows.map((r) => `<tr class="border-t align-top ${isCancelled(r) ? 'bg-slate-100 text-slate-400 line-through' : needsReview(r) ? 'bg-rose-50' : isTentative(r) ? '' : 'bg-emerald-50/50'}">
       <td class="whitespace-nowrap font-bold">${esc(r.start)}〜${esc(r.end)}</td>
-      <td><b>${esc(r.customer.name)}</b> 様（${genderLabel(r.gender)}）<div class="text-xs text-slate-500">${esc(r.receptionNo)} ／ ${esc(r.customer.phone)}</div>${needsReview(r) ? `<div class="mt-0.5 text-xs text-rose-700">変更：${diffText(r) || '—'}</div>` : ''}${r.holdNote && isTentative(r) ? `<div class="mt-0.5 text-xs text-violet-700">確認待ち：${esc(r.holdNote)}</div>` : ''}</td>
+      <td><b>${esc(r.customer.name)}</b> 様${genderParen(r.gender)}<div class="text-xs text-slate-500">${esc(r.receptionNo)} ／ ${esc(r.customer.phone)}</div>${needsReview(r) ? `<div class="mt-0.5 text-xs text-rose-700">変更：${diffText(r) || '—'}</div>` : ''}${r.holdNote && isTentative(r) ? `<div class="mt-0.5 text-xs text-violet-700">確認待ち：${esc(r.holdNote)}</div>` : ''}</td>
       <td class="max-w-[16rem]" title="${esc(r.customer.address)}">${esc(trunc(r.customer.address, 26))}<div class="text-xs text-slate-500">${esc(areaById(r.areaId)?.name ?? '例外対応')}</div></td>
       <td class="max-w-[14rem] text-xs" title="${esc(r.hearing.wants)}">${esc(trunc(r.hearing.wants, 40))}</td>
       <td>${assignee(r, reservations, now)}</td>

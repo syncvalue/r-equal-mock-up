@@ -15,6 +15,7 @@ export const mapUrl = (address) => `https://www.google.com/maps/search/?api=1&qu
 const pct = (m) => Math.min(100, Math.max(0, ((m - WORK_START) / (WORK_END - WORK_START)) * 100));
 const GENDER = { f: '女性', m: '男性' };
 export const genderLabel = (g) => GENDER[g] ?? '';
+export const genderParen = (g) => (GENDER[g] ? `（${GENDER[g]}）` : ''); // 性別が分からない予約（営業の元からの予定）は、かっこごと出さない
 
 // ---- 時間帯のバー ------------------------------------------------------------------
 // 訪問の帯の色は、仮確定が薄い青、確定済みが濃い青。営業の元からの予定も、確定済みの訪問として、濃い青で出す（アポは、基本的にすべて電話でオペレーターが入れるため、出どころの区別はしない）
@@ -184,7 +185,7 @@ export function attShade(att, rowH) {
 }
 
 // 得意分野のタグ。お客様の売りたいものと合うものは、緑で強調する
-const specTags = (userId, form) => {
+export const specTags = (userId, form) => {
   const list = specialtiesOf(userId);
   const hit = new Set(matchedSpecialties(list, form));
   return list.map((s) => `<span class="rounded px-1 text-[10px] ${hit.has(s) ? 'bg-emerald-100 font-bold text-emerald-800' : 'bg-slate-100 text-slate-600'}" ${hit.has(s) ? 'title="お客様の売りたいものと合います"' : ''}>${hit.has(s) ? '◎ ' : ''}${esc(s)}</span>`).join('');
@@ -377,7 +378,7 @@ export function doneHtml(r) {
     <dl class="text-sm grid grid-cols-[7rem_1fr] gap-y-1">
       <dt class="text-slate-500">受付番号</dt><dd class="font-bold">${esc(r.receptionNo)}</dd>
       <dt class="text-slate-500">訪問日時</dt><dd class="font-bold">${esc(r.date)} ${esc(r.start)}〜${esc(r.end)}</dd>
-      <dt class="text-slate-500">お客様</dt><dd class="font-bold">${esc(r.customer.name)} 様（${genderLabel(r.gender)}）　${esc(r.customer.phone)}${r.customer.phone2 ? ` ／ ${esc(r.customer.phone2)}` : ''}</dd>
+      <dt class="text-slate-500">お客様</dt><dd class="font-bold">${esc(r.customer.name)} 様${genderParen(r.gender)}　${esc(r.customer.phone)}${r.customer.phone2 ? ` ／ ${esc(r.customer.phone2)}` : ''}</dd>
       <dt class="text-slate-500">訪問先</dt><dd>${esc(r.customer.address)}</dd>
       <dt class="text-slate-500">担当営業（仮）</dt><dd class="font-bold">${esc(u?.name)}（${esc(areaById(r.areaId)?.name ?? '例外対応')}）</dd>
     </dl>

@@ -9,7 +9,7 @@ import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
 import { OPERATORS, CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
-import { dispatcherHtml, BOARD_ROW } from './dispatcherView.js';
+import { dispatcherHtml, staffModalHtml, BOARD_ROW } from './dispatcherView.js';
 import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
 import { callHistory } from '../src/callHistory.js';
@@ -50,6 +50,7 @@ let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ず
 let callLogOpen = false; // 受電履歴を開いているか
 let editBy = null; // 変更を始めた人（オペレーター／配車係）
 let editId = null; // 受付済みの予約の日時を変更しているとき、その予約
+let staffInfoId = null; // 顔写真を押して、詳細をモーダルで見ている営業
 let cancelId = null; // 取消の確認を出している予約
 let cancelReason = CANCEL_REASONS[0];
 let dispView = 'board'; // 配車確定の表示: board=カレンダー / list=一覧
@@ -313,6 +314,7 @@ function render() {
   </header>
   ${tab === 'new' ? renderNew() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), view: dispView, area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
+  ${staffInfoId && tab === 'dispatch' ? staffModalHtml({ userId: staffInfoId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
   ${cancelId ? cancelModalHtml(loadReservations().find((r) => r.id === cancelId), cancelReason) : ''}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
   if (tab === 'new') { renderDispatch(); renderTranscript(); }
@@ -400,7 +402,7 @@ function updateChecklist() {
   list.forEach((x) => document.querySelectorAll(`[data-badge="${x.key}"]`).forEach((el) => { el.innerHTML = badgeHtml(x.asked, x.estimated); }));
 }
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('button, [data-pick], [data-bsel]');
+  const t = e.target.closest('button, [data-pick], [data-bsel], [data-staffclose]');
   if (!t) return;
   const d = t.dataset;
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
@@ -456,9 +458,11 @@ document.addEventListener('click', (e) => {
     if (editId === (r?.id ?? null)) { editId = null; form = blankForm(); }
     if (r) flash(`${r.customer.name} 様の受付を取り消しました`); else render();
   }
+  else if (d.staffinfo) { staffInfoId = d.staffinfo; render(); }
+  else if ('staffclose' in d) { staffInfoId = null; render(); }
   else if (d.dview) { dispView = d.dview; render(); }
   else if (d.barea) { boardArea = d.barea; render(); }
-  else if (d.bsel) { boardSel = boardSel === d.bsel ? null : d.bsel; render(); }
+  else if (d.bsel) { selectBlock(d.bsel, t); render(); }
   else if (d.ack) { acknowledgeReservation(d.ack); render(); }
   else if (d.showday) { dispDate = d.showday; render(); }
   else if (d.ddate) { dispDate = d.ddate; render(); }
@@ -477,6 +481,19 @@ document.addEventListener('click', (e) => {
   }
   else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); try { localStorage.removeItem(SAMPLE_KEY); } catch { /* 消せなくても動作は継続 */ } seedSamples(); stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; render(); } }
 });
+
+// カレンダーの帯を選ぶ。営業の元からの予定（予約の記録がないもの）は、選んだ時点で予約として取り込み、ほかの予約と同じように、詳細・変更・取消ができるようにする
+function selectBlock(idOrGid, el) {
+  if (loadReservations().some((r) => r.id === idOrGid)) { boardSel = boardSel === idOrGid ? null : idOrGid; return; }
+  const userId = el.closest('[data-bcol]')?.dataset.bcol;
+  const block = userId ? busyBlocks(userId, dispDate, loadReservations()).find((b) => b.gid === idOrGid) : null;
+  if (!block) return;
+  const rec = reservationFromBlock(block, { userId, date: dispDate, seq: loadMovedIds().length + 1 });
+  addReservation(rec);
+  addMovedId(block.gid);
+  syncHidden();
+  boardSel = rec.id;
+}
 
 // ---- 配車係のカレンダー: 予約の帯をドラッグして、別の営業・時間に動かす（パズルのように調整する） ------------------------------------
 let dragging = null; // { id, rec, mins, grab, all }
@@ -555,6 +572,8 @@ document.addEventListener('drop', (e) => {
   flash(`${who} 様を、${nameOf(t.userId)} ${fields.start}〜 に動かしました`);
 });
 
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && staffInfoId) { staffInfoId = null; render(); } });
 
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
 window.addEventListener('storage', (e) => {
