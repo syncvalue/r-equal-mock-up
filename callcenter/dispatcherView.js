@@ -6,6 +6,7 @@ import { dayTravel, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, attend
 import { isTentative, isCancelled, isReverted, needsReview, reviewDiffs } from '../src/reservations.js';
 import { customerProfile, customerDossier, visitLines, lineTotal } from '../src/customerHistory.js';
 import { callHistory } from '../src/callHistory.js';
+import { assignAdvice } from '../src/customerProfileView.js';
 import { customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
 
@@ -55,6 +56,19 @@ const ymd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${d.get
 const yenText = (n) => `¥${Number(n || 0).toLocaleString('ja-JP')}`;
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
 
+// お客様の評価の登録・変更（配車係）。営業が入力した、アポごとの評価（下の買取履歴の各回）を見て、お客様の評価を登録する
+function customerEvalEditor(p, phone) {
+  if (!phone) return '';
+  const sel = (key, opts, cur) => `<select class="inp !py-0.5" data-ce="${key}">${opts.map(([v, t]) => `<option value="${v}" ${v === (cur ?? '') ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+  return `<details class="rounded border bg-white p-1.5"><summary class="cursor-pointer text-xs font-bold text-fuchsia-800">✎ お客様の評価を登録・変更する</summary>
+    <div class="mt-1.5 grid grid-cols-2 gap-2 text-xs" data-custeval="${esc(phone)}">
+      <label class="space-y-0.5"><span class="text-slate-500">顧客ランク（資産・売却の見込み）</span>${sel('rank', [['', '（未設定）'], ['S', 'S'], ['A', 'A'], ['B', 'B'], ['C', 'C']], p.rank && !p.rankAuto ? p.rank : '')}</label>
+      <label class="space-y-0.5"><span class="text-slate-500">厄介度</span>${sel('level', [['none', 'なし'], ['caution', '注意'], ['alert', '要注意']], p.trouble.level)}</label>
+      <label class="col-span-2 space-y-0.5"><span class="text-slate-500">厄介な点（読点「、」で区切る）</span><input class="inp !py-0.5" data-ce="tags" value="${esc(p.trouble.tags.join('、'))}" placeholder="例: クレームが多い、売却に至らない" /></label>
+      <label class="col-span-2 space-y-0.5"><span class="text-slate-500">お客様のメモ</span><textarea class="inp !py-0.5" rows="2" data-ce="memo" placeholder="例: 資産は多いが、成約まで時間がかかる">${esc(p.memo ?? '')}</textarea></label>
+      <div class="col-span-2 flex items-center gap-2"><button class="b b-pri !min-h-0 !py-1" data-custeval-save>保存</button><span class="text-[11px] text-slate-500">アポごとの評価（営業が入力）を見て登録します。初めてのアポは、そのアポの評価が、初期値として設定されます。</span></div></div></details>`;
+}
+
 export function customerModalHtml({ rid, reservations, now }) {
   const r = reservations.find((x) => x.id === rid);
   if (!r) return '';
@@ -89,13 +103,14 @@ export function customerModalHtml({ rid, reservations, now }) {
       ${d.visits.length > RECENT ? `<details class="rounded border border-dashed bg-white"><summary class="cursor-pointer px-1.5 py-1 text-xs font-bold text-slate-600">さらに以前の ${d.visits.length - RECENT}回分を表示</summary><div class="max-h-64 space-y-1 overflow-y-auto p-1">${d.visits.slice(RECENT).map((v) => visitHtml(v, false)).join('')}</div></details>` : ''}</div>` : '<div class="text-xs text-slate-500">買取の実績はありません（新規のお客様）</div>';
   const calls = callHistory(phones, reservations).slice(0, 5);
   return `<div class="fixed inset-0 z-[60] flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/40" data-custclose></div>
-    <div class="relative z-10 max-h-[92vh] w-[48rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">
+    <div data-custmodal class="relative z-10 max-h-[92vh] w-[48rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">
       <div class="flex items-start justify-between gap-3">
         <div class="space-y-1"><div class="text-lg font-bold">${esc(r.customer.name)} 様 <span class="text-sm font-normal text-slate-500">${esc(r.customer.kana ?? '')}</span></div>
           <div class="flex flex-wrap items-center gap-1.5">${custRankBadge(p)}${troubleBadge(p)}${cooloffBadge(p)}${h.profile ? `<span class="text-xs ${String(h.profile).includes('未確認') ? 'text-slate-400' : 'text-slate-600'}" title="受電時に聞き取った、お客様の性別・年齢（聞けずに声から推測した場合は「推測」と付きます）">性別・年齢：${esc(h.profile)}</span>` : ''}</div>
           <div class="text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc(phones.join(' ／ '))}</div></div>
         <button class="b b-sec !min-h-0 !py-1" data-custclose title="閉じる（Esc）">✕ 閉じる</button></div>
-      ${box('誰を当てるかの判断の手がかり', `${customerProfileHtml(p, { advice: true })}
+      ${box('お客様の評価（お客様情報に紐づく。アポごとの評価とは別）', `${customerProfileHtml(p)}${customerEvalEditor(p, r.customer.phone || r.customer.phone2)}`)}
+      ${box('誰を当てるかの判断の手がかり', `${assignAdvice(p) || '<div class="text-xs text-slate-500">特に注意する点はありません</div>'}
         <div class="text-xs"><span class="text-slate-500">これまでの担当：</span>${d.staff.length ? d.staff.map((n) => `<b>${esc(n)}</b>`).join('、') : '<span class="text-slate-500">なし（新規・担当の記録なし）</span>'}</div>`)}
       ${box('過去の買取履歴（アポごとの品目と、営業の評価・メモ）', visits)}
       <div class="grid grid-cols-2 gap-3">

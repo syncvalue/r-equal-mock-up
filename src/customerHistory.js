@@ -1,6 +1,7 @@
 // お客様の利用履歴（初めて／リピーター、何回目か）と、過去の評価。
 // 過去の利用・評価は、ダミーの履歴に加えて、このアプリで保存した契約・評価も数える。
 import { loadContracts, loadEvals } from './store.js';
+import { loadCustomerEval, saveCustomerEval, customerEvalFromVisit } from './customerEval.js';
 
 // 買取の品目の1行（名前・数量・金額）。品目の内訳がない記録は、品目名と合計から1行にする
 const L = (name, price, qty = 1) => ({ name, qty, price });
@@ -103,14 +104,17 @@ const AUTO_RANK = [[1000000, 'S'], [500000, 'A'], [200000, 'B'], [1, 'C']];
 export function customerProfile(phones) {
   const list = [...new Set(phones.filter(Boolean))];
   const seeds = list.map((p) => SEED[p]).filter(Boolean);
-  const manual = seeds.find((s) => s.profile)?.profile ?? null;
+  const stored = loadCustomerEval(list); // 登録されたお客様の評価（アポの評価とは別に管理）
+  const seedProfile = seeds.find((s) => s.profile)?.profile ?? null;
+  const manual = stored ?? seedProfile;
   const sum = purchaseSummary(list);
   const autoRank = AUTO_RANK.find(([min]) => sum.total >= min)?.[1] ?? null;
   const trouble = manual?.trouble ?? { level: 'none', tags: [] }; // 厄介度は、人が登録したものだけ（営業の評価から、自動では上げない）
-  const cooloff = [...(manual?.cooloff ?? [])].sort((a, b) => b.at - a.at);
+  const cooloff = [...(stored?.cooloff?.length ? stored.cooloff : seedProfile?.cooloff ?? [])].sort((a, b) => b.at - a.at); // クーリングオフ歴は、契約の記録。お客様の評価を登録し直しても、消えない
   return {
     rank: manual?.rank ?? autoRank, rankAuto: !manual?.rank && Boolean(autoRank), purchase: sum,
     trouble: { level: trouble.level, tags: trouble.tags ?? [], memo: trouble.memo ?? '' }, cooloff,
+    memo: manual?.memo ?? '', meta: stored ? { by: stored.updatedBy, at: stored.updatedAt, source: stored.source } : null,
     known: Boolean(manual) || sum.count > 0,
   };
 }
@@ -153,9 +157,18 @@ export function historyOf(customer, { visitId = null, before = Infinity } = {}) 
     .filter((c) => c.customer?.phone === customer.phone && c.sentAt < before)
     .map((c) => ({ at: c.sentAt, items: c.items.map((i) => i.name).join('・'), total: c.total, visitId: c.visitId, lines: c.items.map((i) => ({ name: i.name, qty: i.qty ?? 1, price: i.price })) }));
   const evals = [...seed.evals, ...loadEvals().filter((e) => e.phone === customer.phone && e.visitId !== visitId)];
-  const visits = [...seed.visits, ...contracts].sort((a, b) => b.at - a.at);
+  const visits = [...seed.visits, ...contracts].sort((a, b) => b.at - a.at).map((v) => ({ ...v, eval: evalOfVisit(v, evals) })); // 各アポに、そのアポの評価を結びつける
   return {
     visits, count: visits.length, isRepeat: visits.length > 0, ordinal: visits.length + 1,
     latestEval: evals.sort((a, b) => b.savedAt - a.savedAt)[0] ?? null,
   };
+}
+
+// 営業がアポの評価を保存したとき、これが初めてのアポで、お客様の評価が未登録なら、そのアポの評価を、お客様の評価の初期値にする
+export function setFirstVisitCustomerEval(record, { before = Infinity } = {}) {
+  const phone = record.phone;
+  if (!phone || loadCustomerEval([phone]) || SEED[phone]?.profile) return false;
+  if (historyOf({ phone }, { visitId: record.visitId, before }).count > 0) return false; // 2回目以降のアポは、自動では設定しない
+  saveCustomerEval(phone, customerEvalFromVisit(record), { by: '自動（初回のアポの評価）', source: 'first-visit' });
+  return true;
 }

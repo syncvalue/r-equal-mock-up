@@ -13,6 +13,7 @@ import { dispatcherHtml, staffModalHtml, customerModalHtml, BOARD_ROW } from './
 import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
 import { callHistory } from '../src/callHistory.js';
+import { saveCustomerEval } from '../src/customerEval.js';
 import { purchaseSummary, customerProfile, historyCustomers } from '../src/customerHistory.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
@@ -457,6 +458,16 @@ document.addEventListener('click', (e) => {
     cancelId = null;
     if (editId === (r?.id ?? null)) { editId = null; form = blankForm(); }
     if (r) flash(`${r.customer.name} 様の受付を取り消しました`); else render();
+  }
+  else if ('custevalSave' in d) { // 配車係が、お客様の評価を登録する（アポごとの評価とは別）
+    const box = document.querySelector('[data-custeval]');
+    const val = (k) => box?.querySelector(`[data-ce="${k}"]`)?.value ?? '';
+    if (box) {
+      saveCustomerEval(box.dataset.custeval, {
+        rank: val('rank'), trouble: { level: val('level'), tags: val('tags').split(/[、,，\n]+/).map((x) => x.trim()).filter(Boolean), memo: '' }, memo: val('memo').trim(),
+      }, { by: '配車係', source: 'manual' });
+      flash('お客様の評価を登録しました');
+    }
   }
   else if (d.custinfo) { custInfoRid = d.custinfo; render(); }
   else if ('custclose' in d) { custInfoRid = null; render(); }

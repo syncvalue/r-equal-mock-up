@@ -11,6 +11,7 @@ import * as V from './views.js';
 import { initTheme } from './theme.js';
 import { userById, isLeader } from './dashboard.js';
 import { ACCOUNTS } from './auth.js';
+import { setFirstVisitCustomerEval } from './customerHistory.js';
 const ACCOUNTS_BY_USER = (userId) => ACCOUNTS.find((a) => a.userId === userId) ?? null;
 import { messagesFor, hqMessagesFor, leaderMessagesFor } from './messages.js';
 import { EVENTS, eventById, eventsOfDay } from './schedule.js';
@@ -612,9 +613,11 @@ const actions = {
   },
   'eval-save': () => {
     const e = state.evalDraft;
-    upsertEval({
+    const record = {
       visitId: state.visitId, customerName: state.customer.name, phone: state.customer.phone, savedAt: Date.now(), by: `営業 ${userById(state.user).name}`, ...e, memo: e.memo.trim(),
-    });
+    };
+    upsertEval(record); // 営業が入力するのは、アポごとの評価
+    setFirstVisitCustomerEval(record, { before: state.visitStartedAt ?? Infinity }); // 初めてのアポなら、お客様の評価の初期値にもなる（あとから登録し直せる）
     set({ evaluation: { ...e, memo: e.memo.trim() }, modal: null });
     showToast('お客様の評価を保存しました');
   },
