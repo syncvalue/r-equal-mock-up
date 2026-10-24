@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { USERS } from '../src/dashboard.js';
-import { attendanceOf, canPlace, conflictText, isAbsent, dispatchOptions, salesDetail, RANKS, rankOfUser, haversineKm, locateAddress, travelAround, areaById, fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
+import { dayTravel, travelLegs, attendanceOf, canPlace, conflictText, hiddenBlocks, isAbsent, dispatchOptions, salesDetail, RANKS, rankOfUser, haversineKm, locateAddress, travelAround, areaById, fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
 import { nextReceptionNo, dayOffset, reservationToEvent, ymdOf } from '../src/reservations.js';
 
 const NOW = new Date(2026, 9, 21, 9, 0); // 2026-10-21
@@ -306,4 +306,38 @@ test('勤怠: 空き人数・空き時刻の範囲・移動先の判定にも、
   assert.equal(canPlace(rec, 'u12', 14 * 60, [rec], NOW).ok, true);
   assert.deepEqual([canPlace(rec, 'u12', 10 * 60, [rec], NOW).ok, canPlace(rec, 'u12', 10 * 60, [rec], NOW).reason], [false, '午後出社（13:00から）']);
   assert.equal(canPlace(rec, 'u03', 14 * 60, [rec], NOW).reason, '午後半休（13:00まで）');
+});
+
+test('元の予定を動かして取り込んでも、元の位置に、別のダミー予定が現れない（重ならない）', () => {
+  const dates = Array.from({ length: 40 }, (_, i) => ymdOf(new Date(2026, 9, 21 + i)));
+  let withTwo = 0;
+  for (const u of USERS) for (const date of dates) {
+    const all = busyBlocks(u.id, date, [], NOW).filter((b) => b.source === 'dummy');
+    if (all.length >= 2) withTwo += 1;
+    for (const hide of all) {
+      hiddenBlocks.add(hide.gid);
+      const rest = busyBlocks(u.id, date, [], NOW).filter((b) => b.source === 'dummy');
+      hiddenBlocks.delete(hide.gid);
+      assert.deepEqual(rest.map((b) => b.gid), all.filter((b) => b.gid !== hide.gid).map((b) => b.gid), `${u.name} ${date}`); // 残りは変わらず、新しい予定は増えない
+    }
+    for (const a of all) for (const b of all) if (a !== b) assert.ok(a.end + 30 <= b.start || b.end + 30 <= a.start, `${u.name} ${date} が重なる`);
+  }
+  assert.ok(withTwo > 5); // 1日に2件以上ある日も、見本として、ある
+});
+
+test('1日の移動距離: アポからアポへの距離と、1日の合計（概算）', () => {
+  const blocks = [
+    { start: 600, end: 660, label: 'A', lat: 34.65, lng: 135.5 },
+    { start: 720, end: 780, label: 'B', lat: 34.70, lng: 135.5 },
+    { start: 900, end: 960, label: 'C', lat: 34.70, lng: 135.56 },
+  ];
+  const t = dayTravel(blocks);
+  assert.equal(t.legs.length, 2);
+  assert.deepEqual([t.legs[0].from.label, t.legs[0].to.label, t.legs[0].gap], ['A', 'B', 60]);
+  assert.ok(t.legs[0].km > 5 && t.legs[0].km < 6 && t.legs[0].min > 0 && t.legs[0].tight === false); // 約5.6km
+  assert.equal(t.km, Math.round((t.legs[0].km + t.legs[1].km) * 10) / 10);
+  assert.deepEqual(dayTravel([blocks[0]]), { legs: [], km: 0, min: 0, count: 1 }); // 1件なら移動なし
+  const near = travelLegs([{ start: 600, end: 660, lat: 34.6, lng: 135.4 }, { start: 670, end: 720, lat: 34.9, lng: 135.9 }]); // 間隔10分で、遠い
+  assert.equal(near[0].tight, true);
+  assert.equal(travelLegs([{ start: 600, end: 660 }, { start: 700, end: 760, lat: 1, lng: 1 }]).length, 0); // 座標のない予定は飛ばす
 });

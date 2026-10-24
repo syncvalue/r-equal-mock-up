@@ -161,19 +161,22 @@ function fillerBlocks(userId, date, hidden, now) {
   const att = attendanceOf(userId, date, now);
   if (att.kind === 'absent') return []; // 欠勤の日に、予定は入らない
   const rnd = hash(`${userId}/${date}`);
-  const blocks = [];
+  const blocks = []; // 表に出す予定（取り込んで動かした元の予定は含めない）
+  const taken = []; // 重なりの判定に使う、作った予定すべて（動かした元の位置にも、別の予定が現れないように）
   for (let i = 0, n = Math.floor(rnd() * 3); i < n; i += 1) {
     const start = 570 + Math.floor(rnd() * 14) * SLOT_STEP;
     const end = start + (rnd() < 0.5 ? 60 : 90);
     // 午後出社・午後半休の日は、休みの時間帯に予定は入らない。乱数の並びは変えず、働く時間の外に出る予定だけを外す
-    if (start >= att.from && end <= att.to && !blocks.some((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER)) {
+    if (start >= att.from && end <= att.to && !taken.some((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER)) {
       const areaId = areaOfUser(userId);
       const pick = Math.floor(hash(`${userId}/${date}/${start}/客`)() * 100); // 空き状況の乱数列を変えないよう、別の乱数で決める
       const gid = `flr:${userId}/${date}/${start}`;
-      if (!hidden.has(gid)) blocks.push({
+      const block = {
         gid, start, end, label: `${DUMMY_NAMES[pick % DUMMY_NAMES.length]} 様`, source: 'dummy',
         ...locateAddress(`${userId}/${date}/${start}`, areaById(areaId)), place: (DUMMY_ADDRESS[areaId] ?? [''])[Math.floor(pick / 8) % 4],
-      });
+      };
+      taken.push(block);
+      if (!hidden.has(gid)) blocks.push(block);
     }
   }
   return blocks;
@@ -332,4 +335,28 @@ export function canPlace(rec, userId, start, reservations, now = new Date()) {
   const others = reservations.filter((r) => r.id !== rec.id);
   const conflict = conflictOf(busyBlocks(userId, rec.date, others, now, rec.gid ? [rec.gid] : null), start, end, att); // 取り込む前の予定を動かすときは、その予定自身を除く
   return conflict ? { ok: false, reason: conflictText(conflict) } : { ok: true, reason: '', start, end };
+}
+
+// ---- 1日の移動（アポからアポへ） --------------------------------------------------------
+// 連続するアポの間の移動距離（概算）。gap=アポとアポの間の時間（分）、tight=移動時間が間隔に収まらない
+export function travelLegs(blocks) {
+  const list = [...blocks].sort((a, b) => a.start - b.start);
+  const legs = [];
+  for (let i = 0; i + 1 < list.length; i += 1) {
+    const a = list[i];
+    const b = list[i + 1];
+    if (a.lat == null || b.lat == null) continue;
+    const km = Math.round(haversineKm(a, b) * 10) / 10;
+    const min = Math.round((km * 60) / AVG_SPEED_KMH);
+    const gap = b.start - a.end;
+    legs.push({ from: a, to: b, km, min, gap, tight: min > gap });
+  }
+  return legs;
+}
+
+// その日の総移動距離（アポからアポへの合計）。アポが2件未満なら、移動なし
+export function dayTravel(blocks) {
+  const legs = travelLegs(blocks);
+  const km = Math.round(legs.reduce((n, l) => n + l.km, 0) * 10) / 10;
+  return { legs, km, min: legs.reduce((n, l) => n + l.min, 0), count: blocks.length };
 }

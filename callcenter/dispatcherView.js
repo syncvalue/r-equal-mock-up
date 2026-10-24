@@ -2,7 +2,7 @@
 // 確定した訪問だけが、営業のタブレットの予定に出る。
 import { esc } from '../src/format.js';
 import { USERS, isLeader } from '../src/dashboard.js';
-import { conflictText, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, attendanceOf, inOffTime, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
+import { conflictText, dayTravel, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, attendanceOf, inOffTime, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { isTentative, isCancelled, needsReview, reviewDiffs } from '../src/reservations.js';
 import { dateLabel, genderLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock } from './view.js';
 import { avatarHtml } from './avatar.js';
@@ -39,6 +39,7 @@ export function staffModalHtml({ userId, date, reservations, now }) {
   const d = salesDetail({ userId, date, start: WORK_START, dur: 90, reservations, now });
   if (!d) return '';
   const { user, month, fairness: f } = d;
+  const dt = dayTravel(d.blocks);
   const area = areaById(d.areaId);
   const box = (title, body) => `<section class="space-y-1 rounded-lg border bg-slate-50 p-2"><h3 class="text-xs font-bold text-slate-500">${title}</h3>${body}</section>`;
   const plans = d.blocks.length ? d.blocks.map((b) => `<div class="flex items-start gap-1.5 text-xs"><b class="w-24 shrink-0">${hhmm(b.start)}–${hhmm(b.end)}</b><span class="min-w-0"><span class="mr-1 rounded px-1 text-[10px] font-bold text-white ${blockCls(b)}">${isTentativeBlock(b) ? '仮' : '確'}</span>${esc(b.label)}${b.place ? `<span class="block truncate text-slate-500">${esc(b.place)}</span>` : ''}</span></div>`).join('') : '<div class="text-xs text-slate-500">予定なし</div>';
@@ -57,6 +58,7 @@ export function staffModalHtml({ userId, date, reservations, now }) {
             <div class="text-sm">売上 <b>${wan(month.amount)}</b> ／ 目標 ${wan(month.target)}</div>
             <div class="relative h-2 rounded bg-slate-200"><div class="h-2 rounded ${month.achieve >= month.pace ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${Math.min(100, month.achieve * 100)}%"></div><div class="absolute -top-0.5 h-3 w-0.5 bg-slate-700" style="left:${Math.min(100, month.pace * 100)}%" title="今月の経過（${pct(month.pace)}）"></div></div>
             <div class="text-xs text-slate-500">達成 ${pct(month.achieve)}（今月の経過 ${pct(month.pace)}）　平均単価 ${wan(month.avg)}</div>`)}
+          ${box(`${dateLabel(date)}の移動（概算）`, dt.legs.length ? `<div class="text-sm">総移動 <b>${dt.km}km</b>（約${dt.min}分）</div>${dt.legs.map((l) => `<div class="text-xs ${l.tight ? 'text-rose-700' : 'text-slate-600'}">${hhmm(l.from.end)} ${esc(l.from.label)} → ${hhmm(l.to.start)} ${esc(l.to.label)}　<b>${l.km}km</b>・約${l.min}分${l.tight ? '　⚠ 間隔に収まらない' : ''}</div>`).join('')}` : '<div class="text-xs text-slate-500">移動なし（アポが2件未満）</div>')}
           ${box('今月の担当件数', `<div class="text-sm">計 <b>${f.total}</b>件 ／ 女性 <b>${f.female}</b>件（${pct(f.femaleShare)}）／ 男性 ${f.male}件</div>`)}</div>
         <div class="space-y-3">
           ${box(`${dateLabel(date)}の予定（${d.blocks.length}件）`, `${plans}`)}
@@ -75,7 +77,16 @@ function boardColumns(date, reservations, now, areaId) {
   return USERS.filter((u) => areaId === 'all' || areaOfUser(u.id) === areaId).sort((a, b) => a.id.localeCompare(b.id)).map((user) => ({
     user, att: attendanceOf(user.id, date, now), absent: attendanceOf(user.id, date, now).kind === 'absent', blocks: busyBlocks(user.id, date, live, now),
     mine: live.filter((r) => r.userId === user.id && r.date === date),
-  }));
+  })).map((c) => ({ ...c, travel: dayTravel(c.blocks) }));
+}
+
+// アポとアポの間に、移動の距離と時間を出す（間隔に収まらないときは、赤で警告）
+function legsHtml(legs) {
+  return legs.map((l) => {
+    const gapPx = Math.max(0, topOf(l.to.start) - topOf(l.from.end));
+    const y = topOf(l.from.end) + gapPx / 2;
+    return `<div class="pointer-events-none absolute left-1/2 z-[25] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-1.5 text-[10px] font-bold leading-4 shadow-sm ${l.tight ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-300 bg-white/95 text-slate-600'}" style="top:${y}px" title="${esc(`${l.from.label}から${l.to.label}へ ${l.km}km・約${l.min}分（アポの間隔 ${l.gap}分）${l.tight ? '　移動が間隔に収まりません' : ''}`)}">${l.tight ? '⚠ ' : '🚗 '}${l.km}km・${l.min}分</div>`;
+  }).join('');
 }
 
 function blockHtml(b, selId, byId, att) {
@@ -101,11 +112,11 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const head = cols.map((c) => {
     const t = c.mine.filter(isTentative).length;
     return `<div class="border-b bg-slate-50 px-1 py-0.5 text-center"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id))}
-      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-600' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div></div>`;
+      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-600' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div>${c.travel.legs.length ? `<div class="text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-700' : 'text-slate-600'}" title="その日のアポからアポへの移動の合計（概算）">🚗 計${c.travel.km}km・約${c.travel.min}分</div>` : ''}</div>`;
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => `<div class="relative border-l" data-bcol="${c.user.id}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW}px)`}">
-    ${c.blocks.map((b) => blockHtml(b, selId, byId, c.att)).join('')}${attShade(c.att, BOARD_ROW)}
+    ${c.blocks.map((b) => blockHtml(b, selId, byId, c.att)).join('')}${legsHtml(c.travel.legs)}${attShade(c.att, BOARD_ROW)}
     ${c.absent ? '<div class="pointer-events-none absolute inset-x-0 top-2 z-20 text-center"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : ''}</div>`).join('');
   return `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axis}${body}</div></div>`;
 }
