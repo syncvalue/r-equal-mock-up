@@ -1,4 +1,4 @@
-import { reservationEvents } from './reservations.js';
+import { reservationEvents, loadMovedIds } from './reservations.js';
 
 // 訪問予定（静的なダミーデータ）。日付は「今日からの日数」で持ち、常に今日を起点に3日分を表示する。
 export const OFFICE = { name: '営業所', address: '大阪府大阪市天王寺区上汐5丁目1-1', lat: 34.6623, lng: 135.5174 };
@@ -50,7 +50,7 @@ EVENTS.push(
 );
 
 // 静的なダミーの予定に、コールセンターが確定した予約を加えたもの
-const allEvents = () => [...EVENTS, ...reservationEvents()];
+const allEvents = () => { const moved = new Set(loadMovedIds()); return [...EVENTS.filter((e) => !moved.has(e.id)), ...reservationEvents()]; }; // 配車係が動かした予定は、元の位置から外す
 export const eventsOfDay = (day, userId = null) => allEvents().filter((e) => e.day === day && (!userId || e.userId === userId)).sort((a, b) => a.start.localeCompare(b.start));
 export const eventById = (id) => allEvents().find((e) => e.id === id);
 export const toMin = (hhmm) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));

@@ -150,7 +150,10 @@ const DUMMY_ADDRESS = {
 // 予定が入っていない営業（入社間もなく、まだ訪問が少ない想定）。「前のアポなし（営業所から）」の例として、常に空く
 const LIGHT_SCHEDULE = new Set(['u09']);
 
-function fillerBlocks(userId, date) {
+// 配車係が別の営業・時間に動かして、予約として取り込んだ元の予定（動かしたあとは、元の位置には出さない）。画面側が、保存先から入れる
+export const hiddenBlocks = new Set();
+
+function fillerBlocks(userId, date, hidden) {
   if (LIGHT_SCHEDULE.has(userId)) return [];
   const rnd = hash(`${userId}/${date}`);
   const blocks = [];
@@ -160,8 +163,9 @@ function fillerBlocks(userId, date) {
     if (!blocks.some((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER)) {
       const areaId = areaOfUser(userId);
       const pick = Math.floor(hash(`${userId}/${date}/${start}/客`)() * 100); // 空き状況の乱数列を変えないよう、別の乱数で決める
-      blocks.push({
-        start, end, label: `${DUMMY_NAMES[pick % DUMMY_NAMES.length]} 様`, source: 'dummy',
+      const gid = `flr:${userId}/${date}/${start}`;
+      if (!hidden.has(gid)) blocks.push({
+        gid, start, end, label: `${DUMMY_NAMES[pick % DUMMY_NAMES.length]} 様`, source: 'dummy',
         ...locateAddress(`${userId}/${date}/${start}`, areaById(areaId)), place: (DUMMY_ADDRESS[areaId] ?? [''])[Math.floor(pick / 8) % 4],
       });
     }
@@ -170,10 +174,12 @@ function fillerBlocks(userId, date) {
 }
 
 // その日の、営業の埋まっている時間帯。既存の予定があればそれを、なければダミーを使い、コールセンターで確定済みの予約を加える
-export function busyBlocks(userId, date, reservations, now = new Date()) {
+export function busyBlocks(userId, date, reservations, now = new Date(), extraHidden = null) {
   const day = dayOffset(date, now);
-  const real = EVENTS.filter((e) => e.userId === userId && e.day === day).map((e) => ({ start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event', lat: e.lat, lng: e.lng, place: e.customer.address }));
-  const base = real.length ? real : fillerBlocks(userId, date);
+  const hidden = extraHidden ? new Set([...hiddenBlocks, ...extraHidden]) : hiddenBlocks;
+  const realAll = EVENTS.filter((e) => e.userId === userId && e.day === day);
+  const real = realAll.filter((e) => !hidden.has(e.id)).map((e) => ({ gid: e.id, ev: e, start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event', lat: e.lat, lng: e.lng, place: e.customer.address }));
+  const base = realAll.length ? real : fillerBlocks(userId, date, hidden); // 既存の予定がある日は、ダミーを足さない（動かして空になっても、ダミーは出さない）
   const mine = reservations
     .filter((r) => r.userId === userId && r.date === date && r.status !== 'cancelled')
     .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', rid: r.id, review: Boolean(r.needsReview), status: r.status === 'tentative' ? 'tentative' : 'confirmed', lat: r.lat, lng: r.lng, place: r.customer.address }));
@@ -318,6 +324,6 @@ export function canPlace(rec, userId, start, reservations, now = new Date()) {
   if (start < WORK_START || end > WORK_END) return { ok: false, reason: '営業時間外' };
   const att = attendanceOf(userId, rec.date, now);
   const others = reservations.filter((r) => r.id !== rec.id);
-  const conflict = conflictOf(busyBlocks(userId, rec.date, others, now), start, end, att);
+  const conflict = conflictOf(busyBlocks(userId, rec.date, others, now, rec.gid ? [rec.gid] : null), start, end, att); // 取り込む前の予定を動かすときは、その予定自身を除く
   return conflict ? { ok: false, reason: conflictText(conflict) } : { ok: true, reason: '', start, end };
 }

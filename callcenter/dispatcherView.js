@@ -48,8 +48,8 @@ function boardColumns(date, reservations, now, areaId) {
 function blockHtml(b, selId, byId) {
   const top = topOf(b.start);
   const height = topOf(b.end) - top - 1;
-  if (b.source !== 'reservation') {
-    return `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${top}px;height:${height}px" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（営業の訪問予定。動かせません）`)}"><b>${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
+  if (b.source !== 'reservation') { // 営業のスケジュールに元からある予定。ドラッグすると、予約として取り込んで動かす
+    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（営業の予定）　ドラッグで、別の営業・時間に動かせます`)}"><b>${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
@@ -126,7 +126,7 @@ export function dispatcherHtml({ date, reservations, now, chips, view = 'board',
       <p class="px-3 pb-2 text-xs text-slate-500">オペレーターが仮確定した訪問を、1日分を見ながら調整して確定します。確定した訪問だけが、営業のタブレットの予定に出ます（主に翌々日の予定を、毎日確定します）。</p>
       ${view === 'board' ? `<div class="border-t px-3 py-1.5 flex flex-wrap items-center gap-2"><span class="text-xs font-bold text-slate-500">エリア</span>
         ${[...AREAS.map((a) => [a.id, a.name]), ['all', '全エリア']].map(([k, t]) => { const n = rows.filter((r) => !isCancelled(r) && (k === 'all' || r.areaId === k)).length; return `<button class="chip ${area === k ? 'on' : ''}" data-barea="${k}">${esc(t)}${n ? `<span class="ml-1 rounded-full bg-indigo-500 px-1.5 text-[11px] text-white">${n}</span>` : ''}</button>`; }).join('')}
-        <span class="ml-2">${legendHtml({ want: false })}</span></div>
+        <span class="ml-2">${legendHtml({ want: false })}</span><span class="text-[11px] text-slate-500">帯は、どれもドラッグで動かせます</span></div>
         <div class="px-3 pb-2">${boardHtml({ date, reservations, now, area, selId })}</div>
         <div class="border-t">${boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now)}</div>` : rows.length ? `<div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-slate-100 text-slate-600"><tr><th>訪問時間</th><th>お客様</th><th>訪問先</th><th>売りたいもの</th><th>担当営業</th><th>状態</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`
         : `<p class="p-8 text-center text-slate-400">${dateLabel(date)}の受付はありません</p>`}

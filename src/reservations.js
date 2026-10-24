@@ -1,6 +1,17 @@
 // コールセンターが確定した訪問予約。営業アプリ・本社画面と共有するため localStorage に保存する。
 // schedule.js から読み込まれるため、他のモジュールには依存しない（循環を避ける）。
 export const RESERVATION_KEY = 'rq-mock-reservations';
+// 配車係が動かして、予約として取り込んだ元の予定（営業のスケジュールに元からあった予定）の識別子
+export const MOVED_KEY = 'rq-mock-moved-blocks';
+export const loadMovedIds = () => {
+  try {
+    const list = JSON.parse(localStorage.getItem(MOVED_KEY));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+};
+export const addMovedId = (id) => localStorage.setItem(MOVED_KEY, JSON.stringify([...new Set([...loadMovedIds(), id])]));
 
 export const loadReservations = () => {
   try {

@@ -2,8 +2,8 @@
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を仮確定する。担当の確定は配車係が行い（配車確定タブ）、確定した予約が営業アプリの予定に出る。
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
-import { canPlace, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
-import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
+import { canPlace, hiddenBlocks, busyBlocks, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
+import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
@@ -15,6 +15,7 @@ import { sampleReservations } from './samples.js';
 import { callHistory } from '../src/callHistory.js';
 import { purchaseSummary, historyCustomers } from '../src/customerHistory.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
+import { reservationFromBlock } from './adopt.js';
 import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
@@ -292,7 +293,11 @@ const tentativeBadge = () => {
   return `${n ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-xs text-amber-950" title="仮確定">${n}</span>` : ''}${rv ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-xs text-white" title="確定済みが変更されて、仮確定に戻りました">変更${rv}</span>` : ''}`;
 };
 
+// 配車係が動かして取り込んだ元の予定は、元の位置に出さない
+const syncHidden = () => { hiddenBlocks.clear(); loadMovedIds().forEach((id) => hiddenBlocks.add(id)); };
+
 function render() {
+  syncHidden();
   $('#root').innerHTML = `
   <header class="bg-teal-800 text-white px-6 h-[52px] flex justify-between items-center">
     <div class="font-bold text-xl">📞 コールセンター 受付・配車 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
@@ -493,6 +498,18 @@ function showGhost(col, t) {
   col.appendChild(g);
 }
 document.addEventListener('dragstart', (e) => {
+  const gray = e.target.closest?.('[data-gid]'); // 営業の予定（灰色）
+  if (gray) {
+    const col = gray.closest('[data-bcol]');
+    const gid = gray.dataset.gid;
+    const block = busyBlocks(col.dataset.bcol, dispDate, loadReservations()).find((b) => b.gid === gid);
+    if (!block) return;
+    const rec = { id: `AD-${gid}`, gid, userId: col.dataset.bcol, date: dispDate, start: minToHHMM(block.start), end: minToHHMM(block.end) };
+    dragging = { id: rec.id, rec, block, mins: block.end - block.start, grab: e.clientY - gray.getBoundingClientRect().top, all: loadReservations() };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', gid);
+    return;
+  }
   const el = e.target.closest?.('[data-rid]');
   if (!el) return;
   const all = loadReservations();
@@ -515,17 +532,27 @@ document.addEventListener('drop', (e) => {
   e.preventDefault();
   const t = dropTarget(e, col);
   const v = canPlace(dragging.rec, t.userId, t.start, dragging.all);
-  const before = dragging.rec;
+  const { rec: before, block } = dragging;
   dragging = null;
   showGhost(null);
   if (!v.ok) { flash(`そこには置けません（${v.reason}）`); return; }
   if (t.userId === before.userId && minToHHMM(v.start) === before.start) return; // 動いていない
   const nameOf = (id) => USERS.find((u) => u.id === id)?.name ?? id;
   const fields = { userId: t.userId, start: minToHHMM(v.start), end: minToHHMM(v.end) };
-  amendReservation(before.id, fields, '配車係', diffRecords(before, { ...before, ...fields }, nameOf), { notify: false });
-  boardSel = before.id;
-  flash(`${before.customer.name} 様を、${nameOf(t.userId)} ${fields.start}〜 に動かしました${isTentative(before) ? '' : '（確定済みのため、仮確定に戻りました）'}`);
+  let rec = before;
+  if (block) { // 営業の予定（灰色）を、予約として取り込む。元の位置からは外す
+    rec = reservationFromBlock(block, { userId: before.userId, date: before.date, seq: loadMovedIds().length + 1 });
+    addReservation(rec);
+    addMovedId(block.gid);
+    syncHidden();
+  }
+  const was = rec.status !== 'tentative';
+  amendReservation(rec.id, fields, '配車係', diffRecords(rec, { ...rec, ...fields }, nameOf), { notify: false });
+  boardSel = rec.id;
+  const who = rec.customer?.name ?? '予定';
+  flash(`${who} 様を、${nameOf(t.userId)} ${fields.start}〜 に動かしました${was ? '（確定済みのため、仮確定に戻りました）' : ''}`);
 });
+
 
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
 window.addEventListener('storage', (e) => {
