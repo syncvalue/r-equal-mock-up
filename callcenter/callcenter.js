@@ -310,7 +310,7 @@ function render() {
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">受付者 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${OPERATORS.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
       ${tab === 'new' && !editId ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">🎙 音声入力デモ${demoOpen ? 'を閉じる' : '（今後の拡張）'}</button>` : ''}
-      <a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">営業アプリを開く</a>
+      <a class="underline text-white/80 text-xs" href="/tablet/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
   ${tab === 'new' ? renderNew() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
@@ -602,7 +602,7 @@ function seedSamples() {
   sampleReservations().forEach(addReservation);
 }
 
-// 画面一覧（/menu/）から、その画面を直接開くためのリンク: ?tab=new|dispatch ／ ?demo=1（音声入力デモ）／ ?area=osaka|hyogo|kanto|tokai|all ／ ?day=0〜4（配車確定の日。今日からの日数）
+// 画面一覧（トップ /）から、その画面を直接開くためのリンク: ?tab=new|dispatch ／ ?demo=1（音声入力デモ）／ ?area=osaka|hyogo|kanto|tokai|all ／ ?day=0〜4（配車確定の日。今日からの日数）
 function applyDeepLink() {
   try {
     const q = new URLSearchParams(location.search);

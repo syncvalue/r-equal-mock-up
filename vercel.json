@@ -1,8 +1,32 @@
 {
   "rewrites": [
-    { "source": "/honsha", "destination": "/honsha/index.html" },
-    { "source": "/gmosign", "destination": "/gmosign/index.html" },
-    { "source": "/callcenter", "destination": "/callcenter/index.html" },
-    { "source": "/menu", "destination": "/menu/index.html" }
+    {
+      "source": "/honsha",
+      "destination": "/honsha/index.html"
+    },
+    {
+      "source": "/gmosign",
+      "destination": "/gmosign/index.html"
+    },
+    {
+      "source": "/callcenter",
+      "destination": "/callcenter/index.html"
+    },
+    {
+      "source": "/tablet",
+      "destination": "/tablet/index.html"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/menu",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/menu/",
+      "destination": "/",
+      "permanent": false
+    }
   ]
 }
