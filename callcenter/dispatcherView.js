@@ -2,9 +2,9 @@
 // 確定した訪問だけが、営業のタブレットの予定に出る。
 import { esc } from '../src/format.js';
 import { USERS } from '../src/dashboard.js';
-import { AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, isAbsent, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
+import { conflictText, AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, attendanceOf, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { isTentative, isCancelled, needsReview, reviewDiffs } from '../src/reservations.js';
-import { dateLabel, genderLabel, rankBadge, statusBadge, blockCls, legHtml, legendHtml } from './view.js';
+import { dateLabel, genderLabel, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade } from './view.js';
 import { avatarHtml } from './avatar.js';
 
 // 変更の内容（項目名 変更前→変更後）
@@ -24,7 +24,7 @@ function assignee(r, reservations, now) {
   const fewest = Math.min(...pickable.map((o) => metric(o, r.gender)));
   const cur = opts.find((o) => o.current);
   const fairer = r.gender === 'f' && cur ? fairerAlternative(r.gender, cur, opts) : null; // 女性のお客様で、より担当の少ない空き営業がいれば知らせる
-  const label = (o) => `${pickable.includes(o) && metric(o, r.gender) === fewest ? '⭐ ' : ''}${o.user.name}（${o.rank ?? '-'}）今月 ${statLabel(o.stats, r.gender)}${o.free || o.current ? '' : o.absent ? '　× 欠勤' : '　× 予定が重なる'}`;
+  const label = (o) => `${pickable.includes(o) && metric(o, r.gender) === fewest ? '⭐ ' : ''}${o.user.name}（${o.rank ?? '-'}）今月 ${statLabel(o.stats, r.gender)}${o.free || o.current ? '' : o.absent ? '　× 欠勤' : o.conflict?.kind === 'shift' ? `　× ${conflictText(o.conflict)}` : '　× 予定が重なる'}`;
   return `<select class="inp !w-auto" data-reassign="${r.id}" title="担当の営業を変更できます（⭐＝今月の担当が最も少ない人。欠勤・予定が重なる営業は選べません）">${opts.map((o) => `<option value="${o.user.id}" ${o.current ? 'selected' : ''} ${o.free || o.current ? '' : 'disabled'}>${esc(label(o))}</option>`).join('')}</select>
     ${cur ? `<div class="mt-0.5 flex items-center gap-1 text-xs text-slate-600">${avatarHtml(cur.user, 20)}${rankBadge(cur.rank)} 今月 ${statLabel(cur.stats, r.gender)}件</div>` : ''}
     ${fairer ? `<div class="mt-0.5 text-xs text-rose-700">⚖ <b>${esc(fairer.user.name)}</b>の方が女性担当が少ない（${fairer.stats.female}件／選択中 ${cur.stats.female}件）</div>` : ''}`;
@@ -40,7 +40,7 @@ const minOf = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + 
 function boardColumns(date, reservations, now, areaId) {
   const live = reservations.filter((r) => !isCancelled(r));
   return USERS.filter((u) => areaId === 'all' || areaOfUser(u.id) === areaId).sort((a, b) => a.id.localeCompare(b.id)).map((user) => ({
-    user, absent: isAbsent(user.id, date, now), blocks: busyBlocks(user.id, date, live, now),
+    user, att: attendanceOf(user.id, date, now), absent: attendanceOf(user.id, date, now).kind === 'absent', blocks: busyBlocks(user.id, date, live, now),
     mine: live.filter((r) => r.userId === user.id && r.date === date),
   }));
 }
@@ -66,11 +66,11 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const head = cols.map((c) => {
     const t = c.mine.filter(isTentative).length;
     return `<div class="border-b bg-slate-50 px-1 py-0.5 text-center"><div>${avatarHtml(c.user, 26)}</div><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id))}
-      <div class="text-[10px] ${c.absent ? 'font-bold text-slate-600' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div></div>`;
+      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-600' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div></div>`;
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => `<div class="relative border-l" data-bcol="${c.user.id}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW}px)`}">
-    ${c.blocks.map((b) => blockHtml(b, selId, byId)).join('')}
+    ${c.blocks.map((b) => blockHtml(b, selId, byId)).join('')}${attShade(c.att, BOARD_ROW)}
     ${c.absent ? '<div class="pointer-events-none absolute inset-x-0 top-2 z-20 text-center"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : ''}</div>`).join('');
   return `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axis}${body}</div></div>`;
 }

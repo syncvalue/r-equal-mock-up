@@ -62,12 +62,24 @@ export const RANKS = ['S', 'A', 'B', 'C'];
 export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
 
 // ---- 出勤状況 ------------------------------------------------------------------------
-// 全員が出勤しているとは限らない。欠勤の営業は、担当に選べない（ダミー: 営業×日付で決まる。予定の入っている日は出勤）
-export function isAbsent(userId, date, now = new Date()) {
+// 全員が1日中出勤しているとは限らない。欠勤の営業は担当に選べない。午後出社（午前休）・午後半休は、働く時間の中だけ選べる。
+// ダミー: 営業×日付で決まる。予定の入っている日は通常の出勤。見本として、日付を指定した勤怠も入れている
+export const ATTENDANCE_LABEL = { absent: '欠勤', pm: '午後出社', am: '午後半休', present: '出勤' };
+const NOON = 13 * 60; // 午前と午後の境
+const FIXED_ATTENDANCE = { u03: { 2: 'am' }, u12: { 2: 'pm' }, u15: { 1: 'pm' }, u16: { 3: 'am' }, u14: { 2: 'absent' } }; // 今日からの日数 → 勤怠
+
+export function attendanceOf(userId, date, now = new Date()) {
   const day = dayOffset(date, now);
-  if (EVENTS.some((e) => e.userId === userId && e.day === day)) return false;
-  return mixedRandom(`${userId}/${date}/欠勤`)() < 0.12;
+  let kind = 'present';
+  if (!EVENTS.some((e) => e.userId === userId && e.day === day)) {
+    const r = mixedRandom(`${userId}/${date}/勤怠`)();
+    kind = FIXED_ATTENDANCE[userId]?.[day] ?? (r < 0.08 ? 'absent' : r < 0.15 ? 'pm' : r < 0.22 ? 'am' : 'present');
+  }
+  const from = kind === 'pm' ? NOON : WORK_START;
+  const to = kind === 'am' ? NOON : WORK_END;
+  return { kind, from: kind === 'absent' ? WORK_END : from, to: kind === 'absent' ? WORK_START : to, label: ATTENDANCE_LABEL[kind] };
 }
+export const isAbsent = (userId, date, now = new Date()) => attendanceOf(userId, date, now).kind === 'absent';
 
 // ---- 位置と移動距離（概算） ----------------------------------------------------------------
 // 住所の座標は、モックのため、エリアの中心から住所の文字で決まる位置（約10km圏内）で代用する。本番は、Googleマップの住所検索で座標を取得する
@@ -169,7 +181,8 @@ export function busyBlocks(userId, date, reservations, now = new Date()) {
 }
 
 // null なら空き。kind: hours=営業時間外 / overlap=予定と重なる / buffer=予定との間に移動時間が足りない
-export function conflictOf(blocks, start, end) {
+export function conflictOf(blocks, start, end, att = null) {
+  if (att && att.kind !== 'present' && (start < att.from || end > att.to)) return { kind: att.kind === 'absent' ? 'absent' : 'shift', block: null, att }; // 欠勤・午後出社・午後半休
   if (start < WORK_START || end > WORK_END) return { kind: 'hours', block: null };
   const hit = blocks.find((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER);
   if (!hit) return null;
@@ -180,6 +193,7 @@ export const conflictText = (c) => {
   if (!c) return '';
   if (c.kind === 'hours') return '営業時間外（9:00〜19:00）';
   if (c.kind === 'absent') return '欠勤';
+  if (c.kind === 'shift') return c.att.kind === 'pm' ? `午後出社（${minToHHMM(c.att.from)}から）` : `午後半休（${minToHHMM(c.att.to)}まで）`;
   const t = `${minToHHMM(c.block.start)}–${minToHHMM(c.block.end)} ${c.block.label}`;
   return c.kind === 'overlap' ? `${t} の予定と重なる` : `${t} の予定の前後30分（移動時間）にかかる`;
 };
@@ -216,9 +230,10 @@ export function rankCandidates({ gender, areaId, date, start, dur, reservations,
   const end = start + dur;
   const all = USERS.map((user) => {
     const blocks = busyBlocks(user.id, date, reservations, now);
-    const absent = isAbsent(user.id, date, now);
-    const conflict = absent ? { kind: 'absent', block: null } : conflictOf(blocks, start, end);
-    return { user, areaId: areaOfUser(user.id), rank: rankOfUser(user.id), blocks, absent, free: !conflict, conflict, travel: travelAround(blocks, start, end, here), stats: stats[user.id], recommended: false };
+    const att = attendanceOf(user.id, date, now);
+    const absent = att.kind === 'absent';
+    const conflict = conflictOf(blocks, start, end, att);
+    return { user, areaId: areaOfUser(user.id), rank: rankOfUser(user.id), blocks, att, absent, free: !conflict, conflict, travel: travelAround(blocks, start, end, here), stats: stats[user.id], recommended: false };
   });
   const inArea = all.filter((c) => areaId && c.areaId === areaId).sort(byFairness(gender));
   const others = all.filter((c) => !inArea.includes(c)).sort(byFairness(gender));
@@ -248,10 +263,10 @@ export function findWeekSlots({ userIds, startDate, days = 7, dur, reservations,
   const [y, m, d] = startDate.split('-').map(Number);
   return Array.from({ length: days }, (_, i) => {
     const date = ymdOf(new Date(y, m - 1, d + i));
-    const blocks = userIds.filter((id) => !isAbsent(id, date, now)).map((id) => ({ id, blocks: busyBlocks(id, date, reservations, now) })); // 欠勤の営業は数えない
+    const blocks = userIds.map((id) => ({ id, att: attendanceOf(id, date, now), blocks: busyBlocks(id, date, reservations, now) })).filter((b) => b.att.kind !== 'absent'); // 欠勤の営業は数えない
     const slots = [];
     for (let start = WORK_START; start + dur <= WORK_END; start += SLOT_STEP) {
-      slots.push({ start, freeIds: blocks.filter((b) => !conflictOf(b.blocks, start, start + dur)).map((b) => b.id) });
+      slots.push({ start, freeIds: blocks.filter((b) => !conflictOf(b.blocks, start, start + dur, b.att)).map((b) => b.id) });
     }
     return { date, slots };
   });
@@ -264,18 +279,19 @@ export function salesDetail({ userId, date, start, dur, reservations, here = nul
   const month = stats([user], rangeOf('month', now), now);
   const progress = monthProgress([user], now);
   const blocks = busyBlocks(userId, date, reservations, now);
-  const absent = isAbsent(userId, date, now);
+  const att = attendanceOf(userId, date, now);
+  const absent = att.kind === 'absent';
   const starts = [];
-  if (!absent) for (let m = WORK_START; m + dur <= WORK_END; m += SLOT_STEP) if (!conflictOf(blocks, m, m + dur)) starts.push(m);
+  if (!absent) for (let m = WORK_START; m + dur <= WORK_END; m += SLOT_STEP) if (!conflictOf(blocks, m, m + dur, att)) starts.push(m);
   // 開始できる時刻を、つながっている範囲にまとめる（例: 9:00〜10:30）
   const windows = starts.reduce((acc, m) => {
     const last = acc[acc.length - 1];
     if (last && m - last.to === SLOT_STEP) last.to = m; else acc.push({ from: m, to: m });
     return acc;
   }, []);
-  const conflict = absent ? { kind: 'absent', block: null } : conflictOf(blocks, start, start + dur);
+  const conflict = conflictOf(blocks, start, start + dur, att);
   return {
-    user, absent, rank: rankOfUser(userId), areaId: areaOfUser(userId),
+    user, absent, att, rank: rankOfUser(userId), areaId: areaOfUser(userId),
     month: { ...month, target: user.target, achieve: progress.rate, pace: progress.pace },
     fairness: fairnessStats(reservations, now)[userId],
     blocks, windows, conflict, travel: travelAround(blocks, start, start + dur, here),
@@ -289,9 +305,10 @@ export function dispatchOptions(rec, reservations, now = new Date()) {
   const end = toMin(rec.end);
   const stats = fairnessStats(reservations, now);
   return USERS.filter((u) => !rec.areaId || areaOfUser(u.id) === rec.areaId).map((user) => {
-    const absent = isAbsent(user.id, rec.date, now);
-    const conflict = absent ? { kind: 'absent', block: null } : conflictOf(busyBlocks(user.id, rec.date, others, now), start, end);
-    return { user, rank: rankOfUser(user.id), absent, free: !conflict, conflict, current: user.id === rec.userId, stats: stats[user.id] };
+    const att = attendanceOf(user.id, rec.date, now);
+    const absent = att.kind === 'absent';
+    const conflict = conflictOf(busyBlocks(user.id, rec.date, others, now), start, end, att);
+    return { user, rank: rankOfUser(user.id), att, absent, free: !conflict, conflict, current: user.id === rec.userId, stats: stats[user.id] };
   });
 }
 
@@ -299,8 +316,8 @@ export function dispatchOptions(rec, reservations, now = new Date()) {
 export function canPlace(rec, userId, start, reservations, now = new Date()) {
   const end = start + (toMin(rec.end) - toMin(rec.start));
   if (start < WORK_START || end > WORK_END) return { ok: false, reason: '営業時間外' };
-  if (isAbsent(userId, rec.date, now)) return { ok: false, reason: '欠勤' };
+  const att = attendanceOf(userId, rec.date, now);
   const others = reservations.filter((r) => r.id !== rec.id);
-  const conflict = conflictOf(busyBlocks(userId, rec.date, others, now), start, end);
+  const conflict = conflictOf(busyBlocks(userId, rec.date, others, now), start, end, att);
   return conflict ? { ok: false, reason: conflictText(conflict) } : { ok: true, reason: '', start, end };
 }
