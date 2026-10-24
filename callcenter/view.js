@@ -4,6 +4,7 @@ import { USERS, isLeader } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser, busyBlocks, conflictText, WORK_START, WORK_END, DURATIONS, SLOT_STEP } from '../src/dispatch.js';
 import { minToHHMM } from '../src/reservations.js';
 import { CHIRASHI, CATEGORIES, ATTENDEES } from './master.js';
+import { FIELD_LABELS } from './transcript.js';
 
 export const mapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 const pct = (m) => Math.min(100, Math.max(0, ((m - WORK_START) / (WORK_END - WORK_START)) * 100));
@@ -20,6 +21,23 @@ export function strip(blocks, req = null, { labels = false } = {}) {
   const bars = blocks.map((b) => `<div class="absolute top-0 bottom-0 ${SRC[b.source][0]} text-white text-[10px] leading-6 px-1 truncate" style="left:${pct(b.start)}%;width:${pct(b.end) - pct(b.start)}%" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}（${SRC[b.source][1]}）`)}">${labels ? esc(b.label) : ''}</div>`).join('');
   const r = req ? `<div class="absolute top-0.5 bottom-0.5 rounded border-2 ${req.free ? 'border-emerald-500 bg-emerald-400/40' : 'border-rose-500 bg-rose-400/40'}" style="left:${pct(req.start)}%;width:${pct(req.end) - pct(req.start)}%" title="希望の時間帯"></div>` : '';
   return `<div class="relative h-6 rounded bg-slate-100 overflow-hidden">${lines}${bars}${r}</div>`;
+}
+
+// ---- 通話の文字起こし（デモ） -----------------------------------------------------------
+export function transcriptHtml({ lines, playing, finished, total }) {
+  const bubble = (l) => `<div class="flex ${l.who === 'op' ? 'justify-start' : 'justify-end'}"><div class="max-w-[85%] rounded-lg px-3 py-1.5 text-sm ${l.who === 'op' ? 'bg-slate-100' : 'bg-teal-50 border border-teal-200'}">
+      <div class="text-[10px] text-slate-500">${l.who === 'op' ? 'オペレーター' : 'お客様'}</div>${esc(l.text)}
+      ${l.got?.length ? `<div class="mt-1 flex flex-wrap gap-1">${l.got.map((k) => `<span class="rounded bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.5">✎ ${esc(FIELD_LABELS[k])}</span>`).join('')}</div>` : ''}</div></div>`;
+  return `<section class="bg-white rounded-lg shadow p-4 space-y-2">
+    <div class="flex items-center justify-between gap-2 flex-wrap"><h2 class="font-bold text-teal-800">📝 通話の文字起こし <span class="text-xs font-normal bg-amber-100 text-amber-800 rounded px-1.5 py-0.5">デモ</span></h2>
+      <div class="flex gap-1">${playing ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="stop">⏸ 止める</button>' : `<button class="b b-pri !min-h-0 !py-1 text-sm" data-demo="start">${lines.length && !finished ? '▶ 再開' : '▶ 通話デモを再生'}</button>`}
+        ${lines.length ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="reset">やり直す</button>' : ''}</div></div>
+    <p class="text-xs text-slate-500">会話が文字になり、お客様の発話から項目を拾って、下の入力欄に自動でセットします（<span class="bg-amber-200 rounded px-1">黄色</span>が今入った項目）。拾った内容は、オペレーターが直接直せます。</p>
+    <div class="h-56 overflow-y-auto rounded border bg-white p-2 space-y-1.5" id="chat">${lines.length ? lines.map(bubble).join('') : '<p class="text-sm text-slate-400 text-center pt-16">「通話デモを再生」を押すと、受電の会話が始まります</p>'}
+      ${playing ? '<div class="text-xs text-slate-400 animate-pulse">● 通話中…</div>' : ''}</div>
+    <form class="flex gap-1" data-utter-form><input class="inp" data-utter placeholder="お客様の発話を入力して試す（例: 来週の月曜、午後3時でお願いします）" /><button class="b b-sec shrink-0" type="submit">反映</button></form>
+    ${finished ? `<p class="text-xs text-emerald-700 font-bold">通話が終わりました（${total}発話）。入力内容を確認して、右側で営業を選び、訪問を確定してください。</p>` : ''}
+  </section>`;
 }
 
 // ---- 入力フォーム ------------------------------------------------------------------

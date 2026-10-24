@@ -8,7 +8,8 @@ import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
 import { OPERATORS, CHIRASHI } from './master.js';
-import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl } from './view.js';
+import { boardHtml, dispatchHtml, doneHtml, formHtml, hintHtml, mapUrl, transcriptHtml } from './view.js';
+import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 
 const $ = (s) => document.querySelector(s);
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
@@ -38,6 +39,10 @@ let showOthers = false;
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
 let boardDate = addDays(1);
 let toast = '';
+let lines = []; // 文字起こし（{ who, text, got: 入力欄にセットした項目 }）
+let playing = false;
+let finished = false;
+let timer = null;
 
 // 電話番号が一致する、過去のお客様（既存の訪問予定・コールセンターの予約から探す）
 function findPast(phone) {
@@ -92,8 +97,62 @@ function confirmReservation() {
     customer: { name: form.name.trim(), kana: form.kana.trim(), phone: form.phone.trim(), zip: form.zip.trim(), address: form.address.trim() },
   };
   addReservation(record);
+  stopDemo();
   done = record;
   render();
+}
+
+// ---- 通話の文字起こし（デモ） ---------------------------------------------------------------
+const FLASH = { gender: '[data-gender].on', chirashi: '[data-chirashi].on', cats: '[data-cat].on', start: '[data-f="start"]', dur: '[data-dur].on' };
+function flashFields(keys) {
+  keys.forEach((k) => document.querySelectorAll(FLASH[k] ?? `[data-f="${k}"]`).forEach((el) => {
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    if (k === 'phone' || k === 'name') el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }));
+}
+
+// 発話を1つ追加し、お客様の発話なら項目を拾って入力欄にセットする
+function addUtterance(who, text) {
+  let got = [];
+  if (who === 'cu') {
+    const patch = extractFromUtterance(text, form, new Date(), form.dur);
+    got = changedFields(patch, form);
+    if (got.length) {
+      form = { ...form, ...patch };
+      if (patch.phone) quoted = false;
+      if (patch.date) weekStart = weekStartFor(patch.date);
+    }
+  }
+  lines = [...lines, { who, text, got }];
+  if (got.length) refresh();
+  renderTranscript();
+  flashFields(got);
+}
+
+function stopDemo() { clearTimeout(timer); playing = false; }
+function playNext() {
+  const idx = lines.length;
+  if (idx >= DEMO_SCRIPT.length) { playing = false; finished = true; renderTranscript(); return; }
+  addUtterance(DEMO_SCRIPT[idx].who, DEMO_SCRIPT[idx].text);
+  timer = setTimeout(playNext, 1800 + DEMO_SCRIPT[idx].text.length * 25);
+}
+function startDemo() {
+  if (done) return;
+  if (finished) { lines = []; finished = false; }
+  playing = true; renderTranscript();
+  timer = setTimeout(playNext, 400);
+}
+function resetDemo() { stopDemo(); lines = []; finished = false; form = blankForm(); weekStart = addDays(0); quoted = false; refresh(); renderTranscript(); }
+
+function renderTranscript() {
+  const el = $('#transcript');
+  if (!el) return;
+  const typed = $('[data-utter]')?.value ?? '';
+  el.innerHTML = transcriptHtml({ lines, playing, finished, total: DEMO_SCRIPT.length });
+  const input = $('[data-utter]');
+  if (input) input.value = typed;
+  const chat = $('#chat');
+  if (chat) chat.scrollTop = chat.scrollHeight;
 }
 
 // ---- 描画 -------------------------------------------------------------------------
@@ -111,7 +170,10 @@ function renderHint() {
 function renderNew() {
   return `
   <div class="grid grid-cols-[minmax(26rem,32rem)_1fr] gap-4 p-4 h-[calc(100vh-52px)]">
-    <div class="overflow-y-auto space-y-3 pr-1 ${done ? 'pointer-events-none opacity-60' : ''}" id="form">${formHtml(form, ymdOf(new Date()))}</div>
+    <div class="overflow-y-auto space-y-3 pr-1">
+      <div id="transcript" class="${done ? 'pointer-events-none opacity-60' : ''}"></div>
+      <div class="space-y-3 ${done ? 'pointer-events-none opacity-60' : ''}" id="form">${formHtml(form, ymdOf(new Date()))}</div>
+    </div>
     <div class="overflow-y-auto" id="dispatch"></div>
   </div>`;
 }
@@ -131,7 +193,7 @@ function render() {
   </header>
   ${tab === 'new' ? renderNew() : boardHtml({ date: boardDate, reservations: loadReservations(), stats: fairnessStats(loadReservations()), now: new Date(), days: [0, 1, 2, 3, 4, 5, 6].map((n) => ({ date: addDays(n) })) })}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
-  if (tab === 'new') renderDispatch();
+  if (tab === 'new') { renderDispatch(); renderTranscript(); }
 }
 
 const flash = (msg) => { toast = msg; render(); setTimeout(() => { toast = ''; render(); }, 2500); };
@@ -154,11 +216,22 @@ document.addEventListener('change', (e) => {
   onField(e);
 });
 
+document.addEventListener('submit', (e) => {
+  if (!e.target.matches('[data-utter-form]')) return;
+  e.preventDefault();
+  const input = e.target.querySelector('[data-utter]');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addUtterance('cu', text);
+});
+
 const refresh = () => { $('#form').innerHTML = formHtml(form, ymdOf(new Date())); renderDispatch(); };
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button, [data-pick]');
   if (!t) return;
   const d = t.dataset;
+  if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo })[d.demo](); return; }
   if (d.tab) { tab = d.tab; render(); }
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
   else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi) }; refresh(); }
@@ -174,13 +247,13 @@ document.addEventListener('click', (e) => {
     if (c) { form = { ...form, name: c.name, kana: c.kana, zip: c.zip, address: c.address }; quoted = true; refresh(); }
   }
   else if ('confirm' in d) confirmReservation();
-  else if ('new' in d) { form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
+  else if ('new' in d) { stopDemo(); lines = []; finished = false; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
   else if (d.bdate) { boardDate = d.bdate; render(); }
   else if (d.cancel) {
     const r = loadReservations().find((x) => x.id === d.cancel);
     if (r && confirm(`${r.receptionNo}（${r.customer.name} 様）の訪問を取り消します。営業の予定からも消えます。よろしいですか？`)) { removeReservation(r.id); render(); }
   }
-  else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); form = blankForm(); weekStart = addDays(0); done = null; render(); } }
+  else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); stopDemo(); lines = []; finished = false; form = blankForm(); weekStart = addDays(0); done = null; render(); } }
 });
 
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
