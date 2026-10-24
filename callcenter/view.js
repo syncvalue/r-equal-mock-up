@@ -25,9 +25,28 @@ export const legendHtml = ({ want = true } = {}) => `<span class="font-normal te
 const RANK_CLS = { S: 'bg-amber-400 text-slate-900', A: 'bg-indigo-600 text-white', B: 'bg-slate-500 text-white', C: 'bg-slate-300 text-slate-800' };
 export const rankBadge = (rank) => (rank ? `<span class="inline-block rounded px-1.5 text-[10px] font-bold leading-4 ${RANK_CLS[rank] ?? 'bg-slate-200'}" title="営業のランク">${esc(rank)}</span>` : '');
 
-// 前後のアポから、今回のお客様の住所までの距離（概算）
-const legText = (l, dir) => (l ? `${dir === 'prev' ? '⬅' : '➡'} ${l.at != null ? `${minToHHMM(l.at)} ` : ''}${l.label}　${l.km}km・約${l.min}分` : '');
-export const travelTitle = (t) => (t ? [t.prev && `前のアポ（${legText(t.prev, 'prev')}）`, t.next && `次のアポ（${legText(t.next, 'next')}）`].filter(Boolean).join(' ／ ') : '');
+// 前後のアポから、今回のお客様の住所までの距離（概算）。prev=直前のアポ（なければ営業所から）／next=直後のアポ。short=営業ごとの列の見出し用の短い表記
+const distText = (l) => `${l.km}km・約${l.min}分`;
+const legText = (l, dir, short = false) => {
+  if (!l) return '';
+  if (dir === 'prev') {
+    if (l.at == null) return `前のアポなし（営業所から）${distText(l)}`;
+    return short ? `前 ${l.label} ${minToHHMM(l.at)}終 ${distText(l)}` : `前のアポ ${l.label}（${minToHHMM(l.at)}終了）→ 今回のお客様宅まで ${distText(l)}`;
+  }
+  return short ? `次 ${l.label} ${minToHHMM(l.at)}始 ${distText(l)}` : `次のアポ ${l.label}（${minToHHMM(l.at)}開始）← 今回のお客様宅から ${distText(l)}`;
+};
+export const travelTitle = (t) => (t ? [legText(t.prev, 'prev'), legText(t.next, 'next')].filter(Boolean).join('\n') : '');
+// 担当候補の行に出す、色付きの見出し付きの表記
+const legHtml = (l, dir) => {
+  if (!l) return '';
+  const chip = (t, cls) => `<span class="mr-1 rounded px-1 text-[10px] font-bold ${cls}">${t}</span>`;
+  if (dir === 'prev') {
+    return l.at == null
+      ? `${chip('前のアポなし', 'bg-sky-100 text-sky-800')}営業所から <b class="text-slate-900">${l.km}km</b>・約${l.min}分`
+      : `${chip('前のアポ', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}終了）→ 今回のお客様宅まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;
+  }
+  return `${chip('次のアポ', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}開始）まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;
+};
 
 export const axis = () => `<div class="flex">${Array.from({ length: (WORK_END - WORK_START) / 60 }, (_, i) => `<span class="flex-1 text-[10px] text-slate-400">${9 + i}</span>`).join('')}</div>`;
 
@@ -170,11 +189,11 @@ function candidateRow(c, { selectedId, gender, showArea = false }) {
   const tag = (cls, t, title = '') => `<span class="rounded ${cls} text-[11px] font-bold px-1.5 py-0.5" ${title ? `title="${esc(title)}"` : ''}>${t}</span>`;
   return `
   <div class="rounded-lg border-2 px-2 py-1 bg-white ${c.free ? 'cursor-pointer hover:border-teal-500' : 'opacity-70'} ${on ? 'border-teal-600 ring-2 ring-teal-300' : 'border-slate-200'}" ${c.free ? `data-pick="${c.user.id}"` : ''}>
-    <div class="grid grid-cols-[8rem_6.5rem_9.5rem_1fr] items-center gap-2 text-xs">
+    <div class="grid grid-cols-[8rem_6rem_9.5rem_1fr] items-center gap-2 text-xs">
       <div class="truncate"><b class="text-sm">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)}${showArea ? `<span class="ml-1 text-[10px] text-slate-500">${esc(areaById(c.areaId)?.name ?? '')}</span>` : ''}</div>
       <div class="flex gap-1">${c.recommended ? tag('bg-amber-400 text-slate-900', '⭐', starTitle(gender)) : ''}${c.free ? tag('bg-emerald-100 text-emerald-800', '空き') : tag('bg-rose-100 text-rose-700', '不可')}</div>
       <div class="text-slate-600">${statText(c.stats, gender)}</div>
-      <div class="truncate text-slate-600" title="${esc(travelTitle(c.travel))}">${c.travel ? `🚗 ${esc(legText(c.travel.prev, 'prev'))}` : ''}</div>
+      <div class="min-w-0 text-[11px] leading-tight text-slate-600" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${legHtml(c.travel.prev, 'prev')}</div>${c.travel.next ? `<div class="truncate">${legHtml(c.travel.next, 'next')}</div>` : ''}` : ''}</div>
     </div>
     ${c.free ? '' : `<div class="text-[11px] text-rose-600">${esc(conflictText(c.conflict))}</div>`}
   </div>`;
@@ -227,7 +246,7 @@ export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
       <div class="text-[10px] text-slate-600 leading-tight">${statText(c.stats, form.gender)}</div>
       <div class="text-[10px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}">${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}</div></${tag}>`;
   }).join('');
-  const travel = cols.map((c) => `<div class="px-1 py-0.5 text-[10px] leading-tight text-slate-600 border-b min-h-[2.1rem]" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${esc(legText(c.travel.prev, 'prev'))}</div>${c.travel.next ? `<div class="truncate">${esc(legText(c.travel.next, 'next'))}</div>` : ''}` : ''}</div>`).join('');
+  const travel = cols.map((c) => `<div class="px-1 py-0.5 text-[10px] leading-tight text-slate-600 border-b min-h-[2.1rem]" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${esc(legText(c.travel.prev, 'prev', true))}</div>${c.travel.next ? `<div class="truncate">${esc(legText(c.travel.next, 'next', true))}</div>` : ''}` : ''}</div>`).join('');
   const axisCol = `<div class="relative" style="height:${h}px">${Array.from({ length: DAY_SLOTS / 2 }, (_, i) => `<span class="absolute right-1 text-[10px] text-slate-400 -translate-y-1/2" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => {
     const slots = Array.from({ length: DAY_SLOTS }, (_, i) => {
@@ -245,7 +264,7 @@ export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="-1" ${canPrev ? '' : 'disabled'} title="前の日">◀</button>
       <div class="text-sm font-bold">${dh.md}（${dh.w}）<span class="font-normal text-xs text-slate-500 ml-2">${form.dur}分 ${minToHHMM(form.start)}〜${minToHHMM(end)}</span></div>
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="1" title="次の日">▶</button></div>
-    <div class="grid" style="${grid}"><div class="border-b"></div>${head}<div class="border-b text-[10px] text-slate-400 text-right pr-1">距離</div>${travel}${axisCol}${body}</div>
+    <div class="grid" style="${grid}"><div class="border-b"></div>${head}<div class="border-b text-[10px] text-slate-400 text-right pr-1 leading-tight" title="今回のお客様宅までの距離">お客様宅まで</div>${travel}${axisCol}${body}</div>
     ${hasHere ? '' : '<div class="text-[11px] text-slate-400 mt-0.5">住所を入力すると、前後のアポからの距離を表示します</div>'}
     <div class="mt-0.5">${legendHtml()}<span class="text-[11px] text-slate-500">空いている枠を押すと、その営業・その時刻を選べます</span></div>
     <div class="text-[11px] text-slate-400">距離は住所からの概算（直前のアポがなければ営業所から）</div>

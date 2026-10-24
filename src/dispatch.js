@@ -15,7 +15,7 @@ export const AREAS = [
 export const areaById = (id) => AREAS.find((a) => a.id === id) ?? null;
 
 // 営業の担当エリア（ダミー）
-const USER_AREA = { u01: 'osaka', u02: 'osaka', u03: 'osaka', u06: 'hyogo', u07: 'hyogo', u04: 'kanto', u05: 'kanto', u08: 'tokai' };
+const USER_AREA = { u01: 'osaka', u02: 'osaka', u03: 'osaka', u06: 'hyogo', u07: 'hyogo', u04: 'kanto', u05: 'kanto', u08: 'tokai', u09: 'osaka', u10: 'tokai' };
 export const areaOfUser = (userId) => USER_AREA[userId] ?? null;
 
 const PREFS = [
@@ -47,7 +47,7 @@ const hash = (str) => {
 
 // ---- 営業のランク ------------------------------------------------------------------
 // 営業ごとのランク（ダミー。S が最上位）
-const USER_RANK = { u01: 'B', u02: 'S', u03: 'A', u04: 'C', u05: 'B', u06: 'S', u07: 'B', u08: 'C' };
+const USER_RANK = { u01: 'B', u02: 'S', u03: 'A', u04: 'C', u05: 'B', u06: 'S', u07: 'B', u08: 'C', u09: 'A', u10: 'B' };
 export const RANKS = ['S', 'A', 'B', 'C'];
 export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
 
@@ -117,7 +117,11 @@ const DUMMY_ADDRESS = {
 };
 
 // 予定のない日は、営業ごとに日付で決まる「他の訪問」（ダミー）を入れて、空き状況が見本になるようにする
+// 予定が入っていない営業（入社間もなく、まだ訪問が少ない想定）。「前のアポなし（営業所から）」の例として、常に空く
+const LIGHT_SCHEDULE = new Set(['u09']);
+
 function fillerBlocks(userId, date) {
+  if (LIGHT_SCHEDULE.has(userId)) return [];
   const rnd = hash(`${userId}/${date}`);
   const blocks = [];
   for (let i = 0, n = Math.floor(rnd() * 3); i < n; i += 1) {
@@ -164,7 +168,7 @@ export const conflictText = (c) => {
 // ---- 公平性（女性のお客様の担当件数） ---------------------------------------------------
 // 女性のお客様は客単価が高いため、女性の担当が特定の営業に偏らないようにする。今月の件数＝実績（ダミー）＋コールセンターで確定した予約
 const SEED = {
-  u01: [12, 5], u02: [14, 7], u03: [13, 4], u04: [10, 3], u05: [9, 5], u06: [15, 6], u07: [11, 2], u08: [8, 4],
+  u01: [12, 5], u02: [14, 7], u03: [13, 4], u04: [10, 3], u05: [9, 5], u06: [15, 6], u07: [11, 2], u08: [8, 4], u09: [10, 4], u10: [9, 3],
 };
 
 export function fairnessStats(reservations, now = new Date()) {

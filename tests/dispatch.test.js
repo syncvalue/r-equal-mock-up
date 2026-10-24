@@ -57,7 +57,7 @@ test('営業時間外は受けられない', () => {
 
 test('候補はエリア内の営業のみ。空いている人が先で、一人はおすすめになる', () => {
   const r = rankCandidates({ gender: 'f', areaId: 'osaka', date: '2026-10-25', start: 13 * 60, dur: 60, reservations: [], now: NOW });
-  assert.deepEqual(r.inArea.map((x) => x.user.id).sort(), ['u01', 'u02', 'u03']);
+  assert.deepEqual(r.inArea.map((x) => x.user.id).sort(), ['u01', 'u02', 'u03', 'u09']);
   assert.ok(r.others.every((x) => areaOfUser(x.user.id) !== 'osaka'));
   const frees = r.inArea.filter((x) => x.free);
   assert.equal(r.inArea.findIndex((x) => !x.free) === -1 ? frees.length : r.inArea.findIndex((x) => !x.free), frees.length);
@@ -186,4 +186,19 @@ test('候補に、ランクと移動距離が付く', () => {
   const here = locateAddress('大阪府大阪市阿倍野区1-2-3', areaById('osaka'));
   const { inArea } = rankCandidates({ gender: 'f', areaId: 'osaka', date: '2026-10-21', start: 780, dur: 90, reservations: [], here, now: NOW });
   assert.ok(inArea.every((c) => RANKS.includes(c.rank) && c.travel.prev.km >= 0));
+});
+
+test('営業は10名で、全員にエリア・ランク・今月の実績がある', () => {
+  assert.equal(USERS.length, 10);
+  assert.ok(USERS.every((u) => areaOfUser(u.id) && rankOfUser(u.id) && fairnessStats([], NOW)[u.id].total > 0));
+});
+
+test('予定のない営業は、直前のアポがなく、営業所からの距離になる', () => {
+  const here = locateAddress('大阪府大阪市阿倍野区1-2-3', areaById('osaka'));
+  const { inArea } = rankCandidates({ gender: 'f', areaId: 'osaka', date: '2026-10-27', start: 780, dur: 90, reservations: [], here, now: NOW });
+  const light = inArea.find((c) => c.user.id === 'u09');
+  assert.equal(light.free, true);
+  assert.equal(light.travel.prev.label, '営業所');
+  assert.equal(light.travel.prev.at, null);
+  assert.ok(light.travel.prev.km > 0);
 });

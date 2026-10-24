@@ -17,6 +17,8 @@ export const USERS = [
   { id: 'u06', name: '佐藤 大輔', group: 'B', role: 'leader', target: 5000000, skill: 0.72, base: 205000 },
   { id: 'u07', name: '伊藤 恵', group: 'B', role: 'member', target: 4000000, skill: 0.6, base: 195000 },
   { id: 'u08', name: '渡辺 蓮', group: 'B', role: 'member', target: 3500000, skill: 0.58, base: 175000 },
+  { id: 'u09', name: '松田 亮', group: 'B', role: 'member', target: 4000000, skill: 0.64, base: 170000 },
+  { id: 'u10', name: '青木 さくら', group: 'B', role: 'member', target: 3500000, skill: 0.57, base: 160000 },
 ];
 
 // 本社 査定部の担当者。担当するグループの営業の予定・訪問を、本社画面で見る
