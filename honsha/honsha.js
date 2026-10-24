@@ -286,7 +286,7 @@ function render() {
       ${itemsTable(v, aps, cs, approvals)}` : '<p class="text-slate-400 p-10 text-center">左の一覧から訪問を選択してください</p>'}
     </main>
     <aside class="bg-slate-50 border-l p-4 overflow-y-auto">${detailPanel(v, aps, cs, approvals)}</aside>
-  </div>${composeModal()}${cashModal()}`;
+  </div>${composeModal()}`;
   dirty = false;
 }
 
