@@ -4,7 +4,7 @@ import { CANCEL_REASONS } from './master.js';
 import { avatarHtml } from './avatar.js';
 import { matchedSpecialties } from './intake.js';
 import { USERS, isLeader } from '../src/dashboard.js';
-import { isTentative, isCancelled } from '../src/reservations.js';
+import { isTentative, isCancelled, isReverted } from '../src/reservations.js';
 import { specialtiesOf, AREAS, areaById, conflictOf, conflictText, WORK_START, WORK_END, DURATIONS, SLOT_STEP } from '../src/dispatch.js';
 import { minToHHMM } from '../src/reservations.js';
 import { CHIRASHI, CATEGORIES, AGE_BANDS, MAIN_ITEMS, MAIN_BANDS, ATTENDEES, YESNO, CONTACT_TIMES, flyerOf, isFlyerIndex } from './master.js';
@@ -19,13 +19,15 @@ export const genderParen = (g) => (GENDER[g] ? `（${GENDER[g]}）` : ''); // �
 
 // ---- 時間帯のバー ------------------------------------------------------------------
 // 訪問の帯の色は、仮確定が薄い青、確定済みが濃い青。営業の元からの予定も、確定済みの訪問として、濃い青で出す（アポは、基本的にすべて電話でオペレーターが入れるため、出どころの区別はしない）
-export const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? 'bg-indigo-400' : 'bg-indigo-700');
+// まだ一度も確定していない仮確定は薄い青、一度確定して仮確定に戻されたものは橙、確定済みは濃い青
+export const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? (b.reverted ? 'bg-amber-600' : 'bg-indigo-400') : 'bg-indigo-700');
 export const isTentativeBlock = (b) => b.source === 'reservation' && b.status === 'tentative';
-const blockKind = (b) => `訪問（${isTentativeBlock(b) ? '仮確定' : '確定済'}）`;
+const blockKind = (b) => `訪問（${isTentativeBlock(b) ? (b.reverted ? '確定から仮確定に戻った' : '仮確定') : '確定済'}）`;
+export const blockMark = (b) => (isTentativeBlock(b) ? (b.reverted ? '戻 ' : '仮 ') : '確 ');
 
 // 帯の色の意味（日別表示・担当候補で共通）
 export const legendHtml = ({ want = true } = {}) => `<span class="font-normal text-[11px] text-slate-600 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-400 align-middle"></i> 薄い青：仮確定</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-700 align-middle"></i> 濃い青：確定済み</span>
+  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-400 align-middle"></i> 薄い青：仮確定（未確定）</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-amber-600 align-middle"></i> 橙：確定から仮確定に戻った</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-700 align-middle"></i> 濃い青：確定済み</span>
   ${want ? '<span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-emerald-600 bg-emerald-400/25 align-middle"></i> 緑：希望時間帯（空き）</span><span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-rose-500 bg-rose-400/25 align-middle"></i> 赤：予定と重なる</span>' : ''}</span>`;
 
 // 営業のランク（S が最上位）
@@ -263,7 +265,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
       const free = !c.absent && m + form.dur <= WORK_END && !conflictOf(c.blocks, m, m + form.dur, c.att);
       return `<button class="block w-full text-left ${free ? 'hover:bg-emerald-200/70 cursor-pointer' : 'cursor-not-allowed'}" style="height:${DAY_ROW}px" ${free ? `data-dcell="${c.user.id}|${m}" title="${esc(`${c.user.name} ${minToHHMM(m)}〜${minToHHMM(m + form.dur)} で選ぶ`)}"` : 'disabled'}></button>`;
     }).join('');
-    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${blockKind(b)}）`)}"><b>${isTentativeBlock(b) ? '仮 ' : '確 '}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
+    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${blockKind(b)}）`)}"><b>${blockMark(b)}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
     const sel = c.user.id === selectedId;
     const away = c.absent ? '<div class="absolute inset-0 z-20 flex items-start justify-center pt-2 pointer-events-none"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : '';
     const want = sel && !c.absent ? `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${c.free ? 'border-emerald-600 bg-emerald-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"><span class="absolute -top-px right-0 rounded-bl bg-white/80 px-1 text-[9px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}">希望 ${minToHHMM(form.start)}〜</span></div>` : '';
@@ -393,9 +395,10 @@ export const dateLabel = (s) => { const [y, m, d] = s.split('-').map(Number); re
 
 export const statusBadge = (r) => {
   if (isCancelled(r)) return '<span class="rounded bg-slate-300 text-slate-700 text-xs font-bold px-1.5 py-0.5">取消</span>';
+  const everBack = isReverted(r) && !r.needsReview ? '<span class="ml-1 rounded bg-amber-600 text-white text-[10px] font-bold px-1 py-0.5" title="一度確定したが、仮確定に戻されました">戻り</span>' : '';
   const changed = r.needsReview ? '<span class="ml-1 rounded bg-rose-600 text-white text-[10px] font-bold px-1 py-0.5" title="確定済みの予約が変更されて、仮確定に戻りました">確定→変更</span>' : '';
   const hold = r.holdNote && isTentative(r) ? `<span class="ml-1 rounded bg-violet-100 text-violet-800 text-[10px] font-bold px-1 py-0.5" title="${esc(r.holdNote)}">確認待ち</span>` : '';
-  return `${isTentative(r) ? '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5">仮確定</span>' : '<span class="rounded bg-emerald-100 text-emerald-800 text-xs font-bold px-1.5 py-0.5">確定</span>'}${hold}${changed}`;
+  return `${isTentative(r) ? '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5">仮確定</span>' : '<span class="rounded bg-emerald-100 text-emerald-800 text-xs font-bold px-1.5 py-0.5">確定</span>'}${hold}${everBack}${changed}`;
 };
 
 // ---- 受付済みの予約の変更・取消 ------------------------------------------------------------

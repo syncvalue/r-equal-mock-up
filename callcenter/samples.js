@@ -17,7 +17,7 @@ const SAMPLES = [
   { off: 2, start: 810, dur: 90, area: 'osaka', status: 'cancelled', f: { lastName: '森本', firstName: '勝', lastKana: 'モリモト', firstKana: 'マサル', phone: '090-1357-2468', gender: 'm', age: '64', address: '大阪府大阪市東住吉区田辺2-6-7', flyerId: 'N1012', main: { 背広: 6 }, wants: '背広 数着', attendee: 'ご本人' } },
   // 明日・3日後・今日
   { off: 1, start: 660, dur: 60, area: 'osaka', status: 'confirmed', f: { lastName: '北村', firstName: '智子', lastKana: 'キタムラ', firstKana: 'トモコ', phone: '090-8800-1234', gender: 'f', age: '60', address: '大阪府大阪市北区天神橋3-2-1', flyerId: 'N1019', cats: ['貴金属・ジュエリー'], wants: '真珠のネックレス', attendee: 'ご本人' } },
-  { off: 1, start: 840, dur: 90, area: 'osaka', status: 'tentative', f: { lastName: '西岡', firstName: '孝', lastKana: 'ニシオカ', firstKana: 'タカシ', phone: '080-6600-4321', gender: 'm', age: '73', address: '大阪府枚方市岡東町12-1', flyerId: 'D1001', cats: ['腕時計'], wants: 'セイコー 数本', attendee: 'ご本人' } },
+  { off: 1, start: 840, dur: 90, area: 'osaka', status: 'tentative', hold: 'お客様に連絡して、回答待ち', f: { lastName: '西岡', firstName: '孝', lastKana: 'ニシオカ', firstKana: 'タカシ', phone: '080-6600-4321', gender: 'm', age: '73', address: '大阪府枚方市岡東町12-1', flyerId: 'D1001', cats: ['腕時計'], wants: 'セイコー 数本', attendee: 'ご本人' } },
   { off: 3, start: 630, dur: 90, area: 'osaka', status: 'tentative', f: { lastName: '藤本', firstName: '雅子', lastKana: 'フジモト', firstKana: 'マサコ', phone: '090-9922-3344', gender: 'f', age: '69', address: '大阪府大阪市北区中崎西2-4-12', flyerId: 'N1019', cats: ['着物・骨董'], wants: '着物 10点ほど', attendee: 'ご本人', companion: 'あり', companionNote: '娘様' } },
   { off: 3, start: 810, dur: 90, area: 'tokai', status: 'tentative', f: { lastName: '内山', firstName: '浩', lastKana: 'ウチヤマ', firstKana: 'ヒロシ', phone: '080-1212-3434', gender: 'm', age: '52', address: '愛知県名古屋市中村区名駅1-1-4', chirashi: 4, cats: ['ゲーム・ホビー'], wants: 'ゲーム機・ソフト 多数', attendee: 'ご本人' } },
   { off: 0, start: 900, dur: 60, area: 'osaka', status: 'confirmed', f: { lastName: '前川', firstName: '玲子', lastKana: 'マエカワ', firstKana: 'レイコ', phone: '090-5050-6060', gender: 'f', age: '57', address: '大阪府大阪市天王寺区上本町6-3-2', flyerId: 'N1012', cats: ['ブランドバッグ'], wants: 'エルメス 1点', attendee: 'ご本人' } },
@@ -47,9 +47,10 @@ export function sampleReservations(now = new Date()) {
     };
     if (sp.status === 'confirmed') Object.assign(rec, { confirmedAt: stampOf(new Date(received.getTime() + 20 * 3600000)), confirmedBy: '配車係' });
     if (sp.status === 'cancelled') Object.assign(rec, { status: 'cancelled', cancelReason: 'お客様のご都合（やめる）', cancelledAt: stampOf(new Date(received.getTime() + 22 * 3600000)), cancelledBy: '佐藤' });
+    if (sp.hold) Object.assign(rec, { everConfirmed: true, holdNote: sp.hold, revertedAt: stampOf(new Date(now.getTime() - 2 * 3600000)) }); // 配車係が、お客様に連絡するために、確定から仮に戻した見本
     if (sp.review) { // 確定済みだった予約が、日時を変更されて、仮確定に戻った見本
       const was = { date: ymdOf(day(3)), start: '13:00', end: '14:00', userId: pick.user.id };
-      Object.assign(rec, { needsReview: true, revertedAt: stampOf(new Date(now.getTime() - 3600000)), changes: [{ at: stampOf(new Date(now.getTime() - 3600000)), by: '渡辺', wasConfirmed: true,
+      Object.assign(rec, { needsReview: true, everConfirmed: true, revertedAt: stampOf(new Date(now.getTime() - 3600000)), changes: [{ at: stampOf(new Date(now.getTime() - 3600000)), by: '渡辺', wasConfirmed: true,
         diff: [{ label: '訪問日時', from: `${was.date} ${was.start}〜${was.end}`, to: `${rec.date} ${rec.start}〜${rec.end}` }, { label: '訪問先', from: '大阪府豊中市庄内東町1-1-1', to: rec.customer.address }] }] });
     }
     list.push(rec);

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // 保存先（localStorage）の代わり
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
-const { addReservation, loadReservations, updateReservation, reservationEvents, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, holdReservation, reviewDiffs, openReservationsFor } = await import('../src/reservations.js');
+const { addReservation, loadReservations, updateReservation, reservationEvents, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, holdReservation, isReverted, reviewDiffs, openReservationsFor } = await import('../src/reservations.js');
 
 const NOW = new Date(2026, 9, 24, 9, 0);
 const rec = (o) => ({
@@ -107,4 +107,19 @@ test('配車係が意図的に仮確定へ戻す（お客様に連絡して回�
   assert.equal(loadReservations()[0].holdNote, 'お客様に確認中'); // メモが空なら、既定の文言
   updateReservation('r1', { status: 'confirmed', holdNote: null });
   assert.equal(reservationEvents(NOW).length, 1);
+});
+
+test('一度確定して仮確定に戻った予約を、まだ一度も確定していない仮確定と区別する', () => {
+  addReservation(rec({ id: 'new', status: 'tentative' }));
+  addReservation(rec({ id: 'conf', status: 'confirmed', confirmedBy: '配車係' }));
+  addReservation(rec({ id: 'held', status: 'confirmed', confirmedBy: '配車係' }));
+  amendReservation('conf', { start: '09:30' }, '渡辺', []); // オペレーターの変更で、確定から戻る
+  holdReservation('held', 'お客様に連絡して、回答待ち'); // 配車係が意図的に戻す
+  const by = (id) => loadReservations().find((r) => r.id === id);
+  assert.deepEqual(['new', 'conf', 'held'].map((id) => isReverted(by(id))), [false, true, true]);
+  acknowledgeReservation('conf'); // 「確認した」でも、一度確定した事実は残る
+  assert.equal(isReverted(by('conf')), true);
+  updateReservation('conf', { status: 'confirmed' }); // 確定し直したら、通常の確定済み
+  assert.equal(isReverted(by('conf')), false);
+  assert.equal(isReverted({ status: 'tentative', changes: [{ wasConfirmed: true }] }), true); // 古い記録も、履歴から判定
 });

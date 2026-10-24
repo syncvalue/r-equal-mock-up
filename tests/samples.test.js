@@ -5,7 +5,7 @@ import { formFromRecord } from '../callcenter/record.js';
 import { blankForm } from '../callcenter/form.js';
 import { isAbsent, attendanceOf, inOffTime, busyBlocks } from '../src/dispatch.js';
 import { USERS } from '../src/dashboard.js';
-import { needsReview, isTentative, isCancelled, openReservationsFor } from '../src/reservations.js';
+import { needsReview, isTentative, isCancelled, isReverted, openReservationsFor } from '../src/reservations.js';
 
 const NOW = new Date(2026, 9, 24, 9, 0);
 const list = sampleReservations(NOW);
@@ -64,4 +64,13 @@ test('元からの予定（ダミー）も、休みの時間に入らない。�
   }
   assert.ok(checked > 50); // ダミーの予定は、十分な数がある
   assert.ok(USERS.some((u) => dates.some((d) => attendanceOf(u.id, d, NOW).kind === 'absent'))); // 欠勤の日も、ある
+});
+
+test('サンプルの受付: 一度も確定していない仮確定と、確定から仮確定に戻ったものが、両方ある', () => {
+  const never = list.filter((r) => isTentative(r) && !isReverted(r));
+  const back = list.filter(isReverted);
+  assert.ok(never.length >= 4);
+  assert.ok(back.some(needsReview)); // オペレーターの変更で戻った
+  assert.ok(back.some((r) => r.holdNote && !needsReview(r))); // 配車係が意図的に戻した
+  assert.ok(list.filter((r) => r.status === 'confirmed').every((r) => !isReverted(r)));
 });

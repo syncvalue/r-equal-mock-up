@@ -2,7 +2,7 @@
 // 訪問先の住所 → 担当エリア → そのエリアの営業のうち、希望日時に空いている人 → 女性のお客様の担当が偏らないように選ぶ。
 import { USERS, stats, monthProgress, rangeOf } from './dashboard.js';
 import { EVENTS, toMin } from './schedule.js';
-import { dayOffset, minToHHMM, ymdOf } from './reservations.js';
+import { dayOffset, minToHHMM, ymdOf, isReverted } from './reservations.js';
 
 // ---- エリア ----------------------------------------------------------------------
 // 訪問先の都道府県ごとに、担当エリアが決まっている。一覧にない都道府県は「対応エリア外」。lat/lng は、予定の地図表示用の代用座標
@@ -191,7 +191,7 @@ export function busyBlocks(userId, date, reservations, now = new Date(), extraHi
   const base = realAll.length ? real : fillerBlocks(userId, date, hidden, now); // 既存の予定がある日は、ダミーを足さない（動かして空になっても、ダミーは出さない）
   const mine = reservations
     .filter((r) => r.userId === userId && r.date === date && r.status !== 'cancelled')
-    .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', rid: r.id, review: Boolean(r.needsReview), status: r.status === 'tentative' ? 'tentative' : 'confirmed', lat: r.lat, lng: r.lng, place: r.customer.address }));
+    .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', rid: r.id, review: Boolean(r.needsReview), reverted: isReverted(r), status: r.status === 'tentative' ? 'tentative' : 'confirmed', lat: r.lat, lng: r.lng, place: r.customer.address }));
   return [...base, ...mine].sort((a, b) => a.start - b.start);
 }
 

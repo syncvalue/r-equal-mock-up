@@ -33,6 +33,8 @@ export const updateReservation = (id, patch) => save(loadReservations().map((r) 
 // status がない古い記録は、確定済みとして扱う
 export const isTentative = (r) => r.status === 'tentative';
 export const isCancelled = (r) => r.status === 'cancelled';
+// 一度確定したが、仮確定に戻された予約（オペレーターの変更で戻った・配車係が意図的に戻した）。まだ一度も確定していない仮確定とは、区別する
+export const isReverted = (r) => isTentative(r) && Boolean(r.everConfirmed || r.revertedAt || r.holdNote || (r.changes ?? []).some((c) => c.wasConfirmed));
 
 const stamp = () => new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -46,14 +48,14 @@ export function amendReservation(id, fields, by, diff = [], { byDispatcher = fal
   const r = loadReservations().find((x) => x.id === id);
   if (!r) return;
   const wasConfirmed = !isTentative(r) && !byDispatcher; // 仮確定に戻る変更かどうか
-  const revert = wasConfirmed ? { status: 'tentative', confirmedAt: null, confirmedBy: null, needsReview: true, revertedAt: stamp() } : {};
+  const revert = wasConfirmed ? { status: 'tentative', confirmedAt: null, confirmedBy: null, needsReview: true, everConfirmed: true, revertedAt: stamp() } : {};
   updateReservation(id, { ...fields, ...revert, changes: [...(r.changes ?? []), { at: stamp(), by, wasConfirmed, byDispatcher, diff }] });
 }
 
 // 配車係が確認すべき変更（確定済みだった予約が、変更されて仮確定に戻った）
 export const needsReview = (r) => Boolean(r.needsReview) && !isCancelled(r);
 // 配車係が、意図的に仮確定へ戻す（お客様に連絡して、回答次第で決めたい場合など）。理由のメモを残し、確定すると消える
-export const holdReservation = (id, note) => updateReservation(id, { status: 'tentative', confirmedAt: null, confirmedBy: null, needsReview: false, holdNote: note || 'お客様に確認中' });
+export const holdReservation = (id, note) => updateReservation(id, { status: 'tentative', confirmedAt: null, confirmedBy: null, needsReview: false, everConfirmed: true, revertedAt: stamp(), holdNote: note || 'お客様に確認中' });
 export const acknowledgeReservation = (id) => updateReservation(id, { needsReview: false });
 // 仮確定に戻った時点からの、変更の差分（その間に複数回変更されたら、すべて）
 export function reviewDiffs(r) {

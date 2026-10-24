@@ -3,8 +3,8 @@
 import { esc } from '../src/format.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { conflictText, dayTravel, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, attendanceOf, inOffTime, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
-import { isTentative, isCancelled, needsReview, reviewDiffs } from '../src/reservations.js';
-import { dateLabel, genderLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock } from './view.js';
+import { isTentative, isCancelled, isReverted, needsReview, reviewDiffs } from '../src/reservations.js';
+import { dateLabel, genderLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
 
 // 変更の内容（項目名 変更前→変更後）
@@ -42,7 +42,7 @@ export function staffModalHtml({ userId, date, reservations, now }) {
   const dt = dayTravel(d.blocks);
   const area = areaById(d.areaId);
   const box = (title, body) => `<section class="space-y-1 rounded-lg border bg-slate-50 p-2"><h3 class="text-xs font-bold text-slate-500">${title}</h3>${body}</section>`;
-  const plans = d.blocks.length ? d.blocks.map((b) => `<div class="flex items-start gap-1.5 text-xs"><b class="w-24 shrink-0">${hhmm(b.start)}–${hhmm(b.end)}</b><span class="min-w-0"><span class="mr-1 rounded px-1 text-[10px] font-bold text-white ${blockCls(b)}">${isTentativeBlock(b) ? '仮' : '確'}</span>${esc(b.label)}${b.place ? `<span class="block truncate text-slate-500">${esc(b.place)}</span>` : ''}</span></div>`).join('') : '<div class="text-xs text-slate-500">予定なし</div>';
+  const plans = d.blocks.length ? d.blocks.map((b) => `<div class="flex items-start gap-1.5 text-xs"><b class="w-24 shrink-0">${hhmm(b.start)}–${hhmm(b.end)}</b><span class="min-w-0"><span class="mr-1 rounded px-1 text-[10px] font-bold text-white ${blockCls(b)}">${blockMark(b).trim()}</span>${esc(b.label)}${b.place ? `<span class="block truncate text-slate-500">${esc(b.place)}</span>` : ''}</span></div>`).join('') : '<div class="text-xs text-slate-500">予定なし</div>';
   return `<div class="fixed inset-0 z-[60] flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/40" data-staffclose></div>
     <div class="relative z-10 max-h-[90vh] w-[40rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">
       <div class="flex items-start justify-between gap-3">
@@ -99,8 +99,8 @@ function blockHtml(b, selId, byId, att) {
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
-  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls} ${b.review ? 'ring-2 ring-rose-500' : ''} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の営業・時間に動かせます`)}">
-    <b>${off ? '⚠休み ' : b.review ? '⚠ ' : ''}${tent ? '仮 ' : '確 '}${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
+  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の営業・時間に動かせます`)}">
+    <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-indigo-800" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
 
@@ -122,6 +122,18 @@ export function boardHtml({ date, reservations, now, area, selId }) {
 }
 
 // 選んだ予約の詳細と操作（確定・仮に戻す・詳細変更・取消）。前後のアポからの距離も出す
+// 一度確定したが、仮確定に戻された予約の、経緯と変更内容（カレンダーの帯を選んだときの詳細に出す）
+function revertedHtml(r) {
+  if (!isReverted(r)) return '';
+  const diffs = diffText(r);
+  const cause = r.holdNote && !needsReview(r) && !(r.changes ?? []).some((c) => c.wasConfirmed && !c.byDispatcher) ? `配車係が仮に戻しました${r.holdNote ? `（${esc(r.holdNote)}）` : ''}` : 'オペレーターの変更で、確定から仮確定に戻りました';
+  return `<div class="mt-1 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs">
+    <div class="font-bold text-amber-800">⟲ 一度確定したが、仮確定に戻っています${r.revertedAt ? `<span class="ml-2 font-normal text-slate-500">${esc(r.revertedAt)}</span>` : ''}</div>
+    <div class="text-slate-700">${cause}</div>
+    ${diffs ? `<div class="mt-0.5 text-rose-700"><b>変更内容</b>　${diffs}</div>` : ''}
+    ${needsReview(r) ? `<button class="mt-1 b b-sec !min-h-0 !py-0.5 text-xs" data-ack="${r.id}" title="内容を確認した（仮確定のまま残ります）">確認した</button>` : ''}</div>`;
+}
+
 function boardDetailHtml(r, reservations, now) {
   if (!r) return '<p class="px-3 py-2 text-xs text-slate-500">予約の帯を押すと、詳細が出ます。ドラッグして、別の営業・時間に動かせます（30分刻み）。帯の「確定」ボタンで、その予約を確定します。</p>';
   const user = USERS.find((u) => u.id === r.userId);
@@ -134,8 +146,7 @@ function boardDetailHtml(r, reservations, now) {
       <div class="text-xs">売りたいもの：${esc(r.hearing.wants)}</div>
       <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
       ${travel ? `<div class="text-[11px] leading-tight text-slate-600">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}
-      ${r.holdNote && isTentative(r) ? `<div class="text-xs text-violet-700">確認待ち：${esc(r.holdNote)}</div>` : ''}
-      ${needsReview(r) ? `<div class="text-xs text-rose-700">変更：${diffText(r) || '—'}</div>` : ''}</div>
+      ${revertedHtml(r)}</div>
     <div class="flex flex-col items-end gap-1">${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1" data-fix="${r.id}">確定</button>` : `<button class="b b-sec !min-h-0 !py-1" data-unfix="${r.id}">仮に戻す</button>`}
       <div class="flex gap-3 text-xs"><button class="underline text-sky-700" data-chg="${r.id}">詳細を変更</button><button class="underline text-rose-700" data-cancelres="${r.id}">取消</button></div></div></div>`;
 }
@@ -143,7 +154,6 @@ function boardDetailHtml(r, reservations, now) {
 export function dispatcherHtml({ date, reservations, now, chips, view = 'board', area = 'osaka', selId = null }) {
   const rows = reservations.filter((r) => r.date === date).sort((a, b) => a.start.localeCompare(b.start) || a.receptionNo.localeCompare(b.receptionNo));
   const tent = rows.filter(isTentative).length;
-  const reviews = reservations.filter(needsReview).sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
   const actions = (r) => (isCancelled(r) ? `<span class="text-xs text-slate-500" title="${esc(`${r.cancelledAt ?? ''} ${r.cancelledBy ?? ''}`)}">${esc(r.cancelReason ?? '')}</span>`
     : `${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1" data-fix="${r.id}">確定</button>` : `<button class="text-xs underline text-slate-500" data-unfix="${r.id}">仮に戻す</button>`}
       <div class="mt-1 flex gap-2 text-xs"><button class="underline text-sky-700" data-chg="${r.id}">日時変更</button><button class="underline text-rose-700" data-cancelres="${r.id}">取消</button></div>`);
@@ -155,15 +165,8 @@ export function dispatcherHtml({ date, reservations, now, chips, view = 'board',
       <td>${assignee(r, reservations, now)}</td>
       <td>${statusBadge(r)}</td>
       <td class="whitespace-nowrap">${actions(r)}</td></tr>`).join('');
-  const banner = reviews.length ? `<section class="space-y-1.5 rounded-lg border-2 border-rose-500 bg-rose-50 p-3">
-      <b class="text-rose-800">⚠ 確定済みの予約が変更されて、仮確定に戻りました（${reviews.length}件）</b>
-      ${reviews.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded bg-white px-2 py-1 text-sm">
-        <div><b>${dateLabel(r.date)} ${esc(r.start)}</b>　${esc(r.customer.name)} 様　<span class="text-xs text-slate-500">${esc(r.revertedAt ?? '')} 変更</span><div class="text-xs text-rose-700">${diffText(r) || '（変更内容なし）'}</div></div>
-        <div class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-showday="${r.date}">この日を表示</button><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-ack="${r.id}" title="内容を確認した（確定はそのまま、仮確定のまま残ります）">確認した</button></div></div>`).join('')}
-    </section>` : '';
   return `
   <div class="p-4 space-y-3 h-[calc(100vh-52px)] overflow-y-auto">
-    ${banner}
     <section class="bg-white rounded-lg shadow">
       <div class="p-3 flex items-center gap-2 flex-wrap"><b class="mr-2">配車確定（配車係）</b>
         ${chips.map((c) => `<button class="chip ${c.date === date ? 'on' : ''}" data-ddate="${c.date}">${esc(c.label)}　${dateLabel(c.date)}${c.tentative ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-[11px] text-amber-950">仮${c.tentative}</span>` : ''}${c.review ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-[11px] text-white">変更${c.review}</span>` : ''}</button>`).join('')}
