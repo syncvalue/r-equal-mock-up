@@ -164,7 +164,7 @@ export function busyBlocks(userId, date, reservations, now = new Date()) {
   const base = real.length ? real : fillerBlocks(userId, date);
   const mine = reservations
     .filter((r) => r.userId === userId && r.date === date && r.status !== 'cancelled')
-    .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', status: r.status === 'tentative' ? 'tentative' : 'confirmed', lat: r.lat, lng: r.lng, place: r.customer.address }));
+    .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', rid: r.id, review: Boolean(r.needsReview), status: r.status === 'tentative' ? 'tentative' : 'confirmed', lat: r.lat, lng: r.lng, place: r.customer.address }));
   return [...base, ...mine].sort((a, b) => a.start - b.start);
 }
 
@@ -293,4 +293,14 @@ export function dispatchOptions(rec, reservations, now = new Date()) {
     const conflict = absent ? { kind: 'absent', block: null } : conflictOf(busyBlocks(user.id, rec.date, others, now), start, end);
     return { user, rank: rankOfUser(user.id), absent, free: !conflict, conflict, current: user.id === rec.userId, stats: stats[user.id] };
   });
+}
+
+// 配車係が、予約を別の営業・別の時刻に動かせるか。動かす予約自身は、重なりに数えない。同じ日の中で動かす
+export function canPlace(rec, userId, start, reservations, now = new Date()) {
+  const end = start + (toMin(rec.end) - toMin(rec.start));
+  if (start < WORK_START || end > WORK_END) return { ok: false, reason: '営業時間外' };
+  if (isAbsent(userId, rec.date, now)) return { ok: false, reason: '欠勤' };
+  const others = reservations.filter((r) => r.id !== rec.id);
+  const conflict = conflictOf(busyBlocks(userId, rec.date, others, now), start, end);
+  return conflict ? { ok: false, reason: conflictText(conflict) } : { ok: true, reason: '', start, end };
 }

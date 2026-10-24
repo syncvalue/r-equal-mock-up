@@ -19,7 +19,7 @@ export const genderLabel = (g) => GENDER[g] ?? '';
 // ---- 時間帯のバー ------------------------------------------------------------------
 const SRC = { event: ['bg-slate-500', '営業の訪問予定'], dummy: ['bg-slate-400', '営業の訪問予定'], reservation: ['bg-indigo-700', 'コールセンターの受付'] };
 // コールセンターの受付は、仮確定が薄い青、配車係が確定したものが濃い青
-const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? 'bg-indigo-400' : SRC[b.source][0]);
+export const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? 'bg-indigo-400' : SRC[b.source][0]);
 const blockKind = (b) => (b.source === 'reservation' ? `コールセンターの受付（${b.status === 'tentative' ? '仮確定' : '確定済'}）` : SRC[b.source][1]);
 
 // 帯の色の意味（日別表示・担当候補・空き状況の一覧で共通）。灰=営業が元から入れている訪問予定、青=コールセンターの受付（薄い=仮確定、濃い=配車係が確定）
@@ -41,7 +41,7 @@ const legText = (l, dir, short = false) => {
 };
 export const travelTitle = (t) => (t ? [legText(t.prev, 'prev'), legText(t.next, 'next')].filter(Boolean).join('\n') : '');
 // 担当候補の行に出す、色付きの見出し付きの表記
-const legHtml = (l, dir) => {
+export const legHtml = (l, dir) => {
   const chip = (t, cls) => `<span class="mr-1 rounded px-1 text-[10px] font-bold ${cls}">${t}</span>`;
   if (!l) return dir === 'prev' ? chip('前のアポなし', 'bg-sky-100 text-sky-800') : ''; // 直前のアポがなければ、距離は出さない
   if (dir === 'prev') return `${chip('前のアポ', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}終了）→ 今回のお客様宅まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;

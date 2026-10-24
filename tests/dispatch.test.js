@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { USERS } from '../src/dashboard.js';
-import { conflictText, isAbsent, dispatchOptions, salesDetail, RANKS, rankOfUser, haversineKm, locateAddress, travelAround, areaById, fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
+import { canPlace, conflictText, isAbsent, dispatchOptions, salesDetail, RANKS, rankOfUser, haversineKm, locateAddress, travelAround, areaById, fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
 import { nextReceptionNo, dayOffset, reservationToEvent, ymdOf } from '../src/reservations.js';
 
 const NOW = new Date(2026, 9, 21, 9, 0); // 2026-10-21
@@ -260,4 +260,20 @@ test('取り消した予約は、営業の空きを埋めず、担当件数に�
   assert.equal(busyBlocks('u04', '2026-10-25', [{ ...r, status: 'cancelled' }], NOW).some((b) => b.source === 'reservation'), false);
   assert.equal(fairnessStats([r], NOW).u04.total, before.total + 1);
   assert.deepEqual(fairnessStats([{ ...r, status: 'cancelled' }], NOW).u04, before);
+});
+
+test('配車係の移動: 空いている営業・時間には置ける。欠勤・営業時間外・予定の重なりには置けない', () => {
+  const a = res({ id: 'a', userId: 'u09', date: '2026-10-28', start: '13:00', end: '14:30', areaId: 'osaka', status: 'tentative' });
+  const b = res({ id: 'b', userId: 'u11', date: '2026-10-28', start: '10:00', end: '11:30', areaId: 'osaka', status: 'tentative' });
+  const all = [a, b];
+  const okAt = (uid, start) => canPlace(a, uid, start, all, NOW);
+  assert.equal(okAt('u09', 15 * 60).ok, true); // 同じ営業で、時間だけずらす（自分自身とは重ならない）
+  assert.deepEqual(okAt('u09', 15 * 60), { ok: true, reason: '', start: 900, end: 990 });
+  assert.equal(okAt('u09', 8 * 60).reason, '営業時間外');
+  assert.equal(okAt('u09', 18 * 60).reason, '営業時間外'); // 90分で19:30まで
+  assert.equal(okAt('u11', 10 * 60 + 30).ok, false); // b と重なる
+  assert.match(okAt('u11', 10 * 60 + 30).reason, /予定と重なる|移動時間/);
+  const absent = USERS.map((u) => u.id).find((id) => isAbsent(id, '2026-10-28', NOW));
+  if (absent) assert.deepEqual([canPlace(a, absent, 13 * 60, all, NOW).ok, canPlace(a, absent, 13 * 60, all, NOW).reason], [false, '欠勤']);
+  assert.equal(busyBlocks('u11', '2026-10-28', [b], NOW).find((x) => x.source === 'reservation').rid, 'b'); // 帯から、どの予約か分かる
 });

@@ -2,14 +2,14 @@
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を仮確定する。担当の確定は配車係が行い（配車確定タブ）、確定した予約が営業アプリの予定に出る。
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
-import { areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
+import { canPlace, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
 import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
 import { OPERATORS, CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
-import { dispatcherHtml } from './dispatcherView.js';
+import { dispatcherHtml, BOARD_ROW } from './dispatcherView.js';
 import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
 import { callHistory } from '../src/callHistory.js';
@@ -51,6 +51,9 @@ let editBy = null; // 変更を始めた人（オペレーター／配車係）
 let editId = null; // 受付済みの予約の日時を変更しているとき、その予約
 let cancelId = null; // 取消の確認を出している予約
 let cancelReason = CANCEL_REASONS[0];
+let dispView = 'board'; // 配車確定の表示: board=カレンダー / list=一覧
+let boardArea = 'osaka';
+let boardSel = null; // カレンダーで選んでいる予約
 let dispDate = addDays(2); // 配車係が確定する日（主に翌々日の予定を、毎日確定する）
 let toast = '';
 let lines = []; // 文字起こし（{ who, text, got: 入力欄にセットした項目 }）
@@ -303,7 +306,7 @@ function render() {
       <a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
-  ${tab === 'new' ? renderNew() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips() })}
+  ${tab === 'new' ? renderNew() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), view: dispView, area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
   ${cancelId ? cancelModalHtml(loadReservations().find((r) => r.id === cancelId), cancelReason) : ''}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
@@ -392,7 +395,7 @@ function updateChecklist() {
   list.forEach((x) => document.querySelectorAll(`[data-badge="${x.key}"]`).forEach((el) => { el.innerHTML = badgeHtml(x.asked, x.estimated); }));
 }
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('button, [data-pick]');
+  const t = e.target.closest('button, [data-pick], [data-bsel]');
   if (!t) return;
   const d = t.dataset;
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
@@ -448,6 +451,9 @@ document.addEventListener('click', (e) => {
     if (editId === (r?.id ?? null)) { editId = null; form = blankForm(); }
     if (r) flash(`${r.customer.name} 様の受付を取り消しました`); else render();
   }
+  else if (d.dview) { dispView = d.dview; render(); }
+  else if (d.barea) { boardArea = d.barea; render(); }
+  else if (d.bsel) { boardSel = boardSel === d.bsel ? null : d.bsel; render(); }
   else if (d.ack) { acknowledgeReservation(d.ack); render(); }
   else if (d.showday) { dispDate = d.showday; render(); }
   else if (d.ddate) { dispDate = d.ddate; render(); }
@@ -462,6 +468,63 @@ document.addEventListener('click', (e) => {
     }
   }
   else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); try { localStorage.removeItem(SAMPLE_KEY); } catch { /* 消せなくても動作は継続 */ } seedSamples(); stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; render(); } }
+});
+
+// ---- 配車係のカレンダー: 予約の帯をドラッグして、別の営業・時間に動かす（パズルのように調整する） ------------------------------------
+let dragging = null; // { id, rec, mins, grab, all }
+const colAt = (target) => target.closest?.('[data-bcol]');
+// 置こうとしている位置（列の中の縦の位置 → 30分刻みの開始時刻）
+function dropTarget(e, col) {
+  const rect = col.getBoundingClientRect();
+  const y = e.clientY - rect.top - dragging.grab;
+  const start = 9 * 60 + Math.round(y / BOARD_ROW) * 30;
+  return { userId: col.dataset.bcol, start: Math.min(Math.max(start, 9 * 60), 19 * 60 - dragging.mins), verdict: null };
+}
+function showGhost(col, t) {
+  document.querySelectorAll('#drop-ghost').forEach((el) => el.remove());
+  if (!col) return;
+  const v = canPlace(dragging.rec, t.userId, t.start, dragging.all);
+  const g = document.createElement('div');
+  g.id = 'drop-ghost';
+  g.className = `pointer-events-none absolute inset-x-0 z-30 rounded border-2 text-center text-[10px] font-bold ${v.ok ? 'border-emerald-600 bg-emerald-400/30 text-emerald-800' : 'border-rose-500 bg-rose-400/30 text-rose-700'}`;
+  g.style.top = `${((t.start - 9 * 60) / 30) * BOARD_ROW}px`;
+  g.style.height = `${(dragging.mins / 30) * BOARD_ROW - 1}px`;
+  g.textContent = v.ok ? `${minToHHMM(t.start)}〜` : v.reason;
+  col.appendChild(g);
+}
+document.addEventListener('dragstart', (e) => {
+  const el = e.target.closest?.('[data-rid]');
+  if (!el) return;
+  const all = loadReservations();
+  const rec = all.find((r) => r.id === el.dataset.rid);
+  if (!rec) return;
+  dragging = { id: rec.id, rec, mins: Number(el.dataset.mins), grab: e.clientY - el.getBoundingClientRect().top, all };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', rec.id);
+});
+document.addEventListener('dragover', (e) => {
+  const col = dragging && colAt(e.target);
+  if (!col) return;
+  e.preventDefault();
+  showGhost(col, dropTarget(e, col));
+});
+document.addEventListener('dragend', () => { dragging = null; showGhost(null); });
+document.addEventListener('drop', (e) => {
+  const col = dragging && colAt(e.target);
+  if (!col) return;
+  e.preventDefault();
+  const t = dropTarget(e, col);
+  const v = canPlace(dragging.rec, t.userId, t.start, dragging.all);
+  const before = dragging.rec;
+  dragging = null;
+  showGhost(null);
+  if (!v.ok) { flash(`そこには置けません（${v.reason}）`); return; }
+  if (t.userId === before.userId && minToHHMM(v.start) === before.start) return; // 動いていない
+  const nameOf = (id) => USERS.find((u) => u.id === id)?.name ?? id;
+  const fields = { userId: t.userId, start: minToHHMM(v.start), end: minToHHMM(v.end) };
+  amendReservation(before.id, fields, '配車係', diffRecords(before, { ...before, ...fields }, nameOf), { notify: false });
+  boardSel = before.id;
+  flash(`${before.customer.name} 様を、${nameOf(t.userId)} ${fields.start}〜 に動かしました${isTentative(before) ? '' : '（確定済みのため、仮確定に戻りました）'}`);
 });
 
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
