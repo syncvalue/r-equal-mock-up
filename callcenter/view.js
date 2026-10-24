@@ -91,7 +91,7 @@ export function formHtml(f, today) {
         <select class="inp !rounded-l-none ${f.mainItems[k] ? 'sel' : ''}" data-main="${k}"><option value="0">(数量)</option>${MAIN_BANDS.map((b) => `<option value="${b.min}" ${f.mainItems[k] === b.min ? 'selected' : ''}>${b.label}</option>`).join('')}</select></div>`).join('')}</div>
       <div class="text-[11px] text-slate-500 mt-1.5">その他の商材（複数選択）</div>
       <div class="flex flex-wrap gap-1 mt-0.5">${CATEGORIES.map((c) => `<button class="chip ${f.cats.includes(c) ? 'on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-      ${inp('wants', f.wants, { ph: 'ブランド・点数などの詳細（例: ヴィトン 3点、ロレックス 2本）' })}</div>
+      <textarea class="inp mt-1" rows="4" data-f="wants" placeholder="ブランド・点数などの詳細（例: ヴィトン 3点、ロレックス 2本）">${esc(f.wants)}</textarea></div>
     <div class="grid grid-cols-2 gap-2">
       ${lbl('当日の立会い（誰が立ち会うか）', `<select class="inp mt-0.5" data-f="attendee">${ATTENDEES.map((a) => `<option ${a === f.attendee ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`)}
       ${lbl('大型品・その他の確認', inp('large', f.large, { ph: '例: ゴルフクラブも売れるか' }))}
