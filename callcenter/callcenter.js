@@ -2,7 +2,7 @@
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を確定する。確定した予約は営業アプリの予定に出る。
 import { EVENTS } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
-import { areaById, areaOfAddress, rankCandidates, findWeekSlots, fairnessStats, fairerAlternative } from '../src/dispatch.js';
+import { areaById, areaOfAddress, locateAddress, rankCandidates, findWeekSlots, fairnessStats, fairerAlternative } from '../src/dispatch.js';
 import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -23,6 +23,7 @@ const weekStartFor = (date) => {
   const today = ymdOf(new Date());
   return date >= weekStart && date <= end ? weekStart : date < today ? today : date;
 };
+const shiftDay = (date, n) => { const [y, m, d] = date.split('-').map(Number); const next = ymdOf(new Date(y, m - 1, d + n)); const today = ymdOf(new Date()); return next < today ? today : next; };
 const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); const next = ymdOf(new Date(y, m - 1, d + n)); const today = ymdOf(new Date()); return next < today ? today : next; };
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
@@ -37,6 +38,7 @@ let form = blankForm();
 let done = null; // 確定した直後の予約（確定画面を表示している間）
 let quoted = false; // 過去のお客様情報を引用済みか
 let showOthers = false;
+let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別（営業ごとの列）
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
 let boardDate = addDays(1);
 let toast = '';
@@ -63,13 +65,14 @@ function compute() {
   const proposal = areaOfAddress(form.address);
   const confirmed = form.areaId && form.areaAddr === form.address.trim() ? areaById(form.areaId) : null;
   const area = confirmed ?? proposal;
-  const ranking = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations });
+  const here = area?.lat != null ? locateAddress(form.address, area) : null; // 今回のお客様の住所の位置（概算）。前のアポからの距離に使う
+  const ranking = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here });
   const all = [...ranking.inArea, ...ranking.others];
   const manual = all.find((c) => c.user.id === form.userId && c.free);
   const selected = manual ?? ranking.inArea.find((c) => c.recommended) ?? null; // 手動で選ばなければ、おすすめを自動で選ぶ
   const today = ymdOf(new Date());
   const calendar = ranking.inArea.length
-    ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today }
+    ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today, mode: calMode, hasHere: Boolean(here) }
     : null;
   const missing = missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
   return {
@@ -85,7 +88,7 @@ function confirmReservation() {
   const reservations = x.reservations;
   const past = findPast(form);
   const area = x.confirmed;
-  const center = area; // 予定の地図表示は、エリアの中心で代用（モック）
+  const center = locateAddress(form.address, area) ?? area; // 予定の地図表示は、住所の概算位置で代用（モック）
   const record = {
     id: `RS-${Date.now().toString(36).toUpperCase()}`, receptionNo: nextReceptionNo(reservations), receivedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }),
     operator, userId: x.selected.user.id, date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur), apType: past ? '再' : '新',
@@ -340,6 +343,9 @@ document.addEventListener('click', (e) => {
     el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     el?.closest('div, label')?.querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
   }
+  else if (d.calmode) { calMode = d.calmode; renderDispatch(); }
+  else if (d.day) { form = { ...form, date: shiftDay(form.date, Number(d.day)), whenAsked: true }; weekStart = weekStartFor(form.date); refresh(); }
+  else if (d.dcell) { const [userId, start] = d.dcell.split('|'); form = { ...form, userId, start: Number(start), whenAsked: true }; refresh(); }
   else if (d.week) { weekStart = shiftWeek(Number(d.week)); renderDispatch(); }
   else if (d.pick) { form = { ...form, userId: d.pick }; renderDispatch(); }
   else if ('toggleOthers' in d) { showOthers = !showOthers; renderDispatch(); }

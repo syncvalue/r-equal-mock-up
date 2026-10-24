@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
+import { USERS } from '../src/dashboard.js';
+import { RANKS, rankOfUser, haversineKm, locateAddress, travelAround, areaById, fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
 import { nextReceptionNo, dayOffset, reservationToEvent } from '../src/reservations.js';
 
 const NOW = new Date(2026, 9, 21, 9, 0); // 2026-10-21
@@ -143,4 +144,46 @@ test('1週間分の空き枠: 1日ごとの結果は findSlots と一致し、�
   const r = res({ userId: 'u04', date: '2026-10-25', start: '10:00', end: '11:00' });
   const booked = findWeekSlots({ userIds: ids, startDate: '2026-10-25', days: 1, dur: 60, reservations: [r], now: NOW })[0];
   assert.ok(!booked.slots.find((s) => s.start === 600).freeIds.includes('u04'));
+});
+
+test('営業のランクは、全員に付いている', () => {
+  assert.ok(USERS.every((u) => RANKS.includes(rankOfUser(u.id))));
+  assert.equal(rankOfUser('xxx'), null);
+});
+
+test('2点間の距離（大阪〜東京は約400km）', () => {
+  const km = haversineKm({ lat: 34.6937, lng: 135.5023 }, { lat: 35.6812, lng: 139.7671 });
+  assert.ok(km > 390 && km < 410);
+  assert.equal(haversineKm({ lat: 1, lng: 1 }, { lat: 1, lng: 1 }), 0);
+});
+
+test('住所の位置は、同じ住所なら毎回同じで、エリアの中心から約10km圏内', () => {
+  const area = areaById('osaka');
+  const a = locateAddress('大阪府大阪市阿倍野区1-2-3', area);
+  assert.deepEqual(a, locateAddress('大阪府大阪市阿倍野区1-2-3', area));
+  assert.notDeepEqual(a, locateAddress('大阪府堺市1-1', area));
+  assert.ok(haversineKm(a, area) < 15);
+  assert.equal(locateAddress('', area), null);
+  assert.equal(locateAddress('大阪府…', null), null);
+});
+
+test('前後のアポからの距離: 直前の予定がなければ営業所から', () => {
+  const here = { lat: 34.7, lng: 135.5 };
+  const blocks = [
+    { start: 600, end: 690, label: 'A 様', source: 'event', lat: 34.65, lng: 135.5 },
+    { start: 900, end: 960, label: 'B 様', source: 'event', lat: 34.75, lng: 135.5 },
+  ];
+  const t = travelAround(blocks, 750, 840, here);
+  assert.deepEqual([t.prev.label, t.prev.at, t.next.label, t.next.at], ['A 様', 690, 'B 様', 900]);
+  assert.ok(t.prev.km > 5 && t.prev.km < 6 && t.prev.min > 0); // 約5.6km
+  const first = travelAround(blocks, 540, 600, here); // 一番最初の枠: 直前なし→営業所、直後はA様
+  assert.deepEqual([first.prev.label, first.next.label], ['営業所', 'A 様']);
+  assert.equal(travelAround(blocks, 750, 840, null), null);
+  assert.equal(travelAround([], 750, 840, here).next, null);
+});
+
+test('候補に、ランクと移動距離が付く', () => {
+  const here = locateAddress('大阪府大阪市阿倍野区1-2-3', areaById('osaka'));
+  const { inArea } = rankCandidates({ gender: 'f', areaId: 'osaka', date: '2026-10-21', start: 780, dur: 90, reservations: [], here, now: NOW });
+  assert.ok(inArea.every((c) => RANKS.includes(c.rank) && c.travel.prev.km >= 0));
 });

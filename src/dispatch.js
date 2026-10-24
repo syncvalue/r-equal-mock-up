@@ -1,7 +1,7 @@
 // コールセンターの配車ロジック（画面に依存しない純関数）。
 // 訪問先の住所 → 担当エリア → そのエリアの営業のうち、希望日時に空いている人 → 女性のお客様の担当が偏らないように選ぶ。
 import { USERS } from './dashboard.js';
-import { EVENTS, toMin } from './schedule.js';
+import { EVENTS, OFFICE, toMin } from './schedule.js';
 import { dayOffset, minToHHMM, ymdOf } from './reservations.js';
 
 // ---- エリア ----------------------------------------------------------------------
@@ -45,6 +45,68 @@ const hash = (str) => {
   return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 10000) / 10000;
 };
 
+// ---- 営業のランク ------------------------------------------------------------------
+// 営業ごとのランク（ダミー。S が最上位）
+const USER_RANK = { u01: 'B', u02: 'S', u03: 'A', u04: 'C', u05: 'B', u06: 'S', u07: 'B', u08: 'C' };
+export const RANKS = ['S', 'A', 'B', 'C'];
+export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
+
+// ---- 位置と移動距離（概算） ----------------------------------------------------------------
+// 住所の座標は、モックのため、エリアの中心から住所の文字で決まる位置（約10km圏内）で代用する。本番は、Googleマップの住所検索で座標を取得する
+const AVG_SPEED_KMH = 25; // 市街地の移動の目安
+
+export function haversineKm(a, b) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+// 文字列から決まる乱数（文字が少し違うだけの住所でも、別の場所になるように、よく混ぜる）
+function mixedRandom(str) {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (const c of str) {
+    const k = c.codePointAt(0);
+    h1 = Math.imul(h1 ^ k, 2654435761);
+    h2 = Math.imul(h2 ^ k, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  let a = (h1 ^ h2) >>> 0;
+  return () => { // mulberry32
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function locateAddress(address, area) {
+  const text = String(address ?? '').trim();
+  if (!text || !area) return null;
+  const rnd = mixedRandom(text);
+  return { lat: area.lat + (rnd() - 0.5) * 0.18, lng: area.lng + (rnd() - 0.5) * 0.22 };
+}
+
+// 直前・直後の予定から、今回のお客様の住所までの距離。直前の予定がなければ営業所から。km は小数1桁、min は移動時間の目安（分）
+export function travelAround(blocks, start, end, here) {
+  if (!here) return null;
+  const leg = (from, label, at) => {
+    if (!from || from.lat == null) return null;
+    const km = Math.round(haversineKm(from, here) * 10) / 10;
+    return { label, at, km, min: Math.round((km * 60) / AVG_SPEED_KMH) };
+  };
+  const before = [...blocks].filter((b) => b.end <= start).sort((a, b) => b.end - a.end)[0];
+  const after = blocks.find((b) => b.start >= end);
+  return {
+    prev: before ? leg(before, before.label, before.end) : leg(OFFICE, '営業所', null),
+    next: after ? leg(after, after.label, after.start) : null,
+  };
+}
+
 // 予定のない日は、営業ごとに日付で決まる「他の訪問」（ダミー）を入れて、空き状況が見本になるようにする
 function fillerBlocks(userId, date) {
   const rnd = hash(`${userId}/${date}`);
@@ -52,7 +114,9 @@ function fillerBlocks(userId, date) {
   for (let i = 0, n = Math.floor(rnd() * 3); i < n; i += 1) {
     const start = 570 + Math.floor(rnd() * 14) * SLOT_STEP;
     const end = start + (rnd() < 0.5 ? 60 : 90);
-    if (!blocks.some((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER)) blocks.push({ start, end, label: '訪問予定', source: 'dummy' });
+    if (!blocks.some((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER)) {
+      blocks.push({ start, end, label: '訪問予定', source: 'dummy', ...locateAddress(`${userId}/${date}/${start}`, areaById(areaOfUser(userId))), place: '' });
+    }
   }
   return blocks;
 }
@@ -60,11 +124,11 @@ function fillerBlocks(userId, date) {
 // その日の、営業の埋まっている時間帯。既存の予定があればそれを、なければダミーを使い、コールセンターで確定済みの予約を加える
 export function busyBlocks(userId, date, reservations, now = new Date()) {
   const day = dayOffset(date, now);
-  const real = EVENTS.filter((e) => e.userId === userId && e.day === day).map((e) => ({ start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event' }));
+  const real = EVENTS.filter((e) => e.userId === userId && e.day === day).map((e) => ({ start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event', lat: e.lat, lng: e.lng, place: e.customer.address }));
   const base = real.length ? real : fillerBlocks(userId, date);
   const mine = reservations
     .filter((r) => r.userId === userId && r.date === date)
-    .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation' }));
+    .map((r) => ({ start: toMin(r.start), end: toMin(r.end), label: `${r.customer.name} 様`, source: 'reservation', lat: r.lat, lng: r.lng, place: r.customer.address }));
   return [...base, ...mine].sort((a, b) => a.start - b.start);
 }
 
@@ -110,13 +174,13 @@ const byFairness = (gender) => (a, b) => {
   return a.stats.total - b.stats.total || b.stats.femaleShare - a.stats.femaleShare || a.user.id.localeCompare(b.user.id);
 };
 
-export function rankCandidates({ gender, areaId, date, start, dur, reservations, now = new Date() }) {
+export function rankCandidates({ gender, areaId, date, start, dur, reservations, here = null, now = new Date() }) {
   const stats = fairnessStats(reservations, now);
   const end = start + dur;
   const all = USERS.map((user) => {
     const blocks = busyBlocks(user.id, date, reservations, now);
     const conflict = conflictOf(blocks, start, end);
-    return { user, areaId: areaOfUser(user.id), blocks, free: !conflict, conflict, stats: stats[user.id], recommended: false };
+    return { user, areaId: areaOfUser(user.id), rank: rankOfUser(user.id), blocks, free: !conflict, conflict, travel: travelAround(blocks, start, end, here), stats: stats[user.id], recommended: false };
   });
   const inArea = all.filter((c) => areaId && c.areaId === areaId).sort(byFairness(gender));
   const others = all.filter((c) => !inArea.includes(c)).sort(byFairness(gender));
