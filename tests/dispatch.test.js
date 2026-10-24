@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, fairnessStats } from '../src/dispatch.js';
+import { fairerAlternative, areaOfAddress, areaOfUser, busyBlocks, conflictOf, rankCandidates, findSlots, findWeekSlots, fairnessStats } from '../src/dispatch.js';
 import { nextReceptionNo, dayOffset, reservationToEvent } from '../src/reservations.js';
 
 const NOW = new Date(2026, 9, 21, 9, 0); // 2026-10-21
@@ -125,4 +125,22 @@ test('公平性の注意: 女性のお客様で、より担当の少ない空き
   assert.equal(fairerAlternative('f', alt, r.inArea), null); // 最少の人を選んでいれば注意なし
   assert.equal(fairerAlternative('m', free[0], r.inArea), null); // 男性のお客様は対象外
   assert.equal(fairerAlternative('f', null, r.inArea), null);
+});
+
+test('1週間分の空き枠: 7日分を日付順に返し、空いている営業の id を持つ', () => {
+  const ids = ['u01', 'u02', 'u03'];
+  const week = findWeekSlots({ userIds: ids, startDate: '2026-10-29', dur: 90, reservations: [], now: NOW });
+  assert.deepEqual(week.map((d) => d.date), ['2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04']); // 月またぎ
+  assert.equal(week[0].slots[0].start, 540);
+  assert.ok(week.every((d) => d.slots.every((s) => s.freeIds.every((id) => ids.includes(id)))));
+});
+
+test('1週間分の空き枠: 1日ごとの結果は findSlots と一致し、予約済みの営業は外れる', () => {
+  const ids = ['u04', 'u05'];
+  const args = { userIds: ids, date: '2026-10-25', dur: 60, reservations: [], now: NOW };
+  const day = findWeekSlots({ userIds: ids, startDate: '2026-10-25', days: 1, dur: 60, reservations: [], now: NOW })[0];
+  assert.deepEqual(day.slots.map((s) => s.freeIds.length), findSlots(args).map((s) => s.freeCount));
+  const r = res({ userId: 'u04', date: '2026-10-25', start: '10:00', end: '11:00' });
+  const booked = findWeekSlots({ userIds: ids, startDate: '2026-10-25', days: 1, dur: 60, reservations: [r], now: NOW })[0];
+  assert.ok(!booked.slots.find((s) => s.start === 600).freeIds.includes('u04'));
 });

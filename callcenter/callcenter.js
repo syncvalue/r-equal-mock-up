@@ -1,7 +1,8 @@
 // コールセンター 受付・配車画面（ダミー・PC想定）。受電内容を聞き取り、訪問先のエリアの営業から、
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を確定する。確定した予約は営業アプリの予定に出る。
 import { EVENTS } from '../src/schedule.js';
-import { areaById, areaOfAddress, areaOfUser, rankCandidates, findSlots, fairnessStats, fairerAlternative } from '../src/dispatch.js';
+import { USERS } from '../src/dashboard.js';
+import { areaById, areaOfAddress, areaOfUser, rankCandidates, findWeekSlots, fairnessStats, fairerAlternative } from '../src/dispatch.js';
 import { RESERVATION_KEY, addReservation, loadReservations, removeReservation, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -13,6 +14,14 @@ const $ = (s) => document.querySelector(s);
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 保存できなくても動作は継続（モック） */ } };
 const addDays = (n) => { const d = new Date(); return ymdOf(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)); };
+// 日付が表示中の1週間に入っていればそのまま、外れていればその日を先頭にする（今日より前にはしない）
+const weekStartFor = (date) => {
+  const [y, m, d] = weekStart.split('-').map(Number);
+  const end = ymdOf(new Date(y, m - 1, d + 6));
+  const today = ymdOf(new Date());
+  return date >= weekStart && date <= end ? weekStart : date < today ? today : date;
+};
+const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); const next = ymdOf(new Date(y, m - 1, d + n)); const today = ymdOf(new Date()); return next < today ? today : next; };
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
 const blankForm = () => ({
@@ -26,6 +35,7 @@ let form = blankForm();
 let done = null; // 確定した直後の予約（確定画面を表示している間）
 let quoted = false; // 過去のお客様情報を引用済みか
 let showOthers = false;
+let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
 let boardDate = addDays(1);
 let toast = '';
 
@@ -45,7 +55,10 @@ function compute() {
   const all = [...ranking.inArea, ...ranking.others];
   const manual = all.find((c) => c.user.id === form.userId && c.free);
   const selected = manual ?? ranking.inArea.find((c) => c.recommended) ?? null; // 手動で選ばなければ、おすすめを自動で選ぶ
-  const slots = ranking.inArea.length ? findSlots({ userIds: ranking.inArea.map((c) => c.user.id), date: form.date, dur: form.dur, reservations }) : [];
+  const today = ymdOf(new Date());
+  const calendar = ranking.inArea.length
+    ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today }
+    : null;
   const missing = [];
   if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
   if (!form.name.trim()) missing.push('お名前');
@@ -56,7 +69,7 @@ function compute() {
   if (!form.date || form.date < ymdOf(new Date())) missing.push('希望日（今日以降）');
   if (!selected) missing.push('担当の営業');
   return {
-    area, hasAddress: Boolean(form.address.trim()), ranking, slots, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
+    area, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
   };
 }
@@ -131,6 +144,7 @@ function onField(e) {
   if (!k) return;
   form = { ...form, [k]: NUMERIC.has(k) ? Number(e.target.value) : e.target.value };
   if (k === 'phone') quoted = false;
+  if (k === 'date' && e.target.value) weekStart = weekStartFor(e.target.value);
   if (LIVE.has(k)) renderDispatch();
 }
 document.addEventListener('input', onField);
@@ -150,7 +164,8 @@ document.addEventListener('click', (e) => {
   else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi) }; refresh(); }
   else if (d.cat) { form = { ...form, cats: form.cats.includes(d.cat) ? form.cats.filter((c) => c !== d.cat) : [...form.cats, d.cat] }; refresh(); }
   else if (d.dur) { form = { ...form, dur: Number(d.dur) }; refresh(); }
-  else if (d.slot) { form = { ...form, start: Number(d.slot) }; refresh(); }
+  else if (d.cell) { const [date, start] = d.cell.split('|'); form = { ...form, date, start: Number(start) }; refresh(); }
+  else if (d.week) { weekStart = shiftWeek(Number(d.week)); renderDispatch(); }
   else if (d.pick) { form = { ...form, userId: d.pick }; renderDispatch(); }
   else if ('toggleOthers' in d) { showOthers = !showOthers; renderDispatch(); }
   else if ('map' in d) { const a = done?.customer.address ?? form.address.trim(); if (a) window.open(mapUrl(a), '_blank', 'noopener'); else flash('住所を入力してください'); }
@@ -159,13 +174,13 @@ document.addEventListener('click', (e) => {
     if (c) { form = { ...form, name: c.name, kana: c.kana, zip: c.zip, address: c.address }; quoted = true; refresh(); }
   }
   else if ('confirm' in d) confirmReservation();
-  else if ('new' in d) { form = blankForm(); done = null; quoted = false; showOthers = false; render(); }
+  else if ('new' in d) { form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
   else if (d.bdate) { boardDate = d.bdate; render(); }
   else if (d.cancel) {
     const r = loadReservations().find((x) => x.id === d.cancel);
     if (r && confirm(`${r.receptionNo}（${r.customer.name} 様）の訪問を取り消します。営業の予定からも消えます。よろしいですか？`)) { removeReservation(r.id); render(); }
   }
-  else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); form = blankForm(); done = null; render(); } }
+  else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); form = blankForm(); weekStart = addDays(0); done = null; render(); } }
 });
 
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する

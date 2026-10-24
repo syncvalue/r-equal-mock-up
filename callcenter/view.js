@@ -98,8 +98,34 @@ function candidateCard(c, { selectedId, gender, req, maxFemale }) {
   </div>`;
 }
 
-export function slotChips(slots, start) {
-  return `<div class="flex flex-wrap gap-1">${slots.map((s) => `<button class="chip !px-2 !py-0.5 !text-xs ${s.start === start ? 'on' : ''} ${s.freeCount ? '' : 'opacity-40'}" data-slot="${s.start}" ${s.freeCount ? '' : 'disabled'} title="空いている営業 ${s.freeCount}人">${minToHHMM(s.start)}<span class="opacity-70">（${s.freeCount}）</span></button>`).join('')}</div>`;
+const WEEK_DAYS = ['日', '月', '火', '水', '木', '金', '土'];
+const dayHead = (date) => { const [y, m, d] = date.split('-').map(Number); const w = new Date(y, m - 1, d).getDay(); return { md: `${m}/${d}`, w: WEEK_DAYS[w], cls: w === 0 ? 'text-rose-600' : w === 6 ? 'text-sky-600' : '' }; };
+
+// 1週間の空きカレンダー。縦=開始時刻、横=日付、セル=空いている営業の人数。タップで希望日時に反映する。◀▶で1週間ずつ動かす
+export function weekCalendarHtml({ week, form, today, names, canPrev }) {
+  const first = dayHead(week[0].date);
+  const last = dayHead(week[week.length - 1].date);
+  const head = week.map((d) => { const h = dayHead(d.date); return `<th class="px-0.5 py-1 text-center font-bold ${h.cls} ${d.date === form.date ? 'bg-teal-100' : ''}">${h.md}<div class="text-[10px] font-normal">${h.w}${d.date === today ? '・今日' : ''}</div></th>`; }).join('');
+  const rows = week[0].slots.map((_, i) => `<tr><th class="pr-1 text-right text-[11px] font-normal text-slate-500 whitespace-nowrap">${minToHHMM(week[0].slots[i].start)}</th>${week.map((d) => {
+    const s = d.slots[i];
+    const n = s.freeIds.length;
+    const past = d.date < today;
+    const on = d.date === form.date && s.start === form.start;
+    const tone = n === 0 || past ? 'bg-slate-100 text-slate-400' : n === 1 ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200';
+    const who = s.freeIds.map((id) => names[id]).join('、');
+    return `<td class="p-0.5"><button class="w-full rounded text-xs font-bold py-1 ${tone} ${on ? 'ring-2 ring-teal-600 !bg-teal-600 !text-white' : ''}" data-cell="${d.date}|${s.start}" ${n === 0 || past ? 'disabled' : ''} title="${esc(n ? `${dayHead(d.date).md} ${minToHHMM(s.start)}〜 空き: ${who}` : '空きなし')}">${n === 0 || past ? '×' : n === 1 ? '△1' : `◎${n}`}</button></td>`;
+  }).join('')}</tr>`).join('');
+  const pick = week.find((d) => d.date === form.date)?.slots.find((s) => s.start === form.start);
+  return `<div class="rounded-lg border bg-white p-2">
+    <div class="flex items-center justify-between gap-2 mb-1">
+      <button class="b b-sec !min-h-0 !py-1 text-sm" data-week="-7" ${canPrev ? '' : 'disabled'}>◀ 前の週</button>
+      <div class="text-sm font-bold">${first.md}（${first.w}）〜 ${last.md}（${last.w}）<span class="font-normal text-xs text-slate-500 ml-2">${form.dur}分で訪問した場合</span></div>
+      <button class="b b-sec !min-h-0 !py-1 text-sm" data-week="7">次の週 ▶</button></div>
+    <table class="w-full table-fixed border-separate border-spacing-0"><thead><tr><th class="w-11"></th>${head}</tr></thead><tbody>${rows}</tbody></table>
+    <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+      <span><b class="text-emerald-700">◎n</b> 空きがn人 ／ <b class="text-amber-700">△1</b> 残り1人 ／ × 空きなし　※開始時刻（営業の人数）</span>
+      ${pick && pick.freeIds.length ? `<span>選択中 ${dayHead(form.date).md}（${dayHead(form.date).w}）${minToHHMM(form.start)}〜：<b class="text-slate-700">${esc(pick.freeIds.map((id) => names[id]).join('、'))}</b></span>` : ''}</div>
+</div>`;
 }
 
 const areaBanner = (area, hasAddress) => {
@@ -110,7 +136,7 @@ const areaBanner = (area, hasAddress) => {
 };
 
 export function dispatchHtml(x) {
-  const { area, hasAddress, ranking, slots, form, selectedId, alt, missing, showOthers } = x;
+  const { area, hasAddress, ranking, calendar, form, selectedId, alt, missing, showOthers } = x;
   const req = (c) => ({ start: form.start, end: form.start + form.dur, free: c.free });
   const maxFemale = Math.max(1, ...[...ranking.inArea, ...ranking.others].map((c) => c.stats.female));
   const card = (c) => candidateCard(c, { selectedId, gender: form.gender, req: req(c), maxFemale });
@@ -119,7 +145,7 @@ export function dispatchHtml(x) {
   <div class="space-y-3">
     ${areaBanner(area, hasAddress)}
     ${ranking.inArea.length ? `
-      <div><div class="text-sm font-bold mb-1">空いている開始時刻（${form.date} ／ ${form.dur}分 ／ カッコ内は空いている人数）</div>${slotChips(slots, form.start)}</div>
+      <div><div class="text-sm font-bold mb-1">候補日を選ぶ（${esc(area.name)}の営業の空き状況）<span class="font-normal text-xs text-slate-500 ml-2">お客様の希望日が埋まっていたら、前後の日をご提案ください</span></div>${weekCalendarHtml(calendar)}</div>
       <div><div class="text-sm font-bold mb-1">担当の候補（${esc(area.name)}）<span class="font-normal text-xs text-slate-500 ml-2">▮灰=既存の予定 ▮紺=コールセンター確定 □緑/赤=希望の時間帯</span></div>
         <div class="px-3">${axis()}</div>
         <div class="space-y-2">${ranking.inArea.map(card).join('')}</div></div>` : ''}

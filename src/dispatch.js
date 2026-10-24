@@ -2,7 +2,7 @@
 // 訪問先の住所 → 担当エリア → そのエリアの営業のうち、希望日時に空いている人 → 女性のお客様の担当が偏らないように選ぶ。
 import { USERS } from './dashboard.js';
 import { EVENTS, toMin } from './schedule.js';
-import { dayOffset, minToHHMM } from './reservations.js';
+import { dayOffset, minToHHMM, ymdOf } from './reservations.js';
 
 // ---- エリア ----------------------------------------------------------------------
 // 訪問先の都道府県ごとに、担当エリアが決まっている。一覧にない都道府県は「対応エリア外」。lat/lng は、予定の地図表示用の代用座標
@@ -139,4 +139,18 @@ export function findSlots({ userIds, date, dur, reservations, now = new Date() }
     slots.push({ start, freeCount: blocks.filter((b) => !conflictOf(b, start, start + dur)).length });
   }
   return slots;
+}
+
+// 1週間分の空き枠: 日付ごとに、30分刻みの開始時刻と、空いている営業（営業の id）。カレンダーで候補日を見比べるために使う
+export function findWeekSlots({ userIds, startDate, days = 7, dur, reservations, now = new Date() }) {
+  const [y, m, d] = startDate.split('-').map(Number);
+  return Array.from({ length: days }, (_, i) => {
+    const date = ymdOf(new Date(y, m - 1, d + i));
+    const blocks = userIds.map((id) => ({ id, blocks: busyBlocks(id, date, reservations, now) }));
+    const slots = [];
+    for (let start = WORK_START; start + dur <= WORK_END; start += SLOT_STEP) {
+      slots.push({ start, freeIds: blocks.filter((b) => !conflictOf(b.blocks, start, start + dur)).map((b) => b.id) });
+    }
+    return { date, slots };
+  });
 }
