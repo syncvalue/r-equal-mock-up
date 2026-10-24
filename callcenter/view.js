@@ -17,15 +17,14 @@ const GENDER = { f: '女性', m: '男性' };
 export const genderLabel = (g) => GENDER[g] ?? '';
 
 // ---- 時間帯のバー ------------------------------------------------------------------
-const SRC = { event: ['bg-slate-500', '営業の訪問予定'], dummy: ['bg-slate-400', '営業の訪問予定'], reservation: ['bg-indigo-700', 'コールセンターの受付'] };
-// コールセンターの受付は、仮確定が薄い青、配車係が確定したものが濃い青
-export const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? 'bg-indigo-400' : SRC[b.source][0]);
-const blockKind = (b) => (b.source === 'reservation' ? `コールセンターの受付（${b.status === 'tentative' ? '仮確定' : '確定済'}）` : SRC[b.source][1]);
+// 訪問の帯の色は、仮確定が薄い青、確定済みが濃い青。営業の元からの予定も、確定済みの訪問として、濃い青で出す（アポは、基本的にすべて電話でオペレーターが入れるため、出どころの区別はしない）
+export const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? 'bg-indigo-400' : 'bg-indigo-700');
+export const isTentativeBlock = (b) => b.source === 'reservation' && b.status === 'tentative';
+const blockKind = (b) => `訪問（${isTentativeBlock(b) ? '仮確定' : '確定済'}）`;
 
-// 帯の色の意味（日別表示・担当候補・空き状況の一覧で共通）。灰=営業が元から入れている訪問予定、青=コールセンターの受付（薄い=仮確定、濃い=配車係が確定）
+// 帯の色の意味（日別表示・担当候補で共通）
 export const legendHtml = ({ want = true } = {}) => `<span class="font-normal text-[11px] text-slate-600 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-slate-400 align-middle"></i> 灰：営業の訪問予定</span>
-  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-400 align-middle"></i><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-700 align-middle"></i> 青：コールセンターの受付（薄い＝仮確定／濃い＝確定済）</span>
+  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-400 align-middle"></i> 薄い青：仮確定</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-700 align-middle"></i> 濃い青：確定済み</span>
   ${want ? '<span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-emerald-600 bg-emerald-400/25 align-middle"></i> 緑：希望時間帯（空き）</span><span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-rose-500 bg-rose-400/25 align-middle"></i> 赤：予定と重なる</span>' : ''}</span>`;
 
 // 営業のランク（S が最上位）
@@ -263,7 +262,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
       const free = !c.absent && m + form.dur <= WORK_END && !conflictOf(c.blocks, m, m + form.dur, c.att);
       return `<button class="block w-full text-left ${free ? 'hover:bg-emerald-200/70 cursor-pointer' : 'cursor-not-allowed'}" style="height:${DAY_ROW}px" ${free ? `data-dcell="${c.user.id}|${m}" title="${esc(`${c.user.name} ${minToHHMM(m)}〜${minToHHMM(m + form.dur)} で選ぶ`)}"` : 'disabled'}></button>`;
     }).join('');
-    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${blockKind(b)}）`)}"><b>${b.source === 'reservation' ? (b.status === 'tentative' ? '📞仮 ' : '📞確 ') : ''}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
+    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${blockKind(b)}）`)}"><b>${isTentativeBlock(b) ? '仮 ' : '確 '}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
     const sel = c.user.id === selectedId;
     const away = c.absent ? '<div class="absolute inset-0 z-20 flex items-start justify-center pt-2 pointer-events-none"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : '';
     const want = sel && !c.absent ? `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${c.free ? 'border-emerald-600 bg-emerald-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"><span class="absolute -top-px right-0 rounded-bl bg-white/80 px-1 text-[9px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}">希望 ${minToHHMM(form.start)}〜</span></div>` : '';
@@ -360,7 +359,7 @@ export function dispatchHtml(x) {
       <div class="text-xs text-slate-500">変更前：${dateLabel(x.editing.date)} ${esc(x.editing.start)}〜${esc(x.editing.end)}　${esc(USERS.find((u) => u.id === x.editing.userId)?.name ?? '')}</div>
       ${sel ? `<div class="text-sm">変更後：担当（仮）<b class="text-base">${esc(sel.user.name)}</b>　${dateLabel(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
       ${missing.length ? `<div class="text-xs text-rose-600">未入力：${missing.map(esc).join('、')}</div>` : ''}
-      <button class="b b-pri w-full ${isTentative(x.editing) ? '!bg-sky-600' : '!bg-rose-600'}" data-saveedit ${sel && !missing.length ? '' : 'disabled'}>${isTentative(x.editing) ? '変更を保存する（仮確定のまま）' : '変更を保存する（仮確定に戻り、配車係に知らされます）'}</button>
+      <button class="b b-pri w-full ${isTentative(x.editing) || x.editBy === '配車係' ? '!bg-sky-600' : '!bg-rose-600'}" data-saveedit ${sel && !missing.length ? '' : 'disabled'}>${x.editBy === '配車係' ? `変更を保存する（${isTentative(x.editing) ? '仮確定' : '確定'}のまま）` : isTentative(x.editing) ? '変更を保存する（仮確定のまま）' : '変更を保存する（仮確定に戻り、配車係に知らされます）'}</button>
     </div>` : `<div class="rounded-lg border-2 border-teal-600 bg-white p-2 space-y-1.5 sticky bottom-0">
       ${sel ? `<div class="text-sm">担当（仮）：<b class="text-base">${esc(sel.user.name)}</b>　${esc(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}　${esc(fullName(form) || 'お客様')} 様（${genderLabel(form.gender) || '性別未選択'}）</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
       ${missing.length ? `<div class="text-xs text-rose-600">未入力：${missing.map(esc).join('、')}</div>` : ''}
@@ -394,7 +393,8 @@ export const dateLabel = (s) => { const [y, m, d] = s.split('-').map(Number); re
 export const statusBadge = (r) => {
   if (isCancelled(r)) return '<span class="rounded bg-slate-300 text-slate-700 text-xs font-bold px-1.5 py-0.5">取消</span>';
   const changed = r.needsReview ? '<span class="ml-1 rounded bg-rose-600 text-white text-[10px] font-bold px-1 py-0.5" title="確定済みの予約が変更されて、仮確定に戻りました">確定→変更</span>' : '';
-  return `${isTentative(r) ? '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5">仮確定</span>' : '<span class="rounded bg-emerald-100 text-emerald-800 text-xs font-bold px-1.5 py-0.5">確定</span>'}${changed}`;
+  const hold = r.holdNote && isTentative(r) ? `<span class="ml-1 rounded bg-violet-100 text-violet-800 text-[10px] font-bold px-1 py-0.5" title="${esc(r.holdNote)}">確認待ち</span>` : '';
+  return `${isTentative(r) ? '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5">仮確定</span>' : '<span class="rounded bg-emerald-100 text-emerald-800 text-xs font-bold px-1.5 py-0.5">確定</span>'}${hold}${changed}`;
 };
 
 // ---- 受付済みの予約の変更・取消 ------------------------------------------------------------
@@ -407,12 +407,12 @@ export function openResHtml(list) {
 }
 
 // 受付済みの予約を変更中の、入力欄の上の表示。仮確定の変更と、確定済みの変更で、何が起きるかを伝える
-export function editBannerHtml(r) {
-  const confirmed = !isTentative(r);
+export function editBannerHtml(r, by = '') {
+  const confirmed = !isTentative(r) && by !== '配車係'; // 配車係の変更は、状態を変えない（確定権がある）
   return `<div class="rounded-lg border-2 ${confirmed ? 'border-rose-500 bg-rose-50' : 'border-sky-500 bg-sky-50'} px-3 py-2 text-xs">
     <div class="flex items-center justify-between gap-2"><b class="text-sm ${confirmed ? 'text-rose-800' : 'text-sky-800'}">✎ 受付済みの予約を変更中</b><button class="underline text-slate-600" data-editcancel>変更をやめる</button></div>
     <div class="mt-0.5">${esc(r.receptionNo)}　${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}</div>
-    <div class="mt-0.5 ${confirmed ? 'font-bold text-rose-700' : 'text-slate-600'}">${confirmed ? '確定済みの予約です。変更を保存すると<u>仮確定に戻り</u>、配車係に知らされます。' : '仮確定のため、保存しても仮確定のままです（誰にも知らせません）。'}</div></div>`;
+    <div class="mt-0.5 ${confirmed ? 'font-bold text-rose-700' : 'text-slate-600'}">${confirmed ? '確定済みの予約です。変更を保存すると<u>仮確定に戻り</u>、配車係に知らされます。' : by === '配車係' ? `配車係の変更です。保存しても、状態は変わりません（${isTentative(r) ? '仮確定' : '確定'}のまま）。` : '仮確定のため、保存しても仮確定のままです（誰にも知らせません）。'}</div></div>`;
 }
 
 // 取消の確認（理由を選ぶ）

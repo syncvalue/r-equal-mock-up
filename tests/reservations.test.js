@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // 保存先（localStorage）の代わり
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
-const { addReservation, loadReservations, updateReservation, reservationEvents, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, reviewDiffs, openReservationsFor } = await import('../src/reservations.js');
+const { addReservation, loadReservations, updateReservation, reservationEvents, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, holdReservation, reviewDiffs, openReservationsFor } = await import('../src/reservations.js');
 
 const NOW = new Date(2026, 9, 24, 9, 0);
 const rec = (o) => ({
@@ -86,9 +86,25 @@ test('電話番号から、これから訪問する未取消の受付を探す�
   assert.deepEqual(openReservationsFor([a], ['090-12'], '2026-10-25'), []); // 短い番号では探さない
 });
 
-test('配車係自身が確定済みを変更した場合は、仮確定に戻るが、配車係への知らせは立てない', () => {
-  addReservation(rec({ status: 'confirmed' }));
-  amendReservation('r1', { start: '09:30' }, '配車係', [], { notify: false });
+test('配車係の変更は、状態を変えない（確定済みは確定のまま、営業の予定にも新しい内容で出る）', () => {
+  addReservation(rec({ status: 'confirmed', confirmedBy: '配車係' }));
+  amendReservation('r1', { start: '09:30', end: '11:00' }, '配車係', [{ label: '訪問日時', from: 'a', to: 'b' }], { byDispatcher: true });
+  const r = loadReservations().find((x) => x.id === 'r1');
+  assert.deepEqual([r.status, r.confirmedBy, needsReview(r), r.changes[0].wasConfirmed, r.changes[0].byDispatcher], ['confirmed', '配車係', false, false, true]);
+  assert.deepEqual(reservationEvents(NOW).map((e) => [e.id, e.start]), [['r1', '09:30']]);
+  addReservation(rec({ id: 'r2', status: 'tentative' }));
+  amendReservation('r2', { start: '15:00' }, '配車係', [], { byDispatcher: true });
+  assert.equal(isTentative(loadReservations().find((x) => x.id === 'r2')), true); // 仮確定は、仮確定のまま
+});
+
+test('配車係が意図的に仮確定へ戻す（お客様に連絡して回答待ち）。理由のメモが残り、確定すると消える。確認待ちの知らせ（needsReview）は立てない', () => {
+  addReservation(rec({ status: 'confirmed', confirmedBy: '配車係' }));
+  holdReservation('r1', 'お客様に連絡して、回答待ち');
   const r = loadReservations()[0];
-  assert.deepEqual([r.status, needsReview(r)], ['tentative', false]);
+  assert.deepEqual([r.status, r.confirmedBy, r.holdNote, needsReview(r)], ['tentative', null, 'お客様に連絡して、回答待ち', false]);
+  assert.equal(reservationEvents(NOW).length, 0); // 回答が出て確定するまで、営業の予定には出ない
+  holdReservation('r1', '');
+  assert.equal(loadReservations()[0].holdNote, 'お客様に確認中'); // メモが空なら、既定の文言
+  updateReservation('r1', { status: 'confirmed', holdNote: null });
+  assert.equal(reservationEvents(NOW).length, 1);
 });

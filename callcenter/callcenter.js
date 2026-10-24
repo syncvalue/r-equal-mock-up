@@ -3,7 +3,7 @@
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
 import { canPlace, hiddenBlocks, busyBlocks, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
-import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
+import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, holdReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
@@ -98,7 +98,7 @@ function compute() {
   const missing = missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
   return {
     detail: calMode === 'day' && selected ? salesDetail({ userId: selected.user.id, date: form.date, start: form.start, dur: form.dur, reservations, here }) : null,
-    editing: editId ? loadReservations().find((r) => r.id === editId) ?? null : null,
+    editing: editId ? loadReservations().find((r) => r.id === editId) ?? null : null, editBy,
     staff: [...full.inArea].sort((a, b) => a.user.id.localeCompare(b.user.id)), staffSel, staffOpen,
     area, proposal, confirmed, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
@@ -128,14 +128,14 @@ function saveEdit() {
   const area = x.confirmed;
   const fields = { ...buildRecordFields(form, { area, pos: locateAddress(form.address, area) }), userId: x.selected.user.id };
   const nameOf = (id) => USERS.find((u) => u.id === id)?.name ?? id;
-  const wasConfirmed = !isTentative(before);
-  amendReservation(editId, fields, editBy, diffRecords(before, { ...before, ...fields }, nameOf), { notify: editBy !== '配車係' }); // 配車係自身の変更は、配車係に知らせない
+  const wasConfirmed = !isTentative(before) && editBy !== '配車係'; // 配車係の変更は、状態を変えない
+  amendReservation(editId, fields, editBy, diffRecords(before, { ...before, ...fields }, nameOf), { byDispatcher: editBy === '配車係' }); // 配車係の変更は、状態を変えない（確定済みは確定のまま）
   dispDate = form.date;
   editId = null;
   form = blankForm();
   weekStart = addDays(0);
   tab = 'dispatch';
-  flash(wasConfirmed ? (editBy === '配車係' ? '変更しました。確定済みだったため、仮確定に戻りました' : '変更しました。確定済みだったため、仮確定に戻り、配車係に知らせました') : '変更しました（仮確定のままです）');
+  flash(wasConfirmed ? '変更しました。確定済みだったため、仮確定に戻り、配車係に知らせました' : editBy === '配車係' ? `変更しました（${isTentative(before) ? '仮確定' : '確定'}のままです）` : '変更しました（仮確定のままです）');
 }
 
 function confirmReservation() {
@@ -389,7 +389,7 @@ document.addEventListener('pointermove', (e) => {
 });
 document.addEventListener('pointerup', () => { drag = null; });
 
-const formMarkup = () => (editId ? editBannerHtml(loadReservations().find((r) => r.id === editId)) : '') + formHtml(form, ymdOf(new Date()), hearingChecklist(form));
+const formMarkup = () => (editId ? editBannerHtml(loadReservations().find((r) => r.id === editId), editBy) : '') + formHtml(form, ymdOf(new Date()), hearingChecklist(form));
 const refresh = () => { $('#form').innerHTML = formMarkup(); renderDispatch(); };
 
 // 聞き取り状況（✔聞いた／未）を、入力に合わせて更新する。入力欄は作り直さない（入力中の文字を壊さない）
@@ -462,13 +462,16 @@ document.addEventListener('click', (e) => {
   else if (d.ack) { acknowledgeReservation(d.ack); render(); }
   else if (d.showday) { dispDate = d.showday; render(); }
   else if (d.ddate) { dispDate = d.ddate; render(); }
-  else if (d.fix) { updateReservation(d.fix, { status: 'confirmed', needsReview: false, confirmedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }), confirmedBy: '配車係' }); render(); }
-  else if (d.unfix) { updateReservation(d.unfix, { status: 'tentative', confirmedAt: null, confirmedBy: null }); render(); }
+  else if (d.fix) { updateReservation(d.fix, { status: 'confirmed', needsReview: false, holdNote: null, confirmedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }), confirmedBy: '配車係' }); render(); }
+  else if (d.unfix) { // 配車係が、お客様に連絡して回答次第で決めたいときに、意図的に仮確定へ戻す
+    const note = prompt('仮確定に戻します。理由のメモ（例：お客様に連絡して、回答待ち）', 'お客様に連絡して、回答待ち');
+    if (note !== null) { holdReservation(d.unfix, note.trim()); render(); }
+  }
   else if ('fixall' in d) {
     const targets = loadReservations().filter((r) => r.date === dispDate && isTentative(r));
     if (targets.length && confirm(`${dateLabel(dispDate)}の仮確定 ${targets.length}件を、すべて確定します。確定した訪問は、営業のタブレットの予定に出ます。`)) {
       const at = new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
-      targets.forEach((r) => updateReservation(r.id, { status: 'confirmed', needsReview: false, confirmedAt: at, confirmedBy: '配車係' }));
+      targets.forEach((r) => updateReservation(r.id, { status: 'confirmed', needsReview: false, holdNote: null, confirmedAt: at, confirmedBy: '配車係' }));
       render();
     }
   }
@@ -498,7 +501,7 @@ function showGhost(col, t) {
   col.appendChild(g);
 }
 document.addEventListener('dragstart', (e) => {
-  const gray = e.target.closest?.('[data-gid]'); // 営業の予定（灰色）
+  const gray = e.target.closest?.('[data-gid]'); // 営業の元からの予定
   if (gray) {
     const col = gray.closest('[data-bcol]');
     const gid = gray.dataset.gid;
@@ -540,17 +543,16 @@ document.addEventListener('drop', (e) => {
   const nameOf = (id) => USERS.find((u) => u.id === id)?.name ?? id;
   const fields = { userId: t.userId, start: minToHHMM(v.start), end: minToHHMM(v.end) };
   let rec = before;
-  if (block) { // 営業の予定（灰色）を、予約として取り込む。元の位置からは外す
+  if (block) { // 営業の元からの予定を、予約として取り込む。元の位置からは外す
     rec = reservationFromBlock(block, { userId: before.userId, date: before.date, seq: loadMovedIds().length + 1 });
     addReservation(rec);
     addMovedId(block.gid);
     syncHidden();
   }
-  const was = rec.status !== 'tentative';
-  amendReservation(rec.id, fields, '配車係', diffRecords(rec, { ...rec, ...fields }, nameOf), { notify: false });
+  amendReservation(rec.id, fields, '配車係', diffRecords(rec, { ...rec, ...fields }, nameOf), { byDispatcher: true }); // 配車係の移動は、状態を変えない（確定済みは確定のまま）
   boardSel = rec.id;
   const who = rec.customer?.name ?? '予定';
-  flash(`${who} 様を、${nameOf(t.userId)} ${fields.start}〜 に動かしました${was ? '（確定済みのため、仮確定に戻りました）' : ''}`);
+  flash(`${who} 様を、${nameOf(t.userId)} ${fields.start}〜 に動かしました`);
 });
 
 

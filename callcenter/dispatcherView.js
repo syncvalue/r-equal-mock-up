@@ -4,7 +4,7 @@ import { esc } from '../src/format.js';
 import { USERS } from '../src/dashboard.js';
 import { conflictText, AREAS, areaById, areaOfUser, busyBlocks, dispatchOptions, fairerAlternative, attendanceOf, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { isTentative, isCancelled, needsReview, reviewDiffs } from '../src/reservations.js';
-import { dateLabel, genderLabel, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade } from './view.js';
+import { dateLabel, genderLabel, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock } from './view.js';
 import { avatarHtml } from './avatar.js';
 
 // 変更の内容（項目名 変更前→変更後）
@@ -48,8 +48,8 @@ function boardColumns(date, reservations, now, areaId) {
 function blockHtml(b, selId, byId) {
   const top = topOf(b.start);
   const height = topOf(b.end) - top - 1;
-  if (b.source !== 'reservation') { // 営業のスケジュールに元からある予定。ドラッグすると、予約として取り込んで動かす
-    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（営業の予定）　ドラッグで、別の営業・時間に動かせます`)}"><b>${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
+  if (b.source !== 'reservation') { // 営業のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
+    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の営業・時間に動かせます`)}"><b>確 ${esc(b.label)}</b> ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
@@ -88,6 +88,7 @@ function boardDetailHtml(r, reservations, now) {
       <div class="text-xs">売りたいもの：${esc(r.hearing.wants)}</div>
       <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
       ${travel ? `<div class="text-[11px] leading-tight text-slate-600">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}
+      ${r.holdNote && isTentative(r) ? `<div class="text-xs text-violet-700">確認待ち：${esc(r.holdNote)}</div>` : ''}
       ${needsReview(r) ? `<div class="text-xs text-rose-700">変更：${diffText(r) || '—'}</div>` : ''}</div>
     <div class="flex flex-col items-end gap-1">${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1" data-fix="${r.id}">確定</button>` : `<button class="b b-sec !min-h-0 !py-1" data-unfix="${r.id}">仮に戻す</button>`}
       <div class="flex gap-3 text-xs"><button class="underline text-sky-700" data-chg="${r.id}">詳細を変更</button><button class="underline text-rose-700" data-cancelres="${r.id}">取消</button></div></div></div>`;
@@ -102,7 +103,7 @@ export function dispatcherHtml({ date, reservations, now, chips, view = 'board',
       <div class="mt-1 flex gap-2 text-xs"><button class="underline text-sky-700" data-chg="${r.id}">日時変更</button><button class="underline text-rose-700" data-cancelres="${r.id}">取消</button></div>`);
   const body = rows.map((r) => `<tr class="border-t align-top ${isCancelled(r) ? 'bg-slate-100 text-slate-400 line-through' : needsReview(r) ? 'bg-rose-50' : isTentative(r) ? '' : 'bg-emerald-50/50'}">
       <td class="whitespace-nowrap font-bold">${esc(r.start)}〜${esc(r.end)}</td>
-      <td><b>${esc(r.customer.name)}</b> 様（${genderLabel(r.gender)}）<div class="text-xs text-slate-500">${esc(r.receptionNo)} ／ ${esc(r.customer.phone)}</div>${needsReview(r) ? `<div class="mt-0.5 text-xs text-rose-700">変更：${diffText(r) || '—'}</div>` : ''}</td>
+      <td><b>${esc(r.customer.name)}</b> 様（${genderLabel(r.gender)}）<div class="text-xs text-slate-500">${esc(r.receptionNo)} ／ ${esc(r.customer.phone)}</div>${needsReview(r) ? `<div class="mt-0.5 text-xs text-rose-700">変更：${diffText(r) || '—'}</div>` : ''}${r.holdNote && isTentative(r) ? `<div class="mt-0.5 text-xs text-violet-700">確認待ち：${esc(r.holdNote)}</div>` : ''}</td>
       <td class="max-w-[16rem]" title="${esc(r.customer.address)}">${esc(trunc(r.customer.address, 26))}<div class="text-xs text-slate-500">${esc(areaById(r.areaId)?.name ?? '例外対応')}</div></td>
       <td class="max-w-[14rem] text-xs" title="${esc(r.hearing.wants)}">${esc(trunc(r.hearing.wants, 40))}</td>
       <td>${assignee(r, reservations, now)}</td>

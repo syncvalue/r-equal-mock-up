@@ -38,18 +38,21 @@ const stamp = () => new Date().toLocaleString('ja-JP', { dateStyle: 'short', tim
 // 取消。記録は残す（誰が・いつ・なぜ）。取り消した予約は、営業の空き・担当件数・営業のタブレットの予定から外れる
 export const cancelReservation = (id, reason, by) => updateReservation(id, { status: 'cancelled', needsReview: false, cancelReason: reason, cancelledAt: stamp(), cancelledBy: by });
 
-// 受付済みの予約の変更（どの項目でも）。仮確定の変更は、仮確定のまま（誰にも知らせない）。
-// 確定済みの変更は、仮確定に戻し、配車係に分かるよう needsReview を立てる（配車係が確定し直す・確認するまで）。変更の履歴（変更前後の差分）を残す
-export function amendReservation(id, fields, by, diff = [], { notify = true } = {}) { // notify=false: 配車係自身の変更（自分には知らせない）
+// 受付済みの予約の変更（どの項目でも）。変更の履歴（変更前後の差分）を残す。
+// オペレーターの変更: 仮確定の変更は仮確定のまま（誰にも知らせない）。確定済みの変更は、仮確定に戻し、配車係に分かるよう needsReview を立てる（配車係が確定し直す・確認するまで）。
+// 配車係の変更: 確定権があるので、何を変えても状態は変えない（確定済みは確定のまま、仮確定は仮確定のまま）
+export function amendReservation(id, fields, by, diff = [], { byDispatcher = false } = {}) {
   const r = loadReservations().find((x) => x.id === id);
   if (!r) return;
-  const wasConfirmed = !isTentative(r);
-  const revert = wasConfirmed ? { confirmedAt: null, confirmedBy: null, needsReview: notify, revertedAt: stamp() } : {};
-  updateReservation(id, { ...fields, status: 'tentative', ...revert, changes: [...(r.changes ?? []), { at: stamp(), by, wasConfirmed, diff }] });
+  const wasConfirmed = !isTentative(r) && !byDispatcher; // 仮確定に戻る変更かどうか
+  const revert = wasConfirmed ? { status: 'tentative', confirmedAt: null, confirmedBy: null, needsReview: true, revertedAt: stamp() } : {};
+  updateReservation(id, { ...fields, ...revert, changes: [...(r.changes ?? []), { at: stamp(), by, wasConfirmed, byDispatcher, diff }] });
 }
 
 // 配車係が確認すべき変更（確定済みだった予約が、変更されて仮確定に戻った）
 export const needsReview = (r) => Boolean(r.needsReview) && !isCancelled(r);
+// 配車係が、意図的に仮確定へ戻す（お客様に連絡して、回答次第で決めたい場合など）。理由のメモを残し、確定すると消える
+export const holdReservation = (id, note) => updateReservation(id, { status: 'tentative', confirmedAt: null, confirmedBy: null, needsReview: false, holdNote: note || 'お客様に確認中' });
 export const acknowledgeReservation = (id) => updateReservation(id, { needsReview: false });
 // 仮確定に戻った時点からの、変更の差分（その間に複数回変更されたら、すべて）
 export function reviewDiffs(r) {
