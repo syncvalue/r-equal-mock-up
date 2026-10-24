@@ -13,7 +13,13 @@ const GENDER = { f: '女性', m: '男性' };
 export const genderLabel = (g) => GENDER[g] ?? '';
 
 // ---- 時間帯のバー ------------------------------------------------------------------
-const SRC = { event: ['bg-slate-500', '予定'], dummy: ['bg-slate-400', '予定'], reservation: ['bg-indigo-600', 'コールセンター確定'] };
+const SRC = { event: ['bg-slate-500', '営業の訪問予定'], dummy: ['bg-slate-400', '営業の訪問予定'], reservation: ['bg-indigo-600', 'コールセンターで確定した受付'] };
+
+// 帯の色の意味（日別表示・担当候補・空き状況の一覧で共通）。灰=営業が元から入れている訪問予定、青=コールセンターで確定した受付
+export const legendHtml = ({ want = true } = {}) => `<span class="font-normal text-[11px] text-slate-600 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-slate-400 align-middle"></i> 灰：営業の訪問予定</span>
+  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-600 align-middle"></i> 青：コールセンターで確定した受付</span>
+  ${want ? '<span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-emerald-600 bg-emerald-400/25 align-middle"></i> 緑：希望時間帯（空き）</span><span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-rose-500 bg-rose-400/25 align-middle"></i> 赤：予定と重なる</span>' : ''}</span>`;
 
 // 営業のランク（S が最上位）
 const RANK_CLS = { S: 'bg-amber-400 text-slate-900', A: 'bg-indigo-600 text-white', B: 'bg-slate-500 text-white', C: 'bg-slate-300 text-slate-800' };
@@ -228,7 +234,7 @@ export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
       const free = m + form.dur <= WORK_END && !conflictOf(c.blocks, m, m + form.dur);
       return `<button class="block w-full text-left ${free ? 'hover:bg-emerald-200/70 cursor-pointer' : 'cursor-not-allowed'}" style="height:${DAY_ROW}px" ${free ? `data-dcell="${c.user.id}|${m}" title="${esc(`${c.user.name} ${minToHHMM(m)}〜${minToHHMM(m + form.dur)} で選ぶ`)}"` : 'disabled'}></button>`;
     }).join('');
-    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${SRC[b.source][0]}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${SRC[b.source][1]}）`)}"><b>${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
+    const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${SRC[b.source][0]}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${SRC[b.source][1]}）`)}"><b>${b.source === 'reservation' ? '📞受付 ' : ''}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
     const sel = c.user.id === selectedId;
     const want = sel ? `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${c.free ? 'border-emerald-600 bg-emerald-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"><span class="absolute -top-px right-0 rounded-bl bg-white/80 px-1 text-[9px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}">希望 ${minToHHMM(form.start)}〜</span></div>` : '';
     return `<div class="relative border-l ${sel ? 'bg-teal-50/60' : ''}" style="height:${h}px;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)">${slots}${blocks}${want}</div>`;
@@ -240,7 +246,7 @@ export function dayViewHtml({ cols, form, selectedId, canPrev, hasHere }) {
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="1" title="次の日">▶</button></div>
     <div class="grid" style="${grid}"><div class="border-b"></div>${head}<div class="border-b text-[10px] text-slate-400 text-right pr-1">距離</div>${travel}${axisCol}${body}</div>
     ${hasHere ? '' : '<div class="text-[11px] text-slate-400 mt-0.5">住所を入力すると、前後のアポからの距離を表示します</div>'}
-    <div class="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3"><span><i class="inline-block w-3 h-2 border-2 border-emerald-600 bg-emerald-400/25 align-middle"></i> 選択中の営業の希望時間帯（空き）</span><span><i class="inline-block w-3 h-2 border-2 border-rose-500 bg-rose-400/25 align-middle"></i> （予定と重なる）</span><span>空いている枠を押すと選べます</span></div>
+    <div class="mt-0.5">${legendHtml()}<span class="text-[11px] text-slate-500">空いている枠を押すと、その営業・その時刻を選べます</span></div>
     <div class="text-[11px] text-slate-400">距離は住所からの概算（直前のアポがなければ営業所から）</div>
   </div>`;
 }
@@ -269,7 +275,7 @@ export function dispatchHtml(x) {
       <div><div class="flex items-center justify-between mb-0.5"><div class="text-sm font-bold">空き状況（${esc(area.name)}）</div>
         <div class="flex gap-1">${[['week', '週'], ['day', '日別']].map(([k, t]) => `<button class="chip ${calendar.mode === k ? 'on' : ''}" data-calmode="${k}">${t}</button>`).join('')}</div></div>
         ${calendar.mode === 'day' ? dayViewHtml({ cols: [...ranking.inArea, ...(showOthers ? ranking.others : [])].sort((a, b) => a.user.id.localeCompare(b.user.id)), form, selectedId, canPrev: form.date > calendar.today, hasHere: Boolean(calendar.hasHere) }) : weekCalendarHtml(calendar)}</div>
-      <div><div class="text-sm font-bold mb-0.5">担当候補<span class="font-normal text-[11px] text-slate-500 ml-2"><i class="inline-block w-2 h-2 bg-slate-500 align-middle"></i>予定 <i class="inline-block w-2 h-2 bg-indigo-600 align-middle"></i>受付済 <i class="inline-block w-2 h-2 border-2 border-emerald-500 align-middle"></i>希望</span></div>
+      <div><div class="text-sm font-bold mb-0.5 flex flex-wrap items-baseline gap-x-3">担当候補${legendHtml()}</div>
         <div class="grid grid-cols-[9rem_1fr] gap-2 px-[10px]"><span></span>${axis()}</div>
         <div class="space-y-1.5">${ranking.inArea.map(card).join('')}</div></div>` : ''}
     <div><button class="text-sm underline text-slate-500" data-toggle-others>${showOthers ? '▼' : '▶'} 他エリア（例外）</button>
