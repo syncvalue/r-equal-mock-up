@@ -34,3 +34,9 @@ test('画面一覧（トップ）: GMOサインは、本システムの対象外
   assert.ok(external.includes('GMOサイン') && external.includes('/gmosign/') && external.includes('本システムの対象外'));
   assert.equal((own.match(/class="card/g) || []).length, 7); // 本システムの画面は、7個
 });
+
+test('画面一覧（トップ）: すべてのリンクは、別のタブで開く（一覧は、開いたままにする）', () => {
+  const links = [...html.matchAll(/<a class="card[^"]*" href="[^"]+"[^>]*>/g)].map((m) => m[0]);
+  assert.equal(links.length, 5);
+  assert.ok(links.every((l) => l.includes('target="_blank"') && l.includes('rel="noopener"')), links.join('\n'));
+});
