@@ -41,7 +41,7 @@ export function transcriptHtml({ lines, playing, finished, pos, total }) {
         ${playing ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="stop">⏸ 止める</button>' : `<button class="b b-pri !min-h-0 !py-1 text-sm" data-demo="start">${lines.length && !finished ? '▶ 自動再生を再開' : '▶ 自動再生'}</button>`}
         <button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="step" ${finished ? 'disabled' : ''} title="会話を1つずつ進めます">⏭ 次の発話</button>
         ${lines.length ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="reset">やり直す</button>' : ''}</div></div>
-    <p class="text-xs text-slate-500">※今後の拡張機能のデモです（通常は手入力）。<span class="bg-amber-200 rounded px-1">黄色</span>＝今入った項目。電話を切ると訪問を確定します。</p>
+    <p class="text-xs text-slate-500">※今後の拡張機能のデモです（通常は手入力）。<span class="bg-amber-200 rounded px-1">黄色</span>＝今入った項目。枠の選択と確定は、オペレーターが行います。</p>
     <div class="h-72 overflow-y-auto rounded border bg-white p-2 space-y-1.5" id="chat">${lines.length ? lines.map(bubble).join('') : '<p class="text-sm text-slate-400 text-center pt-24">「⏭ 次の発話」で1つずつ、「▶ 自動再生」で続けて、受電の会話が進みます</p>'}
       ${playing ? '<div class="text-xs text-slate-400 animate-pulse">● 通話中…</div>' : ''}</div>
     <form class="flex gap-1" data-utter-form><input class="inp" data-utter placeholder="お客様の発話を入力して試す（例: 来週の月曜、午後3時でお願いします）" /><button class="b b-sec shrink-0" type="submit">反映</button></form>

@@ -9,7 +9,7 @@ export const FIELD_LABELS = {
 };
 
 // 通話のデモ台本（op=オペレーター、cu=お客様）。お客様の発話だけから項目を拾う。
-// {area}{sales}{when} は再生時に、確定したエリア・担当営業・訪問日時の名前に置き換える。action: confirmArea=マップで確認してエリアを確定 / hangup=電話を切ると同時に訪問を確定
+// {area}{sales}{when} は再生時に、確定したエリア・担当営業・訪問日時の名前に置き換える。action: confirmArea=マップで確認してエリアを確定 / hangup=電話を切る（確定はしない。枠と担当の最終決定はオペレーター）
 export const DEMO_SCRIPT = [
   { who: 'op', text: 'お電話ありがとうございます。リクールでございます。' },
   { who: 'cu', text: '新聞に入っていたチラシを見て電話しました。不用品の買取をお願いしたいんです。' },

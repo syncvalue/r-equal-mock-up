@@ -151,17 +151,15 @@ function confirmArea() {
   document.querySelectorAll('[data-area].on').forEach((el) => { el.classList.add('flash'); });
 }
 
-// 電話を切る。この時点で全て決まっている（あとから「その時間は行けない」と連絡し直さないため）ので、訪問を確定する
+// 電話を切る。確定はしない（カレンダーの枠と担当を最終的に選ぶのは、オペレーター）。会話から決まった候補は、あらかじめ選んである
 function hangUp() {
   playing = false; finished = true;
-  const x = compute();
-  if (x.missing.length) { addSystem(`通話終了。未入力があるため確定できませんでした：${x.missing.join('、')}`); return; }
-  confirmReservation();
-  addSystem(`✅ 通話終了：訪問を確定しました（受付番号 ${done.receptionNo}）`);
+  const missing = compute().missing;
+  addSystem(missing.length ? `通話終了。未入力：${missing.join('、')}` : '通話終了。カレンダーの枠と担当を確認して、「訪問を確定する」を押してください');
 }
 
 function stopDemo() { clearTimeout(timer); playing = false; }
-// 台本を1つ進める。自動再生は次までの待ち時間（ミリ秒）を返し、終わりなら null。manual=「次の発話」ボタン（電話を切る発話は、すぐに確定する）
+// 台本を1つ進める。自動再生は次までの待ち時間（ミリ秒）を返し、終わりなら null。manual=「次の発話」ボタン（電話を切る発話は、待たずに通話を終える）
 function advance(manual) {
   if (scriptPos >= DEMO_SCRIPT.length || done || finished) return null;
   const step = DEMO_SCRIPT[scriptPos];
