@@ -5,6 +5,10 @@
       "destination": "/honsha/index.html"
     },
     {
+      "source": "/accounting",
+      "destination": "/accounting/index.html"
+    },
+    {
       "source": "/gmosign",
       "destination": "/gmosign/index.html"
     },

@@ -96,6 +96,8 @@ export const COMMENT_TAGS = ['安すぎる', '高すぎる', '要再確認', '�
 // 始業・終業の記録（営業×日付）と、本社からの入金
 export const WORKDAY_KEY = 'rq-mock-workdays';
 export const DEPOSIT_KEY = 'rq-mock-deposits';
+// 経理部から、お客様への入金（銀行振込）の記録
+export const CUSTOMER_PAY_KEY = 'rq-mock-customer-payments';
 
 // ログイン（モック）の状態
 export const SESSION_KEY = 'rq-mock-session';
@@ -107,7 +109,7 @@ export { RESERVATION_KEY };
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, STOCK_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, STOCK_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
 };
