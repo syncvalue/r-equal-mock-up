@@ -2,6 +2,11 @@
 // 過去の利用・評価は、ダミーの履歴に加えて、このアプリで保存した契約・評価も数える。
 import { loadContracts, loadEvals } from './store.js';
 
+// 買取の品目の1行（名前・数量・金額）。品目の内訳がない記録は、品目名と合計から1行にする
+const L = (name, price, qty = 1) => ({ name, qty, price });
+export const visitLines = (v) => (v.lines?.length ? v.lines : [{ name: v.items, qty: 1, price: v.total }]); // price は単価（金額 = 単価 × 数量）
+export const lineTotal = (l) => l.price * (l.qty ?? 1);
+
 const at = (date) => new Date(`${date}T10:00:00`).getTime();
 
 // 電話番号をキーにした、過去のご利用（ダミー）。評価は、営業が記録した「お客様の評価」と同じ項目
@@ -10,9 +15,17 @@ const SEED = {
   '090-2468-1357': {
     profile: { rank: 'A', trouble: { level: 'none', tags: [] }, cooloff: [] },
     customer: { name: '山田 花子', kana: 'ヤマダ ハナコ', zip: '545-0052', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3', occupation: '主婦', birth: '1964-02-11' },
-    visits: [{ at: at('2026-08-03'), items: 'ブランドバッグ', total: 185000 }, { at: at('2026-04-12'), items: '腕時計', total: 420000 }, { at: at('2025-11-20'), items: '貴金属', total: 95000 }],
-    evals: [{ savedAt: at('2026-08-03'), by: '営業 佐々木 美咲', overall: 4, attitude: '良好', repeat: '高い', wealth: '普通', timing: '3か月以内',
-      cats: ['ブランドバッグ', '腕時計'], flags: ['紹介が見込める'], memo: 'ご主人の同意を得てから売却される。次は着物も見てほしいとのこと。' }],
+    visits: [
+      { at: at('2026-08-03'), items: 'ブランドバッグ', total: 185000, lines: [L('ルイ・ヴィトン スピーディ30', 95000), L('シャネル マトラッセ チェーンウォレット', 90000)] },
+      { at: at('2026-04-12'), items: '腕時計', total: 420000, lines: [L('ロレックス デイトジャスト', 380000), L('オメガ シーマスター（ベルト・箱付き）', 40000)] },
+      { at: at('2025-11-20'), items: '貴金属', total: 95000, lines: [L('K18 ネックレス', 52000), L('プラチナ 指輪', 43000)] }],
+    evals: [
+      { savedAt: at('2026-08-03'), by: '営業 佐々木 美咲', overall: 4, attitude: '良好', repeat: '高い', wealth: '普通', timing: '3か月以内',
+        cats: ['ブランドバッグ', '腕時計'], flags: ['紹介が見込める'], memo: 'ご主人の同意を得てから売却される。次は着物も見てほしいとのこと。' },
+      { savedAt: at('2026-04-12'), by: '営業 田中 健', overall: 5, attitude: '良好', repeat: '高い', wealth: '高そう', timing: '3か月以内',
+        cats: ['腕時計'], flags: [], memo: 'ロレックスを即決で売却。時計のコレクションがまだあるとのこと。' },
+      { savedAt: at('2025-11-20'), by: '営業 鈴木 一郎', overall: 3, attitude: '普通', repeat: '普通', wealth: '普通', timing: '半年以内',
+        cats: ['貴金属・ジュエリー'], flags: ['価格交渉が強い'], memo: '初回。金の相場を気にされていた。買取額の根拠を丁寧に説明すると納得された。' }],
   },
   '080-2345-6789': {
     profile: { rank: 'B', trouble: { level: 'none', tags: [] }, cooloff: [] },
@@ -28,7 +41,10 @@ const SEED = {
   },
   '080-8901-2345': {
     profile: { rank: 'A', trouble: { level: 'caution', tags: ['家族の同意が必要'], memo: 'ご主人の同意が必要。事前にご在宅を確認する' }, cooloff: [{ at: at('2026-01-30'), items: 'ブランドバッグ', memo: 'ご家族の反対で、契約の翌日に連絡あり' }] },
-    visits: [{ at: at('2026-09-05'), items: 'ブランドバッグ', total: 310000 }, { at: at('2026-05-18'), items: 'ジュエリー', total: 150000 }, { at: at('2026-01-22'), items: 'ブランドバッグ', total: 220000 }],
+    visits: [
+      { at: at('2026-09-05'), items: 'ブランドバッグ', total: 310000, lines: [L('ルイ・ヴィトン ネヴァーフル MM', 145000), L('ルイ・ヴィトン ポシェット', 95000), L('シャネル チェーンウォレット', 70000)] },
+      { at: at('2026-05-18'), items: 'ジュエリー', total: 150000, lines: [L('ダイヤ 指輪', 80000), L('K18 ネックレス', 45000), L('パール イヤリング', 25000)] },
+      { at: at('2026-01-22'), items: 'ブランドバッグ', total: 220000, lines: [L('エルメス ガーデンパーティ', 90000), L('グッチ ショルダーバッグ', 45000), L('プラダ ナイロントート', 30000), L('コーチ ハンドバッグ', 5000, 2), L('フェンディ 財布', 25000), L('セリーヌ ミニバッグ', 20000)] }],
     evals: [{ savedAt: at('2026-09-05'), by: '営業 佐々木 美咲', overall: 4, attitude: '良好', repeat: '高い', wealth: '普通', timing: '1か月以内',
       cats: ['ブランドバッグ', 'ジュエリー・貴金属'], flags: ['家族の同意が必要'], memo: 'ご主人の同意が必要なので、事前にご在宅を確認する。' }],
   },
@@ -36,8 +52,17 @@ const SEED = {
   '090-5050-6060': {
     customer: { name: '前川 玲子', kana: 'マエカワ レイコ', zip: '543-0001', address: '大阪府大阪市天王寺区上本町6-3-2' },
     profile: { rank: 'S', trouble: { level: 'alert', tags: ['クレームが多い', '売却に至らないことが多い'], memo: '資産は多いが、査定額への不満が強く、成約まで時間がかかる。リーダーなど経験のある営業が対応する' }, cooloff: [{ at: at('2026-06-20'), items: 'エルメス', memo: '契約の3日後に、金額への不満でクーリングオフ' }, { at: at('2025-12-04'), items: '宝飾品', memo: '契約の翌日に、家族の意向で' }] },
-    visits: [{ at: at('2026-09-12'), items: 'ブランドバッグ・時計', total: 1250000 }, { at: at('2026-02-18'), items: 'ジュエリー', total: 860000 }, { at: at('2025-10-07'), items: '骨董', total: 540000 }],
-    evals: [],
+    visits: [
+      { at: at('2026-09-12'), items: 'ブランドバッグ・時計', total: 1250000, lines: [L('エルメス バーキン30', 520000), L('エルメス ケリー28', 330000), L('ルイ・ヴィトン モノグラム トランク', 120000), L('ロレックス サブマリーナ', 180000), L('カルティエ タンク', 60000), L('シャネル ボーイシャネル', 40000)] },
+      { at: at('2026-02-18'), items: 'ジュエリー', total: 860000, lines: [L('ダイヤ リング 1.2ct', 420000), L('プラチナ ネックレス', 150000), L('K18 ブレスレット', 90000), L('ルビー ブローチ', 70000), L('パール ネックレス（南洋）', 80000), L('K18 イヤリング', 15000, 2), L('ピアス（ダイヤ）', 10000, 2)] },
+      { at: at('2025-10-07'), items: '骨董', total: 540000, lines: [L('伊万里焼 大皿', 180000), L('掛け軸（日本画）', 150000), L('茶道具 一式', 120000), L('銀製 茶托', 6000, 10), L('象牙 置物', 30000)] }],
+    evals: [
+      { savedAt: at('2026-09-12'), by: '営業 田中 健', overall: 3, attitude: '難あり', repeat: '普通', wealth: '高そう', timing: '3か月以内',
+        cats: ['ブランドバッグ', '腕時計'], flags: ['価格交渉が強い', '他社と比較中'], memo: 'バーキンの査定額に不満が強く、2時間以上かかった。他社の見積もりを提示された。' },
+      { savedAt: at('2026-02-18'), by: '営業 佐藤 大輔', overall: 2, attitude: '難あり', repeat: '低い', wealth: '高そう', timing: '半年以内',
+        cats: ['ジュエリー・貴金属'], flags: ['クレームが多い'], memo: '査定額への不満を繰り返し言われた。契約後の連絡も多い。' },
+      { savedAt: at('2025-10-07'), by: '営業 田中 健', overall: 4, attitude: '良好', repeat: '普通', wealth: '高そう', timing: '3か月以内',
+        cats: ['着物・骨董'], flags: [], memo: '骨董を中心に売却。初回は穏やかだった。' }],
   },
   '06-6334-9988': {
     customer: { name: '小山 敏子', kana: 'コヤマ トシコ', zip: '561-0881', address: '大阪府豊中市庄内西町3-4-5' },
@@ -90,6 +115,10 @@ export function customerProfile(phones) {
   };
 }
 
+// 営業の評価・メモは、アポ（訪問）ごとに登録される。その訪問の評価を探す（訪問の識別子があればそれ、なければ同じ日）
+const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+export const evalOfVisit = (v, evals) => evals.find((e) => (v.visitId && e.visitId ? e.visitId === v.visitId : sameDay(e.savedAt, v.at))) ?? null;
+
 // お客様の詳細（配車係が、誰を当てるかを判断するための材料）。買取の履歴、営業の評価、前回までの担当、ランク・厄介度・クーリングオフ歴をまとめる。電話番号は複数可
 export function customerDossier(phones) {
   const list = [...new Set(phones.filter(Boolean))];
@@ -100,9 +129,10 @@ export function customerDossier(phones) {
   const evals = list.flatMap((p) => [...(SEED[p]?.evals ?? []), ...loadEvals().filter((e) => e.phone === p)])
     .filter((e) => { const k = `${e.savedAt}/${e.by}`; return evalKeys.has(k) ? false : (evalKeys.add(k), true); }).sort((a, b) => b.savedAt - a.savedAt);
   const profile = customerProfile(list);
+  const visitsWithEval = visits.map((v) => ({ ...v, eval: evalOfVisit(v, evals) })); // 各回に、その回の評価・メモを結びつける
   const total = visits.reduce((n, v) => n + (v.total || 0), 0);
   return {
-    profile, visits, evals, total, count: visits.length, average: visits.length ? Math.round(total / visits.length) : 0,
+    profile, visits: visitsWithEval, evals, total, count: visits.length, average: visits.length ? Math.round(total / visits.length) : 0,
     staff: [...new Set(evals.map((e) => String(e.by).replace(/^営業\s*/, '')))], // これまでに担当した営業（評価を残した順に、新しい方から）
   };
 }
@@ -121,7 +151,7 @@ export function historyOf(customer, { visitId = null, before = Infinity } = {}) 
   const seed = SEED[customer.phone] ?? { visits: [], evals: [] };
   const contracts = loadContracts()
     .filter((c) => c.customer?.phone === customer.phone && c.sentAt < before)
-    .map((c) => ({ at: c.sentAt, items: c.items.map((i) => i.name).join('・'), total: c.total }));
+    .map((c) => ({ at: c.sentAt, items: c.items.map((i) => i.name).join('・'), total: c.total, visitId: c.visitId, lines: c.items.map((i) => ({ name: i.name, qty: i.qty ?? 1, price: i.price })) }));
   const evals = [...seed.evals, ...loadEvals().filter((e) => e.phone === customer.phone && e.visitId !== visitId)];
   const visits = [...seed.visits, ...contracts].sort((a, b) => b.at - a.at);
   return {

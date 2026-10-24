@@ -52,3 +52,16 @@ test('厄介度は、人が登録したものだけ。営業の評価のフラ�
   assert.deepEqual([customerProfile(['090-0000-0000']).trouble.level, customerProfile(['090-0000-0000']).trouble.tags], ['none', []]);
   assert.equal(customerProfile(['080-2345-6789']).trouble.level, 'none'); // 登録が「なし」のお客様は、そのまま
 });
+
+test('買取の履歴は、品目ごとの内訳まで持つ。内訳の合計は、各回の合計に一致する', async () => {
+  const { customerDossier, visitLines, lineTotal } = await import('../src/customerHistory.js');
+  for (const phone of ['090-5050-6060', '080-8901-2345', '090-2468-1357']) {
+    const d = customerDossier([phone]);
+    assert.ok(d.visits.length >= 3);
+    d.visits.forEach((v) => assert.equal(visitLines(v).reduce((n, l) => n + lineTotal(l), 0), v.total, `${phone} ${v.items}`));
+  }
+  const big = customerDossier(['090-5050-6060']).visits.find((v) => visitLines(v).length >= 6);
+  assert.ok(big); // 1回で、複数点（多い回は6点以上）
+  assert.deepEqual(visitLines({ items: '腕時計', total: 640000 }), [{ name: '腕時計', qty: 1, price: 640000 }]); // 内訳がない記録は、1行にする
+  assert.equal(lineTotal({ price: 6000, qty: 10 }), 60000);
+});

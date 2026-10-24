@@ -4,9 +4,8 @@ import { esc } from '../src/format.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { dayTravel, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, attendanceOf, inOffTime, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { isTentative, isCancelled, isReverted, needsReview, reviewDiffs } from '../src/reservations.js';
-import { customerProfile, customerDossier } from '../src/customerHistory.js';
+import { customerProfile, customerDossier, visitLines, lineTotal } from '../src/customerHistory.js';
 import { callHistory } from '../src/callHistory.js';
-import { suggestStaff } from './assign.js';
 import { customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
 
@@ -62,16 +61,32 @@ export function customerModalHtml({ rid, reservations, now }) {
   const phones = [r.customer.phone, r.customer.phone2].filter(Boolean);
   const d = customerDossier(phones);
   const p = d.profile;
-  const suggestions = suggestStaff(r, reservations, p, now).slice(0, 5);
   const user = USERS.find((u) => u.id === r.userId);
   const h = r.hearing ?? {};
   const box = (title, body) => `<section class="space-y-1 rounded-lg border bg-slate-50 p-2"><h3 class="text-xs font-bold text-slate-500">${title}</h3>${body}</section>`;
   const row = (k, v) => `<div class="flex gap-2 text-xs"><span class="w-24 shrink-0 text-slate-500">${k}</span><span class="min-w-0">${v}</span></div>`;
-  const visits = d.visits.length ? `<table class="w-full text-xs"><tbody>${d.visits.slice(0, 8).map((v) => `<tr class="border-t"><td class="w-24 py-0.5 text-slate-500">${ymd(v.at)}</td><td>${esc(v.items)}</td><td class="text-right font-bold">${yenText(v.total)}</td></tr>`).join('')}</tbody></table>
-    <div class="text-xs text-slate-600">${d.count}回 ／ 総額 <b>${yenText(d.total)}</b> ／ 平均 ${yenText(d.average)}</div>` : '<div class="text-xs text-slate-500">買取の実績はありません（新規のお客様）</div>';
-  const evals = d.evals.length ? d.evals.slice(0, 3).map((e) => `<div class="rounded border bg-white p-1.5 text-xs"><div class="flex flex-wrap items-center gap-2"><b>${ymd(e.savedAt)}</b><span class="text-slate-500">${esc(e.by)}</span><span class="text-amber-500">${stars(e.overall)}</span>
+  // 買取の履歴: アポ（訪問）ごとに折りたたみ、1回ごとに、品目の内訳（品名・数量・金額）を全件と、その回の営業の評価・メモを出す。
+  // 評価・メモは、アポごとに登録されるので、アポが複数あれば、評価・メモも複数ある。直近の5回を先に、それ以前は「さらに…」にまとめる。品目が多い回は、枠の中でスクロールする
+  const evalHtml = (e) => (e ? `<div class="rounded border border-slate-200 bg-slate-50 p-1.5 text-xs"><div class="flex flex-wrap items-center gap-x-2 gap-y-0.5"><b>営業の評価</b><span class="text-slate-500">${esc(e.by)}</span><span class="text-amber-500">${stars(e.overall)}</span>
       <span>態度：${esc(e.attitude)}</span><span>再依頼：${esc(e.repeat)}</span><span>資産：${esc(e.wealth)}</span><span>売却の時期：${esc(e.timing)}</span></div>
-      ${e.flags?.length ? `<div class="mt-0.5">${e.flags.map((f) => `<span class="mr-1 rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-900">${esc(f)}</span>`).join('')}</div>` : ''}${e.memo ? `<div class="mt-0.5 text-slate-700">${esc(e.memo)}</div>` : ''}</div>`).join('') : '<div class="text-xs text-slate-500">営業の評価はまだありません</div>';
+      ${e.flags?.length ? `<div class="mt-0.5">${e.flags.map((f) => `<span class="mr-1 rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-900">${esc(f)}</span>`).join('')}</div>` : ''}${e.memo ? `<div class="mt-0.5 text-slate-700">${esc(e.memo)}</div>` : ''}</div>` : '<div class="text-xs text-slate-400">この回の営業の評価・メモは、まだありません</div>');
+  const visitHtml = (v, open) => {
+    const lines = visitLines(v);
+    const count = lines.reduce((n, l) => n + (l.qty ?? 1), 0);
+    const e = v.eval;
+    return `<details class="rounded border bg-white" ${open ? 'open' : ''}>
+      <summary class="cursor-pointer px-1.5 py-1 text-xs"><div class="flex items-center gap-2"><span class="w-20 shrink-0 text-slate-500">${ymd(v.at)}</span>
+        <span class="min-w-0 flex-1 truncate" title="${esc(lines.map((l) => l.name).join('、'))}">${esc(lines[0].name)}${lines.length > 1 ? `<span class="text-slate-500"> ほか${lines.length - 1}品目</span>` : ''}</span>
+        ${e ? `<span class="shrink-0 text-amber-500" title="営業の評価">${stars(e.overall)}</span>` : ''}<span class="shrink-0 text-slate-500">${count}点</span><b class="shrink-0">${yenText(v.total)}</b></div>
+        ${e?.memo ? `<div class="ml-[5.5rem] truncate text-[11px] text-slate-500" title="${esc(e.memo)}">${esc(String(e.by).replace(/^営業\s*/, ''))}：${esc(e.memo)}</div>` : ''}</summary>
+      <div class="space-y-1 border-t px-1.5 py-1"><div class="max-h-44 overflow-y-auto"><table class="w-full text-xs"><tbody>${lines.map((l) => `<tr class="border-t first:border-t-0"><td class="py-0.5">${esc(l.name)}</td><td class="w-10 text-right text-slate-500">${(l.qty ?? 1) > 1 ? `×${l.qty}` : ''}</td><td class="w-20 text-right">${yenText(lineTotal(l))}</td></tr>`).join('')}</tbody></table></div>
+        ${evalHtml(e)}</div></details>`;
+  };
+  const RECENT = 5;
+  const itemTotal = d.visits.reduce((n, v) => n + visitLines(v).reduce((m, l) => m + (l.qty ?? 1), 0), 0);
+  const visits = d.visits.length ? `<div class="text-xs text-slate-600">${d.count}回 ／ ${itemTotal}点 ／ 総額 <b>${yenText(d.total)}</b> ／ 1回の平均 ${yenText(d.average)}</div>
+    <div class="space-y-1">${d.visits.slice(0, RECENT).map((v, i) => visitHtml(v, i === 0)).join('')}
+      ${d.visits.length > RECENT ? `<details class="rounded border border-dashed bg-white"><summary class="cursor-pointer px-1.5 py-1 text-xs font-bold text-slate-600">さらに以前の ${d.visits.length - RECENT}回分を表示</summary><div class="max-h-64 space-y-1 overflow-y-auto p-1">${d.visits.slice(RECENT).map((v) => visitHtml(v, false)).join('')}</div></details>` : ''}</div>` : '<div class="text-xs text-slate-500">買取の実績はありません（新規のお客様）</div>';
   const calls = callHistory(phones, reservations).slice(0, 5);
   return `<div class="fixed inset-0 z-[60] flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/40" data-custclose></div>
     <div class="relative z-10 max-h-[92vh] w-[48rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">
@@ -81,18 +96,15 @@ export function customerModalHtml({ rid, reservations, now }) {
           <div class="text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc(phones.join(' ／ '))}</div></div>
         <button class="b b-sec !min-h-0 !py-1" data-custclose title="閉じる（Esc）">✕ 閉じる</button></div>
       ${box('誰を当てるかの判断の手がかり', `${customerProfileHtml(p, { advice: true })}
-        <div class="text-xs"><span class="text-slate-500">これまでの担当：</span>${d.staff.length ? d.staff.map((n) => `<b>${esc(n)}</b>`).join('、') : '<span class="text-slate-500">なし（新規・担当の記録なし）</span>'}</div>
-        <div class="text-xs"><span class="text-slate-500">この時間に空いている営業（お客様に合う順）：</span></div>
-        ${suggestions.length ? `<div class="grid grid-cols-1 gap-1">${suggestions.map((c) => `<div class="flex items-center gap-2 rounded border bg-white px-1.5 py-1 text-xs ${c.current ? 'border-teal-500' : ''}">${avatarHtml(c.user, 22)}<b>${esc(c.user.name)}</b>${rankBadge(c.rank)}${c.leader ? '<span class="rounded bg-slate-200 px-1 text-[10px]">L</span>' : ''}${c.current ? '<span class="rounded bg-teal-600 px-1 text-[10px] font-bold text-white">現在の担当</span>' : ''}<span class="flex flex-wrap gap-1">${specTags(c.user.id, r.formData ?? { cats: [], mainItems: {}, wants: h.wants ?? '' })}</span></div>`).join('')}</div>` : '<div class="text-xs text-rose-600">この時間に空いている営業がいません</div>'}`)}
+        <div class="text-xs"><span class="text-slate-500">これまでの担当：</span>${d.staff.length ? d.staff.map((n) => `<b>${esc(n)}</b>`).join('、') : '<span class="text-slate-500">なし（新規・担当の記録なし）</span>'}</div>`)}
+      ${box('過去の買取履歴（アポごとの品目と、営業の評価・メモ）', visits)}
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-3">
           ${box('今回の予約', `${row('訪問', `${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}`)}${row('担当', `${isTentative(r) ? '（仮）' : ''}${esc(user?.name ?? '')}`)}${row('売りたいもの', esc(h.wants ?? ''))}
-            ${row('きっかけ', esc(h.trigger ?? ''))}${row('立会い・同席', `${esc(h.attendee ?? '')} ／ ${esc(h.companion ?? '')}`)}${row('駐車・表札', `${esc(h.parking ?? '')} ／ ${esc(h.nameplate ?? '')}`)}${row('大型品', esc(h.large ?? ''))}${row('前日連絡', esc(h.contact ?? ''))}${row('訪問時の注意', esc(h.notes ?? ''))}`)}
-          ${box('受電履歴', calls.length ? calls.map((c) => `<div class="flex gap-2 text-xs"><span class="w-24 shrink-0 text-slate-500">${ymd(c.at)}</span><span class="shrink-0 font-bold">${esc(c.kind)}</span><span class="min-w-0 truncate" title="${esc(c.note)}">${esc(c.note)}</span></div>`).join('') : '<div class="text-xs text-slate-500">履歴なし</div>')}</div>
+            ${row('きっかけ', esc(h.trigger ?? ''))}${row('立会い・同席', `${esc(h.attendee ?? '')} ／ ${esc(h.companion ?? '')}`)}${row('駐車・表札', `${esc(h.parking ?? '')} ／ ${esc(h.nameplate ?? '')}`)}${row('大型品', esc(h.large ?? ''))}${row('前日連絡', esc(h.contact ?? ''))}${row('訪問時の注意', esc(h.notes ?? ''))}`)}</div>
         <div class="space-y-3">
-          ${box('過去の買取履歴', visits)}
-          ${box('営業の評価・メモ', evals)}
-          ${box('クーリングオフ歴', p.cooloff.length ? p.cooloff.map((c) => `<div class="text-xs text-rose-700"><b>${ymd(c.at)}</b> ${esc(c.items)}${c.memo ? `<span class="text-slate-600">　${esc(c.memo)}</span>` : ''}</div>`).join('') : '<div class="text-xs text-slate-500">なし</div>')}</div></div>
+          ${box('クーリングオフ歴', p.cooloff.length ? p.cooloff.map((c) => `<div class="text-xs text-rose-700"><b>${ymd(c.at)}</b> ${esc(c.items)}${c.memo ? `<span class="text-slate-600">　${esc(c.memo)}</span>` : ''}</div>`).join('') : '<div class="text-xs text-slate-500">なし</div>')}
+          ${box('受電履歴', calls.length ? calls.map((c) => `<div class="flex gap-2 text-xs"><span class="w-24 shrink-0 text-slate-500">${ymd(c.at)}</span><span class="shrink-0 font-bold">${esc(c.kind)}</span><span class="min-w-0 truncate" title="${esc(c.note)}">${esc(c.note)}</span></div>`).join('') : '<div class="text-xs text-slate-500">履歴なし</div>')}</div></div>
     </div></div>`;
 }
 
@@ -178,7 +190,7 @@ function boardDetailHtml(r, reservations, now) {
       <div class="text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
       <div class="text-xs">売りたいもの：${esc(r.hearing.wants)}</div>
       ${r.customer.phone ? customerProfileHtml(profileOf(r.customer), { advice: true }) : ''}
-      <div><button class="text-xs font-bold text-fuchsia-700 underline" data-custinfo="${r.id}">👤 お客様の詳細（買取履歴・評価・当てはめの目安）</button></div>
+      <div><button class="text-xs font-bold text-fuchsia-700 underline" data-custinfo="${r.id}">👤 お客様の詳細（買取履歴・評価・これまでの担当）</button></div>
       <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
       ${travel ? `<div class="text-[11px] leading-tight text-slate-600">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}
       ${revertedHtml(r)}</div>
