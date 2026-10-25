@@ -1,5 +1,6 @@
 // 商品の持ち帰り（事務所での入庫）の画面。QRコード付きシールを読み取りながら、買取商品を倉庫に入庫する。
 import { esc, yen, fmtTime } from './format.js';
+import { helpIcon } from './help.js';
 import { dateKey } from './workday.js';
 import { byUser, inScope, pendingOf, dateKeys } from './stock.js';
 import { loadMaster, activeWarehouses, receiveTarget, officeName, isHighValue } from './warehouseMaster.js';
@@ -108,16 +109,15 @@ function actionCard(s, mine) {
   const last = s.stock.last;
   return `
   <div class="card !p-4 w-[24rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[50%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="stockR">
-    <h3 class="font-bold text-lg">入庫する</h3>
+    <h3 class="font-bold text-lg">入庫する${helpIcon('シールの色が紫・赤の高額品は、納入のときから本社（保管場所）に入ります。\nここでは入庫せず、本社へ郵送・持参してください（本社で入庫します）。')}</h3>
     <div>
-      <div class="font-bold text-sm mb-1">納入先の倉庫<span class="font-normal text-xs text-slate-500">（倉庫担当に渡す場合も、倉庫を選んでください）</span></div>
+      <div class="font-bold text-sm mb-1">納入先の倉庫${helpIcon('倉庫担当に渡す場合も、倉庫を選んでください。')}</div>
       <div class="flex flex-wrap gap-1.5">${activeWarehouses(master).map((w) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.warehouse.id === w.id ? 'active' : ''}" data-action="stock-wh" data-value="${esc(w.id)}">${esc(w.name)}${w.officeId ? `<span class="text-xs opacity-70">（${esc(officeName(w.officeId))}営業所と一体）</span>` : ''}</button>`).join('')}</div>
     </div>
     <div>
-      <div class="font-bold text-sm mb-1">保管場所<span class="font-normal text-xs text-slate-500">（読み取った商品は、ここに入庫します）</span></div>
+      <div class="font-bold text-sm mb-1">保管場所${helpIcon('読み取った商品は、ここに入庫します。')}</div>
       <div class="flex flex-wrap gap-1.5">${target.warehouse.locations.map((l) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.location === l ? 'active' : ''}" data-action="stock-loc" data-value="${esc(l)}">${esc(l)}</button>`).join('')}</div>
     </div>
-    <div class="rounded-xl bg-violet-50 border border-violet-200 p-2 text-xs text-violet-800">シールの色が<b>紫・赤</b>の高額品は、納入のときから<b>本社</b>に入ります。ここでは入庫せず、本社へ郵送・持参してください（本社で入庫します）。</div>
     <button class="btn btn-primary w-full text-xl !py-4" data-action="stock-scan" ${todo.some((u) => !isHonshaItem(u)) ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
     <p class="text-xs text-slate-500 -mt-1">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
     <label class="block"><span class="font-bold text-sm">シールNo.を入力（スキャナ・手入力）</span>

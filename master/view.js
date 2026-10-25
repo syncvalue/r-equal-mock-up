@@ -3,6 +3,7 @@ import { employeesPanelHtml, EMPLOYEE_REASON_TEXT } from './employeesPanel.js';
 import { departmentsPanelHtml } from './departmentsPanel.js';
 import { officesPanelHtml } from './officesPanel.js';
 import { tripsPanelHtml } from './tripsPanel.js';
+import { helpIcon } from '../src/help.js';
 import { warehousesPanelHtml, vendorsPanelHtml } from './warehousesPanel.js';
 
 export const MASTERS = [
@@ -60,7 +61,7 @@ export function masterHtml(ctx) {
     <div class="text-sm flex items-center gap-3"><a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">画面一覧</a><button class="text-xs underline text-white/70" data-reset>初期値に戻す</button>${ctx.themeHtml ?? ''}</div>
   </header>
   <main class="max-w-6xl mx-auto p-4 space-y-4 overflow-y-auto" style="height:calc(100vh - 52px)">
-    <p class="text-xs text-slate-500">マスタは、各画面で使う基本のデータです。モックのため、データどうしの連動は最小限で、ダミーのデータはダミーのままです（連動する範囲は、各マスタの説明のとおり）。</p>
+    <div class="text-sm font-bold text-slate-600">マスタについて${helpIcon('マスタは、各画面で使う基本のデータです。モックのため、データどうしの連動は最小限で、ダミーのデータはダミーのままです（連動する範囲は、各マスタの説明のとおり）。')}</div>
     ${panel}
   </main>${ctx.menuOpen ? menuHtml(tab) : ''}`;
 }

@@ -1,5 +1,6 @@
 // コールセンター画面の描画（状態 → HTML）。イベント処理は callcenter.js。
 import { esc, yen } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 import { customerProfileHtml } from '../src/customerProfileView.js';
 import { CANCEL_REASONS } from './master.js';
 import { avatarHtml } from './avatar.js';
@@ -64,13 +65,12 @@ export function transcriptHtml({ lines, playing, finished, pos, total }) {
       <div class="text-[10px] text-slate-500">${l.who === 'op' ? 'オペレーター' : 'お客様'}</div>${esc(l.text)}
       ${l.got?.length ? `<div class="mt-1 flex flex-wrap gap-1">${[...new Set(l.got.map((k) => FIELD_LABELS[k]))].map((t) => `<span class="rounded bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.5">✎ ${esc(t)}</span>`).join('')}</div>` : ''}</div></div>`;
   return `<div class="space-y-2">
-    <div class="flex items-center justify-between gap-2"><span class="text-xs bg-amber-100 text-amber-800 rounded px-1.5 py-0.5 font-bold">デモ</span>
+    <div class="flex items-center justify-between gap-2"><span class="flex items-center"><span class="text-xs bg-amber-100 text-amber-800 rounded px-1.5 py-0.5 font-bold">デモ</span>${helpIcon('今後の拡張機能のデモです（通常は手入力）。\n黄色＝今入った項目。\n枠の選択と確定は、オペレーターが行います。')}</span>
       <div class="flex items-center gap-1"><span class="text-xs text-slate-500 mr-1">${pos}／${total}</span>
         ${playing ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="stop">⏸ 止める</button>' : `<button class="b b-pri !min-h-0 !py-1 text-sm" data-demo="start">${lines.length && !finished ? '▶ 自動再生を再開' : '▶ 自動再生'}</button>`}
         <button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="step" ${finished ? 'disabled' : ''} title="会話を1つずつ進めます">⏭ 次の発話</button>
         <button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="finish" ${finished ? 'disabled' : ''} title="残りの会話を、待たずに最後まで流します">⏩ 一気に最後まで</button>
         ${lines.length ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="reset">やり直す</button>' : ''}</div></div>
-    <p class="text-xs text-slate-500">※今後の拡張機能のデモです（通常は手入力）。<span class="bg-amber-200 rounded px-1">黄色</span>＝今入った項目。枠の選択と確定は、オペレーターが行います。</p>
     <div class="h-72 overflow-y-auto rounded border bg-white p-2 space-y-1.5" id="chat">${lines.length ? lines.map(bubble).join('') : '<p class="text-sm text-slate-400 text-center pt-24">「⏭ 次の発話」で1つずつ、「▶ 自動再生」で続けて、受電の会話が進みます</p>'}
       ${playing ? '<div class="text-xs text-slate-400 animate-pulse">● 通話中…</div>' : ''}</div>
     <form class="flex gap-1" data-utter-form><input class="inp" data-utter placeholder="お客様の発話を入力して試す（例: 来週の月曜、午後3時でお願いします）" /><button class="b b-sec shrink-0" type="submit">反映</button></form>
@@ -283,11 +283,11 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
   return `<div class="rounded-lg border bg-white p-1.5">
     <div class="flex items-center justify-between gap-2 mb-1">
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="-1" ${canPrev ? '' : 'disabled'} title="前の日">◀</button>
-      <div class="text-sm font-bold">${dh.md}（${dh.w}）<span class="font-normal text-xs text-slate-500 ml-2">${form.dur}分 ${minToHHMM(form.start)}〜${minToHHMM(end)}</span></div>
+      <div class="text-sm font-bold">${dh.md}（${dh.w}）<span class="font-normal text-xs text-slate-500 ml-2">${form.dur}分 ${minToHHMM(form.start)}〜${minToHHMM(end)}</span>${helpIcon('空いている枠を押すと、その営業・その時刻を選べます')}</div>
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="1" title="次の日">▶</button>
       <button class="chip ${onlyFree ? 'on' : ''}" data-onlyfree title="希望の時間に空いている営業だけを表示">空きのみ</button></div>
     ${cols.length ? `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axisCol}${body}</div></div>` : '<div class="py-6 text-center text-sm text-slate-400">この時間に空いている営業がいません</div>'}
-    <div class="mt-0.5">${legendHtml()}<span class="text-[11px] text-slate-500">空いている枠を押すと、その営業・その時刻を選べます</span></div>
+    <div class="mt-0.5">${legendHtml()}</div>
   </div>`;
 }
 
@@ -309,9 +309,8 @@ function staffFilterHtml({ staff, staffSel, staffOpen }) {
     <div class="flex flex-wrap items-center gap-2">
       <button class="chip ${staffSel.length ? 'on' : ''}" data-staffpanel>👥 営業を絞る ${staffOpen ? '▲' : '▼'}</button>
       <span class="text-xs ${staffSel.length ? 'font-bold text-teal-800' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${names.map(esc).join('・')}` : `全員（${staff.length}名）を表示`}</span>
-      ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-staffclear>解除</button>' : ''}</div>
-    ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((c) => `<button class="chip ${staffSel.includes(c.user.id) ? 'on' : ''} ${c.absent ? 'opacity-60' : ''}" data-staff="${c.user.id}" title="${c.absent ? 'この日は欠勤（担当には選べません）' : ''}">${esc(c.user.name)} ${esc(c.rank ?? '')}${c.att && c.att.kind !== 'present' ? `　${c.att.label}` : ''}</button>`).join('')}
-      <span class="w-full text-[11px] text-slate-500">表示したい営業を選びます（複数可）。選んだ営業だけが、カレンダー・担当候補に出ます。</span></div>` : ''}
+      ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-staffclear>解除</button>' : ''}${helpIcon('表示したい営業を選びます（複数可）。選んだ営業だけが、カレンダー・担当候補に出ます。')}</div>
+    ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((c) => `<button class="chip ${staffSel.includes(c.user.id) ? 'on' : ''} ${c.absent ? 'opacity-60' : ''}" data-staff="${c.user.id}" title="${c.absent ? 'この日は欠勤（担当には選べません）' : ''}">${esc(c.user.name)} ${esc(c.rank ?? '')}${c.att && c.att.kind !== 'present' ? `　${c.att.label}` : ''}</button>`).join('')}</div>` : ''}
   </div>`;
 }
 
@@ -362,7 +361,7 @@ export function dispatchHtml(x) {
         ${staffFilterHtml({ staff, staffSel, staffOpen })}
         ${calendar.mode === 'day' ? dayViewHtml({ cols: [...ranking.inArea, ...(showOthers ? ranking.others : [])].sort((a, b) => a.user.id.localeCompare(b.user.id)), form, selectedId, canPrev: form.date > calendar.today, onlyFree: calendar.onlyFree }) : weekCalendarHtml(calendar)}</div>
       ${calendar.mode === 'day' && detail ? salesDetailHtml(detail, { form, fairIndex, freeCount, area: areaById(detail.areaId) }) : ''}
-      <div><div class="text-sm font-bold mb-0.5 flex flex-wrap items-baseline gap-x-3">担当候補<span class="font-normal text-[11px] text-slate-500">${minToHHMM(form.start)}〜 の空き　⭐＝空いている中で、${form.gender === 'f' ? '女性のお客様の担当' : '担当'}が今月最も少ない人</span></div>
+      <div><div class="text-sm font-bold mb-0.5 flex flex-wrap items-baseline gap-x-3">担当候補<span class="font-normal text-[11px] text-slate-500">${minToHHMM(form.start)}〜 の空き</span>${helpIcon(`⭐＝空いている中で、${form.gender === 'f' ? '女性のお客様の担当' : '担当'}が今月最も少ない人`)}</div>
         <div class="space-y-1">${ranking.inArea.map(card).join('')}</div></div>` : ''}
     <div><button class="text-sm underline text-slate-500" data-toggle-others>${showOthers ? '▼' : '▶'} 他エリア（例外）</button>
       ${showOthers ? `<div class="space-y-1 mt-1">${ranking.others.map((c) => candidateRow(c, { selectedId, gender: form.gender, form, showArea: true })).join('')}</div>` : ''}</div>
@@ -385,7 +384,7 @@ export function doneHtml(r) {
   const u = USERS.find((x) => x.id === r.userId);
   return `
   <div class="rounded-lg border-2 border-emerald-500 bg-white p-5 space-y-3">
-    <div class="text-2xl font-bold text-emerald-700">✅ 仮確定しました</div>
+    <div class="text-2xl font-bold text-emerald-700">✅ 仮確定しました${helpIcon('担当営業は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、営業のタブレットの予定に追加されます。')}</div>
     <dl class="text-sm grid grid-cols-[7rem_1fr] gap-y-1">
       <dt class="text-slate-500">受付番号</dt><dd class="font-bold">${esc(r.receptionNo)}</dd>
       <dt class="text-slate-500">訪問日時</dt><dd class="font-bold">${esc(r.date)} ${esc(r.start)}〜${esc(r.end)}</dd>
@@ -393,7 +392,7 @@ export function doneHtml(r) {
       <dt class="text-slate-500">訪問先</dt><dd>${esc(r.customer.address)}</dd>
       <dt class="text-slate-500">担当営業（仮）</dt><dd class="font-bold">${esc(u?.name)}（${esc(areaNameOf(r.areaId))}）</dd>
     </dl>
-    <p class="text-sm text-slate-600">お客様には、<b>訪問日時だけ</b>お伝えください。担当営業は仮の決定のため、お名前は伝えません。配車係が確定すると（主に翌々日の予定を、毎日確定します）、営業のタブレットの予定に追加されます。</p>
+    <p class="text-sm text-slate-600">お客様には、<b>訪問日時だけ</b>お伝えください（担当営業のお名前は伝えません）。</p>
     <div class="flex gap-2"><button class="b b-pri" data-new>次の受付へ</button><button class="b b-sec" data-map>🗺 訪問先をGoogleマップで開く</button></div>
   </div>`;
 }
@@ -414,7 +413,7 @@ export const statusBadge = (r) => {
 // お客様から折り返しの電話があったとき（やめる・日を変えたい）に、その番号で受け付け済みの予約を出す
 export function openResHtml(list) {
   if (!list.length) return '';
-  return `<div class="space-y-1"><div class="text-xs font-bold text-sky-800">📅 この電話番号で、すでに受け付けている予約（変更・取消はここから）</div>${list.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-xs">
+  return `<div class="space-y-1"><div class="text-xs font-bold text-sky-800">📅 この電話番号で、すでに受け付けている予約${helpIcon('変更・取消はここから行います')}</div>${list.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-xs">
     <span>📅 <b>受付済み</b>：${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</span>
     <span class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-chg="${r.id}">日時を変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></span></div>`).join('')}</div>`;
 }
@@ -423,9 +422,9 @@ export function openResHtml(list) {
 export function editBannerHtml(r, by = '') {
   const confirmed = !isTentative(r) && by !== '配車係'; // 配車係の変更は、状態を変えない（確定権がある）
   return `<div class="rounded-lg border-2 ${confirmed ? 'border-rose-500 bg-rose-50' : 'border-sky-500 bg-sky-50'} px-3 py-2 text-xs">
-    <div class="flex items-center justify-between gap-2"><b class="text-sm ${confirmed ? 'text-rose-800' : 'text-sky-800'}">✎ 受付済みの予約を変更中</b><button class="underline text-slate-600" data-editcancel>変更をやめる</button></div>
+    <div class="flex items-center justify-between gap-2"><b class="text-sm ${confirmed ? 'text-rose-800' : 'text-sky-800'}">✎ 受付済みの予約を変更中${confirmed ? '' : helpIcon(by === '配車係' ? `配車係の変更です。保存しても、状態は変わりません（${isTentative(r) ? '仮確定' : '確定'}のまま）。` : '仮確定のため、保存しても仮確定のままです（誰にも知らせません）。')}</b><button class="underline text-slate-600" data-editcancel>変更をやめる</button></div>
     <div class="mt-0.5">${esc(r.receptionNo)}　${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}</div>
-    <div class="mt-0.5 ${confirmed ? 'font-bold text-rose-700' : 'text-slate-600'}">${confirmed ? '確定済みの予約です。変更を保存すると<u>仮確定に戻り</u>、配車係に知らされます。' : by === '配車係' ? `配車係の変更です。保存しても、状態は変わりません（${isTentative(r) ? '仮確定' : '確定'}のまま）。` : '仮確定のため、保存しても仮確定のままです（誰にも知らせません）。'}</div></div>`;
+    ${confirmed ? '<div class="mt-0.5 font-bold text-rose-700">確定済みの予約です。変更を保存すると<u>仮確定に戻り</u>、配車係に知らされます。</div>' : ''}</div>`;
 }
 
 // 取消の確認（理由を選ぶ）

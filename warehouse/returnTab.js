@@ -3,6 +3,7 @@ import { reasonOf, isOpenReturn, returnSteps, returnAlerts, returnTimeline, sear
 import { yen, esc } from '../src/format.js';
 import { badge, mdTime } from './ui.js';
 import { photoOf } from '../src/image.js';
+import { helpIcon } from '../src/help.js';
 import { bubblesHtml, messageBoxHtml } from './returnChat.js';
 
 export const STATUS = {
@@ -38,7 +39,8 @@ function listHtml(returns, units, rt) {
   const shown = searchReturns(returns, units, { q: rt.q, filter: rt.filter });
   const unitsByCode = new Map(units.map((u) => [u.code, u]));
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-    ${counts.todo ? `<div class="rounded-lg border-2 border-rose-400 bg-rose-50 p-3 flex flex-wrap items-center gap-3"><b class="text-rose-700 text-lg">未対応の依頼が ${counts.todo} 件あります</b><span class="text-sm text-rose-800">（回答待ち・返送待ち・コールセンターからの未返信のメッセージ）</span><button class="b b-pri !bg-rose-600" data-ret-filter="todo">未対応だけを見る</button></div>` : '<div class="rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-sm text-emerald-800 font-bold">未対応の依頼はありません</div>'}
+    <h2 class="font-bold text-lg">↩ クーリングオフ返品${helpIcon('クーリングオフは、お客様の電話（専用の番号）をコールセンターが受けて、依頼を作ります。倉庫は、依頼を開いて、コールセンターとやり取りしながら、問い合わせに回答し、返送して、お客様から買取代金の返還を確認したら完了にします。\nお客様は書面を受け取った日から8日間、無条件で契約を解除できます（当社は、郵送の余裕を見て、買取から10日間は商品を販売せずに保管します）。')}</h2>
+    ${counts.todo ? `<div class="rounded-lg border-2 border-rose-400 bg-rose-50 p-3 flex flex-wrap items-center gap-3"><b class="text-rose-700 text-lg">未対応の依頼が ${counts.todo} 件あります</b>${helpIcon('未対応は、回答待ち・返送待ち・コールセンターからの未返信のメッセージです。')}<button class="b b-pri !bg-rose-600" data-ret-filter="todo">未対応だけを見る</button></div>` : '<div class="rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-sm text-emerald-800 font-bold">未対応の依頼はありません</div>'}
     <div class="flex flex-wrap items-center gap-2">
       <input class="inp !w-96 max-w-full" data-ret-q placeholder="お客様名・電話番号・商品名・シールNo.・依頼番号・メモで探す" value="${esc(rt.q)}" autocomplete="off" />
       ${FILTERS.map(([k, l]) => `<button class="b b-sec !min-h-[36px] !py-1 ${rt.filter === k ? 'on' : ''}" data-ret-filter="${k}" aria-pressed="${rt.filter === k}">${l} <b>${counts[k]}</b></button>`).join('')}</div>
@@ -50,7 +52,7 @@ function listHtml(returns, units, rt) {
 function actionsHtml(r) {
   if (r.status === 'inquiring') {
     return `<div class="rounded bg-rose-50 border border-rose-200 p-2 space-y-2">
-      <div class="text-xs text-rose-800 font-bold">商品があって、お客様へ返送できるか回答してください。${r.expiredCodes?.length ? '期間（10日間）を過ぎた商品を含むので、返送するか個別に判断してください。' : ''}上の入力欄の内容が、回答のメモとして、やり取りに残ります（「対応できない」場合は、理由の入力が必要です）。</div>
+      <div class="text-xs text-rose-800 font-bold">商品があって、お客様へ返送できるか回答してください。${r.expiredCodes?.length ? '期間（10日間）を過ぎた商品を含むので、返送するか個別に判断してください。' : ''}${helpIcon('上の入力欄の内容が、回答のメモとして、やり取りに残ります（「対応できない」場合は、理由の入力が必要です）。')}</div>
       <div class="flex gap-2"><button class="b b-pri" data-inq-ok="${esc(r.id)}">返送できる（準備に進む）</button><button class="b b-sec" data-inq-ng="${esc(r.id)}">対応できない</button></div></div>`;
   }
   if (r.status === 'requested') return `<div class="flex items-end gap-2"><label class="text-xs font-bold flex-1">返送の追跡番号<input class="inp mt-1 font-normal" data-track="${esc(r.id)}" placeholder="例: 5012-3344-9871" /></label><button class="b b-pri" data-ship="${esc(r.id)}">返送済みにする</button></div>`;
@@ -87,7 +89,6 @@ export function returnTab(state, ui, now = Date.now(), { full }) {
   const unitsByCode = new Map(full.units.map((u) => [u.code, u]));
   const opened = state.returns.find((r) => r.id === rt.open);
   return `<div class="space-y-3">
-    <p class="text-xs text-slate-500">クーリングオフは、お客様の電話（専用の番号）をコールセンターが受けて、依頼を作ります。倉庫は、依頼を開いて、コールセンターとやり取りしながら、問い合わせに回答し、返送して、お客様から買取代金の返還を確認したら完了にします。お客様は書面を受け取った日から8日間、無条件で契約を解除できます（当社は、郵送の余裕を見て、買取から10日間は商品を販売せずに保管します）。</p>
     ${listHtml(state.returns, full.units, rt)}
     ${opened ? modalHtml(opened, unitsByCode, rt.draft[opened.id]) : ''}
   </div>`;

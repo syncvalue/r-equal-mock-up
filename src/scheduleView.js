@@ -1,5 +1,6 @@
 // 今日の予定（Googleカレンダー風の3日表示）と、訪問先までのルート確認（Googleマップ）。
 import { esc, yen, fmtTime } from './format.js';
+import { helpIcon } from './help.js';
 import { loadLive, loadEvals } from './store.js';
 import { outcomeOf } from './workday.js';
 import { EVENTS, OFFICE, eventById, eventsOfDay, dayDate, toMin } from './schedule.js';
@@ -63,9 +64,9 @@ function resultPanel(s, e, v) {
     <dl class="text-sm space-y-1.5">
       ${row('訪問時間', `${fmtTime(v.startedAt).slice(0, 5)}〜${fmtTime(v.endedAt).slice(0, 5)}（${mins}分）`)}
       ${v.outcome
-        ? `${row('結果', `<b>${esc(outcomeOf(v.outcome.type).label)}</b>${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}`)}
+        ? `${row('結果', `<b>${esc(outcomeOf(v.outcome.type).label)}</b>${helpIcon('買取なし。業績には影響しません。')}${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}`)}
            ${v.outcome.memo ? row('メモ', `<span class="rounded bg-slate-50 px-2 py-1 block whitespace-pre-wrap">${esc(v.outcome.memo)}</span>`) : ''}
-           <p class="text-xs text-slate-500">買取なし。業績には影響しません。</p>`
+           `
         : `${row('買取', sold.length ? `<div class="text-right"><b class="text-xl text-teal-700">${yen(sold.reduce((n, i) => n + i.price, 0))}</b>　${sold.reduce((n, i) => n + i.qty, 0)}点</div>` : '<span class="text-slate-500">買取なし</span>')}
            ${sold.length ? `<div class="rounded-lg border divide-y text-sm">${sold.map((i) => `<div class="flex justify-between gap-2 px-2 py-1"><span class="min-w-0 truncate">${esc(i.name)}<span class="text-xs text-slate-400"> ランク${esc(i.rank)}・${i.qty}点</span></span><b class="shrink-0">${yen(i.price)}</b></div>`).join('')}</div>` : ''}
            ${skipped.length ? `<div class="text-xs text-slate-400">見送り：${skipped.map((i) => esc(i.name)).join('、')}</div>` : ''}
@@ -203,7 +204,7 @@ function routeBody(s) {
   return `
   <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
     <div class="card !p-3 w-[22rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[48%] flex flex-col gap-2 min-h-0">
-      <div class="flex gap-1">${[0, 1].map((n) => { const dd = dayDate(n); return `<button class="flex-1 py-2 rounded-lg font-bold text-sm ${day === n ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="route-day" data-value="${n}">${n === 0 ? '今日' : '明日'}<span class="block text-[11px] font-normal">${dd.getMonth() + 1}/${dd.getDate()}（${WEEK[dd.getDay()]}）</span></button>`; }).join('')}</div>
+      <div class="flex gap-1 items-center">${[0, 1].map((n) => { const dd = dayDate(n); return `<button class="flex-1 py-2 rounded-lg font-bold text-sm ${day === n ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="route-day" data-value="${n}">${n === 0 ? '今日' : '明日'}<span class="block text-[11px] font-normal">${dd.getMonth() + 1}/${dd.getDate()}（${WEEK[dd.getDay()]}）</span></button>`; }).join('')}${stops.length ? helpIcon('距離・時間は直線距離からの概算です。') : ''}</div>
       <div class="overflow-y-auto min-h-0 flex-1 space-y-1.5" data-scroll="route">
         <div class="flex items-center gap-2 rounded-lg bg-slate-50 p-2 text-sm"><span class="w-6 h-6 rounded-full bg-sky-600 text-white flex items-center justify-center text-xs shrink-0">●</span>
           <div class="min-w-0"><b>現在地</b><div class="text-xs text-slate-500 truncate">${s.geo?.ok ? `${s.geo.lat.toFixed(4)}, ${s.geo.lng.toFixed(4)}` : esc(curLabel)}</div></div></div>
@@ -211,14 +212,13 @@ function routeBody(s) {
           <span class="text-xs text-slate-500 block">現在地 → ${stops.map((e) => esc(e.customer.name)).join(' → ')}　合計 約${totalKm.toFixed(1)}km・約${totalMin}分</span></div>` : ''}
         ${stops.map(stopRow).join('') || '<p class="text-slate-400 text-center py-6">この日の訪問予定はありません。</p>'}
         ${detail ? `<div class="space-y-1.5 pt-1 border-t-2 border-dashed mt-2">${detail}</div>` : ''}
-        ${stops.length ? '<p class="text-xs text-slate-500">距離・時間は直線距離からの概算です。</p>' : ''}
       </div>
       ${stops.length ? `<a class="btn btn-primary !py-2 !min-h-[48px] text-center flex items-center justify-center" target="_blank" rel="noopener" href="${esc(mapOpenUrl(origin, mapStops))}">🗺 Googleマップで開く（ナビ）</a>` : ''}
     </div>
     <div class="card !p-0 flex-1 min-w-0 min-h-0 overflow-hidden relative">
       ${stops.length
         ? `<iframe title="訪問ルート（${d.getMonth() + 1}/${d.getDate()}）" class="absolute inset-0 w-full h-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${esc(mapEmbedUrl(origin, mapStops))}"></iframe>
-           <div class="absolute bottom-2 left-2 right-2 text-center pointer-events-none"><span class="inline-block rounded-full bg-black/60 text-white text-xs px-3 py-1">${selStop ? `${origin === cur ? '現在地' : esc(origin.customer.name)} → ${esc(selStop.customer.name)}` : `現在地 → ${stops.map((e) => esc(e.customer.name)).join(' → ')}`}　／　表示されない場合は「Googleマップで開く」</span></div>`
+           <div class="absolute bottom-2 left-2 right-2 text-center pointer-events-none"><span class="inline-block rounded-full bg-black/60 text-white text-xs px-3 py-1">${selStop ? `${origin === cur ? '現在地' : esc(origin.customer.name)} → ${esc(selStop.customer.name)}` : `現在地 → ${stops.map((e) => esc(e.customer.name)).join(' → ')}`}${helpIcon('地図が表示されない場合は「Googleマップで開く」を使ってください。', 'pointer-events-auto !border-white !text-white')}</span></div>`
         : '<div class="h-full flex items-center justify-center text-slate-400">訪問予定がありません</div>'}
     </div>
   </div>`;

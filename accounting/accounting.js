@@ -9,6 +9,7 @@ import {
 import { tabLabel, menuView } from './menu.js';
 import { seedSample } from '../src/accountingSample.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
+import { initHelp, helpIcon } from '../src/help.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
 import { yen, fmtTime, esc } from '../src/format.js';
 
@@ -74,7 +75,7 @@ function cashTab() {
     ${card('業務中・終業済み', `${started.length} / ${rows.length} 人`)}
     ${card('確認が必要な営業', `${flagged.length} 人`, flagged.length ? 'text-rose-600' : 'text-emerald-700')}
   </div>
-  <table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>営業</th><th>営業所</th><th>状況</th><th class="text-right">始業時の金額<div class="font-normal text-xs">未始業は前日繰越</div></th><th class="text-right">入金</th><th class="text-right">経費</th><th class="text-right">帳簿残高</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th>確認事項</th></tr></thead><tbody>
+  <table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>営業</th><th>営業所</th><th>状況</th><th class="text-right">始業時の金額<div class="font-normal text-xs">未始業は前日繰越</div></th><th class="text-right">入金</th><th class="text-right">経費</th><th class="text-right">帳簿残高${helpIcon('帳簿残高 ＝ 始業時の金額 ＋ 入金 − 経費（買取代金を含む）。\n行を押すと、経費の明細とレシートを確認できます。始業時・終業時に実際に数えた金額との差異は、理由と一緒に表示します。')}</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th>確認事項</th></tr></thead><tbody>
     ${rows.map((r) => {
       const { user, day, phase, summary: sm, cash } = r;
       return `<tr class="border-b ${sm ? 'cursor-pointer hover:bg-slate-50' : ''}" ${sm ? `data-sel-user="${user.id}"` : ''}>
@@ -86,7 +87,7 @@ function cashTab() {
         ${selUser === user.id && sm ? expenseDetail(r) : ''}`;
     }).join('')}
   </tbody></table>
-  <p class="text-xs text-slate-500">帳簿残高 ＝ 始業時の金額 ＋ 入金 − 経費（買取代金を含む）。行を押すと、経費の明細とレシートを確認できます。始業時・終業時に実際に数えた金額との差異は、理由と一緒に表示します。</p>`;
+  `;
 }
 
 // ---- 入金処理 -------------------------------------------------------------------
@@ -104,15 +105,14 @@ function depositTab() {
         <label class="text-sm font-bold flex-1 min-w-[10rem]">メモ<input class="inp mt-1 font-normal" data-f="dep.memo" value="${esc(dep.memo)}" placeholder="例: 買取資金の追加" /></label>
         <button class="b b-pri" data-dep-send>入金する</button>
       </div>
-      <div class="text-sm font-bold">今日 登録した入金 <span class="font-normal text-xs text-slate-500">（毎朝の定例入金は除く）</span></div>
+      <div class="text-sm font-bold">今日 登録した入金${helpIcon('毎朝の定例入金は除きます。')}</div>
       <table class="w-full text-sm"><tbody>
         ${today.length ? '' : '<tr><td class="text-slate-400">登録はありません。</td></tr>'}
         ${today.map((d) => `<tr class="border-b"><td>${fmtTime(d.at).slice(0, 5)}</td><td class="font-bold">${esc(d.name)}（${esc(officeOf(d.userId))}）</td><td class="text-right">${yen(d.amount)}</td><td class="!whitespace-normal text-slate-500">${esc(d.memo)}</td></tr>`).join('')}
       </tbody></table>
     </section>
     <section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">👤 お客様への入金（銀行振込）</h2>
-      <p class="text-xs text-slate-500">営業の現金が足りなかった場合や、高額のため後日振込にした場合の、お客様へのお支払いです。</p>
+      <h2 class="font-bold text-lg">👤 お客様への入金（銀行振込）${helpIcon('営業の現金が足りなかった場合や、高額のため後日振込にした場合の、お客様へのお支払いです。')}</h2>
       <div class="grid sm:grid-cols-2 gap-3">
         <label class="text-sm font-bold">お客様名<input class="inp mt-1 font-normal" data-f="pay.customerName" value="${esc(pay.customerName)}" placeholder="例: 山田 花子" /></label>
         <label class="text-sm font-bold">金額${moneyInputHtml({ attrs: 'data-f="pay.amount"', value: pay.amount, placeholder: '120,000', cls: 'inp mt-1 font-normal' })}</label>
@@ -138,8 +138,7 @@ function expenseTab() {
   const why = !day?.startedAt ? 'まだ始業していないため、入力できません。' : day.closedAt ? '終業済みのため、入力できません（営業が数えた現金と合わなくなるため）。' : '';
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3 max-w-3xl">
-    <h2 class="font-bold text-lg">🧾 経費の入力代行（今日分）</h2>
-    <p class="text-xs text-slate-500">営業がレシートを入力できなかった経費を、経理部が代わりに計上します。「経理代行」の印が付き、営業の帳簿残高に反映されます。</p>
+    <h2 class="font-bold text-lg">🧾 経費の入力代行（今日分）${helpIcon('営業がレシートを入力できなかった経費を、経理部が代わりに計上します。「経理代行」の印が付き、営業の帳簿残高に反映されます。')}</h2>
     <div class="grid sm:grid-cols-2 gap-3">
       <label class="text-sm font-bold">営業${userSelect('exp.userId', exp.userId)}</label>
       <label class="text-sm font-bold">金額${moneyInputHtml({ attrs: 'data-f="exp.amount"', value: exp.amount, placeholder: '3,000', cls: 'inp mt-1 font-normal' })}</label>
@@ -158,7 +157,7 @@ function overviewTab() {
   const st = expenseStats(onlyOffice(Object.values(loadDays()), scopedIds(), Boolean(office)), key);
   const max = Math.max(1, ...st.byType.map((t) => t.amount));
   return `
-  <div class="flex gap-2">${[['day', '今日'], ['month', '今月']].map(([k, l]) => `<button class="b b-sec ${period === k ? 'on' : ''}" data-period="${k}">${l}</button>`).join('')}</div>
+  <div class="flex items-center gap-2">${[['day', '今日'], ['month', '今月']].map(([k, l]) => `<button class="b b-sec ${period === k ? 'on' : ''}" data-period="${k}">${l}</button>`).join('')}${helpIcon('会社全体の固定費などの管理は、業務フローの確認後に追加します。')}</div>
   <div class="flex flex-wrap gap-3">
     ${card('経費の合計', yen(st.total))}${card('経費の件数', `${st.count} 件`)}${card('買取代金（経費とは別）', yen(st.purchaseTotal), 'text-slate-600')}
   </div>
@@ -168,8 +167,7 @@ function overviewTab() {
         <div class="h-2 rounded bg-slate-100"><div class="h-2 rounded bg-teal-600" style="width:${Math.round((t.amount / max) * 100)}%"></div></div></div>`).join('') : '<div class="text-slate-400 text-sm">経費の記録はありません。</div>'}</section>
     <section class="rounded-xl border bg-white p-4"><h2 class="font-bold mb-2">営業別</h2>
       <table class="w-full text-sm"><tbody>${st.byUser.length ? st.byUser.map((u) => `<tr class="border-b"><td class="font-bold">${esc(withOffice(userById(u.userId)))}</td><td class="text-right">${u.count}件</td><td class="text-right">${yen(u.amount)}</td></tr>`).join('') : '<tr><td class="text-slate-400">経費の記録はありません。</td></tr>'}</tbody></table></section>
-  </div>
-  <p class="text-xs text-slate-500">会社全体の固定費などの管理は、業務フローの確認後に追加します。</p>`;
+  </div>`;
 }
 
 const VIEWS = { cash: cashTab, deposit: depositTab, expense: expenseTab, overview: overviewTab };
@@ -261,4 +259,5 @@ document.addEventListener('focusout', () => { if (dirty) setTimeout(() => !isEdi
 
 seedSample(); // 初めて開いたとき（記録が空のとき）だけ、サンプルデータを入れる
 initTheme();
+initHelp();
 render();

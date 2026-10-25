@@ -1,6 +1,7 @@
 // コールセンター「クーリングオフ」タブの表示。クーリングオフ専用の番号を受けたオペレーターが、商品を探して状態を確認し、依頼を作って、進捗を管理する。
 import { RETURN_REASONS, reasonOf, isOpenReturn } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 import { badge, md, mdw, mdTime } from '../warehouse/ui.js';
 import { photoOf } from '../src/image.js';
 import { STATUS, stepsHtml } from '../warehouse/returnTab.js';
@@ -40,7 +41,7 @@ function contractCard(c, sel) {
 export function filtersHtml({ days, categories, criteria }) {
   const chip = (attrs, on, text) => `<button class="chip ${on ? 'on' : ''}" ${attrs} aria-pressed="${on}">${text}</button>`;
   return `<div class="rounded-xl border bg-white p-3 space-y-2">
-    <div class="flex items-center justify-between"><span class="text-xs font-bold">買取日（「先週の金曜日」など。複数選べます）</span><button class="text-xs underline text-slate-500" data-co-clear>条件をすべて外す</button></div>
+    <div class="flex items-center justify-between"><span class="text-xs font-bold">買取日${helpIcon('「先週の金曜日」など。複数選べます。')}</span><button class="text-xs underline text-slate-500" data-co-clear>条件をすべて外す</button></div>
     <div class="flex flex-wrap gap-1">${days.map((d) => chip(`data-co-day="${esc(d.date)}"`, criteria.dates.includes(d.date), `${esc(d.label)}${d.count ? ` <span class="${criteria.dates.includes(d.date) ? '' : 'text-teal-700'}">${d.count}件</span>` : ' <span class="opacity-50">なし</span>'}`)).join('')}</div>
     <div class="text-xs font-bold">商品の種類</div>
     <div class="flex flex-wrap gap-1">${chip('data-co-cat=""', !criteria.category, 'すべて')}${categories.map((c) => chip(`data-co-cat="${esc(c)}"`, criteria.category === c, esc(c))).join('')}</div>
@@ -50,7 +51,7 @@ export function filtersHtml({ days, categories, criteria }) {
 // 商品を探した結果（契約ごと）。商品の状態を見て、依頼にできるかを確認する
 export function resultsHtml(contracts, criteria, sel) {
   const any = String(criteria.q ?? '').trim() || criteria.dates?.length || criteria.category;
-  if (!any) return '<p class="text-xs text-slate-500">お客様が話した手がかり（お名前・電話番号・買取日・商品の種類・商品名）で探します。うろ覚えでも、買取日だけ、商品の種類だけでも探せます。</p>';
+  if (!any) return `<p class="text-xs text-slate-500">お客様が話した手がかりで探します。${helpIcon('お名前・電話番号・買取日・商品の種類・商品名で探します。うろ覚えでも、買取日だけ、商品の種類だけでも探せます。')}</p>`;
   if (!contracts.length) return '<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">該当する商品がありません。実際には買い取っていない可能性もあります。お名前を外して買取日だけで探す、買取日を広げる、商品の種類を「すべて」にする、などで探し直してください。</div>';
   return `<div class="space-y-3">${contracts.map((c) => contractCard(c, sel)).join('')}</div>`;
 }
@@ -80,7 +81,7 @@ export function formHtml(contracts, sel, form) {
     <div class="font-bold">依頼の作成</div>
     ${rows.length ? `<div class="text-sm"><b>${esc(c.customerName)} 様</b>　${rows.length}点を選択中（お客様から返していただく買取代金 <b>${yen(rows.filter((r) => r.check.kind !== 'sold').reduce((n, r) => n + r.unit.price, 0))}</b>）</div>` : '<div class="text-xs text-slate-500">上の検索結果から、返品を希望する商品にチェックを入れてください。</div>'}
     <div class="grid grid-cols-2 gap-2">
-      <label class="text-xs font-bold">電話番号（空欄なら、買取時の番号を記録）<input class="inp mt-0.5 font-normal" data-co-field="phone" value="${esc(form.phone)}" placeholder="${esc(c?.phones?.[0] ?? '例: 090-1234-5678')}" /></label>
+      <label class="text-xs font-bold">電話番号${helpIcon('空欄なら、買取時の番号を記録します。')}<input class="inp mt-0.5 font-normal" data-co-field="phone" value="${esc(form.phone)}" placeholder="${esc(c?.phones?.[0] ?? '例: 090-1234-5678')}" /></label>
       <label class="text-xs font-bold">理由<select class="inp mt-0.5 font-normal" data-co-field="reason">${RETURN_REASONS.map((r) => `<option value="${r.key}" ${form.reason === r.key ? 'selected' : ''}>${r.label}</option>`).join('')}</select></label>
     </div>
     <label class="text-xs font-bold block">受電メモ<input class="inp mt-0.5 font-normal" data-co-field="memo" value="${esc(form.memo)}" placeholder="例: 返送先は、ご自宅（買取時の住所）で確認済み" /></label>
@@ -125,9 +126,8 @@ export function cooloffPage({ q, filtersInner, resultsInner, formInner, progress
   return `<div class="grid grid-cols-[minmax(30rem,42rem)_1fr] gap-4 p-4 overflow-hidden h-[calc(100vh-52px)]">
     <section class="space-y-3 overflow-y-auto pr-1">
       <div class="rounded-xl border bg-white p-3 space-y-2">
-        <div class="font-bold">📞 クーリングオフの受電</div>
-        <p class="text-xs text-slate-500">専用の番号に電話が入ったら、お客様の手がかりで商品を探し、写真を見ながら「これですか」と確認して、依頼を作ります。依頼は倉庫に届き、倉庫が回答・返送します。</p>
-        <label class="text-xs font-bold block">お名前・電話番号・商品名・商品の種類・シールNo.（空白やハイフンは気にしなくて大丈夫です）<input class="inp mt-0.5 font-normal" data-co-q value="${esc(q)}" placeholder="例: 山田、090-1234-5678、時計、ロレックス" /></label>
+        <div class="font-bold">📞 クーリングオフの受電${helpIcon('専用の番号に電話が入ったら、お客様の手がかりで商品を探し、写真を見ながら「これですか」と確認して、依頼を作ります。\n依頼は倉庫に届き、倉庫が回答・返送します。')}</div>
+        <label class="text-xs font-bold block">お名前・電話番号・商品名・商品の種類・シールNo.${helpIcon('空白やハイフンは気にしなくて大丈夫です。')}<input class="inp mt-0.5 font-normal" data-co-q value="${esc(q)}" placeholder="例: 山田、090-1234-5678、時計、ロレックス" /></label>
       </div>
       <div id="co-filters">${filtersInner}</div>
       <div id="co-results">${resultsInner}</div>

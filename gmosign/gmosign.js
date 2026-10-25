@@ -2,6 +2,7 @@
 import { RESET_CONFIRM, clearTransactions, loadContracts, upsertContract } from '../src/store.js';
 import { ID_TYPES } from '../src/data.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
+import { initHelp, helpIcon } from '../src/help.js';
 import { contractFormHtml } from './contractForm.js';
 import { yen, fmtDateTime, esc } from '../src/format.js';
 
@@ -21,8 +22,7 @@ function loginView() {
   <div class="fixed top-3 right-3">${themeToggleHtml()}</div>
   <div class="min-h-screen flex items-center justify-center p-4">
     <form class="bg-white shadow rounded-lg p-8 w-full max-w-sm space-y-4" data-form="login">
-      <h1 class="text-2xl font-bold text-sky-800">GMOサイン ログイン</h1>
-      <p class="text-xs text-slate-500">※ダミー画面です。任意の値でログインできます。</p>
+      <h1 class="text-2xl font-bold text-sky-800">GMOサイン ログイン${helpIcon('ダミー画面です。任意の値でログインできます。')}</h1>
       <label class="block text-sm font-bold">メールアドレス<input class="inp mt-1" value="staff@example.com" /></label>
       <label class="block text-sm font-bold">パスワード<input class="inp mt-1" type="password" value="password" /></label>
       <button class="b b-pri w-full">ログイン</button>
@@ -74,11 +74,10 @@ function detailView(c) {
           : `<select class="inp" id="kyc-type">${ID_TYPES.map((t) => `<option>${t}</option>`).join('')}</select>
              <div class="flex gap-2"><label class="b b-sec cursor-pointer flex-1 text-center">ファイル選択<input type="file" accept="image/*" class="hidden" id="kyc-file" /></label>
              <button class="b b-pri" data-act="kyc-dummy">ダミー画像で登録</button></div>`}
-        <h2 class="font-bold text-lg pt-2">② 契約書の印刷</h2>
+        <h2 class="font-bold text-lg pt-2">② 契約書の印刷${helpIcon('印刷した契約書に、お客様がボールペンで「チェック項目への記入」と「署名」をします（この画面では行いません）。')}</h2>
         ${!c.kyc
           ? '<p class="text-slate-400">本人確認書類の登録後に印刷できます。</p>'
-          : `<p class="text-sm text-slate-600">印刷した契約書に、お客様がボールペンで<b>チェック項目への記入</b>と<b>署名</b>をします（この画面では行いません）。</p>
-             ${printed ? `<p class="text-emerald-700 font-bold">✅ 印刷済み（${fmtDateTime(c.printedAt)}）</p>` : ''}
+          : `${printed ? `<p class="text-emerald-700 font-bold">✅ 印刷済み（${fmtDateTime(c.printedAt)}）</p>` : ''}
              <div class="flex gap-2"><button class="b b-sec flex-1" data-act="preview">プレビュー</button>
              <button class="b b-pri flex-1" data-act="print">${printed ? '再印刷' : '印刷（会社控え・お客様控え）'}</button></div>`}
       </section>
@@ -146,4 +145,5 @@ document.addEventListener('change', (e) => {
 });
 window.addEventListener('hashchange', () => { previewOpen = false; render(); });
 initTheme();
+initHelp();
 render();

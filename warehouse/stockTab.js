@@ -4,6 +4,7 @@ import { yen, esc } from '../src/format.js';
 import { userById } from '../src/dashboard.js';
 import { warehouseIdOf } from '../src/warehouseMaster.js';
 import { relabelForm } from './relabelForm.js';
+import { helpIcon } from '../src/help.js';
 import { paginate, pageNumbers, PAGE_SIZES } from '../src/paging.js';
 import { badge, card, md, mdTime, whName, sealBadge, photoSlot, STAGE_CLS } from './ui.js';
 
@@ -60,7 +61,7 @@ function scanResult(data, scan, rl) {
     </div>
     <div class="flex flex-wrap items-center gap-3 rounded bg-slate-50 p-2">${photoSlot(unit, 'h-24 w-24')}
       <div class="text-sm space-y-1"><div class="font-bold">商品の写真</div>
-        <div class="text-xs text-slate-600">${unit.photo ? `登録済み（${unit.photoBy ? `${esc(unit.photoBy)}・` : ''}${unit.photoAt ? mdTime(unit.photoAt) : ''}）。写真を押すと撮り直せます` : '未登録です（いまは仮の絵）。写真を押して、撮影・選択して登録してください。クーリングオフの電話で、お客様と商品を確認するときに使います'}</div>
+        <div class="text-xs text-slate-600">${unit.photo ? `登録済み（${unit.photoBy ? `${esc(unit.photoBy)}・` : ''}${unit.photoAt ? mdTime(unit.photoAt) : ''}）` : '未登録です（いまは仮の絵）'}${helpIcon(`${unit.photo ? '写真を押すと撮り直せます。' : '写真を押して、撮影・選択して登録してください。'}\nクーリングオフの電話で、お客様と商品を確認するときに使います。`)}</div>
         <div class="flex gap-2"><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-photo-sample="${esc(unit.code)}">（デモ用）サンプル写真を登録</button>${unit.photo ? `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-photo-clear="${esc(unit.code)}">写真を削除</button>` : ''}</div></div></div>
     ${['incoming', 'missing', 'stock'].includes(r.stage) ? (rl.code === unit.code ? relabelForm(rl, unit) : `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-rl-open="${esc(unit.code)}">🏷 シール貼り替え（色の間違いなど）</button>`) : ''}
     ${siblingsHtml(data, unit.code)}
@@ -107,7 +108,7 @@ export function stockTab(data, { filter, q, scan, view, rl, page, pageSize }) {
     <label class="font-bold text-sm" for="wh-search">🔍 商品を探す</label>
     <input id="wh-search" class="inp !w-96 max-w-full" data-q placeholder="商品名・シールNo.・お客様名（QRリーダーで読み取りも可）" value="${esc(q)}" autocomplete="off" />
     <button class="b b-pri !bg-teal-700" data-cam-search>📷 カメラで読み取る</button>
-    <span class="text-xs text-slate-500">入力すると、下の一覧が絞り込まれます。シールのQRを読み取る（またはシールNo.を入力してEnter）と、その商品の詳細と履歴が出ます。</span>
+    ${helpIcon('入力すると、下の一覧が絞り込まれます。\nシールのQRを読み取る（またはシールNo.を入力してEnter）と、その商品の詳細と履歴が出ます。')}
   </div>
   ${scanResult(data, scan, rl)}
   <div class="flex flex-wrap gap-3">
@@ -122,10 +123,11 @@ export function stockTab(data, { filter, q, scan, view, rl, page, pageSize }) {
   </div>
   <div class="flex flex-wrap items-center gap-2">
     ${FILTERS.map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}
+    ${helpIcon('買い取った商品は、クーリングオフに備え、買取から10日間は保管し、出品・販売できません（お客様の通知は郵送で届くため、法定の8日間に余裕を足しています）。保管期間が過ぎた入庫済みの商品から出品できます。\n入庫は営業のタブレット（商品の持ち帰り）で、QRシールを読み取って行います。')}
   </div>
   <div class="flex gap-2 items-center"><span class="text-sm font-bold">表示</span>
     ${[['list', '☰ 一覧'], ['lot', '📅 買取日・お客様別']].map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${view === k ? 'on' : ''}" data-view="${k}">${l}</button>`).join('')}
-    <span class="text-xs text-slate-500">買取日・お客様（契約）ごとにまとめて保管します。クーリングオフのときも、同じ契約の商品をすぐ探せます。</span></div>
+    ${helpIcon('買取日・お客様（契約）ごとにまとめて保管します。クーリングオフのときも、同じ契約の商品をすぐ探せます。')}</div>
   ${pagerHtml}
   ${byLot ? lotView(pg.items, data) : `<table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>シールNo.</th><th>商品</th><th>ランク</th><th>買取先</th><th>買取日</th><th class="text-right">原価</th><th>倉庫・保管場所</th><th>状態</th><th>操作・備考</th></tr></thead><tbody>
     ${pg.items.length ? pg.items.map((r) => `<tr class="border-b">
@@ -133,6 +135,5 @@ export function stockTab(data, { filter, q, scan, view, rl, page, pageSize }) {
       <td>${esc(r.unit.customerName)} 様</td><td>${md(r.unit.date)}</td><td class="text-right">${yen(r.unit.price)}</td><td class="text-xs">${where(r, data)}</td>
       <td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r, data)}</td></tr>`).join('') : '<tr><td colspan="9" class="text-slate-400">該当する商品はありません。</td></tr>'}
   </tbody></table>`}
-  ${pg.total > pageSize || pg.pages > 1 ? pagerHtml : ''}
-  <p class="text-xs text-slate-500">買い取った商品は、クーリングオフに備え、買取から10日間は保管し、出品・販売できません（お客様の通知は郵送で届くため、法定の8日間に余裕を足しています）。保管期間が過ぎた入庫済みの商品から出品できます。入庫は営業のタブレット（商品の持ち帰り）で、QRシールを読み取って行います。</p>`;
+  ${pg.total > pageSize || pg.pages > 1 ? pagerHtml : ''}`;
 }

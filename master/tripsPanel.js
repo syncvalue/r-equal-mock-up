@@ -1,6 +1,7 @@
 // マスタ管理「出張」パネルの表示。出張（期間・担当の都道府県・出張メンバー）の一覧と、登録・変更。
 import { tripStatus } from '../src/trips.js';
 import { esc } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 
 export const blankTrip = () => ({ id: '', name: '', prefs: '', start: '', end: '', memberIds: [] });
 export const formFromTrip = (t) => ({ id: t.id, name: t.name, prefs: t.prefs.join('、'), start: t.start, end: t.end, memberIds: [...t.memberIds] });
@@ -45,8 +46,7 @@ function form(mt, users) {
 // ctx: { trips, users: 出張メンバーに選べる営業 [{ id, name }], today: YYYY-MM-DD, ui: { mt } }
 export function tripsPanelHtml({ trips, users, today, ui }) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🧳 出張（${trips.filter((t) => t.active).length}件）</h2>
-      <p class="text-xs text-slate-500">営業所のないエリアへ、チラシを配って、期間を決めて訪問買取をする営業方法です。出張メンバーの本来の営業所は変わりません。期間中だけ、出張エリアの候補にも加わり（本来の営業所のエリアの候補にも残ります）、コールセンターでは「出張中」と分かるように出ます。</p>
+      <h2 class="font-bold text-lg">🧳 出張（${trips.filter((t) => t.active).length}件）${helpIcon('営業所のないエリアへ、チラシを配って、期間を決めて訪問買取をする営業方法です。\n出張メンバーの本来の営業所は変わりません。期間中だけ、出張エリアの候補にも加わり（本来の営業所のエリアの候補にも残ります）、コールセンターでは「出張中」と分かるように出ます。')}</h2>
       ${table(trips, users, today)}${form(ui.mt, users)}
     </section>`;
 }

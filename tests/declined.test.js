@@ -55,7 +55,7 @@ test('見送り品の表示: 点数・査定額の合計・分野・訪問ごと
 test('配車係のお客様の詳細に、見送り品を出す', () => {
   const rec = { id: 'r1', userId: 'u09', date: '2026-10-28', start: '13:00', end: '14:30', areaId: 'osaka', status: 'tentative', customer: { name: '前川 玲子', phone: '090-5050-6060', address: '大阪' }, hearing: { wants: '腕時計' }, gender: 'f' };
   const t = text(customerModalHtml({ rid: 'r1', reservations: [rec], now: new Date(2026, 9, 24, 9) }));
-  assert.ok(t.includes('査定したが売らなかったもの（お手元に持っている可能性）') && t.includes('パテック・フィリップ カラトラバ') && t.includes('ダイヤ ネックレス 2.0ct'), t);
+  assert.ok(t.includes('査定したが売らなかったもの') && t.includes('パテック・フィリップ カラトラバ') && t.includes('ダイヤ ネックレス 2.0ct'), t);
   const none = text(customerModalHtml({ rid: 'r1', reservations: [{ ...rec, customer: { ...rec.customer, phone: '090-0000-0000' } }], now: new Date(2026, 9, 24, 9) }));
   assert.ok(none.includes('査定したが売らなかったものは、ありません'));
 });

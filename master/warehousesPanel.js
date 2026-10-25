@@ -3,6 +3,7 @@ import { officeName } from '../src/offices.js';
 import { officeLabel } from '../src/offices.js';
 import { staffOf } from '../src/warehouseMaster.js';
 import { yen, esc } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 import { SEAL_COLORS } from '../src/stock.js';
 import { badge } from '../warehouse/ui.js';
 
@@ -10,7 +11,7 @@ const ON = badge('bg-emerald-100 text-emerald-800', '有効');
 const OFF = badge('bg-slate-200 text-slate-600', '無効');
 
 function warehouseTable({ master, holding, offices }) {
-  return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>倉庫</th><th>郵便番号・住所・電話</th><th>営業所との関係</th><th>保管場所（棚）</th><th>担当者</th><th class="text-right">保管中</th><th>状態</th><th>操作</th></tr></thead><tbody>
+  return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>倉庫</th><th>郵便番号・住所・電話</th><th>営業所との関係</th><th>保管場所（棚）</th><th>倉庫担当</th><th class="text-right">保管中</th><th>状態</th><th>操作</th></tr></thead><tbody>
     ${master.warehouses.map((w) => {
       const h = holding[w.id] ?? { count: 0, cost: 0 };
       const staff = staffOf(master, w.id).filter((s) => s.active);
@@ -42,8 +43,7 @@ function warehouseForm(mw, offices) {
 function highValueForm(data, hv) {
   const cur = hv ?? data.master.highValue.colors;
   return `<div class="rounded-lg border bg-slate-50 p-3 space-y-3">
-    <h3 class="font-bold">高額品の判定（シールの色）</h3>
-    <p class="text-xs text-slate-500">商品に貼るシールの色で、本社の管理対象（高額品）かどうかを決めます。チェックを付けた色の商品は、納入のときから本社に入り、それ以外は倉庫に入ります。紫が最も高額で、次が赤です。黄・緑・青は、システム上は区別しません。</p>
+    <h3 class="font-bold">高額品の判定（シールの色）${helpIcon('商品に貼るシールの色で、本社の管理対象（高額品）かどうかを決めます。チェックを付けた色の商品は、納入のときから本社に入り、それ以外は倉庫に入ります。\n紫が最も高額で、次が赤です。黄・緑・青は、システム上は区別しません。')}</h3>
     <div class="flex flex-wrap gap-4">${SEAL_COLORS.map((c) => `<label class="flex items-center gap-2 text-sm font-bold"><input type="checkbox" class="w-5 h-5" data-hv-color="${c.key}" ${cur.includes(c.key) ? 'checked' : ''} />${c.dot} ${c.label}<span class="font-normal text-xs text-slate-500">（${c.note}）</span></label>`).join('')}</div>
     <button class="b b-pri" data-hv-save>判定の設定を保存</button>
   </div>`;
@@ -75,16 +75,15 @@ export function warehousesPanelHtml({ wmaster, holding, offices, ui }) {
   const only = offices.filter((o) => o.active && !linked.has(o.id)).map((o) => officeLabel(o));
   const data = { master: wmaster, holding, offices };
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🏭 倉庫（${wmaster.warehouses.filter((w) => w.active).length}か所）</h2>
-      <p class="text-xs text-slate-500">倉庫は、営業所とは独立した施設です。営業所と一体の倉庫、倉庫のみの施設があり、倉庫のない営業所（営業のみ）もあります。${only.length ? `いま倉庫のない営業所: ${esc(only.join('・'))}。` : ''}倉庫担当の所属は、社員で変更します。</p>
+      <h2 class="font-bold text-lg">🏭 倉庫（${wmaster.warehouses.filter((w) => w.active).length}か所）${helpIcon('倉庫は、営業所とは独立した施設です。営業所と一体の倉庫、倉庫のみの施設があり、倉庫のない営業所（営業のみ）もあります。倉庫担当の所属は、社員で変更します。')}</h2>
+      ${only.length ? `<p class="text-xs text-slate-500">いま倉庫のない営業所: ${esc(only.join('・'))}</p>` : ''}
       ${warehouseTable(data)}${warehouseForm(ui.mw, offices)}${highValueForm(data, ui.hv)}
     </section>`;
 }
 
 export function vendorsPanelHtml({ wmaster, ui }) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🤝 委託先（業者）（${(wmaster.vendors ?? []).filter((v) => v.active).length}社）</h2>
-      <p class="text-xs text-slate-500">業者オークションなど、商品を委託して販売してもらう業者です。販売（出品）の「業者に委託する」で、委託先に選びます。</p>
+      <h2 class="font-bold text-lg">🤝 委託先（業者）（${(wmaster.vendors ?? []).filter((v) => v.active).length}社）${helpIcon('業者オークションなど、商品を委託して販売してもらう業者です。販売（出品）の「業者に委託する」で、委託先に選びます。')}</h2>
       ${vendorTable({ master: wmaster })}${vendorForm(ui.mv)}
     </section>`;
 }

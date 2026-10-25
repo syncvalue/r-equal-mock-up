@@ -15,6 +15,7 @@ import { pendingCount } from './stockView.js';
 import { SEAL_COLORS } from './stock.js';
 import { fakeQr } from './fakeQr.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
+import { helpIcon } from './help.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '説明事項', '買取明細', '買取商品の確認', 'シール紐づけ', '送信・終了'];
 
@@ -573,9 +574,8 @@ function evalModalView(s) {
     <div><div class="font-bold text-sm mb-1">${label}<span class="font-normal text-xs text-slate-500">（複数選択可）</span></div><div class="flex flex-wrap gap-1.5">
       ${EVAL_OPTIONS[field].map((o) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${d[field].includes(o) ? 'active' : ''}" data-action="eval-toggle" data-field="${field}" data-value="${o}">${o}</button>`).join('')}</div></div>`;
   return modalShell(
-    `⭐ お客様の評価　<span class="text-sm font-normal text-slate-500">${esc(s.customer.name)} 様</span>`,
-    `<p class="text-xs text-slate-500">社内記録です。お客様には表示されません。</p>
-    <div class="grid sm:grid-cols-2 gap-3 items-start">
+    `⭐ お客様の評価　<span class="text-sm font-normal text-slate-500">${esc(s.customer.name)} 様</span>${helpIcon('社内記録です。お客様には表示されません。')}`,
+    `<div class="grid sm:grid-cols-2 gap-3 items-start">
       <div class="space-y-2.5">
         <div><div class="font-bold text-sm mb-1">総合評価</div><div class="flex gap-1">
           ${[1, 2, 3, 4, 5].map((n) => `<button class="text-4xl leading-none w-11 h-11 ${n <= d.overall ? 'text-amber-400' : 'text-slate-300'}" data-action="eval-set" data-field="overall" data-value="${n}" aria-label="${n}点">★</button>`).join('')}
@@ -610,10 +610,9 @@ export function endView(s) {
       <div class="card space-y-3 flex flex-col justify-between !p-4">
         <div class="text-center space-y-1">
           <div class="text-5xl">${done ? '🎉' : '📨'}</div>
-          <div class="font-bold text-lg">GMOサインに送信しました</div>
+          <div class="font-bold text-lg">GMOサインに送信しました${helpIcon('本人確認・契約書の印刷は、GMOサイン管理画面で行います。')}</div>
           <div class="text-slate-600 text-sm">契約No. ${esc(s.contract.id)}<br>買取金額 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
         </div>
-        <div class="rounded-xl bg-sky-50 border border-sky-200 p-2 text-xs text-sky-900">本人確認・契約書の印刷は、GMOサイン管理画面で行います。</div>
         <button class="btn w-full bg-sky-600 text-white !min-h-[48px] !py-2" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
         <button class="btn btn-secondary w-full !min-h-[48px] !py-2 flex items-center justify-center gap-2" data-action="open-eval">⭐ お客様の評価を登録${evalFilled(s.evaluation) ? `<span class="text-xs rounded bg-emerald-100 text-emerald-800 px-2 py-0.5">登録済み${s.evaluation.overall ? ` ★${s.evaluation.overall}` : ''}</span>` : '<span class="text-xs text-slate-500">（任意）</span>'}</button>
         ${
@@ -625,9 +624,8 @@ export function endView(s) {
       </div>
       <div class="card !p-4 flex flex-col gap-2 min-h-0">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold">🚪 お客様宅を出る前の確認</h2>
+          <h2 class="text-lg font-bold">🚪 お客様宅を出る前の確認${helpIcon('すべてチェックすると、訪問を終了できます。')}</h2>
           <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${LEAVE_CHECKS.length - left} / ${LEAVE_CHECKS.length}</span></div>
-        <p class="text-xs text-slate-500">すべてチェックすると、訪問を終了できます。</p>
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="leave">
           ${auto.map(([t, ok]) => `<div class="flex items-center gap-3 rounded-xl border-2 ${ok ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300'} px-3 py-2 min-h-[48px]">
               <span class="w-7 h-7 rounded-md flex items-center justify-center text-white font-bold ${ok ? 'bg-emerald-600' : 'bg-rose-500'}">${ok ? '✓' : '!'}</span>
@@ -692,7 +690,7 @@ export function rangeView(item) {
   const out = u && (u < range.min || u > range.max);
   return `
   <div class="rounded-xl bg-slate-50 border p-2.5 space-y-1.5">
-    <div class="font-bold text-sm">参考値（1点あたり） <span class="font-normal text-xs text-slate-500">${item.qty > 1 ? 'バー＝1点あたり' : 'バーで金額を設定'}</span></div>
+    <div class="font-bold text-sm">参考値（1点あたり）${helpIcon(item.qty > 1 ? 'バー＝1点あたり' : 'バーで金額を設定')}</div>
     <div class="grid grid-cols-2 gap-2 text-sm">
       <div><div class="text-slate-500">マスタ登録レンジ</div><div class="font-bold">${yen(range.min)} 〜 ${yen(range.max)}</div></div>
       <div><div class="text-slate-500">過去実績（${history.count}件）</div><div class="font-bold">最安 ${yen(history.min)} 〜 最高 ${yen(history.max)}</div></div>
@@ -777,8 +775,7 @@ export function modalView(s) {
   if (m.type === 'leadermsg') {
     const d = s.leaderDraft;
     const g = userById(s.user).group;
-    return modalShell('👤 グループのメンバーへメッセージ', `
-      <p class="text-sm text-slate-500">グループ${esc(g)}のメンバー全員のダッシュボードに、「リーダーから」として表示されます。</p>
+    return modalShell(`👤 グループのメンバーへメッセージ${helpIcon(`グループ${g}のメンバー全員のダッシュボードに、「リーダーから」として表示されます。`)}`, `
       <label class="block"><span class="font-bold text-sm">タイトル</span><input class="field !py-2 mt-1" data-ld="title" value="${esc(d.title)}" placeholder="例: 明日の朝の集合について" /></label>
       <label class="block"><span class="font-bold text-sm">本文</span><textarea class="field !py-2 mt-1" rows="4" data-ld="body" placeholder="連絡内容">${esc(d.body)}</textarea></label>
       <button class="flex items-center gap-2 font-bold text-sm" data-action="leader-important"><span class="w-6 h-6 rounded border-2 flex items-center justify-center ${d.important ? 'bg-rose-600 border-rose-600 text-white' : 'border-slate-300'}">${d.important ? '✓' : ''}</span>重要として送る</button>
@@ -863,9 +860,8 @@ function appraisalComposeView(s, m) {
   const tab = (key, label) => `<button class="flex-1 py-3 rounded-xl font-bold text-lg ${s.apMode === key ? (key === 'ai' ? 'bg-violet-600' : 'bg-indigo-600') + ' text-white' : 'bg-slate-100 text-slate-600'}" data-action="ap-mode" data-value="${key}">${label}</button>`;
   return modalShell(
     ai ? '🤖 AI査定' : '📨 本社に査定依頼',
-    `<p class="font-bold text-lg">${esc(d.name)}</p>
+    `<p class="font-bold text-lg">${esc(d.name)}${helpIcon(ai ? '画像からAIが買取額とランクを推定します。' : '写真を本社に送り、査定を依頼します。')}</p>
     <div class="flex gap-2">${tab('hq', '👤 本社査定部に依頼')}${tab('ai', '🤖 AI査定')}</div>
-    <p class="text-sm text-slate-500">${ai ? '画像からAIが買取額とランクを推定します。' : '写真を本社に送り、査定を依頼します。'}</p>
     <label class="block"><span class="font-bold">状態・補足</span>
       <textarea class="field mt-1" rows="2" data-draft="note" placeholder="傷、付属品、お客様の希望額など">${esc(d.note)}</textarea></label>
     <div><div class="font-bold mb-1">写真（${d.photos.length}枚）</div>

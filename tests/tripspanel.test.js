@@ -7,7 +7,7 @@ globalThis.localStorage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) 
 const { tripsPanelHtml, blankTrip, formFromTrip } = await import('../master/tripsPanel.js');
 const { sampleTrips } = await import('../src/trips.js');
 
-const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+const text = (h) => h.replace(/data-help="([^"]*)"/g, '> $1 <').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const users = [{ id: 'u01', name: '鈴木 一郎' }, { id: 'u02', name: '佐藤 次郎' }, { id: 'u03', name: '高橋 三郎' }, { id: 'u04', name: '田中 四郎' }, { id: 'u05', name: '伊藤 五郎' }, { id: 'u06', name: '渡辺 六郎' }];
 const today = '2026-10-25';
 const trips = sampleTrips(new Date(2026, 9, 25), users.map((u) => u.id));

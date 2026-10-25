@@ -8,6 +8,7 @@ import { USERS } from '../src/dashboard.js';
 import { loadEmployees, appraisersOf } from '../src/employees.js';
 import { eventsOfDay } from '../src/schedule.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
+import { initHelp, helpIcon } from '../src/help.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
 import { yen, fmtTime, fmtElapsed, esc } from '../src/format.js';
 
@@ -145,7 +146,7 @@ function sendForm(itemId, item) {
   const rank = draft.rank ?? item?.rank ?? 'A';
   return `
   <div class="rounded-lg border bg-white p-3 space-y-2">
-    <div class="font-bold">💬 営業へ送信 ${itemId ? '' : '（訪問全体）'}</div>
+    <div class="font-bold">💬 営業へ送信 ${itemId ? '' : `（訪問全体）${helpIcon('明細の商品を選ぶと、その商品について営業とやり取りできます。')}`}</div>
     <div class="flex flex-wrap gap-1">${COMMENT_TAGS.map((t) => `<button class="px-3 py-1 rounded border text-sm font-bold ${t === draft.tag ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-white'}" data-tag="${t}">${t}</button>`).join('')}</div>
     <textarea class="w-full border rounded px-3 py-2" rows="3" data-f="text" placeholder="例: 状態Aで9万円は安すぎます。実績は12万円前後です。">${esc(draft.text)}</textarea>
     <div class="flex flex-wrap gap-1">${TEMPLATES.map((t, i) => `<button class="px-2 py-1 rounded border text-xs bg-white" data-tpl="${i}">${esc(t.slice(0, 14))}…</button>`).join('')}</div>
@@ -215,7 +216,7 @@ function approvalBlock(v, item, approvals) {
 
 function detailPanel(v, aps, cs, approvals) {
   if (!v) return '<p class="p-6 text-slate-400">訪問を選択してください</p>';
-  if (!sel) return `<div class="space-y-3"><p class="text-sm text-slate-500">明細の商品を選ぶと、その商品について営業とやり取りできます。</p>${thread(cs, null)}${sendForm(null, null)}</div>`;
+  if (!sel) return `<div class="space-y-3">${thread(cs, null)}${sendForm(null, null)}</div>`;
   const reqId = sel.type === 'req' ? sel.id : null;
   const orphan = reqId ? aps.find((x) => x.id === reqId) : null;
   const itemId = orphan ? orphan.itemId : sel.id;
@@ -239,10 +240,9 @@ function composeModal() {
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4" data-compose-backdrop>
     <div class="bg-white rounded-2xl w-full max-w-xl p-5 space-y-3">
-      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">📢 営業へのお知らせを送る</h2>
+      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">📢 営業へのお知らせを送る${helpIcon('営業のダッシュボードの「本社からのメッセージ」に表示されます。')}</h2>
         <button class="px-3 py-1 rounded border font-bold" data-compose-close>閉じる</button></div>
-      <p class="text-xs text-slate-500">営業のダッシュボードの「本社からのメッセージ」に表示されます。</p>
-      <label class="block font-bold text-sm">タイトル<input class="w-full border rounded px-3 py-2 mt-1 font-normal" data-m="title" value="${esc(compose.title)}" placeholder="例: 今月の買取強化商材について" /></label>
+            <label class="block font-bold text-sm">タイトル<input class="w-full border rounded px-3 py-2 mt-1 font-normal" data-m="title" value="${esc(compose.title)}" placeholder="例: 今月の買取強化商材について" /></label>
       <label class="block font-bold text-sm">本文<textarea class="w-full border rounded px-3 py-2 mt-1 font-normal" rows="4" data-m="body" placeholder="お知らせの内容">${esc(compose.body)}</textarea></label>
       <div class="flex flex-wrap items-center gap-4">
         <label class="flex items-center gap-2 font-bold"><input type="checkbox" class="w-5 h-5" data-m-important ${compose.important ? 'checked' : ''} />重要として送る</label>
@@ -283,7 +283,7 @@ function render() {
         <div class="text-right">${pendingApprovals(v, approvals).length ? `<button class="mr-3 bg-emerald-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>未承認${pendingApprovals(v, approvals).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-600" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-indigo-800">${yen(sum(v.items))}</div></div>
       </div>
       ${v.briefing?.propose ? `<div class="text-sm rounded-lg bg-slate-50 border px-3 py-1.5">査定前の説明：<b>実施済み</b> ／ 他商品の提案：<b class="${v.briefing.propose === 'yes' ? 'text-teal-700' : 'text-slate-600'}">${v.briefing.propose === 'yes' ? '提案してよい' : '提案は不要（お客様の希望）'}</b></div>` : ''}
-      ${v.outcome ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3"><b>🚪 買取に至らず：${esc(v.outcome.label)}</b>${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}${v.outcome.memo ? `<div class="text-sm whitespace-pre-wrap">${esc(v.outcome.memo)}</div>` : ''}<div class="text-xs text-slate-500">訪問実績として扱い、営業の業績には影響しません。</div></div>` : ''}
+      ${v.outcome ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3"><b>🚪 買取に至らず：${esc(v.outcome.label)}</b>${helpIcon('訪問実績として扱い、営業の業績には影響しません。')}${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}${v.outcome.memo ? `<div class="text-sm whitespace-pre-wrap">${esc(v.outcome.memo)}</div>` : ''}</div>` : ''}
       ${evalCard(loadEvals().find((e) => e.visitId === v.visitId))}
       ${itemsTable(v, aps, cs, approvals)}` : '<p class="text-slate-400 p-10 text-center">左の一覧から訪問を選択してください</p>'}
     </main>
@@ -394,4 +394,5 @@ setInterval(() => {
 }, 1000);
 
 initTheme();
+initHelp();
 render();

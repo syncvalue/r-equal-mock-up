@@ -1,6 +1,7 @@
 // 配車係の画面（ダミー）。オペレーターが仮確定した訪問の、担当営業を確認・変更して、確定する。主に翌々日の予定を、毎日確定していく。
 // 確定した訪問だけが、営業のタブレットの予定に出る。
 import { esc } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { dayTravel, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, attendanceOf, inOffTime, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { isTentative, isCancelled, isReverted, needsReview, reviewDiffs } from '../src/reservations.js';
@@ -67,7 +68,7 @@ function customerEvalEditor(p, phone) {
       <label class="space-y-0.5"><span class="text-slate-500">厄介度</span>${sel('level', [['none', 'なし'], ['caution', '注意'], ['alert', '要注意']], p.trouble.level)}</label>
       <label class="col-span-2 space-y-0.5"><span class="text-slate-500">厄介な点（読点「、」で区切る）</span><input class="inp !py-0.5" data-ce="tags" value="${esc(p.trouble.tags.join('、'))}" placeholder="例: クレームが多い、売却に至らない" /></label>
       <label class="col-span-2 space-y-0.5"><span class="text-slate-500">お客様のメモ</span><textarea class="inp !py-0.5" rows="2" data-ce="memo" placeholder="例: 資産は多いが、成約まで時間がかかる">${esc(p.memo ?? '')}</textarea></label>
-      <div class="col-span-2 flex items-center gap-2"><button class="b b-pri !min-h-0 !py-1" data-custeval-save>保存</button><span class="text-[11px] text-slate-500">訪問ごとの評価（営業が入力）を見て登録します。初めての訪問は、その訪問の評価が、初期値として設定されます。</span></div></div></details>`;
+      <div class="col-span-2 flex items-center gap-2"><button class="b b-pri !min-h-0 !py-1" data-custeval-save>保存</button>${helpIcon('訪問ごとの評価（営業が入力）を見て登録します。\n初めての訪問は、その訪問の評価が、初期値として設定されます。')}</div></div></details>`;
 }
 
 export function customerModalHtml({ rid, reservations, now }) {
@@ -110,13 +111,13 @@ export function customerModalHtml({ rid, reservations, now }) {
           <div class="flex flex-wrap items-center gap-1.5">${custRankBadge(p)}${troubleBadge(p)}${cooloffBadge(p)}${h.profile ? `<span class="text-xs ${String(h.profile).includes('未確認') ? 'text-slate-400' : 'text-slate-600'}" title="受電時に聞き取った、お客様の性別・年齢（聞けずに声から推測した場合は「推測」と付きます）">性別・年齢：${esc(h.profile)}</span>` : ''}</div>
           <div class="text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc(phones.join(' ／ '))}</div></div>
         <button class="b b-sec !min-h-0 !py-1" data-custclose title="閉じる（Esc）">✕ 閉じる</button></div>
-      ${box('お客様の評価（お客様情報に紐づく。訪問ごとの評価とは別）', `${customerProfileHtml(p)}${customerEvalEditor(p, r.customer.phone || r.customer.phone2)}`)}
+      ${box(`お客様の評価${helpIcon('お客様情報に紐づく評価です。訪問ごとの評価とは別です。')}`, `${customerProfileHtml(p)}${customerEvalEditor(p, r.customer.phone || r.customer.phone2)}`)}
       <section class="space-y-1 rounded-lg border-2 ${d.declined.length ? 'border-violet-400 bg-violet-50' : 'border-slate-200 bg-slate-50'} p-2 ${d.declined.length ? 'shadow-sm' : ''}">
-        <h3 class="text-xs font-bold ${d.declined.length ? 'text-violet-900' : 'text-slate-500'}">📦 査定したが売らなかったもの（お手元に持っている可能性）${d.declined.length ? `<span class="ml-2 rounded-full bg-violet-600 px-2 py-0.5 text-[11px] text-white">${d.declined.reduce((n, i) => n + (i.qty ?? 1), 0)}点</span>` : ''}</h3>
+        <h3 class="text-xs font-bold ${d.declined.length ? 'text-violet-900' : 'text-slate-500'}">📦 査定したが売らなかったもの${helpIcon('お手元に持っている可能性があります。')}${d.declined.length ? `<span class="ml-2 rounded-full bg-violet-600 px-2 py-0.5 text-[11px] text-white">${d.declined.reduce((n, i) => n + (i.qty ?? 1), 0)}点</span>` : ''}</h3>
         ${declinedCardHtml(d.declined, { empty: true })}</section>
       ${box('誰を当てるかの判断の手がかり', `${assignAdvice(p) || '<div class="text-xs text-slate-500">特に注意する点はありません</div>'}
         <div class="text-xs"><span class="text-slate-500">これまでの担当：</span>${d.staff.length ? d.staff.map((n) => `<b>${esc(n)}</b>`).join('、') : '<span class="text-slate-500">なし（新規・担当の記録なし）</span>'}</div>`)}
-      ${box('過去の買取履歴（訪問ごとの品目と、営業の評価・メモ）', visits)}
+      ${box(`過去の買取履歴${helpIcon('訪問ごとの品目と、営業の評価・メモを出します。')}`, visits)}
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-3">
           ${box('今回の予約', `${row('訪問', `${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}`)}${row('担当', `${isTentative(r) ? '（仮）' : ''}${esc(user?.name ?? '')}`)}${row('売りたいもの', esc(h.wants ?? ''))}
@@ -200,7 +201,7 @@ function revertedHtml(r) {
 }
 
 function boardDetailHtml(r, reservations, now) {
-  if (!r) return '<p class="px-3 py-2 text-xs text-slate-500">予約の帯を押すと、詳細が出ます。ドラッグして、別の営業・時間に動かせます（30分刻み）。帯の「確定」ボタンで、その予約を確定します。</p>';
+  if (!r) return `<p class="px-3 py-2 text-xs text-slate-500">予約の帯を押すと、詳細が出ます。${helpIcon('帯をドラッグして、別の営業・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</p>`;
   const user = USERS.find((u) => u.id === r.userId);
   const area = areaById(r.areaId, tripAreas(loadCurrentTrips())); // 出張エリアを含む
   const others = reservations.filter((x) => x.id !== r.id && !isCancelled(x));
@@ -224,14 +225,13 @@ export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka',
   return `
   <div class="p-4 space-y-3 h-[calc(100vh-52px)] overflow-y-auto">
     <section class="bg-white rounded-lg shadow">
-      <div class="p-3 flex items-center gap-2 flex-wrap"><b class="mr-2">配車確定（配車係）</b>
+      <div class="p-3 flex items-center gap-2 flex-wrap"><b>配車確定（配車係）</b>${helpIcon('オペレーターが仮確定した訪問を、1日分を見ながら調整して確定します。\n確定した訪問だけが、営業のタブレットの予定に出ます（主に翌々日の予定を、毎日確定します）。\n帯は、どれもドラッグで動かせます。', 'mr-2')}
         ${chips.map((c) => `<button class="chip ${c.date === date ? 'on' : ''}" data-ddate="${c.date}">${esc(c.label)}　${dateLabel(c.date)}${c.tentative ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-[11px] text-amber-950">仮${c.tentative}</span>` : ''}${c.review ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-[11px] text-white">変更${c.review}</span>` : ''}</button>`).join('')}
         <input class="inp !w-auto" type="date" value="${date}" data-ddate-input />
         <button class="b b-pri ml-auto" data-fixall ${tent ? '' : 'disabled'}>この日の仮確定 ${tent}件を、すべて確定</button></div>
-      <p class="px-3 pb-2 text-xs text-slate-500">オペレーターが仮確定した訪問を、1日分を見ながら調整して確定します。確定した訪問だけが、営業のタブレットの予定に出ます（主に翌々日の予定を、毎日確定します）。</p>
       <div class="border-t px-3 py-1.5 flex flex-wrap items-center gap-2"><span class="text-xs font-bold text-slate-500">エリア</span>
         ${[...AREAS.map((a) => [a.id, a.name]), ['all', '全エリア']].map(([k, t]) => { const n = rows.filter((r) => !isCancelled(r) && (k === 'all' || r.areaId === k)).length; return `<button class="chip ${area === k ? 'on' : ''}" data-barea="${k}">${esc(t)}${n ? `<span class="ml-1 rounded-full bg-indigo-500 px-1.5 text-[11px] text-white">${n}</span>` : ''}</button>`; }).join('')}
-        <span class="ml-2">${legendHtml({ want: false })}</span><span class="text-[11px] text-slate-500">帯は、どれもドラッグで動かせます</span></div>
+        <span class="ml-2">${legendHtml({ want: false })}</span></div>
       <div class="px-3 pb-2">${boardHtml({ date, reservations, now, area, selId })}</div>
       <div class="border-t">${boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now)}</div>
     </section>

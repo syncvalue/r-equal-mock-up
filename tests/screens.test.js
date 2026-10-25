@@ -6,7 +6,7 @@ const mem = new Map();
 globalThis.localStorage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 const root = { innerHTML: '' };
 globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {} };
-globalThis.document = { documentElement: { classList: { toggle() {}, contains: () => false }, style: {} }, querySelector: () => root, querySelectorAll: () => [], addEventListener() {}, activeElement: null };
+globalThis.document = { documentElement: { classList: { toggle() {}, contains: () => false }, style: {} }, querySelector: () => root, querySelectorAll: () => [], addEventListener() {}, activeElement: null, head: { appendChild() {} }, createElement: () => ({}) };
 globalThis.setInterval = () => {};
 
 test('本社 査定部の画面は、描画できる。入金・日報のボタンはない', async () => {

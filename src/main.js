@@ -9,6 +9,7 @@ import {
 import { dummyPhoto, shrinkImage } from './image.js';
 import * as V from './views.js';
 import { initTheme } from './theme.js';
+import { initHelp } from './help.js';
 import { userById, isLeader } from './dashboard.js';
 import { ACCOUNTS } from './auth.js';
 import { setFirstVisitCustomerEval } from './customerHistory.js';
@@ -875,4 +876,5 @@ setInterval(() => {
 }, 1000);
 
 initTheme();
+initHelp();
 render();

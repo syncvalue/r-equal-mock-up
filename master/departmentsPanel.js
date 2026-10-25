@@ -2,6 +2,7 @@
 import { COMPANY, departmentName } from '../src/departments.js';
 import { countByDepartment } from '../src/employees.js';
 import { esc } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 
 export const blankDepartment = () => ({ id: '', name: '' });
 export const formFromDepartment = (d) => ({ id: d.id, name: d.name });
@@ -31,8 +32,7 @@ function form(md) {
 // ctx: { departments: 部署マスタ, employees: 社員の一覧, ui: { md } }
 export function departmentsPanelHtml({ departments, employees, ui }) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🧩 部署（${departments.filter((d) => d.active).length}か所）</h2>
-      <p class="text-xs text-slate-500">会社「${esc(COMPANY.name)}」の部署です（会社は1社だけで、部署は並べるだけです）。社員は、いずれかの部署に属します。有効な社員がいる部署は、無効にできません。</p>
+      <h2 class="font-bold text-lg">🧩 部署（${departments.filter((d) => d.active).length}か所）${helpIcon(`会社「${COMPANY.name}」の部署です（会社は1社だけで、部署は並べるだけです）。社員は、いずれかの部署に属します。有効な社員がいる部署は、無効にできません。`)}</h2>
       ${table(departments, employees)}${form(ui.md)}
     </section>`;
 }

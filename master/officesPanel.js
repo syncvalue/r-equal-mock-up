@@ -1,6 +1,7 @@
 // マスタ管理「営業所」パネルの表示。営業所（担当の都道府県つき）の一覧と、登録・変更。
 import { officeLabel } from '../src/offices.js';
 import { esc } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 
 export const blankOffice = () => ({ id: '', name: '', prefs: '' });
 export const formFromOffice = (o) => ({ id: o.id, name: o.name, prefs: o.prefs.join('、') });
@@ -30,8 +31,7 @@ function form(mo) {
 // ctx: { offices: 営業所マスタ, warehouses: 倉庫の一覧, ui: { mo } }
 export function officesPanelHtml({ offices, warehouses, ui }) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🏢 営業所（${offices.filter((o) => o.active).length}か所）</h2>
-      <p class="text-xs text-slate-500">営業が所属する拠点です。営業所ごとに、担当の都道府県を持ちます。倉庫の「営業所との関係」の選択肢になります。モックのため、訪問先のエリア判定・配車・営業の所属には、まだつながっていません。</p>
+      <h2 class="font-bold text-lg">🏢 営業所（${offices.filter((o) => o.active).length}か所）${helpIcon('営業が所属する拠点です。営業所ごとに、担当の都道府県を持ちます。倉庫の「営業所との関係」の選択肢になります。\nモックのため、訪問先のエリア判定・配車・営業の所属には、まだつながっていません。')}</h2>
       ${table(offices, warehouses)}${form(ui.mo)}
     </section>`;
 }

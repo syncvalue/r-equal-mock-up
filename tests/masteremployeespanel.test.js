@@ -7,7 +7,7 @@ const { DEFAULT_EMPLOYEES, saveEmployee, setEmployeeActive } = await import('../
 const { DEFAULT_DEPARTMENTS } = await import('../src/departments.js');
 const { DEFAULT_MASTER } = await import('../src/warehouseMaster.js');
 
-const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+const text = (h) => h.replace(/data-help="([^"]*)"/g, '> $1 <').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const base = { employees: DEFAULT_EMPLOYEES, warehouses: DEFAULT_MASTER.warehouses, departments: DEFAULT_DEPARTMENTS, ui: { role: '', q: '', status: '', departmentId: '', form: null } };
 
 test('一覧: 役割の見出しに人数が出る。すべて・営業・オペレーター・配車係・査定員・経理担当・倉庫担当', () => {

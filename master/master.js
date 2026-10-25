@@ -8,6 +8,7 @@ import { ymdOf } from '../src/reservations.js';
 import { MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveVendor, setVendorActive, saveHighValueRule, setWarehouseActive, warehouseById, vendorById, activeWarehouses, DEFAULT_MASTER } from '../src/warehouseMaster.js';
 import { loadState, holdingByWarehouse } from '../src/warehouse.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
+import { initHelp } from '../src/help.js';
 import { masterHtml, REASON_TEXT } from './view.js';
 import { listHtml, blankForm, formFromEmployee } from './employeesPanel.js';
 import { blankDepartment, formFromDepartment } from './departmentsPanel.js';
@@ -243,4 +244,5 @@ window.addEventListener('storage', (e) => {
 });
 
 initTheme();
+initHelp();
 render();

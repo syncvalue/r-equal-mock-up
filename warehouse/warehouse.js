@@ -11,6 +11,7 @@ import { shrinkImage, productPhoto } from '../src/image.js';
 import { seedSample } from '../src/warehouseSample.js';
 import { login, loadSession, saveSession, clearSession } from '../src/warehouseStaff.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
+import { initHelp, helpIcon } from '../src/help.js';
 import { formatMoneyInput } from '../src/moneyInput.js';
 import { esc } from '../src/format.js';
 import { stockTab } from './stockTab.js';
@@ -52,12 +53,12 @@ const tabBody = (full, now) => {
   const data = { ...state, rows: buildRows(state, now), master, allRows: buildRows(full, now), full, me: staff };
   // 出品・売却・返品は、自分の倉庫の商品だけ扱える（他の倉庫の商品は、先に移動する）
   const own = scopeState(full, staff.warehouseId, master);
-  const ownNotice = `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">この画面で扱えるのは、あなたの倉庫（${esc(myWarehouse().name)}）の商品だけです。他の倉庫の商品は、先に「🚚 倉庫間移動」で、自分の倉庫に移してください。</div>`;
+  const ownNotice = `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">扱える商品: あなたの倉庫（${esc(myWarehouse().name)}）の分だけ${helpIcon('この画面で扱えるのは、あなたの倉庫の商品だけです。他の倉庫の商品は、先に「🚚 倉庫間移動」で、自分の倉庫に移してください。')}</div>`;
   if (tab === 'receive') return receiveTab(full, ui, myWarehouse(), master);
   if (tab === 'transfer') return transferTab(full, master, ui, staff, now);
   if (tab === 'list') return ownNotice + listTab({ ...own, rows: buildRows(own, now) }, ui, now, { full, master, me: staff });
   if (tab === 'sales') return salesTab(full, master, ui, staff, now);
-  if (tab === 'return') return `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">ここで扱えるのは、あなたの倉庫（${esc(myWarehouse().name)}）の商品の依頼だけです。依頼は、コールセンターの「クーリングオフ」タブで受電して作ります。</div>${returnTab(own, ui, now, { full, master })}`;
+  if (tab === 'return') return `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">扱える依頼: あなたの倉庫（${esc(myWarehouse().name)}）の商品の分だけ${helpIcon('ここで扱えるのは、あなたの倉庫の商品の依頼だけです。依頼は、コールセンターの「クーリングオフ」タブで受電して作ります。')}</div>${returnTab(own, ui, now, { full, master })}`;
   return stockTab(data, ui);
 };
 
@@ -617,4 +618,5 @@ document.addEventListener('focusout', () => { if (dirty) setTimeout(() => !isEdi
 
 seedSample(); // 初めて開いたとき（記録が空のとき）だけ、サンプルデータを入れる
 initTheme();
+initHelp();
 render();

@@ -7,6 +7,7 @@ import { AREAS, canPlace, hiddenBlocks, busyBlocks, areaById, areaOfAddress, loc
 import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, removeReservations, holdReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
+import { initHelp } from '../src/help.js';
 import { esc } from '../src/format.js';
 import { CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
@@ -702,6 +703,7 @@ function applyDeepLink() {
 }
 
 initTheme();
+initHelp();
 seedSamples();
 seedWarehouseSample(); // クーリングオフで商品を探せるよう、倉庫のサンプル（まだなければ）を入れる
 applyDeepLink();

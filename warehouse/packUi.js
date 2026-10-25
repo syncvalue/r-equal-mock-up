@@ -7,6 +7,7 @@ import { activeWarehouses, activeVendors, warehouseById, destinationProblem } fr
 import { CARRIERS, PACK_SIZES, carrierOf, packSummary, addressProblems } from '../src/shipping.js';
 import { moneyInputHtml } from '../src/moneyInput.js';
 import { yen, esc } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 import { badge, md, mdTime, sealBadge } from './ui.js';
 
 export const shipInfo = (t) => `${carrierOf(t.carrier)?.label ?? '配送業者未設定'}${t.size ? `・${esc(t.size)}サイズ` : ''}${(t.boxes ?? 1) > 1 ? `・${t.boxes}個口` : ''}${t.tracking ? `・追跡番号 <b class="font-mono">${esc(t.tracking)}</b>` : ''}`;
@@ -41,9 +42,8 @@ export function packList(full, master, me, pk, mode = 'transfer') {
   const sentList = mode === 'sale' ? shipments(full, me.warehouseId).slice(0, 5) : [];
   const carriersUsed = [...new Set(mine.map((p) => p.carrier).filter(Boolean))];
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">${tx.title}</h2>
-    <p class="text-xs text-slate-500">流れ: ① 商品を探す（検索・QR読取）→ ② パッキング → ③ ${tx.list}の出力 → ④ 発送伝票・CSVの出力 → ${mode === 'consign' ? '委託' : '発送'}。${tx.note(esc(warehouseById(master, me.warehouseId).name))}</p>
-    ${mode === 'sale' ? `<div class="rounded-lg border bg-slate-50 p-3 space-y-2"><div class="text-sm font-bold">購入者（お届け先）<span class="font-normal text-xs text-slate-500">フリマの取引画面・業者の注文から、転記します</span></div>
+    <h2 class="font-bold text-lg">${tx.title}${helpIcon(`流れ: ① 商品を探す（検索・QR読取）→ ② パッキング → ③ ${tx.list}の出力 → ④ 発送伝票・CSVの出力 → ${mode === 'consign' ? '委託' : '発送'}。\n${tx.note(warehouseById(master, me.warehouseId).name)}`)}</h2>
+    ${mode === 'sale' ? `<div class="rounded-lg border bg-slate-50 p-3 space-y-2"><div class="text-sm font-bold">購入者（お届け先）${helpIcon('フリマの取引画面・業者の注文から、転記します。')}</div>
       <div class="grid sm:grid-cols-2 gap-2">${BUYER_FIELDS.map(([k, label, ph]) => `<label class="text-xs font-bold">${label}<input class="inp mt-1 font-normal ${k === 'bZip' ? 'font-mono' : ''}" data-f="pk.${k}" value="${esc(pk[k] ?? '')}" placeholder="${ph}" /></label>`).join('')}</div>
       <button class="b b-pri" data-pk-new="sale" ${String(pk.bName ?? '').trim() ? '' : 'disabled'}>この購入者あての、新しいパックを作る</button></div>
     <h3 class="font-bold pt-1">発送待ちの商品（${waiting.length}点）</h3>
@@ -68,7 +68,7 @@ export function packList(full, master, me, pk, mode = 'transfer') {
 // ---- パックの作業（① 商品を探す ② パッキング ③ 明細 ④ 発送伝票・CSV・発送）
 const dateOfMs = (ms) => dateOf(ms);
 const carrierSource = (r) => `${r.rec.channel ? channelOf(r.rec.channel)?.label ?? '' : ''}で売却`;
-const step = (n, title) => `<h3 class="font-bold flex items-center gap-2"><span class="inline-flex w-6 h-6 rounded-full bg-sky-700 text-white text-sm items-center justify-center">${n}</span>${title}</h3>`;
+const step = (n, title, help = '') => `<h3 class="font-bold flex items-center gap-2"><span class="inline-flex w-6 h-6 rounded-full bg-sky-700 text-white text-sm items-center justify-center">${n}</span>${title}${help ? helpIcon(help) : ''}</h3>`;
 
 function candidates(full, master, me, pack, q, now) {
   const needle = q.trim().toLowerCase();
@@ -117,7 +117,7 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
       ${cand.total > cand.rows.length ? `<div class="text-xs text-slate-500">他に ${cand.total - cand.rows.length} 点あります。絞り込んでください。</div>` : ''}
     </div>
 
-    <div class="space-y-2">${step(2, 'パッキング')}
+    <div class="space-y-2">${step(2, 'パッキング', consign ? '希望価格は、原価の1.3倍の目安が入ります。変えるときは、金額を直してください（入力欄から出ると保存されます）。' : '')}
       <table class="w-full text-sm"><thead>${consign ? '<tr class="text-left text-slate-500 border-b"><th>商品</th><th class="text-right">原価（参考）</th><th>希望価格</th><th></th></tr>' : sale ? '<tr class="text-left text-slate-500 border-b"><th>商品</th><th class="text-right">売価</th><th></th></tr>' : ''}</thead><tbody>
         ${pack.codes.length ? pack.codes.map((code) => {
           const u = byCode.get(code);
@@ -127,7 +127,6 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
         }).join('') : '<tr><td class="text-slate-400">商品が入っていません。</td></tr>'}
       </tbody></table>
       <div class="text-sm">入っている商品 <b>${s.count}点</b>${sale ? `・売価の合計 <b>${yen(s.ask)}</b>` : `・買取額（原価）の合計 <b>${yen(s.total)}</b>`}${consign ? `・希望価格の合計 <b>${yen(s.ask)}</b>` : ''}</div>
-      ${consign ? '<div class="text-xs text-slate-500">希望価格は、原価の1.3倍の目安が入ります。変えるときは、金額を直してください（入力欄から出ると保存されます）。</div>' : ''}
       <div class="flex flex-wrap items-end gap-3">
         <div><div class="text-xs font-bold mb-1">配送業者</div><div class="flex gap-1">${CARRIERS.map((x) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${pack.carrier === x.key ? 'on' : ''}" data-pk-carrier="${x.key}">${esc(x.label)}</button>`).join('')}</div></div>
         <label class="text-xs font-bold">サイズ<select class="inp mt-1 font-normal !w-28" data-pack-field="size"><option value="">選択</option>${PACK_SIZES.map((z) => `<option ${pack.size === z ? 'selected' : ''}>${z}</option>`).join('')}</select></label>
@@ -135,15 +134,13 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
         <label class="text-xs font-bold flex-1 min-w-[10rem]">メモ（伝票の記事）<input class="inp mt-1 font-normal" data-pack-field="note" value="${esc(pack.note)}" placeholder="例: 割れ物注意" /></label></div>
     </div>
 
-    <div class="space-y-2">${step(3, `${tx.list}を出力`)}
-      <div class="flex flex-wrap items-center gap-3"><button class="b b-pri" data-pk-print-list ${pack.codes.length ? '' : 'disabled'}>🖨 ${tx.listBtn}</button>${tick(pack.listPrintedAt, tx.list)}
-        <span class="text-xs text-slate-500">${tx.listHint}</span></div></div>
+    <div class="space-y-2">${step(3, `${tx.list}を出力`, tx.listHint)}
+      <div class="flex flex-wrap items-center gap-3"><button class="b b-pri" data-pk-print-list ${pack.codes.length ? '' : 'disabled'}>🖨 ${tx.listBtn}</button>${tick(pack.listPrintedAt, tx.list)}</div></div>
 
-    <div class="space-y-2">${step(4, `発送伝票・CSVを出力して、${consign ? '委託' : '発送'}`)}
+    <div class="space-y-2">${step(4, `発送伝票・CSVを出力して、${consign ? '委託' : '発送'}`, `配送業者のシステム（${CARRIERS.filter((x) => x.csvLabel).map((x) => x.label).join('・')}）には、CSVを取り込んで送り状を出力します。CSVの列は、仮の並びです（実際の取込形式に合わせて調整します）。`)}
       ${problems.length ? `<div class="rounded bg-amber-50 border border-amber-300 p-2 text-xs text-amber-800">伝票・CSVに必要な情報が足りません: ${problems.map(esc).join('、')}。「マスタ管理」の倉庫で登録してください。</div>` : ''}
       <div class="flex flex-wrap items-center gap-3"><button class="b b-pri" data-pk-print-label ${ready ? '' : 'disabled'}>🖨 発送伝票を出力（印刷）</button>${tick(pack.labelPrintedAt, '発送伝票')}
         ${c?.csvLabel ? `<button class="b b-sec" data-pk-csv="${c.key}" ${ready ? '' : 'disabled'}>⬇ CSV出力（${esc(c.csvLabel)}）</button>` : ''}</div>
-      <p class="text-xs text-slate-500">配送業者のシステム（${CARRIERS.filter((x) => x.csvLabel).map((x) => esc(x.label)).join('・')}）には、CSVを取り込んで送り状を出力します。CSVの列は、仮の並びです（実際の取込形式に合わせて調整します）。</p>
       <div class="flex flex-wrap items-end gap-3 pt-1"><label class="text-xs font-bold">追跡番号（わかれば）<input class="inp mt-1 font-normal font-mono !w-64" data-pk-tracking value="${esc(pk.tracking)}" placeholder="配送業者から発行された番号" /></label>
         <button class="b b-pri" data-pk-ship ${ready ? '' : 'disabled'}>${tx.ship(esc(destName(pack)))}</button>
         ${ready ? '' : `<span class="text-xs text-rose-600 font-bold">${noPrice ? '希望価格が未設定の商品があります' : '商品を入れて、配送業者を選んでください'}</span>`}</div>

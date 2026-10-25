@@ -2,6 +2,7 @@
 import { CHANNELS, channelOf, feeFor, dateOf } from '../src/warehouse.js';
 import { moneyInputHtml } from '../src/moneyInput.js';
 import { yen, esc } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 import { badge, md, yenS, profitCls } from './ui.js';
 import { packList, packWork, openPackOf, shipInfo } from './packUi.js';
 
@@ -15,7 +16,7 @@ function listForm(sellable, lf) {
   const est = unit ? lf.price - unit.price - fee : 0;
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">🛒 出品する<span class="text-xs font-normal text-slate-500">（フリマ・業者への直接販売。業者への委託は、下のパックで）</span></h2>
+    <h2 class="font-bold text-lg">🛒 出品する${helpIcon('フリマ・業者への直接販売の出品です。業者への委託は、下のパックで行います。')}</h2>
     ${sellable.length ? `
     <label class="text-sm font-bold block">商品（クーリングオフ期間が過ぎた在庫）<select class="inp mt-1 font-normal" data-f="lf.code">
       <option value="">選んでください（${sellable.length}点）</option>
@@ -24,7 +25,7 @@ function listForm(sellable, lf) {
     <label class="text-sm font-bold block">出品価格${moneyInputHtml({ attrs: 'data-f="lf.price"', value: lf.price, placeholder: '150,000', cls: 'inp mt-1 font-normal' })}</label>
     ${unit && lf.price > 0 ? `<div class="text-sm rounded bg-slate-50 p-2">原価 ${yen(unit.price)}　手数料（${channelOf(lf.channel)?.label} ${(channelOf(lf.channel).rate * 100).toFixed(1).replace('.0', '')}%）${yen(fee)}　<b class="${profitCls(est)}">見込み利益 ${yenS(est)}</b><span class="text-xs text-slate-500">（送料を除く）</span></div>` : ''}
     <button class="b b-pri" data-list-add ${unit ? '' : 'disabled'}>出品する</button>`
-    : '<p class="text-sm text-slate-500">いま出品できる在庫はありません。入庫済みで、保管期間（買取から10日間）が過ぎた商品が、ここに出ます。</p>'}
+    : `<p class="text-sm text-slate-500">いま出品できる在庫はありません。${helpIcon('入庫済みで、保管期間（買取から10日間）が過ぎた商品が、ここに出ます。')}</p>`}
   </section>`;
 }
 
@@ -44,7 +45,7 @@ function sellForm(row, sf) {
 function consignedTable(consigned, sf, now, packs) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">🚚 委託中の商品（${consigned.length}点）<span class="text-xs font-normal text-slate-500">倉庫の外にあります</span></h2>
+    <h2 class="font-bold text-lg">🚚 委託中の商品（${consigned.length}点）${helpIcon('委託中の商品は、倉庫の外にあります。\n売れたら「売れた（入金）」で入金額を登録します。売れ残って商品が戻ってきたら「売れ残り」を押すと、倉庫の在庫に戻り、再び出品できます。')}</h2>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>商品</th><th>委託先</th><th>委託日</th><th class="text-right">原価</th><th>希望価格</th><th>操作</th></tr></thead><tbody>
       ${consigned.length ? consigned.map((r) => {
         const { unit, rec } = r;
@@ -56,14 +57,13 @@ function consignedTable(consigned, sf, now, packs) {
           ${sf.code === unit.code ? sellForm(r, sf) : ''}`;
       }).join('') : '<tr><td colspan="6" class="text-slate-400">委託中の商品はありません。</td></tr>'}
     </tbody></table>
-    <p class="text-xs text-slate-500">売れたら「売れた（入金）」で入金額を登録します。売れ残って商品が戻ってきたら「売れ残り」を押すと、倉庫の在庫に戻り、再び出品できます。</p>
   </section>`;
 }
 
 function listedTable(listed, sf) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">📣 出品中の商品（${listed.length}点）</h2>
+    <h2 class="font-bold text-lg">📣 出品中の商品（${listed.length}点）${helpIcon('手数料率はダミーです（メルカリ・ヤフオク 10%、ラクマ 6.6%、業者オークション 3%、業者へ直接販売 0%）。\n売れたら「売れた」から、実際の売価・送料を登録すると、売上管理に反映されます。')}</h2>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>商品</th><th>販売先</th><th>出品日</th><th class="text-right">原価</th><th>出品価格</th><th class="text-right">見込み利益</th><th>操作</th></tr></thead><tbody>
       ${listed.length ? listed.map((r) => {
         const { unit, rec } = r;
@@ -76,7 +76,6 @@ function listedTable(listed, sf) {
           ${sf.code === unit.code ? sellForm(r, sf) : ''}`;
       }).join('') : '<tr><td colspan="7" class="text-slate-400">出品中の商品はありません。</td></tr>'}
     </tbody></table>
-    <p class="text-xs text-slate-500">手数料率はダミーです（メルカリ・ヤフオク 10%、ラクマ 6.6%、業者オークション 3%、業者へ直接販売 0%）。売れたら「売れた」から、実際の売価・送料を登録すると、売上管理に反映されます。</p>
   </section>`;
 }
 

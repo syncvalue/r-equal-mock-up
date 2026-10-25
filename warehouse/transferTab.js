@@ -3,6 +3,7 @@
 import { incoming, outgoing } from '../src/warehouseTransfer.js';
 import { warehouseById } from '../src/warehouseMaster.js';
 import { esc } from '../src/format.js';
+import { helpIcon } from '../src/help.js';
 import { badge, mdTime } from './ui.js';
 import { packList, packWork, openPackOf, shipInfo } from './packUi.js';
 
@@ -21,7 +22,7 @@ function incomingCard(t, full, master, tr, me) {
     <div class="flex flex-wrap items-end gap-2">
       <label class="text-xs font-bold">保管場所（${esc(warehouseById(master, me.warehouseId).name)}の棚）<select class="inp mt-1 font-normal" data-tr-loc="${esc(t.id)}">${locs.map((l) => `<option ${loc === l ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
       <button class="b b-pri" data-tr-receive="${esc(t.id)}" ${ready ? '' : 'disabled'}>☑を確認して受け取る</button>
-      <span class="text-xs text-slate-500">届いた商品を、送付明細と見比べて、すべて☑を付けると受け取れます。</span></div>
+      ${helpIcon('届いた商品を、送付明細と見比べて、すべて☑を付けると受け取れます。')}</div>
   </div>`;
 }
 

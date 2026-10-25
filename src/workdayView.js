@@ -1,5 +1,6 @@
 // 始業（点検）・終業（日報）・経費管理の画面。
 import { esc, yen, fmtTime } from './format.js';
+import { helpIcon } from './help.js';
 import { moneyInputHtml } from './moneyInput.js';
 import { userById } from './dashboard.js';
 import { hqMessagesFor } from './messages.js';
@@ -91,7 +92,7 @@ function startScreen(s) {
     <div class="card !p-4 w-[28rem] shrink-0 portrait:w-full portrait:flex-none flex flex-col gap-3 min-h-0 overflow-y-auto portrait:overflow-visible" data-scroll="wdStartL">
       <div><div class="text-sm text-slate-500">${dateLabel(dateKey())}</div>
         <h2 class="text-2xl font-bold">☀ 始業</h2>
-        <p class="text-sm text-slate-600">${esc(u.name)} さん、おはようございます。点検を済ませると現地買取を始められます。</p></div>
+        <p class="text-sm text-slate-600">${esc(u.name)} さん、おはようございます。${helpIcon('点検を済ませると現地買取を始められます。')}</p></div>
       <div class="rounded-xl border-2 p-3 space-y-2">
         <div class="font-bold">💴 前日からの繰越金の確認</div>
         <div class="flex justify-between items-baseline"><span class="text-sm text-slate-600">${carry.from ? `前日（${dateLabel(carry.from)}）の終業時の所持金` : '繰越金（初回のため初期値）'}</span><b class="text-2xl">${yen(carry.amount)}</b></div>
@@ -149,9 +150,8 @@ function reportCard(s, day) {
       </div>
     </div>
 
-    <div class="rounded-xl border p-3"><div class="font-bold mb-1">🏠 訪問・買取　<span class="font-normal text-sm">訪問 ${visits.length}件${visits.some((v) => v.outcome) ? `（うち買取に至らず ${visits.filter((v) => v.outcome).length}件）` : ''} ／ ${visits.reduce((n, v) => n + v.itemCount, 0)}点 ／ 買取金額 <b>${yen(visits.reduce((n, v) => n + v.total, 0))}</b></span></div>
+    <div class="rounded-xl border p-3"><div class="font-bold mb-1">🏠 訪問・買取${visits.some((v) => v.outcome) ? helpIcon('不在・日程変更などは訪問実績に数え、業績（成約率など）には影響しません。') : ''}　<span class="font-normal text-sm">訪問 ${visits.length}件${visits.some((v) => v.outcome) ? `（うち買取に至らず ${visits.filter((v) => v.outcome).length}件）` : ''} ／ ${visits.reduce((n, v) => n + v.itemCount, 0)}点 ／ 買取金額 <b>${yen(visits.reduce((n, v) => n + v.total, 0))}</b></span></div>
       <div class="text-sm divide-y">${visits.length ? visits.map((v) => row(`${fmtTime(v.at).slice(0, 5)}　${esc(v.customerName)} 様${v.outcome ? `<span class="ml-1 text-xs rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">${outcomeOf(v.outcome.type).icon} ${outcomeOf(v.outcome.type).label}</span>${v.outcome.memo ? `<span class="block text-xs text-slate-500 font-normal">${esc(v.outcome.memo)}</span>` : ''}` : `（${v.itemCount}点）`}`, v.outcome ? '<span class="text-slate-400 font-normal">買取なし</span>' : yen(v.total))).join('') : '<div class="text-slate-400 py-2">完了した訪問はまだありません</div>'}</div></div>
-    ${visits.some((v) => v.outcome) ? '<p class="text-xs text-slate-500 -mt-1">※ 不在・日程変更などは訪問実績に数え、業績（成約率など）には影響しません。</p>' : ''}
 
     <div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">✅ 始業点検</div>
       ${START_CHECKS.length}項目すべて確認済み（${fmtTime(day.startedAt).slice(0, 5)}）</div>
@@ -257,8 +257,7 @@ function ledgerRows(s) {
 export function expenseView(s) {
   if (s.phase !== 'open') {
     return `<section class="${SEC} flex items-center justify-center"><div class="card max-w-md text-center space-y-3"><div class="text-5xl">💴</div>
-      <p class="font-bold text-lg">${s.phase === 'before' ? '始業登録後に、経費を計上できます' : '終業済みです。経費は明日の始業後に計上できます'}</p>
-      <p class="text-sm text-slate-500">始業時の現金確認から、所持金の管理が始まります。</p>
+      <p class="font-bold text-lg">${s.phase === 'before' ? '始業登録後に、経費を計上できます' : '終業済みです。経費は明日の始業後に計上できます'}${helpIcon('始業時の現金確認から、所持金の管理が始まります。')}</p>
       <button class="btn btn-primary" data-action="nav" data-value="workday">${s.phase === 'before' ? '始業へ' : '本日の日報を見る'}</button></div></section>`;
   }
   const sm = summaryOf(s.day, s.user);
@@ -280,7 +279,7 @@ export function expenseView(s) {
             : `<div class="grid grid-cols-2 gap-2">
                 <label class="btn btn-primary !min-h-[56px] !py-2 !px-2 text-center text-base cursor-pointer flex items-center justify-center">📷 撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-exp-photo /></label>
                 <button class="btn btn-secondary !min-h-[56px] !py-2 !px-2 text-base" data-action="exp-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>
-        <div class="text-xs font-bold text-slate-500 -mb-1">② 内容を確認（撮影すると、AIが自動入力します）</div>
+        <div class="text-xs font-bold text-slate-500 -mb-1">② 内容を確認${helpIcon('撮影すると、AIが自動入力します。')}</div>
         <div><div class="font-bold text-sm mb-1">種別${aiBadge(d, 'type')}</div><div class="grid grid-cols-3 gap-1.5">
           ${EXPENSE_TYPES.map((t) => `<button class="chip !px-1 !py-1 flex flex-col items-center leading-tight ${d.type === t.key ? 'active' : ''}" data-action="exp-type" data-value="${t.key}"><span class="text-xl">${t.icon}</span><span class="text-xs">${t.label}</span></button>`).join('')}</div></div>
         <label class="block"><span class="font-bold text-sm">金額${aiBadge(d, 'amount')}</span>${moneyInputHtml({ attrs: 'data-wd="exp-amount"', value: d.amount, cls: 'field' })}</label>
@@ -304,9 +303,8 @@ export function outcomeModalView(s) {
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl w-full max-w-2xl p-5 max-h-[96dvh] flex flex-col gap-3">
-      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">🚪 訪問できなかった場合の記録</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
+      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">🚪 訪問できなかった場合の記録${helpIcon('訪問実績として記録します。営業の責任ではないため、業績には影響しません。')}</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
       <div class="overflow-y-auto min-h-0 flex-1 space-y-3" data-scroll="outcome">
-        <p class="text-sm rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-emerald-900">訪問実績として記録します。営業の責任ではないため、業績には影響しません。</p>
         <div class="grid grid-cols-2 gap-2">${VISIT_OUTCOMES.map((o) => `
           <button class="rounded-xl border-2 p-3 text-left ${d.type === o.key ? 'border-teal-600 bg-teal-50' : 'border-slate-200'}" data-action="oc-type" data-value="${o.key}">
             <span class="block font-bold text-lg">${o.icon} ${o.label}</span><span class="block text-xs text-slate-500">${o.hint}</span></button>`).join('')}</div>
@@ -329,14 +327,13 @@ export function outcomeResultView(s) {
   return `
   <section class="h-full flex flex-col items-center justify-center gap-4 p-6">
     <div class="text-6xl">${t.icon}</div>
-    <h1 class="text-3xl font-bold">「${t.label}」として記録しました</h1>
+    <h1 class="text-3xl font-bold">「${t.label}」として記録しました${helpIcon('日報に反映し、本社にも共有します。業績には影響しません。')}</h1>
     <div class="card !p-4 w-full max-w-md space-y-1 text-sm">
       <div class="font-bold text-lg">${esc(s.customer.name)} 様</div>
       <div class="text-slate-500">${fmtTime(o.at)} 記録</div>
       ${o.date || o.time ? `<div>希望日時：<b>${esc(o.date)} ${esc(o.time)}</b></div>` : ''}
       ${o.memo ? `<div class="rounded bg-slate-50 p-2 whitespace-pre-wrap">${esc(o.memo)}</div>` : ''}
     </div>
-    <p class="text-slate-500 text-sm max-w-md text-center">日報に反映し、本社にも共有します。業績には影響しません。</p>
     <button class="btn btn-primary" data-action="nav" data-value="schedule">今日の予定に戻る</button>
   </section>`;
 }

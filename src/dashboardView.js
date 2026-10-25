@@ -1,5 +1,6 @@
 // 業績ダッシュボードの画面。リーダーはグループ全員、一般の営業は自分の業績のみ閲覧できる。
 import { yen, esc, fmtDateTime } from './format.js';
+import { helpIcon } from './help.js';
 import { hqMessagesFor, leaderMessagesFor } from './messages.js';
 import { loadReadIds } from './store.js';
 import { loadDay, summaryOf, typeOf } from './workday.js';
@@ -64,7 +65,7 @@ function memberTable(s, members, range, now) {
           <td class="text-right font-bold">${yen(st.amount)}</td>
           <td class="pl-3"><div class="flex items-center gap-2">${`<div class="flex-1">${progressBar(pr)}</div>`}<span class="w-10 text-right font-bold ${pr.rate >= pr.pace ? 'text-emerald-700' : 'text-amber-700'}">${pct(pr.rate)}</span></div></td></tr>`).join('')}
       </tbody></table></div>
-  <p class="text-xs text-slate-500">行をタップするとメンバーの詳細を表示。縦線は今日までの経過の目安です。</p>`;
+  `;
 }
 
 // メッセージ（本社／リーダー）。見出しをタップして開閉する（初期は閉じて、縦幅を取らない）。開いた一覧は2件分の高さで、3件目以降はスクロール
@@ -151,17 +152,15 @@ export function dashboardView(s) {
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
-      ${kpi('買取金額', yen(cur.amount), delta(cur.amount, prev.amount, true), true)}
+      ${kpi(`買取金額${helpIcon('▲▼は前の同じ期間との比較です。\n不在・日程変更は訪問数・成約率に含みません。')}`, yen(cur.amount), delta(cur.amount, prev.amount, true), true)}
       ${kpi('契約数', `${cur.contracts}<span class="text-sm font-normal">件</span>`, delta(cur.contracts, prev.contracts))}
       <button class="text-left" data-action="dash-visits" data-date="">${kpi('訪問数', `${cur.visits}<span class="text-sm font-normal">件</span>`, `${delta(cur.visits, prev.visits)} <span class="text-xs text-teal-700 underline">訪問ごとの結果</span>`)}</button>
       ${kpi('成約率', pct(cur.rate), `<span class="text-xs text-slate-500">前期間 ${pct(prev.rate)}</span>`)}
       ${kpi('平均買取額／契約', yen(cur.avg), delta(cur.avg, prev.avg))}
     </div>
-    <p class="text-[11px] text-slate-400 -mt-1">▲▼は前の同じ期間との比較。不在・日程変更は訪問数・成約率に含みません。</p>
 
     <div class="grid md:grid-cols-[3fr_2fr] gap-3 items-start">
-      <div class="card !p-3"><div class="font-bold text-sm mb-1">日別の買取金額${s.dash.period === 'today' ? '（直近7日）' : ''}</div>${barChart(series, ymd(now))}
-        <div class="text-[11px] text-slate-400">バーをタップで、その日の訪問結果を表示。</div></div>
+      <div class="card !p-3"><div class="font-bold text-sm mb-1">日別の買取金額${s.dash.period === 'today' ? '（直近7日）' : ''}${helpIcon('バーをタップすると、その日の訪問結果を表示します。')}</div>${barChart(series, ymd(now))}</div>
       <div class="card !p-3 space-y-2">
         <div class="font-bold text-sm">今月の目標達成</div>
         <div class="flex items-end justify-between"><span class="text-3xl font-bold ${prog.rate >= prog.pace ? 'text-emerald-700' : 'text-amber-700'}">${pct(prog.rate)}</span>
@@ -171,7 +170,7 @@ export function dashboardView(s) {
       </div>
     </div>
 
-    ${scope === 'group' ? `<h3 class="font-bold">メンバー別の業績</h3>${memberTable(s, groupMembers(user), range, now)}` : ''}
+    ${scope === 'group' ? `<h3 class="font-bold">メンバー別の業績${helpIcon('行をタップするとメンバーの詳細を表示します。\n縦線は今日までの経過の目安です。')}</h3>${memberTable(s, groupMembers(user), range, now)}` : ''}
   </section>`;
 }
 
@@ -196,8 +195,7 @@ export function dashVisitsModal(s) {
       <span class="rounded-lg bg-slate-100 px-3 py-1">訪問実績 <b>${recs.length}件</b></span>
       <span class="rounded-lg bg-emerald-100 text-emerald-800 px-3 py-1">成約 <b>${count('won')}</b></span>
       <span class="rounded-lg bg-slate-200 text-slate-700 px-3 py-1">不成約 <b>${count('lost')}</b></span>
-      <span class="rounded-lg bg-amber-100 text-amber-800 px-3 py-1">業績対象外 <b>${excluded}</b>（不在・日程変更）</span></div>
-    <p class="text-xs text-slate-500">不在・日程変更は訪問実績に数え、訪問数・成約率には含みません。</p>
+      <span class="rounded-lg bg-amber-100 text-amber-800 px-3 py-1">業績対象外 <b>${excluded}</b>（不在・日程変更）</span>${helpIcon('不在・日程変更は訪問実績に数え、訪問数・成約率には含みません。')}</div>
     ${recs.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm">
       <thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">日時</th>${showWho ? '<th class="text-left">営業</th>' : ''}<th class="text-left">お客様</th><th class="text-left">商材</th><th class="text-left">結果</th><th class="text-right pr-3">買取金額</th></tr></thead>
       <tbody>${recs.map((r) => `<tr class="border-t align-top">
@@ -285,14 +283,12 @@ export function dashReportsModal(s) {
   }
   if (!user) {
     const rows = users.map((u) => ({ u, st: stats3(listFor(u)) }));
-    return { title: `📝 日報　${period}`, body: `
-      <p class="text-sm text-slate-500">メンバーを選ぶと、期間中の日報を見られます。</p>
+    return { title: `📝 日報　${period}${helpIcon('メンバーを選ぶと、期間中の日報を見られます。')}`, body: `
       <div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">メンバー</th><th class="text-right">日報</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right pr-3">差異のあった日</th></tr></thead>
         <tbody>${rows.map(({ u, st }) => `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-user" data-id="${u.id}"><td class="p-2 font-bold">${esc(u.name)}</td><td class="text-right">${st.days}日</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right pr-3 ${st.diffDays ? 'text-rose-600 font-bold' : 'text-slate-400'}">${st.diffDays ? `${st.diffDays}日` : 'なし'}</td></tr>`).join('')}</tbody></table></div>` };
   }
   const list = listFor(user);
-  return { title: `📝 ${esc(user.name)}の日報　${period}`, body: `${back}
+  return { title: `📝 ${esc(user.name)}の日報　${period}${helpIcon('行をタップすると、その日の日報を表示します。')}`, body: `${back}
     ${list.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">日付</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right">経費</th><th class="text-right pr-3">現金の過不足</th></tr></thead>
-      <tbody>${list.map((r) => { const st = stats3([r]); return `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-day" data-date="${ymd(r.date)}"><td class="p-2 font-bold whitespace-nowrap">${dLabel(r.date)}${r.closed ? '' : ' <span class="text-xs rounded bg-amber-100 text-amber-800 px-1.5">集計中</span>'}</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right">${yen(r.expenseTotal)}</td><td class="text-right pr-3 font-bold ${!r.closed ? 'text-slate-400' : r.diff ? 'text-rose-600' : 'text-emerald-700'}">${r.closed ? signedYen(r.diff) : '-'}</td></tr>`; }).join('')}</tbody></table></div>
-      <p class="text-xs text-slate-400">行をタップすると、その日の日報を表示します。</p>` : '<p class="text-slate-400 text-center py-8">この期間の日報はありません</p>'}` };
+      <tbody>${list.map((r) => { const st = stats3([r]); return `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-day" data-date="${ymd(r.date)}"><td class="p-2 font-bold whitespace-nowrap">${dLabel(r.date)}${r.closed ? '' : ' <span class="text-xs rounded bg-amber-100 text-amber-800 px-1.5">集計中</span>'}</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right">${yen(r.expenseTotal)}</td><td class="text-right pr-3 font-bold ${!r.closed ? 'text-slate-400' : r.diff ? 'text-rose-600' : 'text-emerald-700'}">${r.closed ? signedYen(r.diff) : '-'}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="text-slate-400 text-center py-8">この期間の日報はありません</p>'}` };
 }
