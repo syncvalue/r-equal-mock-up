@@ -41,7 +41,7 @@ let staff = loadSession(); // ログイン中の担当者（操作した人と�
 let loginError = '';
 const blankWh = () => ({ id: '', name: '', address: '', officeId: '', locations: '', highValue: false });
 const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
-const ui = { rl: { code: '', newCode: '', color: '' }, hv: null, tf: { toId: '', codes: [] }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'lot', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+const ui = { rl: { code: '', newCode: '', color: '' }, hv: null, tf: { toId: '', codes: [] }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();

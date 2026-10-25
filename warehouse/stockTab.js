@@ -103,7 +103,7 @@ export function stockTab(data, { filter, q, scan, view, rl }) {
     ${FILTERS.map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}
   </div>
   <div class="flex gap-2 items-center"><span class="text-sm font-bold">表示</span>
-    ${[['lot', '📅 買取日・お客様別'], ['list', '☰ 一覧']].map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${view === k ? 'on' : ''}" data-view="${k}">${l}</button>`).join('')}
+    ${[['list', '☰ 一覧'], ['lot', '📅 買取日・お客様別']].map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${view === k ? 'on' : ''}" data-view="${k}">${l}</button>`).join('')}
     <span class="text-xs text-slate-500">買取日・お客様（契約）ごとにまとめて保管します。クーリングオフのときも、同じ契約の商品をすぐ探せます。</span></div>
   ${view === 'lot' ? lotView(shown, data) : `<table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>シールNo.</th><th>商品</th><th>ランク</th><th>買取先</th><th>買取日</th><th class="text-right">原価</th><th>倉庫・保管場所</th><th>状態</th><th>操作・備考</th></tr></thead><tbody>
     ${shown.length ? shown.map((r) => `<tr class="border-b">
