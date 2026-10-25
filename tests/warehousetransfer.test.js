@@ -143,3 +143,22 @@ test('返品: 契約の商品が複数の倉庫（本社と倉庫）に分かれ
   const one = W.requestReturn(s, { customerName: '山田 花子', codes: ['A'], reason: 'family', at: NOW, master: M });
   assert.equal(one.rets.length, 1); assert.equal(one.ret.warehouseId, OSAKA.id);
 });
+
+test('読み取った商品を送れるか: 自倉庫の在庫なら可。登録なし・貼り替え済みの古いシール・在庫でない・他の倉庫・送り先の規則違反は、理由つきで不可', () => {
+  const s = base();
+  const ok = T.sendableCheck(s, M, { fromId: OSAKA.id, code: ' a ', at: NOW });
+  assert.deepEqual({ ok: ok.ok, code: ok.code }, { ok: true, code: 'A' }); // 前後の空白・小文字は無視
+  assert.equal(T.sendableCheck(s, M, { fromId: OSAKA.id, code: 'ZZ', at: NOW }).reason, 'unknown');
+  assert.equal(T.sendableCheck(s, M, { fromId: OSAKA.id, code: 'D', at: NOW }).reason, 'notStock'); // 入庫前
+  assert.equal(T.sendableCheck(s, M, { fromId: OSAKA.id, code: 'C', at: NOW }).reason, 'otherWarehouse');
+  const listed = W.listItem(s, 'B', { channel: 'mercari', price: 1000, at: NOW }).state;
+  assert.equal(T.sendableCheck(listed, M, { fromId: OSAKA.id, code: 'B', at: NOW }).reason, 'notStock');
+  const sent = send(s).state;
+  assert.equal(T.sendableCheck(sent, M, { fromId: OSAKA.id, code: 'A', at: NOW }).reason, 'notStock'); // 輸送中
+  const old = { ...s, units: s.units.map((u) => (u.code === 'A' ? { ...u, code: 'RQ-NEW', relabels: [{ from: 'RQ-OLD', to: 'RQ-NEW' }] } : u)) };
+  const r = T.sendableCheck(old, M, { fromId: OSAKA.id, code: 'rq-old', at: NOW });
+  assert.deepEqual({ ok: r.ok, reason: r.reason, newCode: r.newCode }, { ok: false, reason: 'replaced', newCode: 'RQ-NEW' });
+  // 送り先が決まっていれば、納入先の規則も確かめる（高額品は本社へ、それ以外は本社以外へ）
+  assert.equal(T.sendableCheck(s, M, { fromId: OSAKA.id, toId: HON.id, code: 'A', at: NOW }).reason, 'wrongDestination');
+  assert.equal(T.sendableCheck(s, M, { fromId: OSAKA.id, toId: KANTO.id, code: 'A', at: NOW }).ok, true);
+});

@@ -9,19 +9,27 @@ import { badge, md, mdTime } from './ui.js';
 const itemNames = (t, byCode) => t.codes.map((c) => esc(byCode.get(c)?.name ?? c)).join('、');
 
 function sendPanel(full, master, tf, me, now) {
+  const byCode = new Map(full.units.map((u) => [u.code, u]));
   const mine = scopeState(full, me.warehouseId, master);
   const rows = buildRows(mine, now).filter((r) => r.stage === 'stock');
   const others = activeWarehouses(master).filter((w) => w.id !== me.warehouseId);
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
     <h2 class="font-bold text-lg">📤 他の倉庫へ送る</h2>
     <p class="text-xs text-slate-500">送れるのは、あなたの倉庫（${esc(warehouseById(master, me.warehouseId).name)}）の在庫です（出品中・委託中・返品対応中の商品は、先に取り下げ・戻してください）。</p>
+    <div class="rounded-lg border bg-slate-50 p-3 space-y-2">
+      <label class="text-sm font-bold block">🔳 QRで商品を選ぶ<span class="font-normal text-xs text-slate-500">（QRリーダーで読み取る、またはシールNo.を入力してEnter）</span>
+        <div class="flex flex-wrap gap-2 mt-1"><input class="inp font-mono font-normal !w-60" data-tf-scan-input placeholder="RQ-XXXXXXXX" autocomplete="off" />
+          <button class="b b-pri" data-tf-scan>追加</button><button class="b b-pri !bg-teal-700" data-cam-transfer>📷 カメラで読み取って追加</button></div></label>
+      ${tf.last ? `<div class="rounded-lg border-2 p-2 text-sm font-bold ${tf.last.ok ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-rose-50 border-rose-400 text-rose-700'}">${tf.last.ok ? '✓' : '⚠'} ${esc(tf.last.text)}</div>` : ''}
+    </div>
     <label class="text-sm font-bold block">送り先の倉庫<select class="inp mt-1 font-normal" data-f="tf.toId"><option value="">選んでください</option>
       ${others.map((w) => `<option value="${esc(w.id)}" ${tf.toId === w.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>
     <div class="max-h-72 overflow-y-auto border rounded"><table class="w-full text-sm"><tbody>
-      ${rows.length ? rows.map((r) => `<tr class="border-b"><td><input type="checkbox" class="w-5 h-5" data-tf-code="${esc(r.unit.code)}" ${tf.codes.includes(r.unit.code) ? 'checked' : ''} aria-label="${esc(r.unit.name)}を送る" /></td>
+      ${rows.length ? rows.map((r) => `<tr class="border-b ${tf.codes.includes(r.unit.code) ? 'bg-sky-50' : ''}"><td><input type="checkbox" class="w-5 h-5" data-tf-code="${esc(r.unit.code)}" ${tf.codes.includes(r.unit.code) ? 'checked' : ''} aria-label="${esc(r.unit.name)}を送る" /></td>
         <td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500 font-mono">${esc(r.unit.code)}</div></td><td class="text-right">${yen(r.unit.price)}</td><td class="text-xs">${esc(r.unit.location)}${r.cooling ? ` ${badge('bg-amber-100 text-amber-800', `${md(r.coolEnd)}まで保管期間`)}` : ''}</td></tr>`).join('')
         : '<tr><td class="text-slate-400 p-2">送れる在庫がありません。</td></tr>'}
     </tbody></table></div>
+    ${tf.codes.length ? `<div class="text-sm">選んだ商品（${tf.codes.length}点）: ${tf.codes.map((c) => esc(byCode.get(c)?.name ?? c)).join('、')} <button class="text-xs underline text-slate-500" data-tf-clear>選択をすべて外す</button></div>` : ''}
     <button class="b b-pri" data-tf-send ${tf.toId && tf.codes.length ? '' : 'disabled'}>選んだ${tf.codes.length}点を送る</button>
   </section>`;
 }

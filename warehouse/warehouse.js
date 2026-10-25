@@ -20,7 +20,7 @@ import { receiveTab } from './receiveTab.js';
 import { masterTab } from './masterTab.js';
 import { menuView, tabLabel } from './menu.js';
 import { transferTab } from './transferTab.js';
-import { sendTransfer, receiveTransfer, cancelTransfer, incoming } from '../src/warehouseTransfer.js';
+import { sendTransfer, receiveTransfer, cancelTransfer, incoming, sendableCheck } from '../src/warehouseTransfer.js';
 import { loginView } from './loginView.js';
 import { openMockCamera } from './camera.js';
 
@@ -42,7 +42,7 @@ let staff = loadSession(); // ログイン中の担当者（操作した人と�
 let loginError = '';
 const blankWh = () => ({ id: '', name: '', address: '', officeId: '', locations: '', highValue: false });
 const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
-const ui = { rl: { code: '', newCode: '', color: '' }, hv: null, tf: { toId: '', codes: [] }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+const ui = { rl: { code: '', newCode: '', color: '' }, hv: null, tf: { toId: '', codes: [], last: null }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();
@@ -176,6 +176,16 @@ function openCamera(mode) {
     });
     return;
   }
+  if (mode === 'transfer') {
+    closeCamera = openMockCamera({
+      title: '読み取って、送る商品を選ぶ', subtitle: `送り元: ${myWarehouse().name}`, continuous: true,
+      // モック: 自分の倉庫の在庫から、まだ選んでいない商品を順に読み取る
+      pickNext: () => scopeState(loadState(), staff.warehouseId, master).units.map((u) => u.code).find((c) => !ui.tf.codes.includes(c) && sendableCheck(loadState(), master, { fromId: staff.warehouseId, toId: ui.tf.toId, code: c }).ok) ?? '',
+      onFound: (code) => { addScanned(code); render(); },
+      getMessage: () => ui.tf.last,
+    });
+    return;
+  }
   closeCamera = openMockCamera({
     title: '読み取って入庫', subtitle: `入庫先: ${myWarehouse().name}／保管場所: ${ui.rc.location}`, continuous: true,
     pickNext: () => loadUnits().find((u) => u.status !== 'stored' && !destinationProblem(master, u, staff.warehouseId))?.code ?? '', // モック: 入庫待ちの商品を、順に読み取る
@@ -211,12 +221,27 @@ const TRANSFER_TEXT = {
   notInTransit: 'すでに受け取り済み、または取り消し済みです', notDestination: 'あなたの倉庫あてではないため、受け取れません', badLocation: '保管場所を選んでください', notSender: '送った倉庫でなければ、取り消せません',
 };
 const SEND_REJECT = { unknown: '登録のない商品', notStock: '在庫ではない商品（出品中・委託中・返品対応中・輸送中など）', otherWarehouse: '他の倉庫の商品' };
+const SCAN_TEXT = {
+  unknown: '登録のないシールです', notStock: '在庫ではないため、送れません（入庫前・出品中・委託中・返品対応中・輸送中など）', otherWarehouse: '他の倉庫の商品です（あなたの倉庫の商品だけ送れます）',
+  wrongDestination: '送り先の規則に合いません（高額品は本社へ、それ以外は本社以外の倉庫へ）',
+};
+// QRの読み取り（スキャナ・手入力・カメラ）で、送る商品を選ぶ
+function addScanned(raw) {
+  const r = sendableCheck(loadState(), master, { fromId: staff.warehouseId, toId: ui.tf.toId, code: raw });
+  if (!r.ok) {
+    ui.tf = { ...ui.tf, last: { ok: false, text: `${r.code || '（空）'}：${r.reason === 'replaced' ? `貼り替え済みの古いシールです。新しいシール（${r.newCode}）を読み取ってください` : SCAN_TEXT[r.reason]}` } };
+    return;
+  }
+  const already = ui.tf.codes.includes(r.code);
+  ui.tf = { ...ui.tf, codes: already ? ui.tf.codes : [...ui.tf.codes, r.code], last: { ok: true, text: already ? `${r.unit.name}（${r.code}）は、すでに選んでいます` : `${r.unit.name}（${r.code}）を、送る商品に選びました` } };
+}
+
 function sendItems() {
   const r = sendTransfer(loadState(), master, { fromId: staff.warehouseId, toId: ui.tf.toId, codes: ui.tf.codes, by: staff.name });
   if (!r.ok) return alert(TRANSFER_TEXT[r.reason]);
   commit(r.state);
   if (r.rejected.length) alert(`送れなかった商品があります。\n${r.rejected.map((x) => `${x.code}: ${SEND_REJECT[x.reason]}`).join('\n')}`);
-  ui.tf = { toId: ui.tf.toId, codes: [] };
+  ui.tf = { toId: ui.tf.toId, codes: [], last: null };
 }
 function receiveItems(id) {
   const t = loadState().transfers.find((x) => x.id === id);
@@ -306,6 +331,9 @@ const ACTIONS = {
   rlCancel: () => { ui.rl = { code: '', newCode: '', color: '' }; },
   rlColor: (v) => { ui.rl = { ...ui.rl, color: v }; },
   rlDo: doRelabel,
+  tfScan: () => addScanned($('[data-tf-scan-input]')?.value),
+  tfClear: () => { ui.tf = { ...ui.tf, codes: [], last: null }; },
+  camTransfer: () => { openCamera('transfer'); return false; },
   qrClose: () => { ui.scan = { raw: '' }; },
   rcLoc: (v) => { ui.rc = { ...ui.rc, location: v }; },
   rcSubmit: () => storeCode($('[data-rc-code]')?.value),
@@ -372,6 +400,12 @@ function onField(e, isInput) {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches?.('[data-login-id], [data-login-pw]')) { doLogin(); render(); return; }
+  if (e.key === 'Enter' && e.target.matches?.('[data-tf-scan-input]')) {
+    addScanned(e.target.value);
+    render();
+    $('[data-tf-scan-input]')?.focus(); // 続けて読み取れるように
+    return;
+  }
   // 検索欄でEnter: シールNo.（QR読取・手入力）なら、その商品の詳細を表示する。それ以外は、入力のまま一覧を絞り込む
   if (e.key === 'Enter' && e.target.matches?.('[data-q]')) {
     const raw = e.target.value.trim();
