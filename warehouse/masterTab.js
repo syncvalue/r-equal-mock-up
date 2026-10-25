@@ -69,7 +69,28 @@ function highValueForm(data, hv) {
   </div>`;
 }
 
-export function masterTab(data, { mw, ms, hv }, me) {
+function vendorTable({ master }) {
+  return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>委託先（業者）</th><th>郵便番号・住所・電話</th><th>状態</th><th>操作</th></tr></thead><tbody>
+    ${(master.vendors ?? []).map((v) => `<tr class="border-b ${v.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(v.name)}</td>
+      <td class="!whitespace-normal text-xs">${v.zip ? `〒${esc(v.zip)}` : '<span class="text-rose-600">郵便番号なし</span>'} ${esc(v.address)}<div>${esc(v.phone || '電話番号なし')}</div></td><td>${v.active ? ON : OFF}</td>
+      <td><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mv-edit="${esc(v.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mv-toggle="${esc(v.id)}">${v.active ? '無効にする' : '有効にする'}</button></td></tr>`).join('') || '<tr><td colspan="4" class="text-slate-400">登録がありません。</td></tr>'}
+  </tbody></table>`;
+}
+
+function vendorForm(mv) {
+  return `<div class="rounded-lg border bg-slate-50 p-3 space-y-3">
+    <h3 class="font-bold">${mv.id ? '委託先の編集' : '委託先の新規登録'}</h3>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <label class="text-sm font-bold">委託先名（業者・市場）<input class="inp mt-1 font-normal" data-f="mv.name" value="${esc(mv.name)}" placeholder="例: 名古屋時計市場" /></label>
+      <label class="text-sm font-bold">郵便番号<input class="inp mt-1 font-normal font-mono" data-f="mv.zip" value="${esc(mv.zip)}" placeholder="例: 460-0008" /></label>
+      <label class="text-sm font-bold">住所（発送伝票・CSVに使います）<input class="inp mt-1 font-normal" data-f="mv.address" value="${esc(mv.address)}" placeholder="例: 愛知県名古屋市中区栄1-1-1" /></label>
+      <label class="text-sm font-bold">電話番号<input class="inp mt-1 font-normal" data-f="mv.phone" value="${esc(mv.phone)}" placeholder="例: 052-000-0000" /></label>
+    </div>
+    <div class="flex gap-2"><button class="b b-pri" data-mv-save>${mv.id ? '更新する' : '登録する'}</button>${mv.id ? '<button class="b b-sec" data-mv-cancel>やめる</button>' : ''}</div>
+  </div>`;
+}
+
+export function masterTab(data, { mw, ms, hv, mv }, me) {
   const linked = new Set(data.master.warehouses.filter((w) => w.active).map((w) => w.officeId));
   const only = AREAS.filter((a) => !linked.has(a.id)).map((a) => officeName(a.id));
   return `<div class="space-y-4">
@@ -77,6 +98,11 @@ export function masterTab(data, { mw, ms, hv }, me) {
       <h2 class="font-bold text-lg">🏭 倉庫（${data.master.warehouses.filter((w) => w.active).length}か所）</h2>
       <p class="text-xs text-slate-500">倉庫は、営業所とは独立した施設です。営業所と一体の倉庫、倉庫のみの施設があり、倉庫のない営業所（営業のみ）もあります。${only.length ? `いま倉庫のない営業所: ${esc(only.join('・'))}。` : ''}</p>
       ${warehouseTable(data, me)}${warehouseForm(mw)}${highValueForm(data, hv)}
+    </section>
+    <section class="rounded-xl border bg-white p-4 space-y-3">
+      <h2 class="font-bold text-lg">🤝 委託先（業者）（${(data.master.vendors ?? []).filter((v) => v.active).length}社）</h2>
+      <p class="text-xs text-slate-500">業者オークションなど、商品を委託して販売してもらう業者です。販売（出品）の「業者に委託する」で、委託先に選びます。</p>
+      ${vendorTable(data)}${vendorForm(mv)}
     </section>
     <section class="rounded-xl border bg-white p-4 space-y-3">
       <h2 class="font-bold text-lg">👥 倉庫の担当者（${data.master.staff.filter((s) => s.active).length}名）</h2>

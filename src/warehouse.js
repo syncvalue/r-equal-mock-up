@@ -5,6 +5,7 @@
 // 状態（state）は { units: 入庫データ, records: 出品・売却の記録（商品No.→記録）, returns: 返品の記録, transfers: 移動の記録 }。操作はすべて新しい state を返す。
 import { WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY } from './store.js';
 import { loadUnits, SEAL_COLORS, sealColorOf } from './stock.js';
+import { carrierOf } from './shipping.js';
 import { dateKey } from './workday.js';
 import { warehouseIdOf } from './warehouseMaster.js';
 
@@ -182,7 +183,9 @@ export function historyOf({ units, records, returns, transfers = [] }, code) {
   if (rec) {
     const ch = channelOf(rec.channel);
     const target = rec.vendor ? `${ch?.label}（委託先 ${rec.vendor}）` : ch?.label;
-    events.push({ at: rec.listedAt, label: ch?.consign ? '委託' : '出品', detail: `${target}／${yen(rec.listPrice)}${rec.listedBy ? `／${rec.listedBy}` : ''}` });
+    const pack = rec.packId ? transfers.find((t) => t.id === rec.packId) : null; // 委託のパック（配送の情報）
+    const ship = pack ? `／配送: ${carrierOf(pack.carrier)?.label ?? ''}${pack.tracking ? ` 追跡番号 ${pack.tracking}` : ''}` : '';
+    events.push({ at: rec.listedAt, label: ch?.consign ? '委託' : '出品', detail: `${target}／${yen(rec.listPrice)}${rec.listedBy ? `／${rec.listedBy}` : ''}${ship}` });
     if (rec.stage === 'sold') events.push({ at: rec.soldAt, label: '売却', detail: `${yen(rec.soldPrice)}／手数料 ${yen(rec.fee)}・送料 ${yen(rec.shipping)}${rec.soldBy ? `／${rec.soldBy}` : ''}` });
   }
   (unit.relabels ?? []).forEach((r) => events.push({ at: r.at, label: 'シール貼り替え', detail: `${r.from}（${sealColorOf(r.fromColor)?.label ?? '未選択'}）→ ${r.to}（${sealColorOf(r.toColor)?.label ?? '未選択'}）${r.by ? `／${r.by}` : ''}` }));

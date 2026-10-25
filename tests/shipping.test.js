@@ -95,3 +95,36 @@ test('送り先の情報が足りないときの確認: 郵便番号・住所・
   const bare = { ...M, warehouses: M.warehouses.map((w) => (w.id === KANTO.id ? { ...w, zip: '', phone: '' } : w)) };
   assert.deepEqual(S.addressProblems(pack(), bare), ['送り先（関東倉庫）の郵便番号', '送り先（関東倉庫）の電話番号']);
 });
+
+const V1 = M.vendors[0];
+const consign = (over = {}) => ({
+  id: 'CS-TEST1', kind: 'consign', codes: ['RQ-AAA1', 'RQ-BBB2'], prices: { 'RQ-AAA1': 128000, 'RQ-BBB2': 9000 }, fromId: OSAKA.id, fromName: OSAKA.name, vendorId: V1.id, vendorName: V1.name, status: 'draft',
+  carrier: 'sagawa', size: '100', boxes: 1, note: '', tracking: '', createdAt: new Date(2026, 9, 25, 9).getTime(), ...over,
+});
+
+test('委託のパック: 送り先は、委託先（業者）。集計は、希望価格の合計も出す', () => {
+  assert.deepEqual(S.packSummary(consign(), units), { count: 2, total: 103000, ask: 137000 });
+  assert.equal(S.packSummary(pack(), units).ask, undefined); // 倉庫間の移動には、希望価格がない
+});
+
+test('委託のCSV・伝票: お届け先が委託先（業者）になる', () => {
+  for (const key of ['yamato', 'sagawa', 'jp', 'other']) {
+    const row = S.shippingCsv(key, [consign()], units, M, { now: NOW }).slice(1).split('\r\n')[1];
+    for (const must of [V1.name, V1.zip, V1.address, OSAKA.address]) assert.ok(row.includes(must), `${key}: ${must}`);
+  }
+  const label = S.shippingLabelHtml(consign(), units, M, { now: NOW });
+  for (const must of [V1.name, V1.zip, V1.address, V1.phone, OSAKA.address, '佐川急便']) assert.ok(label.includes(must), must);
+});
+
+test('委託明細（印刷用）: 業者に渡すので、希望価格を出し、原価（買取額）とお客様の情報は出さない', () => {
+  const html = S.packingListHtml(consign(), units, M, { now: NOW });
+  for (const must of ['委託明細', V1.name, '希望価格', '¥128,000', '¥9,000', '¥137,000', 'RQ-AAA1', 'ルイ・ヴィトン ネヴァーフル', '受領']) assert.ok(html.includes(must), must);
+  assert.ok(!html.includes('¥98,000') && !html.includes('買取額') && !html.includes('山田 花子')); // 原価・お客様は載せない
+  assert.ok(!html.includes('<script>alert(1)</script>'));
+});
+
+test('委託の確認: 委託先の郵便番号・住所・電話番号がなければ、足りない項目を返す', () => {
+  assert.deepEqual(S.addressProblems(consign(), M), []);
+  const bare = { ...M, vendors: M.vendors.map((v) => (v.id === V1.id ? { ...v, phone: '' } : v)) };
+  assert.deepEqual(S.addressProblems(consign(), bare), [`送り先（${V1.name}）の電話番号`]);
+});

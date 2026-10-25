@@ -3,9 +3,11 @@ import { CHANNELS, channelOf, feeFor, dateOf } from '../src/warehouse.js';
 import { moneyInputHtml } from '../src/moneyInput.js';
 import { yen, esc } from '../src/format.js';
 import { badge, md, yenS, profitCls } from './ui.js';
+import { packList, packWork, openPackOf, shipInfo } from './packUi.js';
 
+// 委託（業者オークション）は、パックの流れ（下の「業者に委託する」）で行う。ここでは、フリマと、業者への直接販売を出品する
 const channelButtons = (value) => ['flea', 'trade'].map((type) => `<div class="mb-1"><span class="text-xs text-slate-500 mr-1">${type === 'flea' ? 'フリマ' : '業者向け'}</span>
-  ${CHANNELS.filter((c) => c.type === type).map((c) => `<button class="b b-sec !min-h-[40px] !py-1 mr-1 ${value === c.key ? 'on' : ''}" data-lf-channel="${c.key}">${c.label}</button>`).join('')}</div>`).join('');
+  ${CHANNELS.filter((c) => c.type === type && !c.consign).map((c) => `<button class="b b-sec !min-h-[40px] !py-1 mr-1 ${value === c.key ? 'on' : ''}" data-lf-channel="${c.key}">${c.label}</button>`).join('')}</div>`).join('');
 
 function listForm(sellable, lf) {
   const unit = sellable.find((r) => r.unit.code === lf.code)?.unit;
@@ -13,14 +15,13 @@ function listForm(sellable, lf) {
   const est = unit ? lf.price - unit.price - fee : 0;
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">🛒 出品する</h2>
+    <h2 class="font-bold text-lg">🛒 出品する<span class="text-xs font-normal text-slate-500">（フリマ・業者への直接販売。業者への委託は、下のパックで）</span></h2>
     ${sellable.length ? `
     <label class="text-sm font-bold block">商品（クーリングオフ期間が過ぎた在庫）<select class="inp mt-1 font-normal" data-f="lf.code">
       <option value="">選んでください（${sellable.length}点）</option>
       ${sellable.map((r) => `<option value="${esc(r.unit.code)}" ${lf.code === r.unit.code ? 'selected' : ''}>${esc(r.unit.name)}（${esc(r.unit.code)}／原価 ${yen(r.unit.price)}）</option>`).join('')}</select></label>
     <div><div class="text-sm font-bold mb-1">販売先</div>${channelButtons(lf.channel)}</div>
-    ${channelOf(lf.channel)?.consign ? `<label class="text-sm font-bold block">委託先（市場・業者名）<input class="inp mt-1 font-normal" data-f="lf.vendor" value="${esc(lf.vendor)}" placeholder="例: 大阪時計オークション" /><span class="text-xs font-normal text-slate-500">委託すると、商品は倉庫から委託先に渡ります。売れたら代金が戻り、売れ残ったら倉庫に戻ります。</span></label>` : ''}
-    <label class="text-sm font-bold block">${channelOf(lf.channel)?.consign ? '希望価格' : '出品価格'}${moneyInputHtml({ attrs: 'data-f="lf.price"', value: lf.price, placeholder: '150,000', cls: 'inp mt-1 font-normal' })}</label>
+    <label class="text-sm font-bold block">出品価格${moneyInputHtml({ attrs: 'data-f="lf.price"', value: lf.price, placeholder: '150,000', cls: 'inp mt-1 font-normal' })}</label>
     ${unit && lf.price > 0 ? `<div class="text-sm rounded bg-slate-50 p-2">原価 ${yen(unit.price)}　手数料（${channelOf(lf.channel)?.label} ${(channelOf(lf.channel).rate * 100).toFixed(1).replace('.0', '')}%）${yen(fee)}　<b class="${profitCls(est)}">見込み利益 ${yenS(est)}</b><span class="text-xs text-slate-500">（送料を除く）</span></div>` : ''}
     <button class="b b-pri" data-list-add ${unit ? '' : 'disabled'}>出品する</button>`
     : '<p class="text-sm text-slate-500">いま出品できる在庫はありません。入庫済みで、保管期間（買取から10日間）が過ぎた商品が、ここに出ます。</p>'}
@@ -40,7 +41,7 @@ function sellForm(row, sf) {
   </div></td></tr>`;
 }
 
-function consignedTable(consigned, sf, now) {
+function consignedTable(consigned, sf, now, packs) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
     <h2 class="font-bold text-lg">🚚 委託中の商品（${consigned.length}点）<span class="text-xs font-normal text-slate-500">倉庫の外にあります</span></h2>
@@ -49,7 +50,7 @@ function consignedTable(consigned, sf, now) {
         const { unit, rec } = r;
         const days = Math.floor((now - rec.listedAt) / 86400000);
         return `<tr class="border-b"><td class="font-bold">${esc(unit.name)}<div class="text-xs font-normal text-slate-500 font-mono">${esc(unit.code)}</div></td>
-          <td>${badge('bg-violet-50 text-violet-800', esc(rec.vendor || '（未入力）'))}<div class="text-xs text-slate-500">${esc(channelOf(rec.channel)?.label)}</div></td><td>${md(dateOf(rec.listedAt))}<div class="text-xs text-slate-500">${days}日経過</div></td><td class="text-right">${yen(unit.price)}</td>
+          <td>${badge('bg-violet-50 text-violet-800', esc(rec.vendor || '（未入力）'))}<div class="text-xs text-slate-500">${esc(channelOf(rec.channel)?.label)}</div>${rec.packId && packs.get(rec.packId) ? `<div class="text-xs text-slate-500">${shipInfo(packs.get(rec.packId))}</div>` : ''}</td><td>${md(dateOf(rec.listedAt))}<div class="text-xs text-slate-500">${days}日経過</div></td><td class="text-right">${yen(unit.price)}</td>
           <td><div class="flex items-center gap-1 w-44">${moneyInputHtml({ attrs: `data-reprice-input="${esc(unit.code)}"`, value: rec.listPrice, cls: 'inp !py-1' })}<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-reprice="${esc(unit.code)}">変更</button></div></td>
           <td><button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-sell-open="${esc(unit.code)}">売れた（入金）</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-recall="${esc(unit.code)}">売れ残り（倉庫に戻る）</button></td></tr>
           ${sf.code === unit.code ? sellForm(r, sf) : ''}`;
@@ -79,5 +80,13 @@ function listedTable(listed, sf) {
   </section>`;
 }
 
-export const listTab = ({ rows }, { lf, sf }, now = Date.now()) => `<div class="grid xl:grid-cols-[26rem_1fr] gap-4 items-start">${listForm(rows.filter((r) => r.canList), lf)}
-  <div class="space-y-4">${listedTable(rows.filter((r) => r.stage === 'listed'), sf)}${consignedTable(rows.filter((r) => r.stage === 'consigned'), sf, now)}</div></div>`;
+// 委託のパック（業者への委託）の画面は、委託中の商品の一覧と並べる。ctx は { full, master, me }
+export function listTab({ rows }, { lf, sf, pk }, now = Date.now(), ctx = null) {
+  const packs = new Map((ctx?.full.transfers ?? []).filter((t) => t.kind === 'consign').map((t) => [t.id, t]));
+  const flea = `<div class="grid xl:grid-cols-[26rem_1fr] gap-4 items-start">${listForm(rows.filter((r) => r.canList), lf)}
+  <div class="space-y-4">${listedTable(rows.filter((r) => r.stage === 'listed'), sf)}</div></div>`;
+  if (!ctx) return flea;
+  const consign = `<div class="grid xl:grid-cols-[minmax(32rem,40rem)_1fr] gap-4 items-start">${openPackOf(ctx.full, pk, 'consign') ? packWork(ctx.full, ctx.master, ctx.me, pk, now, 'consign') : packList(ctx.full, ctx.master, ctx.me, pk, 'consign')}
+    ${consignedTable(rows.filter((r) => r.stage === 'consigned'), sf, now, packs)}</div>`;
+  return `${flea}${consign}`;
+}

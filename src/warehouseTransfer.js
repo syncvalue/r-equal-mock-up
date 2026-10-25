@@ -74,7 +74,7 @@ export function createPack(state, master, { fromId, toId, by, at = Date.now() })
   const from = warehouseById(master, fromId);
   if (!to || !from) return fail(state, 'badDestination');
   const pack = {
-    id: newId(at), codes: [], fromId, toId, fromName: from.name, toName: to.name, status: 'draft', createdAt: at, createdBy: by,
+    id: newId(at), kind: 'transfer', codes: [], fromId, toId, fromName: from.name, toName: to.name, status: 'draft', createdAt: at, createdBy: by,
     carrier: '', size: '', boxes: 1, note: '', tracking: '', listPrintedAt: null, labelPrintedAt: null,
     sentAt: null, sentBy: '', receivedAt: null, receivedBy: '', location: null,
   };
@@ -97,7 +97,9 @@ export function addToPack(state, master, packId, code, { at = Date.now() } = {})
 export function removeFromPack(state, packId, code) {
   const pack = draftOf(state, packId);
   const c = String(code ?? '').trim().toUpperCase();
-  return pack?.codes.includes(c) ? patch(state, packId, { codes: pack.codes.filter((x) => x !== c) }) : state;
+  if (!pack?.codes.includes(c)) return state;
+  const { [c]: _price, ...prices } = pack.prices ?? {}; // 委託のパックなら、希望価格も消す
+  return patch(state, packId, { codes: pack.codes.filter((x) => x !== c), ...(pack.prices ? { prices } : {}) });
 }
 
 // 配送業者・サイズ・個口数・メモを設定する。正しくない値が1つでもあれば、何も変えない
@@ -122,6 +124,7 @@ export function markPrinted(state, packId, kind, at = Date.now()) {
 export function shipPack(state, packId, { tracking = '', by, at = Date.now(), master = null }) {
   const pack = draftOf(state, packId);
   if (!pack) return fail(state, 'notDraft');
+  if (pack.kind === 'consign') return fail(state, 'wrongKind'); // 委託のパックは、委託する（warehouseConsign.js）で発送する
   if (!pack.codes.length) return fail(state, 'noItems');
   if (!pack.carrier) return fail(state, 'noCarrier');
   const rejected = pack.codes.flatMap((code) => {
@@ -139,7 +142,8 @@ export function discardPack(state, packId) {
   return { ok: true, state: { ...state, transfers: state.transfers.filter((t) => t.id !== packId) } };
 }
 
-export const drafts = (state, warehouseId) => (state.transfers ?? []).filter((t) => t.status === 'draft' && t.fromId === warehouseId);
+// 梱包中のパックの一覧。kind は 'transfer'（倉庫間移動。既定）か 'consign'（業者への委託）
+export const drafts = (state, warehouseId, kind = 'transfer') => (state.transfers ?? []).filter((t) => t.status === 'draft' && t.fromId === warehouseId && (t.kind ?? 'transfer') === kind);
 
 export const incoming = (state, warehouseId) => (state.transfers ?? []).filter((t) => t.status === 'transit' && t.toId === warehouseId);
 export const outgoing = (state, warehouseId) => (state.transfers ?? []).filter((t) => t.status === 'transit' && t.fromId === warehouseId);

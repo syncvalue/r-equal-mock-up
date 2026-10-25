@@ -4,6 +4,7 @@ import { STOCK_KEY } from './store.js';
 import { loadUnits, addUnits } from './stock.js';
 import * as W from './warehouse.js';
 import * as T from './warehouseTransfer.js';
+import * as C from './warehouseConsign.js';
 import { DEFAULT_MASTER as MASTER, isHighValue } from './warehouseMaster.js';
 
 export const WH_SAMPLE_KEY = 'rq-mock-warehouse-sample'; // 初期化で消えない目印（初期化後に、自動で復活させない）
@@ -11,7 +12,7 @@ const PREFIX = 'RQ-WH';
 
 // 保管場所は、入庫した倉庫の棚から選ぶ
 // お客様ごとの入庫先の倉庫（大阪・関東・福岡に分かれる）
-const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '山口 拓海': 'W-KANTO', '西田 久美': 'W-FUKUOKA', '石川 陽平': 'W-KANTO', '松井 恵': 'W-FUKUOKA', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
+const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '山口 拓海': 'W-KANTO', '西田 久美': 'W-FUKUOKA', '石川 陽平': 'W-KANTO', '松井 恵': 'W-FUKUOKA', '三浦 香織': 'W-KANTO', '宮本 諒': 'W-FUKUOKA', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
 // 高額品（貴金属など）は納入のときから本社、それ以外はお客様ごとの倉庫
 const whOf = (customerName, item) => (item && isHighValue(item, MASTER) ? 'W-HONSHA' : WH_OF[customerName] ?? 'W-OSAKA');
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
@@ -74,6 +75,11 @@ export function buildSample(now = Date.now()) {
     ...purchase(16, 'u02', '石川 陽平', [['ソニー α7C ボディ', 'カメラ・家電', 'A', 190000]]), // 41（関東倉庫）
     ...purchase(16, 'u03', '松井 恵', [['ニコン Z fc ボディ', 'カメラ・家電', 'B', 98000], ['ミュウミュウ 長財布', '財布・小物', 'A', 55000]]), // 42・43（福岡倉庫）
     ...purchase(16, 'u04', '森 達也', [['プラチナ ペンダント', 'ジュエリー・貴金属', 'A', 70000]]), // 44（本社）
+    // 業者への委託の見本（委託のパック）
+    ...purchase(17, 'u05', '野口 隆', [['ブルガリ ブルガリ バッグ', 'ブランドバッグ', 'A', 150000], ['グッチ ベルト', '財布・小物', 'B', 28000], ['IWC ポルトギーゼ', '腕時計', 'A', 240000], ['タグ・ホイヤー カレラ', '腕時計', 'B', 170000]]), // 45〜48（大阪倉庫）
+    ...purchase(17, 'u06', '三浦 香織', [['ロエベ ハンモック', 'ブランドバッグ', 'A', 160000], ['アニエスb 長財布', '財布・小物', 'B', 22000]]), // 49・50（関東倉庫）
+    ...purchase(17, 'u07', '宮本 諒', [['キヤノン RF50mm F1.8', 'カメラ・家電', 'A', 68000]]), // 51（福岡倉庫）
+    ...purchase(17, 'u08', '清水 玲子', [['K18 リング', 'ジュエリー・貴金属', 'A', 80000], ['プラチナ ネックレス', 'ジュエリー・貴金属', 'A', 110000], ['カルティエ ラブブレス', 'ジュエリー・貴金属', 'S', 580000]]), // 52〜54（本社）
   ];
   units[22] = { ...units[22], status: 'missing', storedAt: null, location: null, by: null, check: null, warehouseId: undefined }; // 所在不明
 
@@ -149,6 +155,35 @@ export function buildSample(now = Date.now()) {
     (s) => T.createPack(s, MASTER, { fromId: 'W-HONSHA', toId: 'W-OSAKA', by: staffOfWh('W-HONSHA'), at: at(0, 9) }),
     (s) => T.addToPack(s, MASTER, s.transfers[0].id, R(5), { at: at(0, 9) }),
     (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'jp', size: '60' }),
+    // 業者への委託（発送済み＝委託中のパックと、梱包中のパック）
+    (s) => C.createConsignPack(s, MASTER, { fromId: 'W-OSAKA', vendorId: 'V-OSAKA-WATCH', by: staffOfWh('W-OSAKA'), at: at(4) }),
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(47), { at: at(4) }),
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(48), { at: at(4) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'yamato', size: '80' }),
+    (s) => T.markPrinted(T.markPrinted(s, s.transfers[0].id, 'list', at(4)), s.transfers[0].id, 'label', at(4)),
+    (s) => C.shipConsignPack(s, MASTER, s.transfers[0].id, { tracking: '4321-7771-0001', by: staffOfWh('W-OSAKA'), at: at(3) }),
+    (s) => C.createConsignPack(s, MASTER, { fromId: 'W-HONSHA', vendorId: 'V-KANSAI-JEWEL', by: staffOfWh('W-HONSHA'), at: at(4) }),
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(52), { at: at(4) }),
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(53), { at: at(4) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'jp', size: '60' }),
+    (s) => T.markPrinted(T.markPrinted(s, s.transfers[0].id, 'list', at(4)), s.transfers[0].id, 'label', at(4)),
+    (s) => C.shipConsignPack(s, MASTER, s.transfers[0].id, { tracking: '8100-5550-0002', by: staffOfWh('W-HONSHA'), at: at(3) }),
+    (s) => C.createConsignPack(s, MASTER, { fromId: 'W-OSAKA', vendorId: 'V-TOKYO-BRAND', by: staffOfWh('W-OSAKA'), at: at(0, 12) }),
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(45), { at: at(0, 12) }),
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(46), { at: at(0, 12) }),
+    (s) => C.setPackPrice(s, s.transfers[0].id, code(45), 168000),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'sagawa', size: '100' }),
+    (s) => T.markPrinted(T.markPrinted(s, s.transfers[0].id, 'list', at(0, 13)), s.transfers[0].id, 'label', at(0, 13)), // 明細・発送伝票を出力済み（あとは委託するだけ）
+    (s) => C.createConsignPack(s, MASTER, { fromId: 'W-KANTO', vendorId: 'V-TOKYO-BRAND', by: staffOfWh('W-KANTO'), at: at(0, 12) }), // これから設定するパック
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(49), { at: at(0, 12) }),
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(50), { at: at(0, 12) }),
+    (s) => C.createConsignPack(s, MASTER, { fromId: 'W-FUKUOKA', vendorId: 'V-OSAKA-WATCH', by: staffOfWh('W-FUKUOKA'), at: at(0, 12) }),
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(51), { at: at(0, 12) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'jp', size: '60' }),
+    (s) => T.markPrinted(s, s.transfers[0].id, 'list', at(0, 13)), // 明細だけ出力済み
+    (s) => C.createConsignPack(s, MASTER, { fromId: 'W-HONSHA', vendorId: 'V-KANSAI-JEWEL', by: staffOfWh('W-HONSHA'), at: at(0, 12) }),
+    (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(54), { at: at(0, 12) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'yamato', size: '80' }),
     (s) => W.requestReturn(s, { master: MASTER, customerName: '松本 千春', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10) }),
   ];
   const state = steps.reduce((s, step) => {
@@ -161,7 +196,7 @@ export function buildSample(now = Date.now()) {
   const SIZES = ['80', '100', '60', '120'];
   let n = 0;
   const transfers = state.transfers.map((t) => {
-    if (t.status === 'draft') return t;
+    if (!['transit', 'received'].includes(t.status)) return t; // 倉庫間の移動（発送済み）だけに付ける。梱包中・委託のパックは、設定済み
     n += 1;
     const carrier = CARRIERS[n % 3];
     return { ...t, carrier, size: SIZES[n % 4], boxes: 1, note: '', tracking: n % 5 === 0 ? '' : `${carrier === 'yamato' ? '4321' : carrier === 'sagawa' ? '5012' : '8100'}-${String(2000 + n * 37).padStart(4, '0')}-${String(9000 + n * 11).padStart(4, '0')}` };

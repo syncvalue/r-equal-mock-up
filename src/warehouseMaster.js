@@ -21,6 +21,12 @@ export const DEFAULT_MASTER = {
     { id: 'wh04', loginId: 'wh04', name: '藤田 結衣', warehouseId: 'W-FUKUOKA', active: true },
     { id: 'wh05', loginId: 'wh05', name: '岡田 剛', warehouseId: 'W-HONSHA', active: true },
   ],
+  // 委託先（業者）。業者オークションなど、外部の市場に商品を委託して販売する送り先（ダミー）
+  vendors: [
+    { id: 'V-OSAKA-WATCH', name: '大阪時計オークション', zip: '556-0011', address: '大阪府大阪市浪速区難波中2-1-1', phone: '06-1111-0001', active: true },
+    { id: 'V-TOKYO-BRAND', name: '東京ブランド市場', zip: '110-0005', address: '東京都台東区上野1-1-1', phone: '03-1111-0002', active: true },
+    { id: 'V-KANSAI-JEWEL', name: '関西貴金属市場', zip: '541-0053', address: '大阪府大阪市中央区本町1-1-1', phone: '06-1111-0003', active: true },
+  ],
   // 高額品（本社の管理対象）: シールの色が、紫・赤の商品
   highValue: { colors: ['purple', 'red'] },
 };
@@ -28,7 +34,7 @@ export const DEFAULT_MASTER = {
 export function loadMaster() {
   try {
     const m = JSON.parse(localStorage.getItem(MASTER_KEY));
-    return Array.isArray(m?.warehouses) && Array.isArray(m?.staff) ? { ...m, highValue: Array.isArray(m.highValue?.colors) ? m.highValue : DEFAULT_MASTER.highValue } : DEFAULT_MASTER;
+    return Array.isArray(m?.warehouses) && Array.isArray(m?.staff) ? { ...m, highValue: Array.isArray(m.highValue?.colors) ? m.highValue : DEFAULT_MASTER.highValue, vendors: Array.isArray(m.vendors) ? m.vendors : DEFAULT_MASTER.vendors } : DEFAULT_MASTER;
   } catch {
     return DEFAULT_MASTER;
   }
@@ -100,6 +106,29 @@ export function saveWarehouse(master, { id, name, address = '', zip, phone, offi
   if (hv && master.warehouses.some((w) => w.highValue && w.id !== id)) return fail(master, 'dupHonsha');
   const item = { id: id ?? newId('W'), name: n, zip: z, address: String(address).trim(), phone: phone === undefined ? old?.phone ?? '' : String(phone).trim(), officeId, locations: locs, active: active ?? old?.active ?? true, ...(hv ? { highValue: true } : {}) };
   return { ok: true, master: { ...master, warehouses: old ? replaceAt(master.warehouses, id, item) : [...master.warehouses, item] } };
+}
+
+// ---- 委託先（業者）-------------------------------------------------------------
+export const vendorById = (master, id) => (master.vendors ?? []).find((v) => v.id === id) ?? null;
+export const activeVendors = (master) => (master.vendors ?? []).filter((v) => v.active);
+
+// 委託先の登録・更新（id があれば更新。指定しなかった項目は、いまの値を保つ）。reason: noName／badZip／dupName／notFound
+export function saveVendor(master, { id, name, zip, address, phone }) {
+  const old = id ? vendorById(master, id) : null;
+  if (id && !old) return fail(master, 'notFound');
+  const n = String(name ?? '').trim();
+  if (!n) return fail(master, 'noName');
+  const z = zip === undefined ? old?.zip ?? '' : String(zip).trim().replace(/^(\d{3})(\d{4})$/, '$1-$2');
+  if (z && !/^\d{3}-\d{4}$/.test(z)) return fail(master, 'badZip');
+  if ((master.vendors ?? []).some((v) => v.name === n && v.id !== id)) return fail(master, 'dupName');
+  const item = { id: id ?? newId('V'), name: n, zip: z, address: address === undefined ? old?.address ?? '' : String(address).trim(), phone: phone === undefined ? old?.phone ?? '' : String(phone).trim(), active: old?.active ?? true };
+  const list = master.vendors ?? [];
+  return { ok: true, master: { ...master, vendors: old ? replaceAt(list, id, item) : [...list, item] } };
+}
+
+export function setVendorActive(master, id, active) {
+  const v = vendorById(master, id);
+  return v ? { ok: true, master: { ...master, vendors: replaceAt(master.vendors, id, { ...v, active }) } } : fail(master, 'notFound');
 }
 
 // 高額品（本社の管理対象）にするシールの色の設定。reason: noRule／badColor

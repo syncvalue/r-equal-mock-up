@@ -186,3 +186,28 @@ test('送り状に必要な情報: 倉庫（本社を含む）に、郵便番号
   const upd = M.saveWarehouse(HM, { id: HM.warehouses[0].id, name: HM.warehouses[0].name, address: HM.warehouses[0].address, officeId: HM.warehouses[0].officeId, locations: HM.warehouses[0].locations });
   assert.equal(upd.master.warehouses[0].zip, HM.warehouses[0].zip); // 更新で指定しなければ、いまの値を保つ
 });
+
+test('委託先（業者）のマスタ: 名前・郵便番号・住所・電話番号を持つ。登録・更新・有効無効。名前の重複、郵便番号の形式は確かめる', () => {
+  assert.ok(HM.vendors.length >= 2 && HM.vendors.every((v) => v.name && /^\d{3}-\d{4}$/.test(v.zip) && v.address && v.phone && v.active));
+  assert.equal(M.vendorById(HM, HM.vendors[0].id).name, HM.vendors[0].name);
+  assert.equal(M.activeVendors(HM).length, HM.vendors.length);
+  const ok = M.saveVendor(HM, { name: '名古屋時計市場', zip: '4600008', address: '愛知県名古屋市中区栄1-1-1', phone: '052-000-0000' });
+  assert.equal(ok.ok, true);
+  const v = ok.master.vendors.at(-1);
+  assert.deepEqual({ name: v.name, zip: v.zip, active: v.active }, { name: '名古屋時計市場', zip: '460-0008', active: true });
+  assert.equal(M.saveVendor(HM, { name: ' ' }).reason, 'noName');
+  assert.equal(M.saveVendor(HM, { name: HM.vendors[0].name }).reason, 'dupName');
+  assert.equal(M.saveVendor(HM, { name: 'x', zip: '12' }).reason, 'badZip');
+  const upd = M.saveVendor(HM, { id: HM.vendors[0].id, name: HM.vendors[0].name, address: '新住所' });
+  assert.equal(upd.master.vendors[0].address, '新住所'); assert.equal(upd.master.vendors[0].zip, HM.vendors[0].zip); // 指定しなければ、いまの値を保つ
+  assert.equal(M.saveVendor(HM, { id: 'nope', name: 'q' }).reason, 'notFound');
+  const off = M.setVendorActive(HM, HM.vendors[0].id, false);
+  assert.equal(off.ok, true);
+  assert.equal(M.activeVendors(off.master).length, HM.vendors.length - 1);
+  assert.equal(M.setVendorActive(HM, 'nope', false).reason, 'notFound');
+});
+
+test('古い保存データ: 委託先がなければ、初期の委託先を補う', () => {
+  mem.set('rq-mock-warehouse-master', JSON.stringify({ warehouses: HM.warehouses, staff: HM.staff, highValue: HM.highValue }));
+  assert.equal(M.loadMaster().vendors.length, HM.vendors.length);
+});

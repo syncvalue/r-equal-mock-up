@@ -17,16 +17,22 @@ const unitsOf = (pack, units) => { const by = new Map(units.map((u) => [u.code, 
 const whOf = (master, id) => master.warehouses.find((w) => w.id === id) ?? { name: '', zip: '', address: '', phone: '' };
 const describe = (count) => `買取商品（${count}点）`;
 
-// 点数と、商品の買取額の合計（配送の補償額の目安）
+// 送り先。倉庫間の移動は送り先の倉庫、業者への委託（kind: 'consign'）は委託先
+const destOf = (pack, master) => (pack.kind === 'consign'
+  ? (master.vendors ?? []).find((v) => v.id === pack.vendorId) ?? { name: pack.vendorName ?? '', zip: '', address: '', phone: '' }
+  : whOf(master, pack.toId));
+
+// 点数と、商品の買取額の合計（配送の補償額の目安）。委託のパックは、希望価格の合計（ask）も出す
 export function packSummary(pack, units) {
   const by = new Map(units.map((u) => [u.code, u]));
-  return { count: pack.codes.length, total: pack.codes.reduce((n, c) => n + (by.get(c)?.price ?? 0), 0) };
+  const base = { count: pack.codes.length, total: pack.codes.reduce((n, c) => n + (by.get(c)?.price ?? 0), 0) };
+  return pack.kind === 'consign' ? { ...base, ask: pack.codes.reduce((n, c) => n + (pack.prices?.[c] ?? 0), 0) } : base;
 }
 
 // 送り状・CSVに必要な、送り先・ご依頼主の情報で、足りないものの一覧
 export function addressProblems(pack, master) {
   const check = (label, w) => [['郵便番号', w.zip], ['住所', w.address], ['電話番号', w.phone]].filter(([, v]) => !String(v ?? '').trim()).map(([k]) => `${label}（${w.name}）の${k}`);
-  return [...check('送り先', whOf(master, pack.toId)), ...check('ご依頼主', whOf(master, pack.fromId))];
+  return [...check('送り先', destOf(pack, master)), ...check('ご依頼主', whOf(master, pack.fromId))];
 }
 
 // ---- CSV
@@ -64,7 +70,7 @@ export function shippingCsv(carrierKey, packs, units, master, { now = Date.now()
   const cols = COLUMNS[carrierKey] ?? COLUMNS.other;
   const rows = packs.flatMap((pack) => Array.from({ length: pack.boxes ?? 1 }, (_, i) => {
     const ctx = {
-      pack, no: (pack.boxes ?? 1) > 1 ? `${pack.id}-${i + 1}` : pack.id, date: ymd(pack.sentAt ?? now, '/'), to: whOf(master, pack.toId), from: whOf(master, pack.fromId), item: describe(pack.codes.length),
+      pack, no: (pack.boxes ?? 1) > 1 ? `${pack.id}-${i + 1}` : pack.id, date: ymd(pack.sentAt ?? now, '/'), to: destOf(pack, master), from: whOf(master, pack.fromId), item: describe(pack.codes.length),
     };
     return cols.map(([, f]) => f(ctx));
   }));
@@ -78,20 +84,27 @@ const PAGE_CSS = 'body{font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",sa
 const PRINT_JS = '<script>window.addEventListener("load",function(){window.print()})</script>';
 const page = (title, body) => `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${PAGE_CSS}</style></head><body><div class="no-print"><button onclick="window.print()">印刷する</button></div>${body}${PRINT_JS}</body></html>`;
 
-// 送付明細。パックの番号・送り元と送り先・商品の一覧・合計・受領の確認欄
+// 送付明細。パックの番号・送り元と送り先・商品の一覧・合計・受領の確認欄。
+// 業者への委託の明細（委託明細）は、業者に渡すので、希望価格を出し、原価（買取額）とお客様の情報は出さない
 export function packingListHtml(pack, units, master, { now = Date.now() } = {}) {
   const from = whOf(master, pack.fromId);
-  const to = whOf(master, pack.toId);
+  const to = destOf(pack, master);
+  const consign = pack.kind === 'consign';
   const list = unitsOf(pack, units);
-  const { count, total } = packSummary(pack, units);
+  const { count, total, ask } = packSummary(pack, units);
   const color = (k) => SEAL_COLORS.find((c) => c.key === k)?.label ?? '';
-  return page(`送付明細 ${pack.id}`, `
-  <h1>送付明細（倉庫間移動）</h1>
+  const head = consign ? '<th>確認</th><th>シールNo.</th><th>商品名</th><th>カテゴリ・ランク</th><th>シールの色</th><th class="r">希望価格</th>'
+    : '<th>確認</th><th>シールNo.</th><th>商品名</th><th>カテゴリ・ランク</th><th>シールの色</th><th>買取日・お客様</th><th class="r">買取額</th>';
+  const rows = list.map((u) => `<tr><td>☐</td><td class="mono">${esc(u.code)}</td><td>${esc(u.name)}</td><td>${esc(u.category ?? '')}${u.rank ? `／ランク${esc(u.rank)}` : ''}</td><td>${esc(color(u.sealColor))}</td>${
+    consign ? `<td class="r">${yen(pack.prices?.[u.code] ?? 0)}</td>` : `<td>${esc(u.date ?? '')} ${esc(u.customerName ?? '')}</td><td class="r">${yen(u.price)}</td>`}</tr>`).join('');
+  const cols = consign ? 5 : 6;
+  return page(`${consign ? '委託明細' : '送付明細'} ${pack.id}`, `
+  <h1>${consign ? '委託明細（業者への委託）' : '送付明細（倉庫間移動）'}</h1>
   <div class="meta"><div>パック番号: <b class="mono">${esc(pack.id)}</b></div><div>作成日: ${ymd(pack.createdAt ?? now, '/')}　出力: ${ymd(now, '/')}</div><div>配送: ${esc(carrierOf(pack.carrier)?.label ?? '未選択')}${pack.size ? `（サイズ ${esc(pack.size)}）` : ''}　個口数: ${pack.boxes ?? 1}</div></div>
-  <div class="meta"><div class="box"><b>送り元</b><br>${esc(from.name)}<br>〒${esc(from.zip)} ${esc(from.address)}<br>TEL ${esc(from.phone)}</div><div class="box"><b>送り先</b><br>${esc(to.name)}<br>〒${esc(to.zip)} ${esc(to.address)}<br>TEL ${esc(to.phone)}</div></div>
-  <table><thead><tr><th>確認</th><th>シールNo.</th><th>商品名</th><th>カテゴリ・ランク</th><th>シールの色</th><th>買取日・お客様</th><th class="r">買取額</th></tr></thead><tbody>
-  ${list.map((u) => `<tr><td>☐</td><td class="mono">${esc(u.code)}</td><td>${esc(u.name)}</td><td>${esc(u.category ?? '')}${u.rank ? `／ランク${esc(u.rank)}` : ''}</td><td>${esc(color(u.sealColor))}</td><td>${esc(u.date ?? '')} ${esc(u.customerName ?? '')}</td><td class="r">${yen(u.price)}</td></tr>`).join('')}
-  <tr><td colspan="6" class="r"><b>合計 ${count}点</b></td><td class="r"><b>${yen(total)}</b></td></tr></tbody></table>
+  <div class="meta"><div class="box"><b>送り元</b><br>${esc(from.name)}<br>〒${esc(from.zip)} ${esc(from.address)}<br>TEL ${esc(from.phone)}</div><div class="box"><b>${consign ? '委託先' : '送り先'}</b><br>${esc(to.name)}<br>〒${esc(to.zip)} ${esc(to.address)}<br>TEL ${esc(to.phone)}</div></div>
+  <table><thead><tr>${head}</tr></thead><tbody>
+  ${rows}
+  <tr><td colspan="${cols}" class="r"><b>合計 ${count}点</b></td><td class="r"><b>${yen(consign ? ask : total)}</b></td></tr></tbody></table>
   ${pack.note ? `<p>メモ: ${esc(pack.note)}</p>` : ''}
   <div class="sign"><div>受領日　　　年　　月　　日</div><div>受領者（署名）</div><div>全点確認 ☐ 相違あり ☐</div></div>`);
 }
@@ -99,7 +112,7 @@ export function packingListHtml(pack, units, master, { now = Date.now() } = {}) 
 // 発送伝票（送り状の控え）。個口ごとに1枚。実際の送り状は、配送業者のシステムに、CSVを取り込んで出力する
 export function shippingLabelHtml(pack, units, master, { now = Date.now() } = {}) {
   const from = whOf(master, pack.fromId);
-  const to = whOf(master, pack.toId);
+  const to = destOf(pack, master);
   const c = carrierOf(pack.carrier);
   const boxes = pack.boxes ?? 1;
   const labels = Array.from({ length: boxes }, (_, i) => `

@@ -96,7 +96,7 @@ test('サンプル: どの倉庫（本社を含む）の担当者でログイン
   assert.ok(rows.filter((r) => r.stage === 'transit').length >= 7);
   // 規則どおり: 高額品（紫・赤）は本社へ、それ以外は本社以外の倉庫へだけ移動している（色の貼り替えのあとの移動を含む）
   const byCode = new Map(state.units.map((u) => [u.code, u]));
-  for (const t of state.transfers) for (const c of t.codes) assert.equal(MM.destinationProblem(M, byCode.get(c), t.toId), '', `${c} → ${t.toName}`);
+  for (const t of state.transfers.filter((x) => (x.kind ?? 'transfer') === 'transfer')) for (const c of t.codes) assert.equal(MM.destinationProblem(M, byCode.get(c), t.toId), '', `${c} → ${t.toName}`); // 倉庫間の移動だけ（委託は、規則なし）
 });
 
 test('サンプル: 色の貼り間違いを直した商品（貼り替え）が、本社・倉庫の間を移動している', () => {
@@ -118,4 +118,23 @@ test('サンプル: 梱包中のパックのダミーが、どの倉庫（本社
   assert.deepEqual([...new Set(sent.map((t) => t.carrier).filter(Boolean))].sort(), ['jp', 'sagawa', 'yamato']); // 3社とも見える
   const rows = W.buildRows(state, NOW);
   assert.ok(rows.filter((r) => r.stage === 'packing').length >= 5);
+});
+
+test('サンプル: 業者への委託のダミー。梱包中のパックが、どの倉庫（本社を含む）でも見え、発送済み（委託中）のパックには、委託先・配送業者・追跡番号がある', async () => {
+  const { DEFAULT_MASTER: M } = await import('../src/warehouseMaster.js');
+  const T = await import('../src/warehouseTransfer.js');
+  const state = W.loadState();
+  for (const w of M.warehouses) assert.ok(T.drafts(state, w.id, 'consign').length >= 1, `${w.name}: 委託の梱包中のパックがない`);
+  const drafts = state.transfers.filter((t) => t.kind === 'consign' && t.status === 'draft');
+  assert.ok(drafts.some((p) => p.carrier && p.size && p.listPrintedAt && p.labelPrintedAt)); // 出力済み（あとは委託するだけ）
+  assert.ok(drafts.some((p) => !p.carrier && !p.listPrintedAt)); // これから設定するパック
+  assert.ok(drafts.every((p) => p.codes.every((c) => p.prices[c] > 0)));
+  const shipped = state.transfers.filter((t) => t.kind === 'consign' && t.status === 'consigned');
+  assert.ok(shipped.length >= 2 && shipped.every((p) => p.carrier && p.vendorId && M.vendors.some((v) => v.id === p.vendorId)) && shipped.some((p) => p.tracking));
+  const rows = W.buildRows(state, NOW);
+  for (const p of shipped) for (const c of p.codes) { // 委託中の商品に、委託先・希望価格・パックの記録がある
+    assert.equal(rows.find((r) => r.unit.code === c).stage, 'consigned');
+    assert.deepEqual([state.records[c].vendorId, state.records[c].packId, state.records[c].listPrice > 0], [p.vendorId, p.id, true]);
+  }
+  assert.ok(new Set(shipped.map((p) => p.vendorId)).size >= 2); // 委託先が複数
 });
