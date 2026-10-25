@@ -28,5 +28,8 @@ test('倉庫・物流の画面は、描画できる（サンプルデータ入�
   root.innerHTML = '';
   await import('../warehouse/warehouse.js');
   assert.ok(root.innerHTML.includes('倉庫・物流') && root.innerHTML.includes('商品管理') && root.innerHTML.includes('ルイ・ヴィトン ネヴァーフル MM'));
-  assert.ok(root.innerHTML.includes('クーリングオフ返品') && root.innerHTML.includes('売上管理'));
+  const { TABS, menuView } = await import('../warehouse/menu.js'); // 各画面へは、左側の開閉式メニューから移動する
+  const menu = menuView({ tab: 'stock', badges: {}, staff: { name: '小川 直樹' }, warehouseName: '大阪倉庫' });
+  for (const label of ['商品管理', '入庫', '倉庫間移動', '販売（出品）', '売上管理', 'クーリングオフ返品', '倉庫マスタ']) assert.ok(TABS.some((t) => t.label === label) && menu.includes(label), label);
+  assert.ok(!root.innerHTML.includes('メインメニュー')); // 初めは、メニューは閉じている
 });

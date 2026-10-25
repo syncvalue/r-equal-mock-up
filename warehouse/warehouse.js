@@ -18,13 +18,13 @@ import { salesTab } from './salesTab.js';
 import { returnTab } from './returnTab.js';
 import { receiveTab } from './receiveTab.js';
 import { masterTab } from './masterTab.js';
+import { menuView, tabLabel } from './menu.js';
 import { transferTab } from './transferTab.js';
 import { sendTransfer, receiveTransfer, cancelTransfer, incoming } from '../src/warehouseTransfer.js';
 import { loginView } from './loginView.js';
 import { openMockCamera } from './camera.js';
 
 const $ = (s) => document.querySelector(s);
-const TABS = [['stock', '📦 商品管理'], ['receive', '📥 入庫'], ['transfer', '🚚 倉庫間移動'], ['list', '🛒 販売（出品）'], ['sales', '💹 売上管理'], ['return', '↩ クーリングオフ返品'], ['master', '🏭 倉庫マスタ']];
 const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' });
 const blankSell = () => ({ code: '', price: 0, shipping: 0, buyer: '' });
 const blankReturn = () => ({ visitId: '', codes: [], reason: 'family', memo: '' });
@@ -37,11 +37,12 @@ const REASON_TEXT = { notListable: '出品できない商品です（クーリ�
 const REJECT_TEXT = { inTransit: '倉庫間を輸送中の商品（届いてから受け付けてください）', unknown: '登録のない商品', notStored: '入庫前の商品', expired: '保管期間（10日間）を過ぎた商品', inProgress: 'すでに返品対応中の商品', notReturnable: '返品できない状態の商品' };
 
 let tab = 'stock';
+let menuOpen = false; // 左側のメニューの開閉
 let staff = loadSession(); // ログイン中の担当者（操作した人として記録する。所属する倉庫が、入庫先・表示の初期値になる）
 let loginError = '';
 const blankWh = () => ({ id: '', name: '', address: '', officeId: '', locations: '', highValue: false });
 const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
-const ui = { rl: { code: '', newCode: '', color: '' }, hv: null, tf: { toId: '', codes: [] }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+const ui = { rl: { code: '', newCode: '', color: '' }, hv: null, tf: { toId: '', codes: [] }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();
@@ -77,14 +78,17 @@ function render() {
   const full = loadState();
   const state = scopeState(full, ui.scope, master);
   const rows = buildRows(state, now);
+  // メニューの項目に出す件数（入庫待ち・受け取り待ち・返品対応中）
+  const badges = { receive: full.units.filter((u) => u.status !== 'stored').length, transfer: incoming(full, staff.warehouseId).length, return: state.returns.filter((r) => r.status !== 'done').length };
+  const menuBadge = badges.receive + badges.transfer > 0;
   // タブレットの幅でも崩れないよう、見出しは折り返し、本文が残りの高さを使う
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
-  <header class="bg-sky-900 text-white px-4 md:px-6 py-3 flex flex-wrap gap-2 justify-between items-center">
-    <div class="font-bold text-xl">倉庫・物流 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${['stock', 'master'].includes(tab) ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-logout>ログアウト</button> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
+  <header class="bg-sky-900 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
+    <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${menuBadge ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
+      <span class="font-bold text-xl">倉庫・物流</span><span class="text-slate-300">›</span><span class="font-bold">${esc(tabLabel(tab))}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
+    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${['stock', 'master'].includes(tab) ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
-  <nav class="bg-white border-b px-2 md:px-6 flex gap-1 items-center overflow-x-auto">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 whitespace-nowrap ${tab === k ? 'border-sky-700 text-sky-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}</nav>
-  <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${tabBody(full, now)}</main></div>`;
+  <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${tabBody(full, now)}</main>${menuOpen ? menuView({ tab, badges, staff, warehouseName: wh.name }) : ''}</div>`;
 }
 
 // ---- 操作 -----------------------------------------------------------------------
@@ -156,7 +160,7 @@ function scanCode(raw) {
   ui.rl = { code: '', newCode: '', color: '' };
   tab = 'stock';
   ui.filter = 'all';
-  ui.q = '';
+  ui.q = ''; ui.page = 1;
 }
 // ---- カメラでの読み取り（モック。実際のカメラは使わない）-----------------------------------
 // search: 1回読み取ったら閉じて、商品の詳細を表示する／receive: 開いたまま、続けて入庫する（自分の倉庫で入庫できる商品がなくなるまで）
@@ -272,9 +276,12 @@ function doLogin() {
 }
 
 const ACTIONS = {
-  tab: (v) => { tab = v; },
-  filter: (v) => { ui.filter = v; },
-  view: (v) => { ui.view = v; },
+  tab: (v) => { tab = v; menuOpen = false; ui.page = 1; },
+  menuOpen: () => { menuOpen = true; },
+  menuClose: () => { menuOpen = false; },
+  filter: (v) => { ui.filter = v; ui.page = 1; },
+  view: (v) => { ui.view = v; ui.page = 1; },
+  page: (v) => { ui.page = Number(v); },
   camSearch: () => { openCamera('search'); return false; },
   camReceive: () => { openCamera('receive'); return false; },
   mwSave: saveWh,
@@ -305,7 +312,7 @@ const ACTIONS = {
   rcUnit: (v) => storeChecked([v]),
   rcVisit: (v) => storeChecked(visitCodes(v)),
   rcAll: toggleAll,
-  logout: () => { clearSession(); staff = null; loginError = ''; },
+  logout: () => { clearSession(); staff = null; loginError = ''; menuOpen = false; },
   login: doLogin,
   period: (v) => { ui.period = v; },
   goList: (v) => { ui.lf = { ...blankList(), code: v, price: suggestPrice(unitOf(v)) }; tab = 'list'; },
@@ -383,6 +390,7 @@ document.addEventListener('input', (e) => {
   if (e.target.matches('[data-reprice-input]')) return void formatMoneyInput(e.target);
   if (e.target.matches('[data-q]')) {
     ui.q = e.target.value;
+    ui.page = 1;
     render();
     const q = $('[data-q]');
     q.focus();
@@ -392,6 +400,7 @@ document.addEventListener('input', (e) => {
   onField(e, true);
 });
 document.addEventListener('change', (e) => {
+  if (e.target.matches?.('[data-page-size]')) { ui.pageSize = Number(e.target.value); ui.page = 1; render(); return; }
   if (e.target.matches?.('[data-hv-color]')) {
     const cur = ui.hv ?? master.highValue.colors;
     const c = e.target.dataset.hvColor;
@@ -411,7 +420,7 @@ document.addEventListener('change', (e) => {
     return;
   }
   if (e.target.matches?.('[data-tr-loc]')) { ui.tr = { ...ui.tr, locs: { ...ui.tr.locs, [e.target.dataset.trLoc]: e.target.value } }; return; }
-  if (e.target.matches?.('[data-scope]')) { ui.scope = e.target.value; render(); return; }
+  if (e.target.matches?.('[data-scope]')) { ui.scope = e.target.value; ui.page = 1; render(); return; }
   if (e.target.matches?.('[data-rc-check]')) {
     const code = e.target.dataset.rcCheck;
     ui.rc = { ...ui.rc, checks: e.target.checked ? [...ui.rc.checks, code] : ui.rc.checks.filter((c) => c !== code) };
