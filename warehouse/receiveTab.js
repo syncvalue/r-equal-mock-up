@@ -18,6 +18,7 @@ function scanPanel(rc, todo) {
       <div class="flex flex-wrap gap-1.5">${LOCATIONS.map((l) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${rc.location === l ? 'on' : ''}" data-rc-loc="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>
     <label class="text-sm font-bold block">シールNo.（スキャナ・手入力。Enterで入庫。読み取りで、照合したものとして記録します）
       <div class="flex gap-2 mt-1"><input class="inp font-mono font-normal" data-rc-code placeholder="RQ-XXXXXXXX" autocomplete="off" /><button class="b b-pri" data-rc-submit>入庫</button></div></label>
+    <button class="b b-pri w-full !bg-teal-700" data-cam-receive>📷 カメラで読み取って入庫</button>
     ${rc.last ? `<div class="rounded-xl border-2 p-3 text-sm font-bold ${rc.last.ok ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-rose-50 border-rose-400 text-rose-700'}">${rc.last.ok ? '✓' : '⚠'} ${esc(rc.last.text)}</div>` : ''}
     <div class="text-sm rounded bg-slate-50 p-2">入庫待ち <b class="text-lg">${todo.filter((u) => u.status === 'pending').length}</b> 点　所在不明 <b class="text-lg ${todo.some((u) => u.status === 'missing') ? 'text-rose-600' : ''}">${todo.filter((u) => u.status === 'missing').length}</b> 点</div>
   </section>`;

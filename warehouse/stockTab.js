@@ -56,7 +56,8 @@ export function stockTab(data, { filter, q, scan }) {
     <label class="font-bold text-sm">🔳 QRで探す</label>
     <input class="inp !w-72 font-mono" data-qr placeholder="シールのQRを読み取る（スキャナ）／シールNo." autocomplete="off" />
     <button class="b b-pri" data-qr-submit>探す</button>
-    <span class="text-xs text-slate-500">QRリーダーで読み取ると、その商品の詳細と履歴が出ます。続けて読み取れます。</span>
+    <button class="b b-pri !bg-teal-700" data-cam-search>📷 カメラで読み取る</button>
+    <span class="text-xs text-slate-500">タブレットのカメラ、またはQRリーダーで読み取ると、その商品の詳細と履歴が出ます。</span>
   </div>
   ${scanResult(data, scan)}
   <div class="flex flex-wrap gap-3">

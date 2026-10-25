@@ -3,7 +3,7 @@ import { STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY } from '../src/store.js';
 import {
   loadState, saveState, buildRows, listItem, reprice, delist, recall, sell, requestReturn, shipReturn, completeReturn, returnableContracts, suggestPrice,
 } from '../src/warehouse.js';
-import { LOCATIONS, loadUnits, saveUnits, receive, receiveCodes, resultMessage } from '../src/stock.js';
+import { LOCATIONS, loadUnits, saveUnits, receive, receiveCodes, resultMessage, codeFromQr } from '../src/stock.js';
 import { seedSample } from '../src/warehouseSample.js';
 import { login, loadSession, saveSession, clearSession } from '../src/warehouseStaff.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -15,6 +15,7 @@ import { salesTab } from './salesTab.js';
 import { returnTab } from './returnTab.js';
 import { receiveTab } from './receiveTab.js';
 import { loginView } from './loginView.js';
+import { startScanner, cameraErrorText } from './camera.js';
 
 const $ = (s) => document.querySelector(s);
 const TABS = [['stock', '📦 商品管理'], ['receive', '📥 入庫'], ['list', '🛒 販売（出品）'], ['sales', '💹 売上管理'], ['return', '↩ クーリングオフ返品']];
@@ -44,13 +45,14 @@ function render() {
   const now = Date.now();
   const state = loadState();
   const rows = buildRows(state, now);
-  $('#root').innerHTML = `
-  <header class="bg-sky-900 text-white px-6 py-3 flex justify-between items-center">
+  // タブレットの幅でも崩れないよう、見出しは折り返し、本文が残りの高さを使う
+  $('#root').innerHTML = `<div class="flex flex-col h-screen">
+  <header class="bg-sky-900 text-white px-4 md:px-6 py-3 flex flex-wrap gap-2 justify-between items-center">
     <div class="font-bold text-xl">倉庫・物流 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
     <div class="text-sm">入庫待ち <b class="text-lg">${state.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件 <span class="ml-3">👤 ${esc(staff.name)}</span> <button class="ml-1 text-xs underline text-white/70" data-logout>ログアウト</button> <button class="ml-3 text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
-  <nav class="bg-white border-b px-6 flex gap-1 items-center">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 ${tab === k ? 'border-sky-700 text-sky-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}</nav>
-  <main class="p-4 space-y-4 overflow-y-auto" style="height:calc(100vh - 112px)">${tabBody(state, now)}</main>`;
+  <nav class="bg-white border-b px-2 md:px-6 flex gap-1 items-center overflow-x-auto">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 whitespace-nowrap ${tab === k ? 'border-sky-700 text-sky-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}</nav>
+  <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${tabBody(state, now)}</main></div>`;
 }
 
 // ---- 操作 -----------------------------------------------------------------------
@@ -106,6 +108,45 @@ function scanCode(raw) {
   ui.filter = 'all';
   ui.q = '';
 }
+// ---- カメラでの読み取り（タブレット） -------------------------------------------------
+// 全画面のカメラ表示は、画面の再描画（#root）で消えないよう、#root の外に作る。
+// search: 1回読み取ったら閉じて、商品の詳細を表示する／receive: 開いたまま、続けて入庫する
+let stopCamera = null;
+function closeCamera() {
+  stopCamera?.();
+  stopCamera = null;
+  document.querySelector('#cam')?.remove();
+}
+async function openCamera(mode) {
+  closeCamera();
+  const el = document.createElement('div');
+  el.id = 'cam';
+  el.className = 'fixed inset-0 z-50 bg-black text-white flex flex-col';
+  el.innerHTML = `<div class="flex items-center gap-3 p-3 bg-black/70"><b class="text-lg">${mode === 'receive' ? '📥 読み取って入庫' : '🔳 読み取って探す'}</b>
+    <span class="text-sm text-white/70">${mode === 'receive' ? `保管場所: ${esc(ui.rc.location)}` : 'シールのQRを枠に入れてください'}</span>
+    <button class="ml-auto b b-sec !text-slate-800" data-cam-close>閉じる</button></div>
+    <video class="flex-1 min-h-0 w-full object-cover" muted></video>
+    <div class="p-3 text-center font-bold text-lg bg-black/70" data-cam-msg>カメラを起動しています…</div>`;
+  document.body.appendChild(el);
+  el.querySelector('[data-cam-close]').addEventListener('click', closeCamera);
+  const msg = el.querySelector('[data-cam-msg]');
+  const onCode = (text) => {
+    const code = codeFromQr(text);
+    if (mode === 'search') { closeCamera(); scanCode(code); render(); return; }
+    storeCode(code);
+    msg.textContent = `${ui.rc.last.ok ? '✓' : '⚠'} ${ui.rc.last.text}`;
+    msg.className = `p-3 text-center font-bold text-lg ${ui.rc.last.ok ? 'bg-emerald-700' : 'bg-rose-700'}`;
+    render();
+  };
+  try {
+    stopCamera = await startScanner(el.querySelector('video'), onCode);
+    msg.textContent = 'シールのQRを枠に入れてください';
+  } catch (e) {
+    closeCamera();
+    alert(cameraErrorText(e));
+  }
+}
+
 function goReturn(visitId) {
   const contract = returnableContracts(loadState()).find((c) => c.visitId === visitId);
   ui.rf = { ...blankReturn(), visitId, codes: contract ? contract.units.map((u) => u.code) : [] };
@@ -122,6 +163,8 @@ const ACTIONS = {
   tab: (v) => { tab = v; },
   filter: (v) => { ui.filter = v; },
   qrSubmit: () => scanCode($('[data-qr]')?.value),
+  camSearch: () => { openCamera('search'); return false; },
+  camReceive: () => { openCamera('receive'); return false; },
   qrClose: () => { ui.scan = { raw: '' }; },
   rcLoc: (v) => { ui.rc = { ...ui.rc, location: v }; },
   rcSubmit: () => storeCode($('[data-rc-code]')?.value),

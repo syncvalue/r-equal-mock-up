@@ -42,3 +42,13 @@ test('チェックした商品をまとめて入庫: 指定した商品だけ入
   assert.equal(before[0].status, 'pending'); // 元は変更されない
   assert.equal(receiveCodes(r.list, ['A'], { location: 'A棚', by: 'x', method: 'manual' }).count, 0);
 });
+
+const { codeFromQr } = await import('../src/stock.js');
+
+test('QRの読み取り結果から、シールNo.を取り出す（前後の空白・小文字・URL形式でも）', () => {
+  assert.equal(codeFromQr('RQ-AB12CD34'), 'RQ-AB12CD34');
+  assert.equal(codeFromQr('  rq-ab12cd34\n'), 'RQ-AB12CD34');
+  assert.equal(codeFromQr('https://example.com/item?code=rq-ab12cd34&x=1'), 'RQ-AB12CD34');
+  assert.equal(codeFromQr('その他の文字'), 'その他の文字'); // シールNo.の形でなければ、そのまま（未登録として扱う）
+  assert.equal(codeFromQr(null), '');
+});
