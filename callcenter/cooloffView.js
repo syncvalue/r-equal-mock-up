@@ -4,6 +4,7 @@ import { yen, esc } from '../src/format.js';
 import { badge, md, mdw, mdTime } from '../warehouse/ui.js';
 import { photoOf } from '../src/image.js';
 import { STATUS, stepsHtml } from '../warehouse/returnTab.js';
+import { bubblesHtml, messageBoxHtml } from '../warehouse/returnChat.js';
 
 // 依頼を作れなかった商品の理由
 export const REJECT_TEXT = { unknown: '登録のない商品', inProgress: 'すでに依頼中の商品', returned: 'すでに返品済みの商品', inTransit: '倉庫間を輸送中の商品（届いてから依頼してください）', inPacking: '梱包中の商品（発送が済んでから依頼してください）' };
@@ -90,7 +91,7 @@ export function formHtml(contracts, sel, form) {
   </div>`;
 }
 
-function requestCard(r, unitsByCode) {
+function requestCard(r, unitsByCode, chat) {
   const [label, cls] = STATUS[r.status];
   const inq = r.inquiry;
   return `<div class="rounded-lg border bg-white p-3 space-y-1.5 text-sm">
@@ -103,17 +104,19 @@ function requestCard(r, unitsByCode) {
     ${r.status === 'unavailable' ? `<div class="text-xs rounded bg-slate-50 p-2">${r.unavailable.reason === 'sold' ? '売却済みのため、対応できません。お客様にお伝えください。' : `対応できません。お客様にお伝えください。${r.unavailable.note ? `（${esc(r.unavailable.note)}）` : ''}`}</div>` : ''}
     ${r.status === 'shipped' ? `<div class="text-xs">返送の追跡番号 <b>${esc(r.tracking)}</b>（${mdTime(r.shippedAt)}）。お客様の手元に届いたら、買取代金の返還をお願いします。</div>` : ''}
     ${r.status === 'done' ? `<div class="text-xs text-slate-500">${mdTime(r.doneAt)} 完了（商品が戻り、返金も済みました）</div>` : ''}
+    <div class="pt-1 border-t"><button class="text-xs font-bold text-teal-800 underline" data-co-chat="${esc(r.id)}" aria-expanded="${chat.open.includes(r.id)}">${chat.open.includes(r.id) ? '▼' : '▶'} 倉庫とのやり取り（${(r.messages ?? []).length}件のメッセージ）</button>
+      ${chat.open.includes(r.id) ? `<div class="mt-1 space-y-2"><div class="space-y-2 max-h-60 overflow-y-auto rounded border bg-slate-50 p-2">${bubblesHtml(r)}</div>${messageBoxHtml(r.id, chat.draft[r.id], { msg: 'co-msg', send: 'co-send' })}</div>` : ''}</div>
     ${r.status !== 'unavailable' ? `<div class="text-xs">お客様から返していただく買取代金 <b>${yen(r.refund)}</b>${r.groupRefund && r.groupRefund !== r.refund ? `（同じ契約の合計 ${yen(r.groupRefund)}）` : ''}</div>` : ''}
   </div>`;
 }
 
 // 依頼の進捗一覧（対応中 → 完了・対応不可）
-export function progressHtml(returns, units) {
+export function progressHtml(returns, units, chat = { open: [], draft: {} }) {
   const unitsByCode = new Map(units.map((u) => [u.code, u]));
   const byTime = (a, b) => b.requestedAt - a.requestedAt;
   const open = returns.filter(isOpenReturn).sort(byTime);
   const closed = returns.filter((r) => !isOpenReturn(r)).sort(byTime);
-  const section = (title, list, empty) => `<div class="space-y-2"><div class="font-bold">${title}（${list.length}件）</div>${list.length ? list.map((r) => requestCard(r, unitsByCode)).join('') : `<p class="text-xs text-slate-500">${empty}</p>`}</div>`;
+  const section = (title, list, empty) => `<div class="space-y-2"><div class="font-bold">${title}（${list.length}件）</div>${list.length ? list.map((r) => requestCard(r, unitsByCode, chat)).join('') : `<p class="text-xs text-slate-500">${empty}</p>`}</div>`;
   return `<div class="space-y-4">${section('対応中', open, '対応中の依頼はありません。')}${section('完了・対応不可', closed, 'まだありません。')}</div>`;
 }
 

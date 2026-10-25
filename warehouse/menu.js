@@ -7,14 +7,14 @@ export const TABS = [
   { key: 'transfer', icon: '🚚', label: '倉庫間移動', sub: '他の倉庫へ送る・受け取る' },
   { key: 'list', icon: '🛒', label: '販売（出品）', sub: '出品・委託・売却の登録' },
   { key: 'sales', icon: '💹', label: '売上管理', sub: '売上・利益（会社全体も）' },
-  { key: 'return', icon: '↩', label: 'クーリングオフ返品', sub: '問い合わせの回答・返送・完了' },
+  { key: 'return', icon: '↩', label: 'クーリングオフ返品', sub: '依頼の一覧・やり取り・回答・返送' },
   { key: 'master', icon: '🏭', label: '倉庫マスタ', sub: '倉庫・担当者・高額品の設定' },
 ];
 export const tabLabel = (key) => TABS.find((t) => t.key === key)?.label ?? '';
 
-// badges: { receive: 入庫待ちの点数, transfer: 受け取り待ちの件数, return: 返品対応中の件数 }
+// badges: { receive: 入庫待ちの点数, transfer: 受け取り待ちの件数, return: 返品の未対応の件数 }
 export function menuView({ tab, badges, staff, warehouseName }) {
-  const badge = { receive: ['bg-amber-500', '入庫待ち'], transfer: ['bg-sky-500', '受け取り待ち'], return: ['bg-amber-500', '対応中'] };
+  const badge = { receive: ['bg-amber-500', '入庫待ち'], transfer: ['bg-sky-500', '受け取り待ち'], return: ['bg-rose-600', '未対応'] };
   return `
   <div class="fixed inset-0 z-[55]">
     <button class="absolute inset-0 bg-black/50 cursor-default" data-menu-close aria-label="メニューを閉じる"></button>

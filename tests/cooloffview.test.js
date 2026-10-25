@@ -13,18 +13,48 @@ const { cooloffPage, resultsHtml, formHtml, progressHtml, filtersHtml, zoomHtml 
 const NOW = new Date(2026, 9, 25, 15, 0).getTime();
 const sample = buildSample(NOW);
 const own = (id) => W.scopeState(sample, id, MASTER);
-const html = (id) => returnTab(own(id), { }, NOW, { full: sample, master: MASTER });
+const WHS = ['W-OSAKA', 'W-KANTO', 'W-FUKUOKA', 'W-HONSHA'];
+const html = (id, rt = {}) => returnTab(own(id), { rt: { q: '', filter: 'all', open: '', draft: {}, ...rt } }, NOW, { full: sample, master: MASTER });
+const detail = (r) => html(r.warehouseId ?? 'W-OSAKA', { open: r.id });
 
-test('倉庫のクーリングオフ画面: 問い合わせの回答待ちに回答ボタンがあり、返送・完了の対応と、対応不可の記録も出る。受付の入力欄はない', () => {
-  const all = ['W-OSAKA', 'W-KANTO', 'W-FUKUOKA', 'W-HONSHA'].map(html).join('');
-  assert.ok(all.includes('問い合わせへの回答待ち') && all.includes('data-inq-ok') && all.includes('data-inq-ng') && all.includes('data-inq-note'));
-  assert.ok(all.includes('data-ship=') && all.includes('data-return-done='));
-  assert.ok(all.includes('対応不可') && all.includes('売却済みのため'));
-  assert.ok(all.includes('受電') && all.includes('佐藤')); // 受電したオペレーター
+test('倉庫のクーリングオフ画面: 一覧（検索・状態の絞り込み・未対応の目印）。詳細は、依頼を開いたときだけ出る。受付の入力欄はない', () => {
+  const all = WHS.map((id) => html(id)).join('');
+  for (const k of ['data-ret-q', 'data-ret-filter="todo"', 'data-ret-filter="open"', 'data-ret-filter="closed"', 'data-ret-filter="all"', 'data-ret-open=', '未対応', '対応不可', '完了']) assert.ok(all.includes(k), k);
+  assert.ok(!all.includes('data-ret-send') && !all.includes('data-inq-ok')); // 詳細を開くまでは、操作は出ない
+  assert.ok(all.includes('佐藤')); // 受電したオペレーター
   assert.ok(!all.includes('data-return-add') && !all.includes('返品を受け付ける'));
-  // 回答できるのは、その倉庫の依頼だけ（松本 千春の問い合わせは、納入先の倉庫に届く）
-  const hasAsk = ['W-OSAKA', 'W-KANTO', 'W-FUKUOKA', 'W-HONSHA'].filter((id) => html(id).includes('data-inq-ok'));
-  assert.equal(hasAsk.length, 1);
+  assert.ok(/<img [^>]*src="data:image/.test(all)); // 商品の写真
+  const mine = sample.returns.filter((r) => r.status === 'inquiring');
+  assert.ok(html(mine[0].warehouseId).includes('回答待ち')); // 未対応の理由
+});
+
+test('倉庫のクーリングオフ画面: 一覧は、キーワードと状態で絞れて、条件に合うものがなければ案内が出る', () => {
+  const r = sample.returns.find((x) => x.status === 'inquiring');
+  const wh = r.warehouseId;
+  assert.ok(html(wh, { q: r.customerName.replace(' ', '') }).includes(r.customerName));
+  const none = html(wh, { q: '該当しないキーワード' });
+  assert.ok(none.includes('該当する依頼はありません') && !none.includes(`data-ret-open="${r.id}"`));
+  assert.ok(!html(wh, { filter: 'closed' }).includes(`data-ret-open="${r.id}"`)); // 未完了は、完了の一覧に出ない
+  assert.ok(html(wh, { filter: 'todo' }).includes(`data-ret-open="${r.id}"`));
+});
+
+test('倉庫のクーリングオフ画面: 詳細（モーダル）に、やり取りが時系列のチャットで並び、メッセージ送信と、回答・返送・完了の操作がある', () => {
+  const asked = sample.returns.find((x) => x.status === 'inquiring');
+  const d = detail(asked);
+  for (const k of ['role="dialog"', 'data-ret-close', 'id="ret-chat"', 'data-ret-msg="' + asked.id, 'data-ret-send="' + asked.id, 'data-inq-ok="' + asked.id, 'data-inq-ng="' + asked.id, 'data-inq-note="' + asked.id, '依頼です']) assert.ok(d.includes(k), k);
+  const shipped = sample.returns.find((x) => x.status === 'shipped');
+  const ds = detail(shipped);
+  assert.ok(ds.includes('data-return-done="' + shipped.id) && ds.includes(shipped.tracking) && ds.includes('返送しました'));
+  const requested = sample.returns.find((x) => x.status === 'requested');
+  assert.ok(detail(requested).includes('data-ship="' + requested.id));
+  const sold = sample.returns.find((x) => x.status === 'unavailable' && x.unavailable.reason === 'sold');
+  const dso = html('W-OSAKA', { open: sold.id }) + html('W-FUKUOKA', { open: sold.id }) + html('W-KANTO', { open: sold.id }) + html('W-HONSHA', { open: sold.id });
+  assert.ok(dso.includes('売却済み') && dso.includes('data-ret-send=')); // 対応不可でも、やり取りは続けられる
+  assert.equal(html('W-OSAKA', { open: 'NONE' }).includes('role="dialog"'), false);
+  // 吹き出しは、コールセンター・倉庫・システムで見分けられる
+  const withMsg = W.addReturnMessage({ ...sample }, asked.id, { side: 'warehouse', text: '確認します', by: '藤田', at: NOW });
+  const chat = returnTab(W.scopeState(withMsg, asked.warehouseId, MASTER), { rt: { q: '', filter: 'all', open: asked.id, draft: { [asked.id]: '下書き' } } }, NOW, { full: withMsg, master: MASTER });
+  assert.ok(chat.includes('data-side="callcenter"') && chat.includes('data-side="warehouse"') && chat.includes('確認します') && chat.includes('下書き'));
 });
 
 test('コールセンターのクーリングオフ: 商品を探した結果に、状態の目印と選択欄が出る。売却済み・依頼中は選べない', () => {
@@ -54,7 +84,7 @@ test('コールセンターのクーリングオフ: 選んだ商品の案内（
 test('コールセンターのクーリングオフ: 進捗一覧に、対応中の段階（受電 → 倉庫の回答 → 返送 → 代金の返還）と、完了・対応不可が出る', () => {
   const p = progressHtml(sample.returns, sample.units);
   for (const k of ['対応中', '完了・対応不可', '倉庫の回答', '代金の返還', '倉庫に問い合わせ中', '返送済み・代金の返還待ち', '完了', '対応不可', '売却済みのため']) assert.ok(p.includes(k), k);
-  assert.ok(!p.includes('data-ship') && !p.includes('data-inq-ok')); // オペレーターは、進捗を見るだけ
+  assert.ok(!p.includes('data-ship') && !p.includes('data-inq-ok') && !p.includes('data-return-done')); // オペレーターは、回答・返送・完了の操作はできない
   const page = cooloffPage({ q: '山田', filtersInner: 'FL', resultsInner: 'R', formInner: 'F', progressInner: 'P' });
   for (const k of ['data-co-q', 'id="co-filters"', 'id="co-zoom"', 'id="co-results"', 'id="co-form"', 'id="co-progress"', 'value="山田"']) assert.ok(page.includes(k), k);
 });
@@ -128,4 +158,17 @@ test('倉庫の写真の登録: 商品管理・入庫の一覧の写真から登
   assert.ok(detail.includes('data-photo-clear') && detail.includes('data-photo-sample') && detail.includes('登録済み'));
   const rc = receiveTab(sample, { rc: { location: '', last: null, checks: [] }, rl: { code: '' } }, MASTER.warehouses[0], MASTER);
   assert.ok(rc.includes('data-photo-file='));
+});
+
+test('コールセンターのクーリングオフ: 依頼のやり取りを見て、メッセージを送れる（開閉）。倉庫の返信・返送などの出来事も並ぶ', () => {
+  const asked = sample.returns.find((x) => x.status === 'inquiring');
+  const closed = progressHtml(sample.returns, sample.units, { open: [], draft: {} });
+  assert.ok(closed.includes(`data-co-chat="${asked.id}"`) && !closed.includes(`data-co-send="${asked.id}"`));
+  const open = progressHtml(sample.returns, sample.units, { open: [asked.id], draft: { [asked.id]: '急ぎです' } });
+  for (const k of [`data-co-send="${asked.id}"`, `data-co-msg="${asked.id}"`, 'data-side="callcenter"', '急ぎです']) assert.ok(open.includes(k), k);
+  const shipped = sample.returns.find((x) => x.status === 'shipped');
+  assert.ok(progressHtml(sample.returns, sample.units, { open: [shipped.id], draft: {} }).includes('返送しました'));
+  const evil = '<img src=x onerror=alert(1)>';
+  const withEvil = W.addReturnMessage(sample, asked.id, { side: 'warehouse', text: evil, by: evil, at: NOW });
+  assert.ok(!progressHtml(withEvil.returns, withEvil.units, { open: [asked.id], draft: {} }).includes(evil));
 });

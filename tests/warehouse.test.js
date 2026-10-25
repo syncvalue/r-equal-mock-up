@@ -197,6 +197,98 @@ test('進捗: 依頼の状態ごとに、受電 → 倉庫の回答 → 返送 �
   assert.deepEqual(['done', 'unavailable'].map((x) => W.isOpenReturn({ status: x })), [false, false]);
 });
 
+const flow = () => {
+  const r = W.requestReturn(state([unit('A', 12, { price: 12000, name: 'ロレックス' }), unit('B', 12, { price: 8000, name: 'オメガ' })]), { customerName: '山田 花子', phone: '090-1111-2222', codes: ['A', 'B'], reason: 'price', memo: '返送先は自宅', at: NOW, by: '佐藤' });
+  return { id: r.ret.id, s0: r.state };
+};
+
+test('やり取り（チャット）: 受電 → 倉庫の回答 → 返送 → 完了の出来事と、自由なメッセージを、時系列に並べる。誰の発言かも分かる', () => {
+  const { id, s0 } = flow();
+  let s = W.addReturnMessage(s0, id, { side: 'warehouse', text: ' 在庫を確認します ', by: '藤田 結衣', at: NOW + 1000 });
+  s = W.answerInquiry(s, id, { ok: true, note: '棚にあります', at: NOW + 2000, by: '藤田 結衣' });
+  s = W.addReturnMessage(s, id, { side: 'callcenter', text: 'お客様は火曜の午前を希望です', by: '佐藤', at: NOW + 3000 });
+  s = W.shipReturn(s, id, { tracking: '1234-5678', at: NOW + 4000, by: '藤田 結衣' });
+  s = W.completeReturn(s, id, NOW + 5000, '小川 直樹').state;
+  const t = W.returnTimeline(s.returns[0]);
+  assert.deepEqual(t.map((m) => m.side), ['callcenter', 'warehouse', 'warehouse', 'callcenter', 'warehouse', 'warehouse']);
+  assert.deepEqual(t.map((m) => m.by), ['佐藤', '藤田 結衣', '藤田 結衣', '佐藤', '藤田 結衣', '小川 直樹']);
+  assert.ok(t[0].text.includes('2点') && t[0].text.includes('090-1111-2222') && t[0].text.includes('返送先は自宅') && t[0].text.includes('金額に納得できない'));
+  assert.equal(t[1].text, '在庫を確認します'); // 前後の空白は取る
+  assert.ok(t[2].text.includes('返送できます') && t[2].text.includes('棚にあります'));
+  assert.ok(t[4].text.includes('1234-5678'));
+  assert.ok(t[5].text.includes('返還を確認') && t[5].text.includes('20,000'));
+  assert.ok(t.every((m, i) => i === 0 || t[i - 1].at <= m.at));
+});
+
+test('やり取り（チャット）: 対応不可の記録（売却済み・倉庫が対応できない）も、理由つきで並ぶ', () => {
+  const { id, s0 } = flow();
+  const ng = W.answerInquiry(s0, id, { ok: false, note: '出品の準備に入っている', at: NOW + 1, by: '藤田 結衣' });
+  const t = W.returnTimeline(ng.returns[0]);
+  assert.deepEqual(t.map((m) => m.side), ['callcenter', 'warehouse']);
+  assert.ok(t[1].text.includes('対応できません') && t[1].text.includes('出品の準備に入っている'));
+  const sold = W.requestReturn(state([unit('S', 20)], { S: soldRec }), { customerName: '山田 花子', codes: ['S'], reason: 'family', at: NOW, by: '佐藤' });
+  const ts = W.returnTimeline(sold.ret);
+  assert.deepEqual(ts.map((m) => m.side), ['callcenter', 'system']);
+  assert.ok(ts[1].text.includes('売却済み'));
+});
+
+test('メッセージの送信: 本文が空・相手が不明・依頼がないときは変えない。完了後も送れる。元の状態は変えない', () => {
+  const { id, s0 } = flow();
+  assert.equal(W.addReturnMessage(s0, id, { side: 'warehouse', text: '   ', by: 'x' }), s0);
+  assert.equal(W.addReturnMessage(s0, id, { side: 'customer', text: 'こんにちは', by: 'x' }), s0);
+  assert.equal(W.addReturnMessage(s0, 'NONE', { side: 'warehouse', text: 'こんにちは', by: 'x' }), s0);
+  const a = W.addReturnMessage(s0, id, { side: 'callcenter', text: 'お客様から再度お電話がありました', by: '渡辺', at: NOW + 1 });
+  assert.deepEqual(a.returns[0].messages, [{ side: 'callcenter', text: 'お客様から再度お電話がありました', by: '渡辺', at: NOW + 1 }]);
+  assert.equal(s0.returns[0].messages, undefined);
+  assert.equal(W.addReturnMessage(a, id, { side: 'warehouse', text: '了解です', at: NOW + 2 }).returns[0].messages.length, 2);
+});
+
+test('未対応の目印: 回答待ち・返送待ち・コールセンターからの未返信メッセージ。返送済み・完了・対応不可は、メッセージがなければ対応は要らない', () => {
+  const { id, s0 } = flow();
+  assert.deepEqual(W.returnAlerts(s0.returns[0]), ['回答待ち']);
+  let s = W.answerInquiry(s0, id, { ok: true, at: NOW + 1 });
+  assert.deepEqual(W.returnAlerts(s.returns[0]), ['返送待ち']);
+  s = W.shipReturn(s, id, { tracking: '1', at: NOW + 2 });
+  assert.deepEqual(W.returnAlerts(s.returns[0]), []); // お客様の返金待ち（倉庫がすることはない）
+  const m = W.addReturnMessage(s, id, { side: 'callcenter', text: '返金の連絡がありました', by: '佐藤', at: NOW + 3 });
+  assert.deepEqual(W.returnAlerts(m.returns[0]), ['未返信のメッセージ']);
+  const replied = W.addReturnMessage(m, id, { side: 'warehouse', text: '確認します', by: '藤田', at: NOW + 4 });
+  assert.deepEqual(W.returnAlerts(replied.returns[0]), []);
+  const wh = W.addReturnMessage(replied, id, { side: 'warehouse', text: '先に倉庫が書いた', by: '藤田', at: NOW + 5 });
+  assert.deepEqual(W.returnAlerts(wh.returns[0]), []);
+  const ng = W.answerInquiry(s0, id, { ok: false, note: '不可', at: NOW + 1 });
+  assert.deepEqual(W.returnAlerts(ng.returns[0]), []);
+  const both = W.addReturnMessage(s0, id, { side: 'callcenter', text: '急ぎです', by: '佐藤', at: NOW + 1 });
+  assert.deepEqual(W.returnAlerts(both.returns[0]), ['回答待ち', '未返信のメッセージ']);
+  assert.deepEqual(W.returnAlerts(W.answerInquiry(both, id, { ok: true, at: NOW + 2 }).returns[0]), ['返送待ち']); // 回答すれば、メッセージにも応えたことになる
+});
+
+test('依頼の一覧: キーワード（お客様名・電話番号・商品名・シールNo.・理由・メモ・依頼番号）と状態で絞る。未対応を先に、新しい順', () => {
+  const units = [unit('A', 12, { name: 'ロレックス', customerName: '山田 花子' }), unit('B', 12, { name: 'オメガ', customerName: '佐藤 一雄' }), unit('C', 12, { name: 'セイコー', customerName: '田中 太郎' })];
+  let s = state(units);
+  s = W.requestReturn(s, { customerName: '山田 花子', phone: '090-1111-2222', codes: ['A'], reason: 'family', memo: '返送先は自宅', at: NOW, by: '佐藤' }).state;
+  s = W.requestReturn(s, { customerName: '佐藤 一雄', phone: '080-3333-4444', codes: ['B'], reason: 'price', at: NOW + 1000, by: '佐藤' }).state;
+  s = W.requestReturn(s, { customerName: '田中 太郎', codes: ['C'], reason: 'regret', at: NOW + 2000, by: '渡辺' }).state;
+  const [rC, rB, rA] = s.returns;
+  s = W.answerInquiry(s, rC.id, { ok: true, at: NOW + 3000 });
+  s = W.shipReturn(s, rC.id, { tracking: '1', at: NOW + 4000 }); // C は返送済み（未対応ではない）
+  const ids = (c) => W.searchReturns(s.returns, s.units, c).map((r) => r.customerName);
+  assert.deepEqual(ids({}), ['佐藤 一雄', '山田 花子', '田中 太郎']); // 未対応（新しい順）→ そのほか
+  assert.deepEqual(ids({ q: '山田花子' }), ['山田 花子']);
+  assert.deepEqual(ids({ q: '3333' }), ['佐藤 一雄']); // 電話番号の一部
+  assert.deepEqual(ids({ q: 'セイコー' }), ['田中 太郎']);
+  assert.deepEqual(ids({ q: 'b' }).includes('佐藤 一雄'), true); // シールNo.
+  assert.deepEqual(ids({ q: '自宅' }), ['山田 花子']); // メモ
+  assert.deepEqual(ids({ q: '金額' }), ['佐藤 一雄']); // 理由
+  assert.deepEqual(ids({ q: rA.id.toLowerCase() }), ['山田 花子']); // 依頼番号
+  assert.deepEqual(ids({ filter: 'todo' }), ['佐藤 一雄', '山田 花子']);
+  assert.deepEqual(ids({ filter: 'open' }), ['佐藤 一雄', '山田 花子', '田中 太郎']);
+  assert.deepEqual(ids({ filter: 'closed' }), []);
+  assert.deepEqual(W.returnCounts(s.returns), { all: 3, todo: 2, open: 3, closed: 0 });
+  assert.deepEqual(ids({ q: '山田', filter: 'todo' }), ['山田 花子']);
+  assert.deepEqual(ids({ q: '山田', filter: 'closed' }), []);
+});
+
 test('依頼の探し方: お客様名・シールNo.・商品名で探し、契約ごとにまとめる。商品ごとに、受け付けられるかの目安を出す', () => {
   const same = { visitId: 'V-1' };
   const s = state([unit('A', 3, same), unit('B', 11, same), unit('E', 2, { visitId: 'V-X', customerName: '佐藤 一雄', name: 'ロレックス' }), unit('S', 20, { visitId: 'V-S' }), unit('L', 12, { visitId: 'V-L' }), unit('P', 1, { visitId: 'V-P', status: 'pending', storedAt: null })], { S: soldRec });

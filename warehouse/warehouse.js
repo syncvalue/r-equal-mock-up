@@ -4,7 +4,7 @@ import {
   MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveStaff, saveVendor, setVendorActive, vendorById, saveHighValueRule, destinationProblem, setWarehouseActive, warehouseById, warehouseIdOf,
 } from '../src/warehouseMaster.js';
 import {
-  loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, answerInquiry, isOpenReturn, shipReturn, completeReturn, suggestPrice, scopeState, holdingByWarehouse,
+  loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, answerInquiry, isOpenReturn, shipReturn, completeReturn, addReturnMessage, returnAlerts, suggestPrice, scopeState, holdingByWarehouse,
 } from '../src/warehouse.js';
 import { loadUnits, saveUnits, receive, receiveCodes, resultMessage, setUnitPhoto, clearUnitPhoto } from '../src/stock.js';
 import { shrinkImage, productPhoto } from '../src/image.js';
@@ -49,7 +49,7 @@ const blankPk = () => ({ id: '', toId: '', q: '', last: null, tracking: '', bNam
 const blankWh = () => ({ id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false });
 const blankVendor = () => ({ id: '', name: '', zip: '', address: '', phone: '' });
 const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
-const ui = { mv: blankVendor(), rl: { code: '', newCode: '', color: '' }, hv: null, pk: blankPk(), tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell() };
+const ui = { mv: blankVendor(), rl: { code: '', newCode: '', color: '' }, hv: null, pk: blankPk(), tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rt: { q: '', filter: 'all', open: '', draft: {} } };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();
@@ -86,7 +86,7 @@ function render() {
   const state = scopeState(full, ui.scope, master);
   const rows = buildRows(state, now);
   // メニューの項目に出す件数（入庫待ち・受け取り待ち・返品対応中）
-  const badges = { receive: full.units.filter((u) => u.status !== 'stored').length, transfer: incoming(full, staff.warehouseId).length, return: state.returns.filter(isOpenReturn).length };
+  const badges = { receive: full.units.filter((u) => u.status !== 'stored').length, transfer: incoming(full, staff.warehouseId).length, return: scopeState(full, staff.warehouseId, master).returns.filter((r) => returnAlerts(r).length).length }; // 返品は、自分の倉庫の未対応の件数
   const menuBadge = badges.receive + badges.transfer > 0;
   // タブレットの幅でも崩れないよう、見出しは折り返し、本文が残りの高さを使う
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
@@ -96,6 +96,8 @@ function render() {
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${['stock', 'master'].includes(tab) ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter(isOpenReturn).length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${tabBody(full, now)}</main>${menuOpen ? menuView({ tab, badges, staff, warehouseName: wh.name }) : ''}</div>`;
+  const chat = $('#ret-chat');
+  if (chat) chat.scrollTop = chat.scrollHeight; // 最新のやり取りが見えるように
 }
 
 // ---- 操作 -----------------------------------------------------------------------
@@ -148,6 +150,14 @@ function savePhotos(list) {
   render();
 }
 const registerPhoto = (code, photo) => savePhotos(setUnitPhoto(loadUnits(), code, photo, { by: staff.name }));
+// 依頼のやり取り: 倉庫からメッセージを送る
+function sendMessage(id) {
+  if (!ownsReturn(id)) return false;
+  const text = (inputBy('data-ret-msg', id)?.value ?? ui.rt.draft[id] ?? '').trim();
+  if (!text) return false;
+  commit(addReturnMessage(loadState(), id, { side: 'warehouse', text, by: staff.name }));
+  ui.rt = { ...ui.rt, draft: { ...ui.rt.draft, [id]: '' } };
+}
 // 入庫（誰の商品でも入庫できる）。シールを読み取った場合は、読取で照合したものとして記録する
 const DEST_TEXT = { highToHonsha: 'は高額品のため、本社に納入します（本社の担当者が入庫します）', normalToWarehouse: 'は高額品ではないため、本社ではなく倉庫に納入します' };
 function storeCode(raw) {
@@ -464,6 +474,10 @@ const ACTIONS = {
   recall: (v) => { if (ownsAll([v]) && confirm('この商品は売れ残り、委託先から倉庫に戻ってきましたか？ 倉庫の在庫に戻します。')) commit(recall(loadState(), v)); },
   photoSample: (v) => { const u = unitOf(v); if (u) registerPhoto(v, productPhoto(u.name, u.category)); return false; },
   photoClear: (v) => { if (confirm('登録した写真を削除します（表示は、仮の絵に戻ります）。よろしいですか？')) savePhotos(clearUnitPhoto(loadUnits(), v)); return false; },
+  retOpen: (v) => { ui.rt = { ...ui.rt, open: v }; },
+  retClose: () => { ui.rt = { ...ui.rt, open: '' }; },
+  retFilter: (v) => { ui.rt = { ...ui.rt, filter: v }; },
+  retSend: sendMessage,
   inqOk: (v) => answer(v, true),
   inqNg: (v) => answer(v, false),
   ship: (v) => {
@@ -510,6 +524,12 @@ function onField(e, isInput) {
   return true;
 }
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && ui.rt.open) { ui.rt = { ...ui.rt, open: '' }; render(); return; }
+  if (e.key === 'Enter' && !e.isComposing && e.target.matches?.('[data-ret-msg]')) { // 日本語入力の確定のEnterでは送らない
+    if (sendMessage(e.target.dataset.retMsg) !== false) render();
+    $('[data-ret-msg]')?.focus();
+    return;
+  }
   if (e.key === 'Enter' && e.target.matches?.('[data-login-id], [data-login-pw]')) { doLogin(); render(); return; }
   if (e.key === 'Enter' && e.target.matches?.('[data-pk-scan-input]')) {
     packAdd(e.target.value);
@@ -532,6 +552,15 @@ document.addEventListener('keydown', (e) => {
   $('[data-rc-code]')?.focus(); // 続けて読み取れるように
 });
 document.addEventListener('input', (e) => {
+  if (e.target.matches?.('[data-ret-msg]')) { ui.rt = { ...ui.rt, draft: { ...ui.rt.draft, [e.target.dataset.retMsg]: e.target.value } }; return; } // 送信前のメッセージは、再描画しても残す
+  if (e.target.matches?.('[data-ret-q]')) {
+    ui.rt = { ...ui.rt, q: e.target.value };
+    render();
+    const el = $('[data-ret-q]');
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    return;
+  }
   if (e.target.matches?.('[data-pk-tracking]')) { ui.pk = { ...ui.pk, tracking: e.target.value }; return; }
   if (e.target.matches?.('[data-pk-price-input]')) return void formatMoneyInput(e.target);
   if (e.target.matches?.('[data-pk-q]')) {

@@ -385,6 +385,53 @@ export function requestReturn(state, { customerName, phone = '', codes, reason, 
 
 const patchReturn = (state, id, patch) => ({ ...state, returns: state.returns.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
 
+// ---- 依頼のやり取り（チャット）と、一覧 ------------------------------------------------
+// コールセンターと倉庫が、依頼ごとに自由にメッセージを送り合える。side: callcenter／warehouse。完了・対応不可の後も送れる
+export function addReturnMessage(state, id, { side, text, by = '', at = Date.now() }) {
+  const body = String(text ?? '').trim();
+  if (!body || !['callcenter', 'warehouse'].includes(side) || !state.returns.some((r) => r.id === id)) return state;
+  return patchReturn(state, id, { messages: [...(state.returns.find((r) => r.id === id).messages ?? []), { side, text: body, ...who('by', by), at }] });
+}
+
+// 時系列のやり取り。出来事（受電・回答・返送・完了）と、自由なメッセージを合わせる。side: callcenter／warehouse／system
+export function returnTimeline(ret) {
+  const n = ret.codes.length;
+  const yen = (v) => `${Number(v).toLocaleString('ja-JP')}円`;
+  const ev = [{ at: ret.requestedAt, side: 'callcenter', by: ret.requestedBy ?? '', kind: 'request',
+    text: `クーリングオフの依頼です（${n}点）。理由: ${reasonOf(ret.reason).label}${ret.phone ? `／電話 ${ret.phone}` : ''}${ret.memo ? `\n受電メモ: ${ret.memo}` : ''}${ret.expiredCodes?.length ? '\n期間（10日間）を過ぎた商品を含みます。' : ''}` }];
+  const inq = ret.inquiry;
+  if (inq?.answeredAt) ev.push({ at: inq.answeredAt, side: 'warehouse', by: inq.answeredBy ?? '', kind: 'answer', text: `${inq.ok ? '返送できます。' : '対応できません。'}${inq.note ?? ''}` });
+  if (ret.unavailable?.reason === 'sold') ev.push({ at: ret.unavailable.at, side: 'system', by: '', kind: 'sold', text: '売却済みのため、対応できません。' });
+  if (ret.shippedAt) ev.push({ at: ret.shippedAt, side: 'warehouse', by: ret.shippedBy ?? '', kind: 'ship', text: `返送しました。追跡番号 ${ret.tracking}` });
+  if (ret.doneAt) ev.push({ at: ret.doneAt, side: 'warehouse', by: ret.doneBy ?? '', kind: 'done', text: `お客様から買取代金（${yen(ret.refund)}）の返還を確認しました。完了です。` });
+  (ret.messages ?? []).forEach((m) => ev.push({ at: m.at, side: m.side, by: m.by ?? '', kind: 'message', text: m.text }));
+  return ev.map((e, i) => ({ ...e, i })).sort((a, b) => a.at - b.at || a.i - b.i).map(({ i, ...e }) => e);
+}
+
+// 倉庫の未対応の目印: 回答待ち／返送待ち／コールセンターからの未返信のメッセージ（倉庫の最後の対応より新しいもの）
+export function returnAlerts(ret) {
+  const alerts = ret.status === 'inquiring' ? ['回答待ち'] : ret.status === 'requested' ? ['返送待ち'] : [];
+  const msgs = ret.messages ?? [];
+  const lastCall = Math.max(0, ...msgs.filter((m) => m.side === 'callcenter').map((m) => m.at));
+  const lastWh = Math.max(0, ret.inquiry?.answeredAt ?? 0, ret.shippedAt ?? 0, ret.doneAt ?? 0, ...msgs.filter((m) => m.side === 'warehouse').map((m) => m.at));
+  return lastCall > lastWh ? [...alerts, '未返信のメッセージ'] : alerts;
+}
+
+// 依頼の一覧。q: お客様名・電話番号・商品名・シールNo.・理由・メモ・依頼番号（空白は無視）／filter: all・todo（未対応）・open（対応中）・closed（完了・対応不可）。未対応を先に、新しい順
+export function searchReturns(returns, units, { q = '', filter = 'all' } = {}) {
+  const squash = (v) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
+  const key = squash(q);
+  const digits = key.replace(/\D/g, '');
+  const byCode = new Map(units.map((u) => [u.code, u]));
+  const text = (r) => [r.customerName, r.id, r.memo, reasonOf(r.reason).label, ...r.codes, ...r.codes.map((c) => byCode.get(c)?.name)].map(squash);
+  const ok = (r) => ({ all: true, todo: returnAlerts(r).length > 0, open: isOpenReturn(r), closed: !isOpenReturn(r) })[filter] ?? true;
+  const hit = (r) => !key || text(r).some((t) => t.includes(key)) || (digits.length >= 4 && String(r.phone ?? '').replace(/\D/g, '').includes(digits));
+  return returns.filter((r) => ok(r) && hit(r))
+    .sort((a, b) => Number(returnAlerts(b).length > 0) - Number(returnAlerts(a).length > 0) || b.requestedAt - a.requestedAt);
+}
+
+export const returnCounts = (returns) => ({ all: returns.length, todo: returns.filter((r) => returnAlerts(r).length).length, open: returns.filter(isOpenReturn).length, closed: returns.filter((r) => !isOpenReturn(r)).length });
+
 // 倉庫が問い合わせに回答する。返送できれば返送の準備へ。対応できない場合は理由が必要（対応不可で終わり、商品は元の状態に戻る）。回答済みは変えない
 export function answerInquiry(state, id, { ok, note = '', at = Date.now(), by = '' }) {
   const ret = state.returns.find((r) => r.id === id);

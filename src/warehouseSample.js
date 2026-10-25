@@ -244,7 +244,12 @@ export function buildSample(now = Date.now()) {
     (s) => W.answerInquiry(s, s.returns[0].id, { ok: true, note: '在庫にあります。返送の準備をします', at: at(1, 12), by: staffOfWh('W-FUKUOKA') }), // 返送の準備中
     (s) => W.requestReturn(s, { master: MASTER, customerName: '松本 千春', phone: '090-5566-1020', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10), by: CO_OPERATOR }), // 倉庫に問い合わせ中
     (s) => W.requestReturn(s, { master: MASTER, customerName: units[0].customerName, phone: '070-4488-2301', codes: [code(0)], reason: 'regret', memo: '売却済みのため、お断りした', at: at(0, 11), by: CO_OPERATOR }), // 売却済みは対応不可
+    // 依頼のやり取り（チャット）の見本: 倉庫の返信・コールセンターからの未返信のメッセージ
+    (s) => W.addReturnMessage(s, byCustomer(s, '松本 千春'), { side: 'callcenter', text: '2点とも返品希望です。ご主人の同意は取れているそうです。至急、確認をお願いします', by: CO_OPERATOR, at: at(0, 12) }),
+    (s) => W.addReturnMessage(s, byCustomer(s, '森田 誠'), { side: 'warehouse', text: '棚から出しました。明日の午前に発送します', by: staffOfWh('W-FUKUOKA'), at: at(1, 13) }),
+    (s) => W.addReturnMessage(s, byCustomer(s, '斎藤 清'), { side: 'callcenter', text: 'お客様から、荷物が届いたと連絡がありました。買取代金は今日、返金されるそうです', by: CO_OPERATOR, at: at(0, 9) }), // 未返信
   ];
+  const byCustomer = (s, name) => s.returns.find((r) => r.customerName === name).id;
   const state = steps.reduce((s, step) => {
     const r = step(s);
     if (r?.ok === false) throw new Error(`サンプルの作成に失敗: ${r.reason ?? ""} ${step}`);

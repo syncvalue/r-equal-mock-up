@@ -21,6 +21,9 @@ test('サンプル: 在庫・出品中・売却済み・クーリングオフ期
   for (const status of ['inquiring', 'requested', 'shipped', 'done', 'unavailable']) assert.ok(st.returns.some((r) => r.status === status), status); // 進捗のどの段階も見える
   assert.ok(st.returns.filter((r) => r.status !== 'unavailable').every((r) => r.phone && r.requestedBy)); // 受電した電話番号と、受けたオペレーター
   assert.ok(st.returns.some((r) => r.status === 'unavailable' && r.unavailable.reason === 'sold')); // 売却済みは対応不可
+  assert.ok(st.returns.some((r) => r.messages?.some((m) => m.side === 'callcenter')) && st.returns.some((r) => r.messages?.some((m) => m.side === 'warehouse'))); // やり取りの見本
+  assert.ok(W.returnAlerts(st.returns.find((r) => r.status === 'shipped')).includes('未返信のメッセージ')); // 未返信のメッセージ（未対応の目印の見本）
+  assert.ok(W.returnCounts(st.returns).todo >= 2);
   assert.ok(st.returns.filter((r) => r.status === 'shipped' || r.status === 'done').every((r) => r.inquiry.ok && r.inquiry.answeredBy)); // 倉庫が回答してから返送している
 });
 
