@@ -1,59 +1,63 @@
-// ↩ クーリングオフ返品: お客様からの返品依頼の受付と、返送・代金返還の確認までの対応。
-import { RETURN_REASONS, reasonOf, returnableContracts, dateOf } from '../src/warehouse.js';
+// ↩ クーリングオフ返品: コールセンターが受電して作った依頼への、倉庫の対応（問い合わせへの回答 → 返送 → 代金の返還の確認）。
+import { reasonOf, isOpenReturn, returnSteps } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
-import { badge, md, mdTime, whName } from './ui.js';
+import { badge, md, mdTime } from './ui.js';
 
-const STATUS = { requested: ['返送の準備中', 'bg-amber-100 text-amber-800'], shipped: ['返送済み・代金の返還待ち', 'bg-sky-100 text-sky-800'], done: ['完了', 'bg-emerald-100 text-emerald-800'] };
+export const STATUS = {
+  inquiring: ['倉庫に問い合わせ中', 'bg-rose-100 text-rose-800'], requested: ['返送の準備中', 'bg-amber-100 text-amber-800'], shipped: ['返送済み・代金の返還待ち', 'bg-sky-100 text-sky-800'],
+  done: ['完了', 'bg-emerald-100 text-emerald-800'], unavailable: ['対応不可', 'bg-slate-200 text-slate-700'],
+};
+const STEP_CLS = { done: 'bg-emerald-600 text-white', current: 'bg-amber-400 text-slate-900', todo: 'bg-slate-200 text-slate-500', ng: 'bg-rose-600 text-white' };
 
-function requestForm(contracts, rf, now, master) {
-  const c = contracts.find((x) => x.visitId === rf.visitId);
-  return `
-  <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">↩ 返品の受付</h2>
-    <p class="text-xs text-slate-500">訪問購入のお客様は、書面を受け取った日から8日間、無条件で契約を解除できます（通知は郵送で届くため、当社は買取から10日間を受付期間にしています）。期間内は商品を出品・販売せず、依頼があったら受け付けて、当社の負担でお客様へ返送します。お客様には、受け取った買取代金を返していただきます。</p>
-    ${contracts.length ? `
-    <label class="text-sm font-bold block">契約（お客様・買取日）<select class="inp mt-1 font-normal" data-f="rf.visitId">
-      <option value="">選んでください（期間内 ${contracts.length}件）</option>
-      ${contracts.map((x) => `<option value="${esc(x.visitId)}" ${rf.visitId === x.visitId ? 'selected' : ''}>${esc(x.customerName)} 様　${md(x.date)}買取・${md(x.coolEnd)}まで（${x.units.length}点 ${yen(x.total)}）</option>`).join('')}</select></label>
-    ${c ? `<div class="text-sm font-bold">返品する商品</div>
-      <div class="space-y-1">${c.units.map((u) => `<label class="flex items-center gap-2 text-sm"><input type="checkbox" data-rf-code="${esc(u.code)}" ${rf.codes.includes(u.code) ? 'checked' : ''} />${esc(u.name)}<span class="text-slate-500">（${yen(u.price)}）</span><span class="text-xs text-violet-700">${esc(whName(u, master))}／${esc(u.location)}</span></label>`).join('')}</div>
-      ${new Set(c.units.map((u) => whName(u, master))).size > 1 ? '<div class="text-xs rounded bg-violet-50 border border-violet-200 p-2 text-violet-800">この契約の商品は、複数の保管場所（本社・倉庫）に分かれています。受け付けると、保管場所ごとの返品に分かれ、それぞれの担当者が返送します。</div>' : ''}
-      <div class="grid sm:grid-cols-2 gap-3">
-        <label class="text-sm font-bold">理由<select class="inp mt-1 font-normal" data-f="rf.reason">${RETURN_REASONS.map((r) => `<option value="${r.key}" ${rf.reason === r.key ? 'selected' : ''}>${r.label}</option>`).join('')}</select></label>
-        <label class="text-sm font-bold">メモ<input class="inp mt-1 font-normal" data-f="rf.memo" value="${esc(rf.memo)}" placeholder="例: 返送先の住所確認済み" /></label>
-      </div>
-      <div class="text-sm rounded bg-slate-50 p-2">お客様から返していただく買取代金 <b class="text-lg">${yen(c.units.filter((u) => rf.codes.includes(u.code)).reduce((n, u) => n + u.price, 0))}</b></div>
-      <button class="b b-pri" data-return-add ${rf.codes.length ? '' : 'disabled'}>返品を受け付ける</button>` : ''}`
-    : `<p class="text-sm text-slate-500">いま返品を受け付けられる商品はありません（${dateOf(now)} 時点で、買取から10日以内の入庫済みの商品がありません）。</p>`}
-  </section>`;
+// 進捗（受電・依頼 → 倉庫の回答 → 返送 → 代金の返還）。コールセンターの画面でも使う
+export const stepsHtml = (r) => `<ol class="flex flex-wrap items-center gap-1 text-xs">${returnSteps(r).map((x, i) => `${i ? '<li aria-hidden="true" class="text-slate-400">›</li>' : ''}<li class="rounded px-2 py-0.5 font-bold ${STEP_CLS[x.state]}">${x.state === 'done' ? '✔ ' : x.state === 'ng' ? '✕ ' : ''}${x.label}</li>`).join('')}</ol>`;
+
+// 商品の1行。保管場所と、期間超過の目印
+function unitLine(r, u) {
+  const place = u?.status === 'stored' ? esc(u.location) : '入庫前';
+  return `<div class="flex flex-wrap items-center gap-2"><span class="text-xs font-mono text-slate-500">${esc(u?.code ?? '')}</span>${esc(u?.name ?? '')}<span class="text-slate-500">（${yen(u?.price ?? 0)}）</span><span class="text-xs text-violet-700">${place}</span>${r.expiredCodes?.includes(u?.code) ? badge('bg-rose-100 text-rose-700', '期間超過') : ''}</div>`;
 }
 
-function returnItem(r, unitsByCode, master) {
+function returnItem(r, unitsByCode) {
   const [label, cls] = STATUS[r.status];
+  const units = r.codes.map((c) => unitsByCode.get(c));
+  const inq = r.inquiry;
   return `<div class="rounded-lg border p-3 space-y-2 text-sm">
-    <div class="flex flex-wrap items-center gap-2"><b class="text-base">${esc(r.customerName)} 様</b>${badge(cls, label)}${r.warehouseId ? badge('bg-violet-50 text-violet-800', esc(master.warehouses.find((w) => w.id === r.warehouseId)?.name ?? '')) : ''}<span class="text-xs text-slate-500">受付 ${mdTime(r.requestedAt)}${r.requestedBy ? `（${esc(r.requestedBy)}）` : ''}／${esc(reasonOf(r.reason).label)}</span></div>
-    <div>${r.codes.map((c) => esc(unitsByCode.get(c)?.name ?? c)).join('、')}（${r.codes.length}点）</div>
-    ${r.memo ? `<div class="text-xs text-slate-500">${esc(r.memo)}</div>` : ''}
-    <div>お客様から返していただく買取代金 <b>${yen(r.refund)}</b>${r.groupRefund && r.groupRefund !== r.refund ? `<span class="text-xs text-slate-500">（同じ契約の、他の保管場所の分を含めた合計 ${yen(r.groupRefund)}）</span>` : ''}</div>
+    <div class="flex flex-wrap items-center gap-2"><b class="text-base">${esc(r.customerName)} 様</b>${badge(cls, label)}<span class="text-xs text-slate-500">受電 ${mdTime(r.requestedAt)}${r.requestedBy ? `（${esc(r.requestedBy)}）` : ''}／${esc(reasonOf(r.reason).label)}</span></div>
+    ${stepsHtml(r)}
+    <div class="space-y-0.5">${units.map((u, i) => unitLine(r, u ?? { code: r.codes[i] })).join('')}</div>
+    ${r.memo ? `<div class="text-xs text-slate-500">受電メモ: ${esc(r.memo)}</div>` : ''}
+    ${r.status === 'unavailable' ? '' : `<div>お客様から返していただく買取代金 <b>${yen(r.refund)}</b>${r.groupRefund && r.groupRefund !== r.refund ? `<span class="text-xs text-slate-500">（同じ契約の、他の保管場所の分を含めた合計 ${yen(r.groupRefund)}）</span>` : ''}</div>`}
+    ${inq?.answeredAt ? `<div class="text-xs text-slate-500">倉庫の回答: ${inq.ok ? '返送できる' : '対応できない'}${inq.note ? `（${esc(inq.note)}）` : ''}／${mdTime(inq.answeredAt)}${inq.answeredBy ? `・${esc(inq.answeredBy)}` : ''}</div>` : ''}
+    ${r.status === 'unavailable' ? `<div class="text-xs rounded bg-slate-50 p-2">${r.unavailable.reason === 'sold' ? '売却済みのため、対応できません。' : '倉庫が対応できないと回答しました。'}${r.unavailable.note && r.unavailable.reason !== 'sold' ? esc(r.unavailable.note) : ''}</div>` : ''}
+    ${r.status === 'inquiring' ? `<div class="rounded bg-rose-50 border border-rose-200 p-2 space-y-2">
+      <div class="text-xs text-rose-800 font-bold">コールセンターからの問い合わせです。商品があって、お客様へ返送できるか回答してください。${r.expiredCodes?.length ? '期間（10日間）を過ぎた商品を含むので、返送するか個別に判断してください。' : ''}</div>
+      <label class="text-xs font-bold block">メモ（対応できない場合は理由が必要）<input class="inp mt-1 font-normal" data-inq-note="${esc(r.id)}" placeholder="例: 在庫にあります／出品の準備に入っており、お断りします" /></label>
+      <div class="flex gap-2"><button class="b b-pri" data-inq-ok="${esc(r.id)}">返送できる（準備に進む）</button><button class="b b-sec" data-inq-ng="${esc(r.id)}">対応できない</button></div></div>` : ''}
     ${r.status === 'requested' ? `<div class="flex items-end gap-2"><label class="text-xs font-bold flex-1">返送の追跡番号<input class="inp mt-1 font-normal" data-track="${esc(r.id)}" placeholder="例: 5012-3344-9871" /></label><button class="b b-pri" data-ship="${esc(r.id)}">返送済みにする</button></div>` : ''}
     ${r.status === 'shipped' ? `<div class="flex items-center gap-3"><span class="text-xs">追跡番号 <b>${esc(r.tracking)}</b>（${mdTime(r.shippedAt)} 返送${r.shippedBy ? `・${esc(r.shippedBy)}` : ''}）</span><button class="b b-pri" data-return-done="${esc(r.id)}">代金の返還を確認して完了</button></div>` : ''}
     ${r.status === 'done' ? `<div class="text-xs text-slate-500">追跡番号 ${esc(r.tracking)}／${mdTime(r.doneAt)} 完了${r.doneBy ? `（${esc(r.doneBy)}）` : ''}</div>` : ''}
   </div>`;
 }
 
-// state は自分の倉庫の分（返送・完了の対応の一覧）。契約は、他の倉庫・本社の商品を含めて受け付けられる（full は全倉庫の状態）
-export function returnTab(state, ui, now = Date.now(), { full, master }) {
-  const contracts = returnableContracts(full, now);
-  const unitsByCode = new Map(state.units.map((u) => [u.code, u]));
-  const open = state.returns.filter((r) => r.status !== 'done');
-  const done = state.returns.filter((r) => r.status === 'done');
-  return `<div class="grid xl:grid-cols-[28rem_1fr] gap-4 items-start">
-    ${requestForm(contracts, ui.rf, now, master)}
-    <section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">対応中の返品（${open.length}件）</h2>
-      ${open.length ? open.map((r) => returnItem(r, unitsByCode, master)).join('') : '<p class="text-sm text-slate-500">対応中の返品はありません。</p>'}
-      <h2 class="font-bold text-lg pt-2">完了した返品（${done.length}件）</h2>
-      ${done.length ? done.map((r) => returnItem(r, unitsByCode, master)).join('') : '<p class="text-sm text-slate-500">まだありません。</p>'}
-    </section>
+const group = (title, list, unitsByCode, empty) => `<section class="rounded-xl border bg-white p-4 space-y-3">
+  <h2 class="font-bold text-lg">${title}（${list.length}件）</h2>
+  ${list.length ? list.map((r) => returnItem(r, unitsByCode)).join('') : `<p class="text-sm text-slate-500">${empty}</p>`}
+</section>`;
+
+// state は自分の倉庫の分（回答・返送・完了の対応の一覧）。依頼は、コールセンターの「クーリングオフ」タブで受電して作る（full は全倉庫の状態）
+export function returnTab(state, ui, now = Date.now(), { full }) {
+  const unitsByCode = new Map(full.units.map((u) => [u.code, u]));
+  const byTime = (a, b) => b.requestedAt - a.requestedAt;
+  const asked = state.returns.filter((r) => r.status === 'inquiring').sort(byTime);
+  const open = state.returns.filter((r) => isOpenReturn(r) && r.status !== 'inquiring').sort(byTime);
+  const closed = state.returns.filter((r) => !isOpenReturn(r)).sort(byTime);
+  return `<div class="space-y-4">
+    <p class="text-xs text-slate-500">クーリングオフは、お客様の電話（専用の番号）をコールセンターが受けて、依頼を作ります。倉庫は、問い合わせに回答し、返送して、お客様から買取代金の返還を確認したら完了にします。お客様は書面を受け取った日から8日間、無条件で契約を解除できます（当社は、郵送の余裕を見て、買取から10日間は商品を販売せずに保管します）。</p>
+    <div class="grid xl:grid-cols-2 gap-4 items-start">
+      ${group('問い合わせへの回答待ち', asked, unitsByCode, '回答待ちの問い合わせはありません。')}
+      ${group('返送・代金の返還の対応中', open, unitsByCode, '対応中の返品はありません。')}
+    </div>
+    ${group('完了・対応不可', closed, unitsByCode, 'まだありません。')}
   </div>`;
 }

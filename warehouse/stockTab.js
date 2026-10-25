@@ -27,7 +27,7 @@ function action(r, data) {
   if (['stock', 'listed', 'consigned'].includes(r.stage) && warehouseIdOf(unit, data.master) !== data.me.warehouseId) return '<span class="text-xs text-slate-500">他の倉庫の商品（扱うには、先に移動）</span>';
   if (r.canList) return `<button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-go-list="${esc(unit.code)}">出品する</button>`;
   if (r.stage === 'stock' && r.cooling) {
-    return `<span class="text-xs text-amber-700 font-bold">${md(r.coolEnd)} まで出品不可</span> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-go-return="${esc(unit.visitId)}">返品受付</button>`;
+    return `<span class="text-xs text-amber-700 font-bold">${md(r.coolEnd)} まで出品不可</span>`;
   }
   if (r.stage === 'listed') return `<span class="text-xs">${esc(channelOf(rec.channel)?.label)}で ${yen(rec.listPrice)}</span>`;
   if (r.stage === 'consigned') return `<span class="text-xs">${esc(rec.vendor || '委託先')}に委託中（${md(dateOf(rec.listedAt))}〜）</span>`;

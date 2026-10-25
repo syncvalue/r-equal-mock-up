@@ -16,7 +16,12 @@ test('サンプル: 在庫・出品中・売却済み・クーリングオフ期
   for (const s of ['incoming', 'missing', 'stock', 'listed', 'consigned', 'sold', 'returning', 'returned']) assert.ok(stages.has(s), s);
   assert.ok(rows.some((r) => r.stage === 'stock' && r.canList)); // すぐ出品できる在庫
   assert.ok(rows.some((r) => r.stage === 'stock' && r.cooling)); // 期間中で出品を止めている在庫
-  assert.ok(W.returnableContracts(W.loadState(), NOW).length >= 1); // 今から返品を受け付けられる契約
+  const st = W.loadState();
+  assert.ok(W.cooloffContracts(st, '加藤', NOW).some((c) => c.rows.some((r) => r.check.kind === 'ok'))); // 今から依頼を作れる契約（在庫・期間内）
+  for (const status of ['inquiring', 'requested', 'shipped', 'done', 'unavailable']) assert.ok(st.returns.some((r) => r.status === status), status); // 進捗のどの段階も見える
+  assert.ok(st.returns.filter((r) => r.status !== 'unavailable').every((r) => r.phone && r.requestedBy)); // 受電した電話番号と、受けたオペレーター
+  assert.ok(st.returns.some((r) => r.status === 'unavailable' && r.unavailable.reason === 'sold')); // 売却済みは対応不可
+  assert.ok(st.returns.filter((r) => r.status === 'shipped' || r.status === 'done').every((r) => r.inquiry.ok && r.inquiry.answeredBy)); // 倉庫が回答してから返送している
 });
 
 test('サンプル: 売上は、今日・今月に売れたものがあり、フリマと業者の両方で、利益が出ている', () => {

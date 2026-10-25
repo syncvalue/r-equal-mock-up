@@ -1,5 +1,5 @@
 // 倉庫・物流のデータとロジック。買い取った商品（stock.js の入庫データ）を、フリマ・業者に販売し、売上を管理する。
-// お客様からのクーリングオフによる返品の対応も扱う（買取から10日間は、販売せずに保管する）。
+// お客様からのクーリングオフによる返品の対応も扱う（買取から10日間は、販売せずに保管する）。依頼はコールセンターの受電で作り、倉庫が回答・返送・完了する。
 // 外部の市場（業者オークション）への販売は「委託」。委託中の商品は倉庫になく、売れたら代金が戻り、売れ残ったら倉庫に戻る。
 // 倉庫間の移動（transfers）は warehouseTransfer.js。移動中の商品は「輸送中」になり、どちらの倉庫の在庫にも数えない。
 // 状態（state）は { units: 入庫データ, records: 出品・売却の記録（商品No.→記録）, returns: 返品の記録, transfers: 移動の記録 }。操作はすべて新しい state を返す。
@@ -7,7 +7,7 @@ import { WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY } from './store.js';
 import { loadUnits, SEAL_COLORS, sealColorOf } from './stock.js';
 import { carrierOf } from './shipping.js';
 import { dateKey } from './workday.js';
-import { warehouseIdOf } from './warehouseMaster.js';
+import { warehouseIdOf, honshaOf, isHighValue } from './warehouseMaster.js';
 
 // 法律上のクーリングオフは、書面を受け取った日から8日間。お客様の通知は郵送で届くため、余裕を見て10日間は販売せず保管する（返品もこの間は受け付ける）
 export const COOLING_OFF_DAYS = 10;
@@ -75,9 +75,10 @@ export function coolingOffEnd(date) {
 export const inCoolingOff = (unit, now = Date.now()) => dateOf(now) <= coolingOffEnd(unit.date);
 
 // ---- 一覧用の行 ---------------------------------------------------------------
+// 返品の依頼がある商品の状態。問い合わせ中（inquiring）は、倉庫が回答するまで商品の状態を変えない（在庫だけ、出品できないよう止める）。対応不可（unavailable）は、状態に影響しない
 const returnStages = (returns) => {
   const map = new Map();
-  returns.forEach((r) => r.codes.forEach((c) => map.set(c, r.status === 'done' ? 'returned' : 'returning')));
+  returns.filter((r) => r.status !== 'unavailable').forEach((r) => r.codes.forEach((c) => map.set(c, r.status === 'done' ? 'returned' : r.status === 'inquiring' ? 'inquiring' : 'returning')));
   return map;
 };
 
@@ -87,8 +88,9 @@ export function buildRows({ units, records, returns, transfers = [] }, now = Dat
   const inPacking = new Set(transfers.filter((t) => t.status === 'draft' && (t.kind ?? 'transfer') !== 'sale').flatMap((t) => t.codes)); // 倉庫間移動・委託の、梱包中のパック（売れた商品の発送は、売却済みのまま）
   return units.map((unit) => {
     const rec = records[unit.code] ?? null;
-    const stage = rs.get(unit.code)
-      ?? (inTransit.has(unit.code) ? 'transit' : inPacking.has(unit.code) ? 'packing' : rec ? rec.stage : unit.status === 'pending' ? 'incoming' : unit.status === 'missing' ? 'missing' : 'stock');
+    const base = inTransit.has(unit.code) ? 'transit' : inPacking.has(unit.code) ? 'packing' : rec ? rec.stage : unit.status === 'pending' ? 'incoming' : unit.status === 'missing' ? 'missing' : 'stock';
+    const ret = rs.get(unit.code);
+    const stage = ret === 'inquiring' ? (base === 'stock' ? 'returning' : base) : ret ?? base;
     const cooling = inCoolingOff(unit, now);
     return { unit, rec, stage, cooling, coolEnd: coolingOffEnd(unit.date), canList: stage === 'stock' && !cooling };
   });
@@ -132,7 +134,7 @@ export function scopeState(state, scope, master) {
   if (scope === 'all') return state;
   const units = state.units.filter((u) => u.status === 'stored' && warehouseIdOf(u, master) === scope);
   const codes = new Set(units.map((u) => u.code));
-  return { ...state, units, returns: state.returns.filter((r) => r.codes.some((c) => codes.has(c))) };
+  return { ...state, units, returns: state.returns.filter((r) => (r.warehouseId ? r.warehouseId === scope : r.codes.some((c) => codes.has(c)))) };
 }
 
 // 倉庫ごとの、いま保管している商品（在庫・出品中・委託中・返品対応中）の点数と原価
@@ -199,6 +201,7 @@ export function historyOf({ units, records, returns, transfers = [] }, code) {
   });
   returns.filter((r) => r.codes.includes(code)).forEach((r) => {
     events.push({ at: r.requestedAt, label: '返品受付', detail: `${reasonOf(r.reason).label}${r.requestedBy ? `／${r.requestedBy}` : ''}` });
+    if (r.inquiry?.answeredAt) events.push({ at: r.inquiry.answeredAt, label: '倉庫が回答', detail: `${r.inquiry.ok ? '返送できる' : '対応できない'}${r.inquiry.note ? `（${r.inquiry.note}）` : ''}${r.inquiry.answeredBy ? `／${r.inquiry.answeredBy}` : ''}` });
     if (r.shippedAt) events.push({ at: r.shippedAt, label: '返送', detail: `追跡番号 ${r.tracking}${r.shippedBy ? `／${r.shippedBy}` : ''}` });
     if (r.doneAt) events.push({ at: r.doneAt, label: '返品完了', detail: `買取代金 ${yen(r.refund)} の返還を確認${r.doneBy ? `／${r.doneBy}` : ''}` });
   });
@@ -294,50 +297,96 @@ export function salesStats(rows, period = '') {
 // 会社全体の売上を、倉庫別に分ける（売上の多い順）。売れた商品の倉庫は、入庫（移動した場合は受取）した倉庫
 export const salesByWarehouse = (rows, master) => group(rows, (r) => warehouseIdOf(r.unit, master), (id) => master.warehouses.find((w) => w.id === id)?.name ?? id);
 
-// ---- クーリングオフによる返品 --------------------------------------------------------
-// 契約（訪問）ごとの、返品を受け付けられる商品（入庫済み・期間内・対応中でない）
-export function returnableContracts(state, now = Date.now()) {
-  const rows = buildRows(state, now).filter((r) => r.stage === 'stock' && r.cooling);
-  const visits = [...new Set(rows.map((r) => r.unit.visitId))];
-  return visits.map((visitId) => {
-    const units = rows.filter((r) => r.unit.visitId === visitId).map((r) => r.unit);
-    return { visitId, customerName: units[0].customerName, date: units[0].date, coolEnd: coolingOffEnd(units[0].date), units, total: sumBy(units, (u) => u.price) };
-  }).sort((a, b) => a.coolEnd.localeCompare(b.coolEnd));
+// ---- クーリングオフ依頼（コールセンターが受電して作り、倉庫が回答・返送・完了する）-------------------------
+// 流れ: inquiring（倉庫に問い合わせ中）→ requested（返送の準備中）→ shipped（返送済み・代金の返還待ち）→ done（完了）。
+// 倉庫が対応できないと答えた依頼と、売却済みの商品の依頼は unavailable（対応不可）で終わる。
+export const isOpenReturn = (r) => ['inquiring', 'requested', 'shipped'].includes(r.status);
+
+// 商品を、受け付けられるかの目安に分ける。ok: 在庫・期間内／expired: 期間超過（倉庫が個別に判断）／ask: 出品中・入庫前などで、倉庫に確認／
+// sold: 売却済み（対応不可）／busy: すでに依頼中／returned: 返品済み／wait: 輸送中・梱包中（届く・発送が済むまで依頼できない）
+export function cooloffCheck(row, busy = false) {
+  if (busy) return { kind: 'busy', label: 'すでに依頼中' };
+  if (row.stage === 'returned') return { kind: 'returned', label: '返品済み' };
+  if (row.stage === 'sold') return { kind: 'sold', label: '売却済み（対応不可）' };
+  if (row.stage === 'transit') return { kind: 'wait', label: '輸送中（届いてから依頼）' };
+  if (row.stage === 'packing') return { kind: 'wait', label: '梱包中（発送が済んでから依頼）' };
+  if (row.stage === 'stock') return row.cooling ? { kind: 'ok', label: '在庫・期間内' } : { kind: 'expired', label: '期間超過（倉庫が個別に判断）' };
+  return { kind: 'ask', label: `${STAGES[row.stage] ?? row.stage}（倉庫に確認）` };
+}
+
+// お客様名・シールNo.・商品名で探して、契約（訪問）ごとにまとめる。検索語がなければ空
+export function cooloffContracts(state, query, now = Date.now()) {
+  const q = String(query ?? '').trim().toLowerCase();
+  if (!q) return [];
+  const busy = new Set(state.returns.filter(isOpenReturn).flatMap((r) => r.codes));
+  const rows = buildRows(state, now).map((r) => ({ ...r, check: cooloffCheck(r, busy.has(r.unit.code)) }));
+  const hit = new Set(rows.filter((r) => [r.unit.customerName, r.unit.code, r.unit.name].some((t) => String(t ?? '').toLowerCase().includes(q))).map((r) => r.unit.visitId));
+  return [...hit].map((visitId) => {
+    const list = rows.filter((r) => r.unit.visitId === visitId);
+    const { customerName, date } = list[0].unit;
+    return { visitId, customerName, date, coolEnd: coolingOffEnd(date), rows: list, total: sumBy(list, (r) => r.unit.price) };
+  }).sort((a, b) => b.date.localeCompare(a.date) || a.customerName.localeCompare(b.customerName));
 }
 
 const newReturnId = (at) => `RT-${at.toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
-// 受け付けられない商品は rejected に理由つきで返す（unknown／notStored／expired／inProgress／notReturnable）
-// master を渡すと、商品が複数の倉庫（本社を含む）に分かれている契約は、倉庫ごとの返品に分け、groupId で同じ契約として結びつける
-export function requestReturn(state, { customerName, codes, reason, memo = '', at = Date.now(), by = '', master = null }) {
+// 問い合わせを受ける倉庫。入庫前の商品は、納入先になる倉庫（高額品は本社）
+export const inquiryWarehouseId = (unit, master) => (unit.status === 'stored' || !isHighValue(unit, master) ? warehouseIdOf(unit, master) : honshaOf(master)?.id ?? warehouseIdOf(unit, master));
+
+// 受電した依頼を作る。受け付けられない商品は rejected に理由つきで返す（unknown／inProgress／returned／inTransit／inPacking）。売却済みの商品は、対応不可の依頼として記録する。
+// master を渡すと、商品が複数の倉庫（本社を含む）に分かれている契約は、倉庫ごとの依頼に分け、groupId で同じ契約として結びつける
+export function requestReturn(state, { customerName, phone = '', codes, reason, memo = '', at = Date.now(), by = '', master = null }) {
   const rows = buildRows(state, at);
+  const busy = new Set(state.returns.filter(isOpenReturn).flatMap((r) => r.codes));
   const accepted = [];
+  const sold = [];
   const rejected = [];
   codes.forEach((code) => {
     const row = rows.find((r) => r.unit.code === code);
-    const why = !row ? 'unknown'
-      : row.unit.status !== 'stored' ? 'notStored'
-        : row.stage === 'transit' ? 'inTransit'
-        : row.stage === 'packing' ? 'inPacking'
-        : row.stage === 'returning' ? 'inProgress'
-          : !row.cooling ? 'expired'
-            : row.stage !== 'stock' ? 'notReturnable' : '';
-    if (why) rejected.push({ code, reason: why });
+    const kind = row ? cooloffCheck(row, busy.has(code)).kind : 'unknown';
+    if (kind === 'sold') sold.push(row.unit);
+    else if (kind === 'wait') rejected.push({ code, reason: row.stage === 'transit' ? 'inTransit' : 'inPacking' });
+    else if (['unknown', 'busy', 'returned'].includes(kind)) rejected.push({ code, reason: kind === 'busy' ? 'inProgress' : kind });
     else accepted.push(row.unit);
   });
-  if (!accepted.length) return { ok: false, state, rejected };
-  const groups = master ? [...new Set(accepted.map((u) => warehouseIdOf(u, master)))].map((id) => [id, accepted.filter((u) => warehouseIdOf(u, master) === id)]) : [[undefined, accepted]];
+  if (!accepted.length && !sold.length) return { ok: false, state, rejected };
+  const groups = master ? [...new Set(accepted.map((u) => inquiryWarehouseId(u, master)))].map((id) => [id, accepted.filter((u) => inquiryWarehouseId(u, master) === id)]) : accepted.length ? [[undefined, accepted]] : [];
   const groupId = newReturnId(at);
   const groupRefund = sumBy(accepted, (u) => u.price);
+  const base = { customerName, phone, reason, memo, requestedAt: at, shippedAt: null, tracking: '', doneAt: null, ...who('requestedBy', by) };
   const rets = groups.map(([warehouseId, list]) => ({
-    id: groups.length === 1 ? groupId : newReturnId(at), customerName, codes: list.map((u) => u.code), reason, memo, refund: sumBy(list, (u) => u.price),
-    status: 'requested', requestedAt: at, shippedAt: null, tracking: '', doneAt: null, ...who('requestedBy', by),
+    ...base, id: groups.length === 1 ? groupId : newReturnId(at), codes: list.map((u) => u.code), refund: sumBy(list, (u) => u.price), status: 'inquiring',
+    inquiry: { askedAt: at, ...who('askedBy', by) }, expiredCodes: list.filter((u) => !inCoolingOff(u, at)).map((u) => u.code),
     ...(master ? { warehouseId, groupId, groupRefund } : {}),
   }));
+  if (sold.length) rets.push({ ...base, id: newReturnId(at), codes: sold.map((u) => u.code), refund: sumBy(sold, (u) => u.price), status: 'unavailable', unavailable: { reason: 'sold', note: '売却済み', at, ...who('by', by) } });
   return { ok: true, state: { ...state, returns: [...rets, ...state.returns] }, ret: rets[0], rets, rejected };
 }
 
 const patchReturn = (state, id, patch) => ({ ...state, returns: state.returns.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
+
+// 倉庫が問い合わせに回答する。返送できれば返送の準備へ。対応できない場合は理由が必要（対応不可で終わり、商品は元の状態に戻る）。回答済みは変えない
+export function answerInquiry(state, id, { ok, note = '', at = Date.now(), by = '' }) {
+  const ret = state.returns.find((r) => r.id === id);
+  const text = String(note ?? '').trim();
+  if (ret?.status !== 'inquiring' || (!ok && !text)) return state;
+  const inquiry = { ...ret.inquiry, ok, note: text, answeredAt: at, ...who('answeredBy', by) };
+  return ok ? patchReturn(state, id, { status: 'requested', inquiry }) : patchReturn(state, id, { status: 'unavailable', inquiry, unavailable: { reason: 'warehouse', note: text, at, ...who('by', by) } });
+}
+
+// 進捗の段階（受電 → 倉庫の回答 → 返送 → 代金の返還）。state: done／current／todo／ng（倉庫が対応できないと答えた）
+export function returnSteps(ret) {
+  const asked = ret.status === 'inquiring';
+  const ng = ret.status === 'unavailable';
+  const rank = { inquiring: 1, requested: 2, shipped: 3, done: 4, unavailable: 1 }[ret.status] ?? 1;
+  const mark = (i) => (i < rank ? 'done' : i === rank && !ng ? 'current' : 'todo');
+  return [
+    { label: '受電・依頼', state: 'done' },
+    { label: '倉庫の回答', state: ng ? 'ng' : asked ? 'current' : 'done' },
+    { label: '返送', state: ng ? 'todo' : mark(2) },
+    { label: '代金の返還', state: ng ? 'todo' : mark(3) },
+  ];
+}
 
 // 返送した（追跡番号を記録）
 export function shipReturn(state, id, { tracking, at = Date.now(), by = '' }) {

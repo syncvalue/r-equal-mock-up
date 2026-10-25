@@ -4,7 +4,7 @@ import {
   MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveStaff, saveVendor, setVendorActive, vendorById, saveHighValueRule, destinationProblem, setWarehouseActive, warehouseById, warehouseIdOf,
 } from '../src/warehouseMaster.js';
 import {
-  loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, requestReturn, shipReturn, completeReturn, returnableContracts, suggestPrice, scopeState, holdingByWarehouse,
+  loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, answerInquiry, isOpenReturn, shipReturn, completeReturn, suggestPrice, scopeState, holdingByWarehouse,
 } from '../src/warehouse.js';
 import { loadUnits, saveUnits, receive, receiveCodes, resultMessage } from '../src/stock.js';
 import { seedSample } from '../src/warehouseSample.js';
@@ -33,14 +33,12 @@ import { openMockCamera } from './camera.js';
 const $ = (s) => document.querySelector(s);
 const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' });
 const blankSell = () => ({ code: '', price: 0, shipping: 0, buyer: '' });
-const blankReturn = () => ({ visitId: '', codes: [], reason: 'family', memo: '' });
 const MASTER_TEXT = {
   dupHonsha: '本社（高額品の保管先）は、すでに登録されています（1か所だけです）', noRule: '本社に納入するシールの色を、1つ以上選んでください', badColor: 'シールの色が正しくありません', noName: '名前を入力してください', noLocations: '保管場所（棚）を1つ以上入力してください', badOffice: '営業所の指定が正しくありません', badZip: '郵便番号は、123-4567 の形式で入力してください', dupName: '同じ名前の倉庫がすでにあります', notFound: '対象が見つかりません',
   badLoginId: 'ログインIDは、英数字・ハイフン・アンダースコアの3〜20文字にしてください', dupLoginId: '同じログインIDの担当者がすでにいます', noWarehouse: '所属する倉庫を選んでください',
   inUse: 'この倉庫には、保管中の商品（在庫・出品中・委託中・返品対応中）があるため、無効にできません', hasStaff: 'この倉庫には有効な担当者がいるため、無効にできません（担当者を別の倉庫に移すか、無効にしてください）',
 };
 const REASON_TEXT = { notListable: '出品できない商品です（クーリングオフ期間中・返品対応中など）', badInput: '販売先と、1円以上の価格を入力してください', notListed: '出品中の商品ではありません', alreadySold: 'すでに売却済みです', notShipped: '返送済みにしてから完了してください' };
-const REJECT_TEXT = { inTransit: '倉庫間を輸送中の商品（届いてから受け付けてください）', unknown: '登録のない商品', notStored: '入庫前の商品', expired: '保管期間（10日間）を過ぎた商品', inProgress: 'すでに返品対応中の商品', notReturnable: '返品できない状態の商品' };
 
 let tab = 'stock';
 let menuOpen = false; // 左側のメニューの開閉
@@ -50,7 +48,7 @@ const blankPk = () => ({ id: '', toId: '', q: '', last: null, tracking: '', bNam
 const blankWh = () => ({ id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false });
 const blankVendor = () => ({ id: '', name: '', zip: '', address: '', phone: '' });
 const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
-const ui = { mv: blankVendor(), rl: { code: '', newCode: '', color: '' }, hv: null, pk: blankPk(), tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+const ui = { mv: blankVendor(), rl: { code: '', newCode: '', color: '' }, hv: null, pk: blankPk(), tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();
@@ -67,7 +65,7 @@ const tabBody = (full, now) => {
   if (tab === 'transfer') return transferTab(full, master, ui, staff, now);
   if (tab === 'list') return ownNotice + listTab({ ...own, rows: buildRows(own, now) }, ui, now, { full, master, me: staff });
   if (tab === 'sales') return salesTab(full, master, ui, staff, now);
-  if (tab === 'return') return `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">返品の受付は、他の倉庫・本社の商品を含む契約全体で行えます。返送・完了の対応は、あなたの倉庫（${esc(myWarehouse().name)}）の商品だけです。</div>${returnTab(own, ui, now, { full, master })}`;
+  if (tab === 'return') return `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">ここで扱えるのは、あなたの倉庫（${esc(myWarehouse().name)}）の商品の依頼だけです。依頼は、コールセンターの「クーリングオフ」タブで受電して作ります。</div>${returnTab(own, ui, now, { full, master })}`;
   if (tab === 'master') return masterTab({ master, holding: holdingByWarehouse(full, master, now) }, ui, staff);
   return stockTab(data, ui);
 };
@@ -87,14 +85,14 @@ function render() {
   const state = scopeState(full, ui.scope, master);
   const rows = buildRows(state, now);
   // メニューの項目に出す件数（入庫待ち・受け取り待ち・返品対応中）
-  const badges = { receive: full.units.filter((u) => u.status !== 'stored').length, transfer: incoming(full, staff.warehouseId).length, return: state.returns.filter((r) => r.status !== 'done').length };
+  const badges = { receive: full.units.filter((u) => u.status !== 'stored').length, transfer: incoming(full, staff.warehouseId).length, return: state.returns.filter(isOpenReturn).length };
   const menuBadge = badges.receive + badges.transfer > 0;
   // タブレットの幅でも崩れないよう、見出しは折り返し、本文が残りの高さを使う
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
   <header class="bg-sky-900 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${menuBadge ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
       <span class="font-bold text-xl">倉庫・物流</span><span class="text-slate-300">›</span><span class="font-bold">${esc(tabLabel(tab))}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${['stock', 'master'].includes(tab) ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
+    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${['stock', 'master'].includes(tab) ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter(isOpenReturn).length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${tabBody(full, now)}</main>${menuOpen ? menuView({ tab, badges, staff, warehouseName: wh.name }) : ''}</div>`;
 }
@@ -127,14 +125,21 @@ function registerSale(code) {
   commit(r.state);
   ui.sf = blankSell();
 }
-function addReturn() {
+// 返品の依頼は、問い合わせを受けた倉庫（入庫前の商品の依頼も含む）の担当者だけが対応できる
+function ownsReturn(id) {
+  const r = loadState().returns.find((x) => x.id === id);
+  if (!r) return false;
+  if (r.warehouseId ? r.warehouseId === staff.warehouseId : r.codes.every((c) => { const u = unitOf(c); return u && warehouseIdOf(u, master) === staff.warehouseId; })) return true;
+  alert('他の倉庫の依頼は扱えません。');
+  return false;
+}
+// 倉庫が問い合わせに回答する（対応できない場合は、メモに理由が必要）
+function answer(id, ok) {
+  if (!ownsReturn(id)) return false;
   const state = loadState();
-  const contract = returnableContracts(state).find((c) => c.visitId === ui.rf.visitId);
-  if (!contract || !ui.rf.codes.length) return;
-  const r = requestReturn(state, { customerName: contract.customerName, codes: ui.rf.codes, reason: ui.rf.reason, memo: ui.rf.memo.trim(), by: staff.name, master });
-  if (!r.ok) return alert(`返品を受け付けられませんでした。\n${r.rejected.map((x) => `${x.code}: ${REJECT_TEXT[x.reason]}`).join('\n')}`);
-  commit(r.state);
-  ui.rf = blankReturn();
+  const next = answerInquiry(state, id, { ok, note: inputBy('data-inq-note', id)?.value, by: staff.name });
+  if (next === state) { alert('対応できない場合は、メモに理由を入力してください'); return false; }
+  commit(next);
 }
 // 入庫（誰の商品でも入庫できる）。シールを読み取った場合は、読取で照合したものとして記録する
 const DEST_TEXT = { highToHonsha: 'は高額品のため、本社に納入します（本社の担当者が入庫します）', normalToWarehouse: 'は高額品ではないため、本社ではなく倉庫に納入します' };
@@ -376,12 +381,6 @@ function toggleStaff(id) {
   commitMaster(r.master);
 }
 
-function goReturn(visitId) {
-  const contract = returnableContracts(loadState()).find((c) => c.visitId === visitId);
-  ui.rf = { ...blankReturn(), visitId, codes: contract ? contract.units.map((u) => u.code) : [] };
-  tab = 'return';
-}
-
 function doLogin() {
   const r = login($('[data-login-id]')?.value, $('[data-login-pw]')?.value, loadMaster());
   loginError = r.ok ? '' : r.error;
@@ -448,7 +447,6 @@ const ACTIONS = {
   login: doLogin,
   period: (v) => { ui.period = v; },
   goList: (v) => { ui.lf = { ...blankList(), code: v, price: suggestPrice(unitOf(v)) }; tab = 'list'; },
-  goReturn,
   lfChannel: (v) => { ui.lf = { ...ui.lf, channel: v }; },
   listAdd: addListing,
   reprice: (v) => ownsAll([v]) && commit(reprice(loadState(), v, moneyOf(inputBy('data-reprice-input', v)))),
@@ -457,16 +455,17 @@ const ACTIONS = {
   sellDone: registerSale,
   delist: (v) => { if (ownsAll([v]) && confirm('この商品の出品を取り下げて、在庫に戻します。よろしいですか？')) commit(delist(loadState(), v)); },
   recall: (v) => { if (ownsAll([v]) && confirm('この商品は売れ残り、委託先から倉庫に戻ってきましたか？ 倉庫の在庫に戻します。')) commit(recall(loadState(), v)); },
-  returnAdd: addReturn,
+  inqOk: (v) => answer(v, true),
+  inqNg: (v) => answer(v, false),
   ship: (v) => {
-    if (!ownsAll(loadState().returns.find((r) => r.id === v)?.codes ?? [])) return;
+    if (!ownsReturn(v)) return;
     const state = loadState();
     const next = shipReturn(state, v, { tracking: inputBy('data-track', v)?.value, by: staff.name });
     if (next === state) return alert('追跡番号を入力してください');
     commit(next);
   },
   returnDone: (v) => {
-    if (!ownsAll(loadState().returns.find((r) => r.id === v)?.codes ?? [])) return;
+    if (!ownsReturn(v)) return;
     if (!confirm('お客様から買取代金の返還を確認できましたか？ 完了すると、この商品は返品済みになります。')) return;
     const r = completeReturn(loadState(), v, Date.now(), staff.name);
     if (!r.ok) return alert(REASON_TEXT[r.reason]);
@@ -476,7 +475,6 @@ const ACTIONS = {
     if (!confirm('倉庫の商品・出品・売上・返品のデータを、サンプルデータに置き換えます（営業が登録した入庫待ちの商品は残ります）。よろしいですか？')) return false;
     seedSample(Date.now(), true);
     ui.sf = blankSell();
-    ui.rf = blankReturn();
     ui.lf = blankList();
     return true;
   },
@@ -491,7 +489,7 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = { mv: () => ui.mv, rl: () => ui.rl, pk: () => ui.pk, lf: () => ui.lf, sf: () => ui.sf, rf: () => ui.rf, mw: () => ui.mw, ms: () => ui.ms };
+const FORMS = { mv: () => ui.mv, rl: () => ui.rl, pk: () => ui.pk, lf: () => ui.lf, sf: () => ui.sf, mw: () => ui.mw, ms: () => ui.ms };
 const MONEY = new Set(['lf.price', 'sf.price', 'sf.shipping']);
 function onField(e, isInput) {
   const f = e.target.dataset.f ?? '';
@@ -591,19 +589,9 @@ document.addEventListener('change', (e) => {
     render();
     return;
   }
-  if (e.target.matches('[data-rf-code]')) {
-    const code = e.target.dataset.rfCode;
-    ui.rf = { ...ui.rf, codes: e.target.checked ? [...ui.rf.codes, code] : ui.rf.codes.filter((c) => c !== code) };
-    render();
-    return;
-  }
   if (!onField(e, false)) return;
   if (e.target.dataset.f === 'lf.code') ui.lf = { ...ui.lf, price: ui.lf.code ? suggestPrice(unitOf(ui.lf.code)) : 0 };
-  if (e.target.dataset.f === 'rf.visitId') {
-    const contract = returnableContracts(loadState()).find((c) => c.visitId === ui.rf.visitId);
-    ui.rf = { ...ui.rf, codes: contract ? contract.units.map((u) => u.code) : [] };
-  }
-  if (['lf.code', 'rf.visitId', 'pk.toId'].includes(e.target.dataset.f)) render(); // 金額・商品の一覧が変わるもの
+  if (['lf.code', 'pk.toId'].includes(e.target.dataset.f)) render(); // 金額・商品の一覧が変わるもの
 });
 
 // 営業のタブレット（入庫）や、別タブでの更新を反映。入力中なら、入力欄から離れたときに反映する

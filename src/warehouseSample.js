@@ -16,6 +16,7 @@ const PREFIX = 'RQ-WH';
 const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '山口 拓海': 'W-KANTO', '西田 久美': 'W-FUKUOKA', '石川 陽平': 'W-KANTO', '松井 恵': 'W-FUKUOKA', '三浦 香織': 'W-KANTO', '宮本 諒': 'W-FUKUOKA', '平田 美咲': 'W-FUKUOKA', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
 // 高額品（貴金属など）は納入のときから本社、それ以外はお客様ごとの倉庫
 const whOf = (customerName, item) => (item && isHighValue(item, MASTER) ? 'W-HONSHA' : WH_OF[customerName] ?? 'W-OSAKA');
+const CO_OPERATOR = '佐藤'; // クーリングオフ用の番号を受けたオペレーター（見本。コールセンターの受付者）
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
 // シールの色（見本）。貴金属・高額な商品が、紫・赤（本社管理）、それ以外は黄・緑・青
 const colorOf = (category, price) => (price >= 400000 ? 'purple' : category === 'ジュエリー・貴金属' || price >= 300000 ? 'red' : 'other');
@@ -120,10 +121,12 @@ export function buildSample(now = Date.now()) {
     (s) => W.sell(s, code(10), { price: 285000, shipping: 1500, at: at(0) }), // 今日の売上
     (s) => W.listItem(s, code(11), { channel: 'auction', price: 355000, vendor: '大阪時計オークション', at: at(2) }),
     // 返品（クーリングオフ）: 期間内に受付 → 返送 → 完了
-    (s) => W.requestReturn(s, { master: MASTER, customerName: '岡本 優', codes: [code(15)], reason: 'regret', at: at(8, 11) }),
+    (s) => W.requestReturn(s, { master: MASTER, customerName: '岡本 優', phone: '090-3456-7788', codes: [code(15)], reason: 'regret', at: at(8, 11), by: CO_OPERATOR }),
+    (s) => W.answerInquiry(s, s.returns[0].id, { ok: true, note: '在庫にあります', at: at(8, 13), by: staffOfWh('W-FUKUOKA') }),
     (s) => W.shipReturn(s, s.returns[0].id, { tracking: '5012-3344-9871', at: at(7, 14) }),
     (s) => W.completeReturn(s, s.returns[0].id, at(6, 10)),
-    (s) => W.requestReturn(s, { master: MASTER, customerName: '斎藤 清', codes: [code(16)], reason: 'price', memo: '他社の見積もりのほうが高かったとのこと', at: at(5, 10) }),
+    (s) => W.requestReturn(s, { master: MASTER, customerName: '斎藤 清', phone: '080-2211-9034', codes: [code(16)], reason: 'price', memo: '他社の見積もりのほうが高かったとのこと', at: at(5, 10), by: CO_OPERATOR }),
+    (s) => W.answerInquiry(s, s.returns[0].id, { ok: true, at: at(5, 13), by: staffOfWh('W-KANTO') }),
     (s) => W.shipReturn(s, s.returns[0].id, { tracking: '5012-3344-2210', at: at(4, 15) }),
     // 倉庫間の移動: エルメス ケリーは関東倉庫に移動して受取済み、コーチ ショルダーは輸送中
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', codes: [code(25)], by: staffOfWh('W-OSAKA'), at: at(7) }),
@@ -231,7 +234,10 @@ export function buildSample(now = Date.now()) {
     (s) => Sale.createSalePack(s, MASTER, { fromId: 'W-HONSHA', buyer: { name: '○○ジュエリー（担当 山下）', zip: '5410044', address: '大阪府大阪市中央区伏見町1-1', phone: '06-0000-0106' }, by: staffOfWh('W-HONSHA'), at: at(0, 12) }),
     (s) => Sale.addToSalePack(s, MASTER, s.transfers[0].id, code(61), { at: at(0, 12) }),
     (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'yamato', size: '80' }),
-    (s) => W.requestReturn(s, { master: MASTER, customerName: '松本 千春', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10) }),
+    (s) => W.requestReturn(s, { master: MASTER, customerName: '森田 誠', phone: '090-7788-3456', codes: [code(17)], reason: 'regret', memo: '手放したくなくなったとのこと', at: at(1, 10), by: CO_OPERATOR }),
+    (s) => W.answerInquiry(s, s.returns[0].id, { ok: true, note: '在庫にあります。返送の準備をします', at: at(1, 12), by: staffOfWh('W-FUKUOKA') }), // 返送の準備中
+    (s) => W.requestReturn(s, { master: MASTER, customerName: '松本 千春', phone: '090-5566-1020', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10), by: CO_OPERATOR }), // 倉庫に問い合わせ中
+    (s) => W.requestReturn(s, { master: MASTER, customerName: units[0].customerName, phone: '070-4488-2301', codes: [code(0)], reason: 'regret', memo: '売却済みのため、お断りした', at: at(0, 11), by: CO_OPERATOR }), // 売却済みは対応不可
   ];
   const state = steps.reduce((s, step) => {
     const r = step(s);

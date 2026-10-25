@@ -110,45 +110,111 @@ test('在庫の集計: 状態ごとの点数と、在庫（売れていない入
   assert.equal(sum.inventoryCost, 10000); // Dのみ
 });
 
-test('返品（クーリングオフ）: 保管期間内の入庫済み商品だけ受け付け、返金していただく額は買取代金', () => {
-  const s = state([unit('A', 3, { price: 12000 }), unit('B', 3, { price: 8000 }), unit('C', 11), unit('D', 1, { status: 'pending', storedAt: null })]);
-  const r = W.requestReturn(s, { customerName: '山田 花子', codes: ['A', 'B', 'C', 'D', 'Z'], reason: 'family', at: NOW });
+const soldRec = { stage: 'sold', channel: 'mercari', listPrice: 20000, listedAt: day(15), soldAt: day(10), soldPrice: 18000, fee: 1800, shipping: 600 };
+
+test('クーリングオフ依頼: 受電で作る。期間超過・入庫前も作れて、倉庫が回答する。売却済みは対応不可。登録のない商品は作れない', () => {
+  const s = state([unit('A', 3, { price: 12000 }), unit('B', 3, { price: 8000 }), unit('C', 11), unit('D', 1, { status: 'pending', storedAt: null }), unit('S', 20)], { S: soldRec });
+  const r = W.requestReturn(s, { customerName: '山田 花子', phone: '090-1111-2222', codes: ['A', 'B', 'C', 'D', 'S', 'Z'], reason: 'family', at: NOW, by: '受付 太郎' });
   assert.equal(r.ok, true);
-  assert.deepEqual(r.ret.codes, ['A', 'B']);
-  assert.equal(r.ret.refund, 20000);
-  assert.equal(r.ret.status, 'requested');
-  assert.deepEqual(r.rejected.sort((a, b) => a.code.localeCompare(b.code)), [{ code: 'C', reason: 'expired' }, { code: 'D', reason: 'notStored' }, { code: 'Z', reason: 'unknown' }]);
+  assert.equal(r.ret.status, 'inquiring'); // 倉庫に問い合わせ中
+  assert.deepEqual(r.ret.codes, ['A', 'B', 'C', 'D']);
+  assert.equal(r.ret.refund, 12000 + 8000 + 10000 + 10000);
+  assert.equal(r.ret.phone, '090-1111-2222');
+  assert.deepEqual(r.ret.expiredCodes, ['C']); // 期間（10日）を過ぎた商品は、倉庫が個別に判断する
+  assert.deepEqual(r.ret.inquiry, { askedAt: NOW, askedBy: '受付 太郎' });
+  assert.equal(r.ret.requestedBy, '受付 太郎');
+  const sold = r.rets.find((x) => x.status === 'unavailable');
+  assert.deepEqual(sold.codes, ['S']);
+  assert.deepEqual(sold.unavailable, { reason: 'sold', note: '売却済み', at: NOW, by: '受付 太郎' });
+  assert.deepEqual(r.rejected, [{ code: 'Z', reason: 'unknown' }]);
   const rows = W.buildRows(r.state, NOW);
   assert.equal(rows.find((x) => x.unit.code === 'A').stage, 'returning');
   assert.equal(rows.find((x) => x.unit.code === 'A').canList, false);
+  assert.equal(rows.find((x) => x.unit.code === 'S').stage, 'sold'); // 対応不可の記録は、商品の状態を変えない
   assert.equal(W.requestReturn(r.state, { customerName: '山田 花子', codes: ['A'], reason: 'family', at: NOW }).ok, false); // 対応中の二重受付
-  assert.equal(W.requestReturn(s, { customerName: '山田 花子', codes: ['C'], reason: 'family', at: NOW }).ok, false); // 全部拒否
+  assert.deepEqual(W.requestReturn(r.state, { customerName: '山田 花子', codes: ['A'], reason: 'family', at: NOW }).rejected, [{ code: 'A', reason: 'inProgress' }]);
+  assert.equal(W.requestReturn(s, { customerName: '山田 花子', codes: ['Z'], reason: 'family', at: NOW }).ok, false); // 全部拒否
+});
+
+test('クーリングオフ依頼: 倉庫が回答する。返送できれば返送の準備へ。対応できなければ理由つきで終了し、商品は元の状態に戻る', () => {
+  const s0 = state([unit('A', 12, { price: 12000 })]); // 期間超過の在庫
+  const r = W.requestReturn(s0, { customerName: '山田 花子', codes: ['A'], reason: 'price', at: NOW });
+  const id = r.ret.id;
+  assert.equal(W.shipReturn(r.state, id, { tracking: '1', at: NOW }), r.state); // 回答の前には返送できない
+  assert.equal(W.completeReturn(r.state, id, NOW).ok, false);
+  assert.equal(W.answerInquiry(r.state, id, { ok: false, note: '  ', at: NOW }), r.state); // 対応できない場合は、理由が必要
+  const ok = W.answerInquiry(r.state, id, { ok: true, note: '在庫にあります', at: NOW + 1, by: '藤田 結衣' });
+  assert.equal(ok.returns[0].status, 'requested');
+  assert.deepEqual({ ...ok.returns[0].inquiry }, { askedAt: NOW, ok: true, note: '在庫にあります', answeredAt: NOW + 1, answeredBy: '藤田 結衣' });
+  assert.equal(W.answerInquiry(ok, id, { ok: false, note: 'やはり不可' }), ok); // 回答済みは変えない
+  const ng = W.answerInquiry(r.state, id, { ok: false, note: '期間を過ぎており、出品の準備に入っている', at: NOW + 1, by: '藤田 結衣' });
+  assert.equal(ng.returns[0].status, 'unavailable');
+  assert.deepEqual({ ...ng.returns[0].unavailable }, { reason: 'warehouse', note: '期間を過ぎており、出品の準備に入っている', at: NOW + 1, by: '藤田 結衣' });
+  const row = W.buildRows(ng, NOW)[0];
+  assert.equal(row.stage, 'stock'); assert.equal(row.canList, true); // 返品にならなかった商品は、元の状態に戻る
+  assert.equal(W.requestReturn(ng, { customerName: '山田 花子', codes: ['A'], reason: 'price', at: NOW }).ok, true); // 対応不可になったあとは、改めて依頼できる
+});
+
+test('クーリングオフ依頼: 出品中など在庫以外の商品は、問い合わせ中は状態を変えず、倉庫が返送できると答えたら返品対応中になる', () => {
+  const listed = W.listItem(state([unit('A', 12)]), 'A', { channel: 'mercari', price: 15000, at: NOW }).state;
+  const r = W.requestReturn(listed, { customerName: '山田 花子', codes: ['A'], reason: 'family', at: NOW });
+  assert.equal(r.ok, true);
+  assert.equal(W.buildRows(r.state, NOW)[0].stage, 'listed');
+  assert.equal(W.buildRows(W.answerInquiry(r.state, r.ret.id, { ok: true, at: NOW }), NOW)[0].stage, 'returning');
 });
 
 test('返品: 返送済み（追跡番号）→ 完了（代金の返還を確認）。完了した商品は返品済みになり在庫から外れる', () => {
   const s0 = state([unit('A', 3, { price: 12000 })]);
   const r = W.requestReturn(s0, { customerName: '山田 花子', codes: ['A'], reason: 'price', at: NOW });
   const id = r.ret.id;
-  assert.equal(W.completeReturn(r.state, id, NOW).ok, false); // 返送前には完了できない
-  const shipped = W.shipReturn(r.state, id, { tracking: ' 1234-5678 ', at: NOW });
+  const asked = W.answerInquiry(r.state, id, { ok: true, at: NOW });
+  assert.equal(W.completeReturn(asked, id, NOW).ok, false); // 返送前には完了できない
+  const shipped = W.shipReturn(asked, id, { tracking: ' 1234-5678 ', at: NOW });
   assert.equal(shipped.returns[0].status, 'shipped'); assert.equal(shipped.returns[0].tracking, '1234-5678');
-  assert.equal(W.shipReturn(r.state, id, { tracking: '', at: NOW }), r.state); // 追跡番号が空なら変えない
+  assert.equal(W.shipReturn(asked, id, { tracking: '', at: NOW }), asked); // 追跡番号が空なら変えない
   const done = W.completeReturn(shipped, id, NOW);
   assert.equal(done.ok, true);
   const row = W.buildRows(done.state, NOW)[0];
   assert.equal(row.stage, 'returned');
   assert.equal(W.stockSummary([row]).inventoryCost, 0);
   assert.equal(done.state.returns[0].status, 'done');
+  assert.equal(W.requestReturn(done.state, { customerName: '山田 花子', codes: ['A'], reason: 'price', at: NOW }).rejected[0].reason, 'returned');
 });
 
-test('返品の対象: 契約（訪問）ごとに、受付できる商品をまとめる', () => {
+test('進捗: 依頼の状態ごとに、受電 → 倉庫の回答 → 返送 → 代金の返還 の段階と、いまの段階を返す', () => {
+  const r = W.requestReturn(state([unit('A', 3)]), { customerName: '山田 花子', codes: ['A'], reason: 'price', at: NOW, by: '受付 太郎' });
+  const label = (steps) => steps.map((x) => `${x.label}:${x.state}`).join(' ');
+  assert.equal(label(W.returnSteps(r.ret)), '受電・依頼:done 倉庫の回答:current 返送:todo 代金の返還:todo');
+  const asked = W.answerInquiry(r.state, r.ret.id, { ok: true, at: NOW });
+  assert.equal(label(W.returnSteps(asked.returns[0])), '受電・依頼:done 倉庫の回答:done 返送:current 代金の返還:todo');
+  const shipped = W.shipReturn(asked, r.ret.id, { tracking: '1', at: NOW });
+  assert.equal(label(W.returnSteps(shipped.returns[0])), '受電・依頼:done 倉庫の回答:done 返送:done 代金の返還:current');
+  const done = W.completeReturn(shipped, r.ret.id, NOW).state;
+  assert.equal(label(W.returnSteps(done.returns[0])), '受電・依頼:done 倉庫の回答:done 返送:done 代金の返還:done');
+  const ng = W.answerInquiry(r.state, r.ret.id, { ok: false, note: '不可', at: NOW });
+  assert.equal(label(W.returnSteps(ng.returns[0])), '受電・依頼:done 倉庫の回答:ng 返送:todo 代金の返還:todo');
+  assert.deepEqual(['inquiring', 'requested', 'shipped'].map((x) => W.isOpenReturn({ status: x })), [true, true, true]);
+  assert.deepEqual(['done', 'unavailable'].map((x) => W.isOpenReturn({ status: x })), [false, false]);
+});
+
+test('依頼の探し方: お客様名・シールNo.・商品名で探し、契約ごとにまとめる。商品ごとに、受け付けられるかの目安を出す', () => {
   const same = { visitId: 'V-1' };
-  const s = state([unit('A', 3, same), unit('B', 3, same), unit('C', 11, same), unit('E', 2, { visitId: 'V-X', customerName: '佐藤 一雄' })]);
-  const list = W.returnableContracts(s, NOW);
-  assert.equal(list.length, 2);
-  const v = list.find((c) => c.customerName === '山田 花子');
-  assert.deepEqual(v.units.map((u) => u.code).sort(), ['A', 'B']); // 期間外のCは含めない
-  assert.equal(v.total, 20000);
+  const s = state([unit('A', 3, same), unit('B', 11, same), unit('E', 2, { visitId: 'V-X', customerName: '佐藤 一雄', name: 'ロレックス' }), unit('S', 20, { visitId: 'V-S' }), unit('L', 12, { visitId: 'V-L' }), unit('P', 1, { visitId: 'V-P', status: 'pending', storedAt: null })], { S: soldRec });
+  const listed = W.listItem(s, 'L', { channel: 'mercari', price: 15000, at: NOW }).state;
+  assert.deepEqual(W.cooloffContracts(listed, '', NOW), []); // 検索語がなければ出さない
+  const yamada = W.cooloffContracts(listed, '山田', NOW);
+  assert.equal(yamada.length, 4);
+  const v1 = yamada.find((c) => c.visitId === 'V-1');
+  assert.deepEqual(v1.rows.map((r) => [r.unit.code, r.check.kind]), [['A', 'ok'], ['B', 'expired']]);
+  assert.equal(v1.total, 20000);
+  assert.equal(v1.coolEnd, W.coolingOffEnd(v1.date));
+  assert.equal(yamada.find((c) => c.visitId === 'V-S').rows[0].check.kind, 'sold');
+  assert.equal(yamada.find((c) => c.visitId === 'V-L').rows[0].check.kind, 'ask'); // 出品中など、倉庫に確認するもの
+  assert.equal(yamada.find((c) => c.visitId === 'V-P').rows[0].check.kind, 'ask');
+  assert.deepEqual(W.cooloffContracts(s, ' ロレックス ', NOW).map((c) => c.customerName), ['佐藤 一雄']); // 商品名
+  assert.deepEqual(W.cooloffContracts(s, 'e', NOW).map((c) => c.visitId), ['V-X']); // シールNo.（大文字小文字を区別しない）
+  const asked = W.requestReturn(s, { customerName: '山田 花子', codes: ['A'], reason: 'family', at: NOW }).state;
+  assert.equal(W.cooloffContracts(asked, '山田', NOW).find((c) => c.visitId === 'V-1').rows[0].check.kind, 'busy'); // すでに依頼中
 });
 
 test('保存: 出品の記録と返品の記録は、保存して読み戻せる。壊れたデータは空として扱う', () => {
@@ -205,7 +271,9 @@ test('操作した担当者: 出品・売却・返品の各操作に、担当者
   assert.equal('listedBy' in W.listItem(s0, 'A', { channel: 'mercari', price: 15000, at: NOW }).state.records.A, false);
   const r = W.requestReturn(s0, { customerName: '山田 花子', codes: ['B'], reason: 'family', at: NOW, by: '山本 大地' });
   assert.equal(r.ret.requestedBy, '山本 大地');
-  const shipped = W.shipReturn(r.state, r.ret.id, { tracking: '1', at: NOW, by: '藤田 結衣' });
+  const asked = W.answerInquiry(r.state, r.ret.id, { ok: true, at: NOW, by: '中島 里奈' });
+  assert.equal(asked.returns[0].inquiry.answeredBy, '中島 里奈');
+  const shipped = W.shipReturn(asked, r.ret.id, { tracking: '1', at: NOW, by: '藤田 結衣' });
   assert.equal(shipped.returns[0].shippedBy, '藤田 結衣');
   assert.equal(W.completeReturn(shipped, r.ret.id, NOW, '小川 直樹').state.returns[0].doneBy, '小川 直樹');
 });
@@ -228,8 +296,9 @@ test('商品の履歴: 買取 → 入庫 → 出品 → 売却、返品の受付
   assert.ok(h[2].detail.includes('メルカリ') && h[2].detail.includes('中島 里奈'));
 
   const r = W.requestReturn(state([unit('B', 3, { price: 8000 })]), { customerName: '山田 花子', codes: ['B'], reason: 'family', at: day(1) });
-  const shipped = W.shipReturn(r.state, r.ret.id, { tracking: '123', at: day(0) });
-  assert.deepEqual(W.historyOf(shipped, 'B').map((e) => e.label), ['買取', '入庫', '返品受付', '返送']);
+  const asked = W.answerInquiry(r.state, r.ret.id, { ok: true, at: day(1) + 1000 });
+  const shipped = W.shipReturn(asked, r.ret.id, { tracking: '123', at: day(0) });
+  assert.deepEqual(W.historyOf(shipped, 'B').map((e) => e.label), ['買取', '入庫', '返品受付', '倉庫が回答', '返送']);
   assert.deepEqual(W.historyOf(s, 'ZZZ'), []);
 });
 
@@ -243,6 +312,9 @@ test('倉庫での絞り込み: その倉庫に入庫した商品だけ見える
   const osaka = W.scopeState(s, WO, MA);
   assert.deepEqual(osaka.units.map((u) => u.code), ['A', 'C']); // C は倉庫の記録がない古い商品＝先頭（大阪）の倉庫
   assert.deepEqual(osaka.returns.map((r) => r.id), ['R1']);
+  const ask = [...s.returns, { id: 'R3', codes: ['D'], status: 'inquiring', warehouseId: WO }]; // 入庫前の商品の問い合わせも、回答する倉庫には見える
+  assert.deepEqual(W.scopeState({ ...s, returns: ask }, WO, MA).returns.map((r) => r.id), ['R1', 'R3']);
+  assert.deepEqual(W.scopeState({ ...s, returns: ask }, WK, MA).returns.map((r) => r.id), ['R2']);
   assert.deepEqual(W.scopeState(s, WK, MA).units.map((u) => u.code), ['B']);
   assert.equal(W.scopeState(s, 'all', MA).units.length, 4);
   assert.equal(W.scopeState(s, 'all', MA), s);

@@ -7,7 +7,7 @@ export const TABS = [
   { key: 'transfer', icon: '🚚', label: '倉庫間移動', sub: '他の倉庫へ送る・受け取る' },
   { key: 'list', icon: '🛒', label: '販売（出品）', sub: '出品・委託・売却の登録' },
   { key: 'sales', icon: '💹', label: '売上管理', sub: '売上・利益（会社全体も）' },
-  { key: 'return', icon: '↩', label: 'クーリングオフ返品', sub: '返品の受付・返送・完了' },
+  { key: 'return', icon: '↩', label: 'クーリングオフ返品', sub: '問い合わせの回答・返送・完了' },
   { key: 'master', icon: '🏭', label: '倉庫マスタ', sub: '倉庫・担当者・高額品の設定' },
 ];
 export const tabLabel = (key) => TABS.find((t) => t.key === key)?.label ?? '';
