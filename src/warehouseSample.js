@@ -23,7 +23,9 @@ export function buildSample(now = Date.now()) {
     return {
       code: `${PREFIX}${String(seq).padStart(4, '0')}`, visitId: `V-WH-${daysAgo}-${userId}`, userId, customerName, at: at(daysAgo), date: W.dateOf(at(daysAgo)),
       itemId: `wh-${seq}`, name, category, rank, n: 1, qty: 1, price, status,
-      storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price) : null, by: stored ? userId : null,
+      storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price) : null,
+      // 偶数日前の買取は倉庫の担当者が明細と照合して入庫、奇数日前は営業がタブレットから入庫
+      by: !stored ? null : daysAgo % 2 === 0 ? '小川 直樹' : userId, check: stored && daysAgo % 2 === 0 ? { by: '小川 直樹', at: at(daysAgo, 17), method: 'manual' } : null,
     };
   });
 

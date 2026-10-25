@@ -195,3 +195,17 @@ test('在庫の集計: 委託中は倉庫の在庫の原価に入れず、別に
   assert.equal(sum.consigned, 1); assert.equal(sum.consignedCost, 30000);
   assert.equal(sum.inventoryCost, 5000);
 });
+
+test('操作した担当者: 出品・売却・返品の各操作に、担当者名を記録できる（指定しなければ記録しない）', () => {
+  const s0 = state([unit('A', 12), unit('B', 3)]);
+  const listed = W.listItem(s0, 'A', { channel: 'mercari', price: 15000, at: NOW, by: '小川 直樹' }).state;
+  assert.equal(listed.records.A.listedBy, '小川 直樹');
+  const sold = W.sell(listed, 'A', { price: 14000, at: NOW, by: '中島 里奈' }).state;
+  assert.equal(sold.records.A.listedBy, '小川 直樹'); assert.equal(sold.records.A.soldBy, '中島 里奈');
+  assert.equal('listedBy' in W.listItem(s0, 'A', { channel: 'mercari', price: 15000, at: NOW }).state.records.A, false);
+  const r = W.requestReturn(s0, { customerName: '山田 花子', codes: ['B'], reason: 'family', at: NOW, by: '山本 大地' });
+  assert.equal(r.ret.requestedBy, '山本 大地');
+  const shipped = W.shipReturn(r.state, r.ret.id, { tracking: '1', at: NOW, by: '藤田 結衣' });
+  assert.equal(shipped.returns[0].shippedBy, '藤田 結衣');
+  assert.equal(W.completeReturn(shipped, r.ret.id, NOW, '小川 直樹').state.returns[0].doneBy, '小川 直樹');
+});

@@ -98,16 +98,18 @@ export function stockSummary(rows) {
 }
 
 // ---- 出品・売却 -----------------------------------------------------------------
+// 操作した担当者の名前（指定されたときだけ記録する）
+const who = (key, by) => (by ? { [key]: by } : {});
 const fail = (state, reason) => ({ ok: false, state, reason });
 const withRecord = (state, code, rec) => ({ ...state, records: { ...state.records, [code]: rec } });
 const OPEN = ['listed', 'consigned']; // 販売中（売れる）状態
 const rowOf = (state, code, now) => buildRows(state, now).find((r) => r.unit.code === code);
 
-export function listItem(state, code, { channel, price, vendor = '', at = Date.now() }) {
+export function listItem(state, code, { channel, price, vendor = '', at = Date.now(), by = '' }) {
   const row = rowOf(state, code, at);
   if (!row || !row.canList) return fail(state, 'notListable');
   if (!channelOf(channel) || !(price > 0)) return fail(state, 'badInput');
-  const rec = { stage: 'listed', channel, listPrice: price, listedAt: at };
+  const rec = { stage: 'listed', channel, listPrice: price, listedAt: at, ...who('listedBy', by) };
   return { ok: true, state: withRecord(state, code, channelOf(channel).consign ? { ...rec, stage: 'consigned', vendor: vendor.trim() } : rec) };
 }
 
@@ -123,11 +125,11 @@ export function delist(state, code) {
   return { ...state, records };
 }
 
-export function sell(state, code, { price, shipping = 0, buyer = '', fee, at = Date.now() }) {
+export function sell(state, code, { price, shipping = 0, buyer = '', fee, at = Date.now(), by = '' }) {
   const rec = state.records[code];
   if (!OPEN.includes(rec?.stage)) return fail(state, rec ? 'alreadySold' : 'notListed');
   if (!(price > 0) || shipping < 0) return fail(state, 'badInput');
-  return { ok: true, state: withRecord(state, code, { ...rec, stage: 'sold', soldAt: at, soldPrice: price, fee: fee ?? feeFor(rec.channel, price), shipping, buyer }) };
+  return { ok: true, state: withRecord(state, code, { ...rec, stage: 'sold', soldAt: at, soldPrice: price, fee: fee ?? feeFor(rec.channel, price), shipping, buyer, ...who('soldBy', by) }) };
 }
 
 // 委託の売れ残りが倉庫に戻った（在庫に戻る）。委託中のものだけ
@@ -184,7 +186,7 @@ export function returnableContracts(state, now = Date.now()) {
 const newReturnId = (at) => `RT-${at.toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
 // 受け付けられない商品は rejected に理由つきで返す（unknown／notStored／expired／inProgress／notReturnable）
-export function requestReturn(state, { customerName, codes, reason, memo = '', at = Date.now() }) {
+export function requestReturn(state, { customerName, codes, reason, memo = '', at = Date.now(), by = '' }) {
   const rows = buildRows(state, at);
   const accepted = [];
   const rejected = [];
@@ -201,7 +203,7 @@ export function requestReturn(state, { customerName, codes, reason, memo = '', a
   if (!accepted.length) return { ok: false, state, rejected };
   const ret = {
     id: newReturnId(at), customerName, codes: accepted.map((u) => u.code), reason, memo, refund: sumBy(accepted, (u) => u.price),
-    status: 'requested', requestedAt: at, shippedAt: null, tracking: '', doneAt: null,
+    status: 'requested', requestedAt: at, shippedAt: null, tracking: '', doneAt: null, ...who('requestedBy', by),
   };
   return { ok: true, state: { ...state, returns: [ret, ...state.returns] }, ret, rejected };
 }
@@ -209,15 +211,15 @@ export function requestReturn(state, { customerName, codes, reason, memo = '', a
 const patchReturn = (state, id, patch) => ({ ...state, returns: state.returns.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
 
 // 返送した（追跡番号を記録）
-export function shipReturn(state, id, { tracking, at = Date.now() }) {
+export function shipReturn(state, id, { tracking, at = Date.now(), by = '' }) {
   const t = String(tracking ?? '').trim();
   const ret = state.returns.find((r) => r.id === id);
-  return t && ret?.status === 'requested' ? patchReturn(state, id, { status: 'shipped', tracking: t, shippedAt: at }) : state;
+  return t && ret?.status === 'requested' ? patchReturn(state, id, { status: 'shipped', tracking: t, shippedAt: at, ...who('shippedBy', by) }) : state;
 }
 
 // お客様から買取代金の返還を確認して完了。返送前には完了できない
-export function completeReturn(state, id, at = Date.now()) {
+export function completeReturn(state, id, at = Date.now(), by = '') {
   const ret = state.returns.find((r) => r.id === id);
   if (ret?.status !== 'shipped') return fail(state, 'notShipped');
-  return { ok: true, state: patchReturn(state, id, { status: 'done', doneAt: at }) };
+  return { ok: true, state: patchReturn(state, id, { status: 'done', doneAt: at, ...who('doneBy', by) }) };
 }

@@ -22,6 +22,8 @@ test('本社 経理部の画面は、描画できる（サンプルデータ入�
   assert.ok(root.innerHTML.includes('本社 経理部') && root.innerHTML.includes('所持金の確認') && root.innerHTML.includes('鈴木 一郎'));
 });
 
+globalThis.sessionStorage = { getItem: (k) => (k === 'rq-mock-wh-session' ? 'wh01' : null), setItem() {}, removeItem() {} }; // 倉庫の担当者としてログイン済み
+
 test('倉庫・物流の画面は、描画できる（サンプルデータ入り）。商品管理のほか、出品・売上・返品の各タブも表示できる', async () => {
   root.innerHTML = '';
   await import('../warehouse/warehouse.js');

@@ -115,6 +115,7 @@ export const clearTransactions = () => {
   [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
+  sessionStorage.removeItem('rq-mock-wh-session'); // 倉庫の担当者のログイン状態も
 };
 
 export const RESET_CONFIRM = '契約・査定依頼・コメント・訪問状況・始業終業・経費・持ち帰り・コールセンターの受付のデータをすべて初期化します。よろしいですか？（商品マスタは消えません）';

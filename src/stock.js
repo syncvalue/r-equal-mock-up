@@ -48,21 +48,23 @@ export const dateKeys = (list) => [...new Set(list.map((u) => u.date))].sort();
 
 // 読み取った（入力した）シールNo.を入庫する。userId を指定すると、その営業の商品だけ入庫できる（営業のタブレット）。
 // userId が null のときは、誰の商品でも入庫できる（倉庫の担当者。契約書とともに商品一式を渡された場合など）。結果: ok／dup（入庫済み）／other（他の営業の商品）／unknown（未登録）
-export function receive(list, userId, raw, { location, by, at = Date.now() }) {
+export function receive(list, userId, raw, { location, by, at = Date.now(), method = null }) {
   const code = String(raw ?? '').trim().toUpperCase();
   const unit = list.find((u) => u.code === code);
   if (!code) return { list, result: { type: 'empty' } };
   if (!unit) return { list, result: { type: 'unknown', code } };
   if (userId != null && unit.userId !== userId) return { list, result: { type: 'other', code, unit } };
   if (unit.status === 'stored') return { list, result: { type: 'dup', code, unit } };
-  const stored = { ...unit, status: 'stored', storedAt: at, location, by };
+  // method（scan＝シール読取／manual＝明細と実物を見比べて☑）は、倉庫での照合の記録。営業のタブレットからの入庫は null
+  const stored = { ...unit, status: 'stored', storedAt: at, location, by, check: method ? { by, at, method } : null };
   return { list: list.map((u) => (u.code === code ? stored : u)), result: { type: 'ok', code, unit: stored } };
 }
 
-// 契約（訪問）1件分の、入庫待ち・所在不明の商品をまとめて入庫する。count は入庫した点数
-export function receiveVisit(list, visitId, { location, by, at = Date.now() }) {
-  const codes = list.filter((u) => u.visitId === visitId && u.status !== 'stored').map((u) => u.code);
-  return { list: codes.reduce((acc, code) => receive(acc, null, code, { location, by, at }).list, list), count: codes.length };
+// 指定した商品（シールNo.）を、まとめて入庫する。入庫待ち・所在不明のものだけが対象で、count は入庫した点数。
+// 倉庫では、明細と実物を照合（☑）した商品だけを渡す
+export function receiveCodes(list, codes, opts) {
+  const todo = codes.filter((c) => list.some((u) => u.code === c && u.status !== 'stored'));
+  return { list: todo.reduce((acc, code) => receive(acc, null, code, opts).list, list), count: todo.length };
 }
 
 // 手元にない商品を「所在不明」として報告する（後でシールが読み取れたら、通常どおり入庫できる）

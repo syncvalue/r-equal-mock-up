@@ -3,18 +3,20 @@ import { STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY } from '../src/store.js';
 import {
   loadState, saveState, buildRows, listItem, reprice, delist, recall, sell, requestReturn, shipReturn, completeReturn, returnableContracts, suggestPrice,
 } from '../src/warehouse.js';
-import { LOCATIONS, loadUnits, saveUnits, receive, receiveVisit, resultMessage } from '../src/stock.js';
+import { LOCATIONS, loadUnits, saveUnits, receive, receiveCodes, resultMessage } from '../src/stock.js';
 import { seedSample } from '../src/warehouseSample.js';
+import { login, loadSession, saveSession, clearSession } from '../src/warehouseStaff.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { formatMoneyInput } from '../src/moneyInput.js';
+import { esc } from '../src/format.js';
 import { stockTab } from './stockTab.js';
 import { listTab } from './listTab.js';
 import { salesTab } from './salesTab.js';
 import { returnTab } from './returnTab.js';
 import { receiveTab } from './receiveTab.js';
+import { loginView } from './loginView.js';
 
 const $ = (s) => document.querySelector(s);
-const BY = '倉庫担当'; // 入庫を受け付けた人として記録する名前
 const TABS = [['stock', '📦 商品管理'], ['receive', '📥 入庫'], ['list', '🛒 販売（出品）'], ['sales', '💹 売上管理'], ['return', '↩ クーリングオフ返品']];
 const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' });
 const blankSell = () => ({ code: '', price: 0, shipping: 0, buyer: '' });
@@ -23,7 +25,9 @@ const REASON_TEXT = { notListable: '出品できない商品です（クーリ�
 const REJECT_TEXT = { unknown: '登録のない商品', notStored: '入庫前の商品', expired: '保管期間（10日間）を過ぎた商品', inProgress: 'すでに返品対応中の商品', notReturnable: '返品できない状態の商品' };
 
 let tab = 'stock';
-const ui = { rc: { location: LOCATIONS[0], last: null }, filter: 'all', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+let staff = loadSession(); // ログイン中の担当者（操作した人として記録する）
+let loginError = '';
+const ui = { rc: { location: LOCATIONS[0], last: null, checks: [] }, filter: 'all', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 const tabBody = (state, now) => {
@@ -36,13 +40,14 @@ const tabBody = (state, now) => {
 };
 
 function render() {
+  if (!staff) { $('#root').innerHTML = loginView(loginError); return; }
   const now = Date.now();
   const state = loadState();
   const rows = buildRows(state, now);
   $('#root').innerHTML = `
   <header class="bg-sky-900 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">倉庫・物流 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">入庫待ち <b class="text-lg">${state.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件 <button class="ml-3 text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
+    <div class="text-sm">入庫待ち <b class="text-lg">${state.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件 <span class="ml-3">👤 ${esc(staff.name)}</span> <button class="ml-1 text-xs underline text-white/70" data-logout>ログアウト</button> <button class="ml-3 text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <nav class="bg-white border-b px-6 flex gap-1 items-center">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 ${tab === k ? 'border-sky-700 text-sky-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}</nav>
   <main class="p-4 space-y-4 overflow-y-auto" style="height:calc(100vh - 112px)">${tabBody(state, now)}</main>`;
@@ -55,13 +60,13 @@ const inputBy = (attr, value) => [...document.querySelectorAll(`[${attr}]`)].fin
 const unitOf = (code) => loadState().units.find((u) => u.code === code);
 
 function addListing() {
-  const r = listItem(loadState(), ui.lf.code, { channel: ui.lf.channel, price: ui.lf.price, vendor: ui.lf.vendor });
+  const r = listItem(loadState(), ui.lf.code, { channel: ui.lf.channel, price: ui.lf.price, vendor: ui.lf.vendor, by: staff.name });
   if (!r.ok) return alert(REASON_TEXT[r.reason]);
   commit(r.state);
   ui.lf = { ...blankList(), channel: ui.lf.channel, vendor: ui.lf.vendor };
 }
 function registerSale(code) {
-  const r = sell(loadState(), code, { price: ui.sf.price, shipping: ui.sf.shipping, buyer: ui.sf.buyer.trim() });
+  const r = sell(loadState(), code, { price: ui.sf.price, shipping: ui.sf.shipping, buyer: ui.sf.buyer.trim(), by: staff.name });
   if (!r.ok) return alert(REASON_TEXT[r.reason]);
   commit(r.state);
   ui.sf = blankSell();
@@ -70,22 +75,29 @@ function addReturn() {
   const state = loadState();
   const contract = returnableContracts(state).find((c) => c.visitId === ui.rf.visitId);
   if (!contract || !ui.rf.codes.length) return;
-  const r = requestReturn(state, { customerName: contract.customerName, codes: ui.rf.codes, reason: ui.rf.reason, memo: ui.rf.memo.trim() });
+  const r = requestReturn(state, { customerName: contract.customerName, codes: ui.rf.codes, reason: ui.rf.reason, memo: ui.rf.memo.trim(), by: staff.name });
   if (!r.ok) return alert(`返品を受け付けられませんでした。\n${r.rejected.map((x) => `${x.code}: ${REJECT_TEXT[x.reason]}`).join('\n')}`);
   commit(r.state);
   ui.rf = blankReturn();
 }
-// 入庫（誰の商品でも入庫できる）。結果は画面に表示する
+// 入庫（誰の商品でも入庫できる）。シールを読み取った場合は、読取で照合したものとして記録する
 function storeCode(raw) {
-  const { list, result } = receive(loadUnits(), null, raw, { location: ui.rc.location, by: BY });
+  const { list, result } = receive(loadUnits(), null, raw, { location: ui.rc.location, by: staff.name, method: 'scan' });
   if (result.type === 'ok' && !saveUnits(list)) return alert('保存できませんでした（容量超過）');
   ui.rc = { ...ui.rc, last: resultMessage(result) };
 }
-function storeVisit(visitId) {
-  const { list, count } = receiveVisit(loadUnits(), visitId, { location: ui.rc.location, by: BY });
-  if (!count) return;
+// 明細と実物を見比べて☑した商品を入庫する（☑の記録は、入庫した商品に残る）
+function storeChecked(codes) {
+  const { list, count } = receiveCodes(loadUnits(), codes.filter((c) => ui.rc.checks.includes(c)), { location: ui.rc.location, by: staff.name, method: 'manual' });
+  if (!count) return alert('明細と実物を見比べて、☑を付けた商品がありません');
   if (!saveUnits(list)) return alert('保存できませんでした（容量超過）');
-  ui.rc = { ...ui.rc, last: { ok: true, text: `${count}点を ${ui.rc.location} に入庫しました` } };
+  ui.rc = { ...ui.rc, checks: ui.rc.checks.filter((c) => !codes.includes(c)), last: { ok: true, text: `${count}点を ${ui.rc.location} に入庫しました（照合: ${staff.name}）` } };
+}
+const visitCodes = (visitId) => loadUnits().filter((u) => u.visitId === visitId && u.status !== 'stored').map((u) => u.code);
+function toggleAll(visitId) {
+  const codes = visitCodes(visitId);
+  const all = codes.every((c) => ui.rc.checks.includes(c));
+  ui.rc = { ...ui.rc, checks: all ? ui.rc.checks.filter((c) => !codes.includes(c)) : [...new Set([...ui.rc.checks, ...codes])] };
 }
 function goReturn(visitId) {
   const contract = returnableContracts(loadState()).find((c) => c.visitId === visitId);
@@ -93,13 +105,22 @@ function goReturn(visitId) {
   tab = 'return';
 }
 
+function doLogin() {
+  const r = login($('[data-login-id]')?.value, $('[data-login-pw]')?.value);
+  loginError = r.ok ? '' : r.error;
+  if (r.ok) { staff = r.staff; saveSession(r.staff.id); }
+}
+
 const ACTIONS = {
   tab: (v) => { tab = v; },
   filter: (v) => { ui.filter = v; },
   rcLoc: (v) => { ui.rc = { ...ui.rc, location: v }; },
   rcSubmit: () => storeCode($('[data-rc-code]')?.value),
-  rcUnit: storeCode,
-  rcVisit: storeVisit,
+  rcUnit: (v) => storeChecked([v]),
+  rcVisit: (v) => storeChecked(visitCodes(v)),
+  rcAll: toggleAll,
+  logout: () => { clearSession(); staff = null; loginError = ''; },
+  login: doLogin,
   period: (v) => { ui.period = v; },
   goList: (v) => { ui.lf = { ...blankList(), code: v, price: suggestPrice(unitOf(v)) }; tab = 'list'; },
   goReturn,
@@ -114,13 +135,13 @@ const ACTIONS = {
   returnAdd: addReturn,
   ship: (v) => {
     const state = loadState();
-    const next = shipReturn(state, v, { tracking: inputBy('data-track', v)?.value });
+    const next = shipReturn(state, v, { tracking: inputBy('data-track', v)?.value, by: staff.name });
     if (next === state) return alert('追跡番号を入力してください');
     commit(next);
   },
   returnDone: (v) => {
     if (!confirm('お客様から買取代金の返還を確認できましたか？ 完了すると、この商品は返品済みになります。')) return;
-    const r = completeReturn(loadState(), v);
+    const r = completeReturn(loadState(), v, Date.now(), staff.name);
     if (!r.ok) return alert(REASON_TEXT[r.reason]);
     commit(r.state);
   },
@@ -155,6 +176,7 @@ function onField(e, isInput) {
   return true;
 }
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches?.('[data-login-id], [data-login-pw]')) { doLogin(); render(); return; }
   if (e.key !== 'Enter' || !e.target.matches?.('[data-rc-code]')) return;
   storeCode(e.target.value);
   render();
@@ -173,6 +195,12 @@ document.addEventListener('input', (e) => {
   onField(e, true);
 });
 document.addEventListener('change', (e) => {
+  if (e.target.matches?.('[data-rc-check]')) {
+    const code = e.target.dataset.rcCheck;
+    ui.rc = { ...ui.rc, checks: e.target.checked ? [...ui.rc.checks, code] : ui.rc.checks.filter((c) => c !== code) };
+    render();
+    return;
+  }
   if (e.target.matches('[data-rf-code]')) {
     const code = e.target.dataset.rfCode;
     ui.rf = { ...ui.rf, codes: e.target.checked ? [...ui.rf.codes, code] : ui.rf.codes.filter((c) => c !== code) };

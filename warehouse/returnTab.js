@@ -30,13 +30,13 @@ function requestForm(contracts, rf, now) {
 function returnItem(r, unitsByCode) {
   const [label, cls] = STATUS[r.status];
   return `<div class="rounded-lg border p-3 space-y-2 text-sm">
-    <div class="flex flex-wrap items-center gap-2"><b class="text-base">${esc(r.customerName)} 様</b>${badge(cls, label)}<span class="text-xs text-slate-500">受付 ${mdTime(r.requestedAt)}／${esc(reasonOf(r.reason).label)}</span></div>
+    <div class="flex flex-wrap items-center gap-2"><b class="text-base">${esc(r.customerName)} 様</b>${badge(cls, label)}<span class="text-xs text-slate-500">受付 ${mdTime(r.requestedAt)}${r.requestedBy ? `（${esc(r.requestedBy)}）` : ''}／${esc(reasonOf(r.reason).label)}</span></div>
     <div>${r.codes.map((c) => esc(unitsByCode.get(c)?.name ?? c)).join('、')}（${r.codes.length}点）</div>
     ${r.memo ? `<div class="text-xs text-slate-500">${esc(r.memo)}</div>` : ''}
     <div>お客様から返していただく買取代金 <b>${yen(r.refund)}</b></div>
     ${r.status === 'requested' ? `<div class="flex items-end gap-2"><label class="text-xs font-bold flex-1">返送の追跡番号<input class="inp mt-1 font-normal" data-track="${esc(r.id)}" placeholder="例: 5012-3344-9871" /></label><button class="b b-pri" data-ship="${esc(r.id)}">返送済みにする</button></div>` : ''}
-    ${r.status === 'shipped' ? `<div class="flex items-center gap-3"><span class="text-xs">追跡番号 <b>${esc(r.tracking)}</b>（${mdTime(r.shippedAt)} 返送）</span><button class="b b-pri" data-return-done="${esc(r.id)}">代金の返還を確認して完了</button></div>` : ''}
-    ${r.status === 'done' ? `<div class="text-xs text-slate-500">追跡番号 ${esc(r.tracking)}／${mdTime(r.doneAt)} 完了</div>` : ''}
+    ${r.status === 'shipped' ? `<div class="flex items-center gap-3"><span class="text-xs">追跡番号 <b>${esc(r.tracking)}</b>（${mdTime(r.shippedAt)} 返送${r.shippedBy ? `・${esc(r.shippedBy)}` : ''}）</span><button class="b b-pri" data-return-done="${esc(r.id)}">代金の返還を確認して完了</button></div>` : ''}
+    ${r.status === 'done' ? `<div class="text-xs text-slate-500">追跡番号 ${esc(r.tracking)}／${mdTime(r.doneAt)} 完了${r.doneBy ? `（${esc(r.doneBy)}）` : ''}</div>` : ''}
   </div>`;
 }
 
