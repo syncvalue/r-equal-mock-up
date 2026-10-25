@@ -3,6 +3,7 @@ import { STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY } from '../src/store.js';
 import {
   loadState, saveState, buildRows, listItem, reprice, delist, recall, sell, requestReturn, shipReturn, completeReturn, returnableContracts, suggestPrice,
 } from '../src/warehouse.js';
+import { LOCATIONS, loadUnits, saveUnits, receive, receiveVisit, resultMessage } from '../src/stock.js';
 import { seedSample } from '../src/warehouseSample.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { formatMoneyInput } from '../src/moneyInput.js';
@@ -10,9 +11,11 @@ import { stockTab } from './stockTab.js';
 import { listTab } from './listTab.js';
 import { salesTab } from './salesTab.js';
 import { returnTab } from './returnTab.js';
+import { receiveTab } from './receiveTab.js';
 
 const $ = (s) => document.querySelector(s);
-const TABS = [['stock', '📦 商品管理'], ['list', '🛒 販売（出品）'], ['sales', '💹 売上管理'], ['return', '↩ クーリングオフ返品']];
+const BY = '倉庫担当'; // 入庫を受け付けた人として記録する名前
+const TABS = [['stock', '📦 商品管理'], ['receive', '📥 入庫'], ['list', '🛒 販売（出品）'], ['sales', '💹 売上管理'], ['return', '↩ クーリングオフ返品']];
 const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' });
 const blankSell = () => ({ code: '', price: 0, shipping: 0, buyer: '' });
 const blankReturn = () => ({ visitId: '', codes: [], reason: 'family', memo: '' });
@@ -20,11 +23,12 @@ const REASON_TEXT = { notListable: '出品できない商品です（クーリ�
 const REJECT_TEXT = { unknown: '登録のない商品', notStored: '入庫前の商品', expired: '保管期間（10日間）を過ぎた商品', inProgress: 'すでに返品対応中の商品', notReturnable: '返品できない状態の商品' };
 
 let tab = 'stock';
-const ui = { filter: 'all', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+const ui = { rc: { location: LOCATIONS[0], last: null }, filter: 'all', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 const tabBody = (state, now) => {
   const data = { ...state, rows: buildRows(state, now) };
+  if (tab === 'receive') return receiveTab(state, ui);
   if (tab === 'list') return listTab(data, ui);
   if (tab === 'sales') return salesTab(state, ui, now);
   if (tab === 'return') return returnTab(state, ui, now);
@@ -38,7 +42,7 @@ function render() {
   $('#root').innerHTML = `
   <header class="bg-sky-900 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">倉庫・物流 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件 <button class="ml-3 text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
+    <div class="text-sm">入庫待ち <b class="text-lg">${state.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件 <button class="ml-3 text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <nav class="bg-white border-b px-6 flex gap-1 items-center">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 ${tab === k ? 'border-sky-700 text-sky-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}</nav>
   <main class="p-4 space-y-4 overflow-y-auto" style="height:calc(100vh - 112px)">${tabBody(state, now)}</main>`;
@@ -71,6 +75,18 @@ function addReturn() {
   commit(r.state);
   ui.rf = blankReturn();
 }
+// 入庫（誰の商品でも入庫できる）。結果は画面に表示する
+function storeCode(raw) {
+  const { list, result } = receive(loadUnits(), null, raw, { location: ui.rc.location, by: BY });
+  if (result.type === 'ok' && !saveUnits(list)) return alert('保存できませんでした（容量超過）');
+  ui.rc = { ...ui.rc, last: resultMessage(result) };
+}
+function storeVisit(visitId) {
+  const { list, count } = receiveVisit(loadUnits(), visitId, { location: ui.rc.location, by: BY });
+  if (!count) return;
+  if (!saveUnits(list)) return alert('保存できませんでした（容量超過）');
+  ui.rc = { ...ui.rc, last: { ok: true, text: `${count}点を ${ui.rc.location} に入庫しました` } };
+}
 function goReturn(visitId) {
   const contract = returnableContracts(loadState()).find((c) => c.visitId === visitId);
   ui.rf = { ...blankReturn(), visitId, codes: contract ? contract.units.map((u) => u.code) : [] };
@@ -80,6 +96,10 @@ function goReturn(visitId) {
 const ACTIONS = {
   tab: (v) => { tab = v; },
   filter: (v) => { ui.filter = v; },
+  rcLoc: (v) => { ui.rc = { ...ui.rc, location: v }; },
+  rcSubmit: () => storeCode($('[data-rc-code]')?.value),
+  rcUnit: storeCode,
+  rcVisit: storeVisit,
   period: (v) => { ui.period = v; },
   goList: (v) => { ui.lf = { ...blankList(), code: v, price: suggestPrice(unitOf(v)) }; tab = 'list'; },
   goReturn,
@@ -134,6 +154,12 @@ function onField(e, isInput) {
   ui[form] = { ...FORMS[form](), [key]: isMoney ? formatMoneyInput(e.target) : e.target.value };
   return true;
 }
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !e.target.matches?.('[data-rc-code]')) return;
+  storeCode(e.target.value);
+  render();
+  $('[data-rc-code]')?.focus(); // 続けて読み取れるように
+});
 document.addEventListener('input', (e) => {
   if (e.target.matches('[data-reprice-input]')) return void formatMoneyInput(e.target);
   if (e.target.matches('[data-q]')) {

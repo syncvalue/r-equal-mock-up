@@ -46,16 +46,23 @@ export const inScope = (list, scope) => (scope === 'all' ? list : list.filter((u
 export const pendingOf = (list) => list.filter((u) => u.status !== 'stored');
 export const dateKeys = (list) => [...new Set(list.map((u) => u.date))].sort();
 
-// 読み取った（入力した）シールNo.を入庫する。結果: ok／dup（入庫済み）／other（他の営業の商品）／unknown（未登録）
+// 読み取った（入力した）シールNo.を入庫する。userId を指定すると、その営業の商品だけ入庫できる（営業のタブレット）。
+// userId が null のときは、誰の商品でも入庫できる（倉庫の担当者。契約書とともに商品一式を渡された場合など）。結果: ok／dup（入庫済み）／other（他の営業の商品）／unknown（未登録）
 export function receive(list, userId, raw, { location, by, at = Date.now() }) {
   const code = String(raw ?? '').trim().toUpperCase();
   const unit = list.find((u) => u.code === code);
   if (!code) return { list, result: { type: 'empty' } };
   if (!unit) return { list, result: { type: 'unknown', code } };
-  if (unit.userId !== userId) return { list, result: { type: 'other', code, unit } };
+  if (userId != null && unit.userId !== userId) return { list, result: { type: 'other', code, unit } };
   if (unit.status === 'stored') return { list, result: { type: 'dup', code, unit } };
   const stored = { ...unit, status: 'stored', storedAt: at, location, by };
   return { list: list.map((u) => (u.code === code ? stored : u)), result: { type: 'ok', code, unit: stored } };
+}
+
+// 契約（訪問）1件分の、入庫待ち・所在不明の商品をまとめて入庫する。count は入庫した点数
+export function receiveVisit(list, visitId, { location, by, at = Date.now() }) {
+  const codes = list.filter((u) => u.visitId === visitId && u.status !== 'stored').map((u) => u.code);
+  return { list: codes.reduce((acc, code) => receive(acc, null, code, { location, by, at }).list, list), count: codes.length };
 }
 
 // 手元にない商品を「所在不明」として報告する（後でシールが読み取れたら、通常どおり入庫できる）
