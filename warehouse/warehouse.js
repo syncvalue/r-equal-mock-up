@@ -6,7 +6,7 @@ import {
 import {
   loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, requestReturn, shipReturn, completeReturn, returnableContracts, suggestPrice, scopeState, holdingByWarehouse,
 } from '../src/warehouse.js';
-import { loadUnits, saveUnits, receive, receiveCodes, resultMessage, codeFromQr } from '../src/stock.js';
+import { loadUnits, saveUnits, receive, receiveCodes, resultMessage } from '../src/stock.js';
 import { seedSample } from '../src/warehouseSample.js';
 import { login, loadSession, saveSession, clearSession } from '../src/warehouseStaff.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -21,7 +21,7 @@ import { masterTab } from './masterTab.js';
 import { transferTab } from './transferTab.js';
 import { sendTransfer, receiveTransfer, cancelTransfer, incoming } from '../src/warehouseTransfer.js';
 import { loginView } from './loginView.js';
-import { startScanner, cameraErrorText } from './camera.js';
+import { openMockCamera } from './camera.js';
 
 const $ = (s) => document.querySelector(s);
 const TABS = [['stock', '📦 商品管理'], ['receive', '📥 入庫'], ['transfer', '🚚 倉庫間移動'], ['list', '🛒 販売（出品）'], ['sales', '💹 売上管理'], ['return', '↩ クーリングオフ返品'], ['master', '🏭 倉庫マスタ']];
@@ -158,43 +158,26 @@ function scanCode(raw) {
   ui.filter = 'all';
   ui.q = '';
 }
-// ---- カメラでの読み取り（タブレット） -------------------------------------------------
-// 全画面のカメラ表示は、画面の再描画（#root）で消えないよう、#root の外に作る。
-// search: 1回読み取ったら閉じて、商品の詳細を表示する／receive: 開いたまま、続けて入庫する
-let stopCamera = null;
-function closeCamera() {
-  stopCamera?.();
-  stopCamera = null;
-  document.querySelector('#cam')?.remove();
-}
-async function openCamera(mode) {
-  closeCamera();
-  const el = document.createElement('div');
-  el.id = 'cam';
-  el.className = 'fixed inset-0 z-50 bg-black text-white flex flex-col';
-  el.innerHTML = `<div class="flex items-center gap-3 p-3 bg-black/70"><b class="text-lg">${mode === 'receive' ? '📥 読み取って入庫' : '🔳 読み取って探す'}</b>
-    <span class="text-sm text-white/70">${mode === 'receive' ? `保管場所: ${esc(ui.rc.location)}` : 'シールのQRを枠に入れてください'}</span>
-    <button class="ml-auto b b-sec !text-slate-800" data-cam-close>閉じる</button></div>
-    <video class="flex-1 min-h-0 w-full object-cover" muted></video>
-    <div class="p-3 text-center font-bold text-lg bg-black/70" data-cam-msg>カメラを起動しています…</div>`;
-  document.body.appendChild(el);
-  el.querySelector('[data-cam-close]').addEventListener('click', closeCamera);
-  const msg = el.querySelector('[data-cam-msg]');
-  const onCode = (text) => {
-    const code = codeFromQr(text);
-    if (mode === 'search') { closeCamera(); scanCode(code); render(); return; }
-    storeCode(code);
-    msg.textContent = `${ui.rc.last.ok ? '✓' : '⚠'} ${ui.rc.last.text}`;
-    msg.className = `p-3 text-center font-bold text-lg ${ui.rc.last.ok ? 'bg-emerald-700' : 'bg-rose-700'}`;
-    render();
-  };
-  try {
-    stopCamera = await startScanner(el.querySelector('video'), onCode);
-    msg.textContent = 'シールのQRを枠に入れてください';
-  } catch (e) {
-    closeCamera();
-    alert(cameraErrorText(e));
+// ---- カメラでの読み取り（モック。実際のカメラは使わない）-----------------------------------
+// search: 1回読み取ったら閉じて、商品の詳細を表示する／receive: 開いたまま、続けて入庫する（自分の倉庫で入庫できる商品がなくなるまで）
+let closeCamera = null;
+function openCamera(mode) {
+  closeCamera?.();
+  if (mode === 'search') {
+    const units = loadUnits();
+    closeCamera = openMockCamera({
+      title: '商品を探す', subtitle: 'シールのQRコードを読み取ります',
+      pickNext: () => units[Math.floor(Math.random() * units.length)]?.code ?? '', // モック: 登録済みの商品から1点
+      onFound: (code) => { scanCode(code); render(); },
+    });
+    return;
   }
+  closeCamera = openMockCamera({
+    title: '読み取って入庫', subtitle: `入庫先: ${myWarehouse().name}／保管場所: ${ui.rc.location}`, continuous: true,
+    pickNext: () => loadUnits().find((u) => u.status !== 'stored' && !destinationProblem(master, u, staff.warehouseId))?.code ?? '', // モック: 入庫待ちの商品を、順に読み取る
+    onFound: (code) => { storeCode(code); render(); },
+    getMessage: () => ui.rc.last,
+  });
 }
 
 // ---- シールの貼り替え（色の間違いなど。シールNo.も新しくなる）-----------------------------

@@ -72,12 +72,6 @@ export function receive(list, userId, raw, { location, by, at = Date.now(), meth
   return { list: list.map((u) => (u.code === code ? stored : u)), result: { type: 'ok', code, unit: stored } };
 }
 
-// QRの読み取り結果（シールNo.そのもの、またはシールNo.を含む文字列）から、シールNo.を取り出す
-export function codeFromQr(text) {
-  const t = String(text ?? '').trim();
-  return (t.match(/RQ-[A-Za-z0-9]+/i)?.[0] ?? t).toUpperCase();
-}
-
 // 指定した商品（シールNo.）を、まとめて入庫する。入庫待ち・所在不明のものだけが対象で、count は入庫した点数。
 // 倉庫では、明細と実物を照合（☑）した商品だけを渡す
 export function receiveCodes(list, codes, opts) {

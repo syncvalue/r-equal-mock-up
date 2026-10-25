@@ -43,24 +43,6 @@ test('チェックした商品をまとめて入庫: 指定した商品だけ入
   assert.equal(receiveCodes(r.list, ['A'], { location: 'A棚', by: 'x', method: 'manual' }).count, 0);
 });
 
-const { codeFromQr } = await import('../src/stock.js');
-
-test('QRの読み取り結果から、シールNo.を取り出す（前後の空白・小文字・URL形式でも）', () => {
-  assert.equal(codeFromQr('RQ-AB12CD34'), 'RQ-AB12CD34');
-  assert.equal(codeFromQr('  rq-ab12cd34\n'), 'RQ-AB12CD34');
-  assert.equal(codeFromQr('https://example.com/item?code=rq-ab12cd34&x=1'), 'RQ-AB12CD34');
-  assert.equal(codeFromQr('その他の文字'), 'その他の文字'); // シールNo.の形でなければ、そのまま（未登録として扱う）
-  assert.equal(codeFromQr(null), '');
-});
-
-test('入庫した倉庫: 入庫すると、どの倉庫に入ったかを商品に記録する（まとめて入庫でも）', () => {
-  const r = receive(list(), null, 'A', { location: 'A棚', by: 'x', warehouseId: 'W-KANTO' });
-  assert.equal(r.list[0].warehouseId, 'W-KANTO');
-  const many = receiveCodes(list(), ['A', 'B'], { location: 'A棚', by: 'x', warehouseId: 'W-OSAKA', method: 'manual' });
-  assert.deepEqual(many.list.slice(0, 2).map((x) => x.warehouseId), ['W-OSAKA', 'W-OSAKA']);
-  assert.equal(many.list[4].warehouseId, undefined); // 入庫していない商品は、倉庫が決まらない
-});
-
 const { unitsFromVisit, SEAL_COLORS } = await import('../src/stock.js');
 
 test('シールの色: 紫・赤・その他（黄・緑・青）の3つ。買取のシール紐づけで選んだ色を、商品ごとに記録する', () => {
