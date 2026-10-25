@@ -7,6 +7,7 @@ import {
   AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
+import { threadFor, addMessage, hasUnread, markRead as markThreadRead, messagesOf } from './appraisalThread.js';
 import * as V from './views.js';
 import { initTheme } from './theme.js';
 import { initHelp } from './help.js';
@@ -178,6 +179,13 @@ function publish() {
   });
 }
 
+// 査定依頼のチャットを開いている間は、査定員の発言を既読にする
+function readOpenThread() {
+  if (state.modal?.type !== 'appraisal' || state.apMode !== 'hq') return;
+  const t = threadFor(loadAppraisals(), state.visitId, state.modal.itemId);
+  if (t && hasUnread(t, 'sales')) upsertAppraisal(markThreadRead(t, 'sales', Date.now()));
+}
+
 function render() {
   if (!state.user) { $('#app').innerHTML = V.authView(state); return; } // 未ログイン
   const day = loadDay(state.user);
@@ -185,6 +193,7 @@ function render() {
   set({ day, phase, units: loadUnits() });
   // 始業するまで（終業後も）、現地買取だけは使えない
   if (phase !== 'open' && state.view === 'visit') set({ view: 'workday', modal: null });
+  readOpenThread();
   set({ appraisals: loadAppraisals(), comments: loadComments().filter((c) => c.visitId === state.visitId),
     approvals: loadApprovals().filter((a) => a.visitId === state.visitId),
   });
@@ -508,16 +517,36 @@ const actions = {
   'ap-dummy-photo': () => set({ draft: { ...state.draft, photos: [...state.draft.photos, dummyPhoto(state.draft.photos.length + 1)] } }),
   'ap-remove-photo': (el) =>
     set({ draft: { ...state.draft, photos: state.draft.photos.filter((_, i) => i !== Number(el.dataset.idx)) } }),
+  // 査定部への依頼。最初は写真が必須。やり取りが始まったあとは、文章か写真のどちらかで追記する（チャット）
   'send-appraisal': () => {
     const d = state.draft;
-    if (!d.photos.length) return;
-    upsertAppraisal({
-      id: newAppraisalId(), createdAt: Date.now(), visitId: state.visitId, itemId: state.modal.itemId, name: d.name.trim() || '（名称未入力）',
-      note: d.note, photos: d.photos, sender: `営業 ${userById(state.user).name}`, customerName: state.customer.name,
-      status: '依頼中', reply: null, adopted: false,
-    });
-    set({ modal: { type: 'appraisal', itemId: state.modal.itemId }, draft: { ...d, note: '', photos: [] } });
+    const itemId = state.modal.itemId;
+    const text = d.note.trim();
+    const thread = threadFor(loadAppraisals(), state.visitId, itemId);
+    const msg = { from: 'sales', text, photos: d.photos, at: Date.now() };
+    if (thread) {
+      if (!text && !d.photos.length) return;
+      upsertAppraisal(addMessage(thread, msg));
+    } else {
+      if (!d.photos.length) return;
+      upsertAppraisal(addMessage({
+        id: newAppraisalId(), createdAt: Date.now(), visitId: state.visitId, itemId, name: d.name.trim() || '（名称未入力）',
+        note: d.note, photos: d.photos, sender: `営業 ${userById(state.user).name}`, customerName: state.customer.name,
+        status: '依頼中', reply: null, adopted: false, messages: [],
+      }, msg));
+    }
+    set({ modal: { type: 'appraisal', itemId }, draft: { ...d, note: '', photos: [] } });
     showToast('査定部に送信しました');
+  },
+  // 査定員の提案額を、買取金額に反映する（チャットの発言ごと）
+  'adopt-reply': (el) => {
+    const t = loadAppraisals().find((x) => x.id === el.dataset.id);
+    const m = t && messagesOf(t).find((x) => x.id === el.dataset.msg);
+    const target = t && state.items.find((i) => i.id === t.itemId);
+    if (!m?.price || !target) return;
+    updateItems(target.id, { price: m.price, rank: m.rank ?? target.rank });
+    upsertAppraisal({ ...t, messages: messagesOf(t).map((x) => (x.id === m.id ? { ...x, adopted: true } : x)) });
+    showToast('提案された査定額を買取金額に反映しました');
   },
   'adopt-comment': (el) => {
     const c = loadComments().find((x) => x.id === el.dataset.id);
@@ -847,6 +876,8 @@ window.addEventListener('storage', (e) => {
     return;
   }
   if (e.key !== AP_STORAGE_KEY) return;
+  const unread = (l) => l.filter((a) => a.visitId === state.visitId && hasUnread(a, 'sales')).length;
+  if (unread(loadAppraisals()) > unread(state.appraisals)) showToast('💬 査定部から返信が届きました');
   // 下書き入力中は再描画しない（フォーカスが外れるため）
   if (!document.activeElement?.dataset?.draft) rerenderKeepScroll();
 });

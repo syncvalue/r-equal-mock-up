@@ -4,6 +4,7 @@ import {
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
 import { RANKS } from '../src/data.js';
+import { threadFor, messagesOf, addMessage, closeThread, canApprove, hasUnread, markRead } from '../src/appraisalThread.js';
 import { USERS } from '../src/dashboard.js';
 import { loadEmployees, appraisersOf } from '../src/employees.js';
 import { eventsOfDay } from '../src/schedule.js';
@@ -46,11 +47,11 @@ const apvBadge = (st) => `<span class="rounded px-2 py-0.5 text-xs font-bold ${A
 // 承認作業が必要な商品（金額が入力済みで、未承認または承認後に変更されたもの）
 const pendingApprovals = (v, approvals) => v.items.filter((i) => i.sell && i.price > 0 && ['none', 'stale'].includes(apvState(v, i, approvals)));
 
-const apStatus = (aps) =>
-  !aps.length ? '<span class="text-slate-400">依頼なし</span>'
-  : aps.some((a) => a.status === '依頼中') ? '<span class="rounded bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-bold">依頼中</span>'
-  : '<span class="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-bold">回答済み</span>';
+const AP_BADGE = { 依頼中: 'bg-amber-100 text-amber-800', 回答済み: 'bg-sky-100 text-sky-800', 完結: 'bg-emerald-100 text-emerald-800' };
+// 承認作業が必要で、かつ査定依頼の条件を満たす（依頼がない、または完結している）商品
+const approvable = (v, approvals, aps) => pendingApprovals(v, approvals).filter((i) => canApprove(aps, v.visitId, i.id).ok);
 
+const apStatus = (t) => (t ? `<span class="rounded px-2 py-0.5 text-xs font-bold ${AP_BADGE[t.status]}">${t.status === '依頼中' ? '返信待ち' : t.status}</span>` : '<span class="text-slate-400">依頼なし</span>');
 // 担当する営業の、今日の予定（時系列）と訪問状況。ダミーの営業は、予定ごとの見本の状況（demoStatus）を使う
 const ST = {
   done: ['完了', 'bg-slate-200 text-slate-600'], visiting: ['訪問中', 'bg-emerald-100 text-emerald-800'], notyet: ['まだ訪問していない', 'bg-white border border-dashed border-slate-300 text-slate-400'],
@@ -113,10 +114,11 @@ function evalCard(e) {
 
 function itemsTable(v, aps, cs, approvals) {
   const rows = v.items.map((i) => {
-    const mine = aps.filter((a) => a.visitId === v.visitId && a.itemId === i.id);
+    const t = threadFor(aps, v.visitId, i.id);
     const st = apvState(v, i, approvals);
+    const gate = canApprove(aps, v.visitId, i.id);
     const apv = i.price > 0
-      ? `${apvBadge(st)}${['none', 'stale'].includes(st) ? ` <button class="ml-1 rounded bg-emerald-600 text-white text-xs font-bold px-2 py-1" data-approve="${i.id}">承認</button>` : ''}`
+      ? `${apvBadge(st)}${['none', 'stale'].includes(st) ? (gate.ok ? ` <button class="ml-1 rounded bg-emerald-600 text-white text-xs font-bold px-2 py-1" data-approve="${i.id}">承認</button>` : ' <span class="text-xs text-slate-500">査定の完結待ち</span>') : ''}`
       : '<span class="text-xs text-slate-400">金額未入力</span>';
     return `
     <tr class="border-t cursor-pointer hover:bg-indigo-50 ${sel?.type === 'item' && sel.id === i.id ? 'bg-indigo-100' : ''}" data-item="${i.id}">
@@ -125,28 +127,28 @@ function itemsTable(v, aps, cs, approvals) {
       <td class="text-right ${i.sell ? 'font-bold' : 'text-slate-400 line-through'}">${yen(i.price)}</td>
       <td class="text-center ${i.sell ? '' : 'text-slate-400'}">${i.sell ? '売る' : '売らない'}</td>
       <td class="text-center">${apv}</td>
-      <td class="text-center">${apStatus(mine)}${mine.some((a) => a.status === '依頼中' && a.note) ? `<div class="mt-0.5 text-xs font-bold text-amber-700 max-w-[9rem] truncate" title="${esc(mine.find((a) => a.status === '依頼中' && a.note).note)}">💬 ${esc(mine.find((a) => a.status === '依頼中' && a.note).note)}</div>` : ''}</td>
+      <td class="text-center">${apStatus(t)}${t && hasUnread(t, 'hq') ? '<div class="mt-0.5 text-xs font-bold text-rose-600">💬 未読あり</div>' : ''}</td>
       <td class="text-center">${commentMark(cs.filter((c) => c.itemId === i.id))}</td></tr>`;
   }).join('');
   const orphans = aps.filter((a) => a.visitId === v.visitId && !v.items.some((i) => i.id === a.itemId));
   return `
   <div class="bg-white rounded-lg shadow overflow-hidden">
     <table class="w-full text-left text-sm"><thead class="bg-slate-100 text-slate-600"><tr>
-      <th class="p-2">商品名</th><th>ランク×数</th><th class="text-right">小計</th><th>売却</th><th>承認</th><th>本社査定</th><th>コメント</th></tr></thead>
+      <th class="p-2">商品名</th><th>ランク×数</th><th class="text-right">小計</th><th>売却</th><th>承認</th><th>査定依頼</th><th>コメント</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="7" class="p-6 text-center text-slate-400">まだ商品が追加されていません</td></tr>'}</tbody></table>
   </div>
   ${orphans.length ? `<h3 class="font-bold mt-4 mb-1">明細に入っていない査定依頼</h3>
-    <div class="bg-white rounded-lg shadow">${orphans.map((a) => `<button class="w-full text-left p-3 border-t first:border-0 hover:bg-indigo-50 flex justify-between ${sel?.type === 'req' && sel.id === a.id ? 'bg-indigo-100' : ''}" data-req="${a.id}"><span class="font-bold">${esc(a.name)}</span>${apStatus([a])}</button>`).join('')}</div>` : ''}`;
+    <div class="bg-white rounded-lg shadow">${orphans.map((a) => `<button class="w-full text-left p-3 border-t first:border-0 hover:bg-indigo-50 flex justify-between ${sel?.type === 'req' && sel.id === a.id ? 'bg-indigo-100' : ''}" data-req="${a.id}"><span class="font-bold">${esc(a.name)}</span>${apStatus(a)}</button>`).join('')}</div>` : ''}`;
 }
 
 const emptyDraft = () => ({ tag: '', text: '', price: '', rank: null, reason: '' });
 
 // 営業への送信フォーム（コメント＋任意で提案査定額）。回答・意見の区別なく、これ1つで送る
-function sendForm(itemId, item) {
+function sendForm(itemId, item, hasThread = false) {
   const rank = draft.rank ?? item?.rank ?? 'A';
   return `
   <div class="rounded-lg border bg-white p-3 space-y-2">
-    <div class="font-bold">💬 営業へ送信 ${itemId ? '' : `（訪問全体）${helpIcon('明細の商品を選ぶと、その商品について営業とやり取りできます。')}`}</div>
+    <div class="font-bold">💬 ${hasThread ? '営業に返信' : '営業へ送信'} ${itemId ? '' : `（訪問全体）${helpIcon('明細の商品を選ぶと、その商品について営業とやり取りできます。')}`}</div>
     <div class="flex flex-wrap gap-1">${COMMENT_TAGS.map((t) => `<button class="px-3 py-1 rounded border text-sm font-bold ${t === draft.tag ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-white'}" data-tag="${t}">${t}</button>`).join('')}</div>
     <textarea class="w-full border rounded px-3 py-2" rows="3" data-f="text" placeholder="例: 状態Aで9万円は安すぎます。実績は12万円前後です。">${esc(draft.text)}</textarea>
     <div class="flex flex-wrap gap-1">${TEMPLATES.map((t, i) => `<button class="px-2 py-1 rounded border text-xs bg-white" data-tpl="${i}">${esc(t.slice(0, 14))}…</button>`).join('')}</div>
@@ -157,7 +159,7 @@ function sendForm(itemId, item) {
         <div class="mt-1">${moneyInputHtml({ attrs: 'data-f="price"', value: Number(draft.price) || 0, placeholder: '入力すると、営業が買取金額に反映できます', cls: 'w-full border rounded px-3 py-2 text-lg' })}</div></div>
       ${draft.price ? `<div class="flex flex-wrap gap-1">${RANKS.map((r) => `<button class="px-2 py-1 rounded border text-sm font-bold ${r.value === rank ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-white'}" data-rank="${r.value}">${r.label}</button>`).join('')}</div>` : ''}
     </div>` : ''}
-    <button class="w-full bg-indigo-700 text-white font-bold rounded py-3" data-send="${itemId ?? ''}">営業に送信</button>
+    <button class="w-full bg-indigo-700 text-white font-bold rounded py-3" data-send="${itemId ?? ''}">${hasThread ? '返信する' : '営業に送信'}</button>
   </div>`;
 }
 
@@ -174,17 +176,28 @@ function thread(cs, itemId) {
     </div>`).join('')}</div>`;
 }
 
-const requestCard = (a) => `
-  <div class="border-2 ${a.status === '依頼中' ? 'border-amber-400 shadow-md' : 'border-slate-200'} rounded-lg p-3 space-y-2 bg-white">
-    <div class="flex justify-between items-center"><span class="font-bold">📨 営業からの査定依頼</span>${apStatus([a])}</div>
-    <div class="text-xs text-slate-500">${esc(a.sender ?? '営業')} ／ ${fmtTime(a.createdAt)}</div>
-    ${a.note
-      ? `<div class="rounded-lg border-l-8 border-amber-500 bg-amber-50 px-3 py-2">
-          <div class="text-xs font-bold text-amber-700 mb-0.5">💬 営業からのコメント</div>
-          <div class="text-lg font-bold leading-snug text-slate-900 whitespace-pre-wrap">${esc(a.note)}</div></div>`
-      : '<div class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-400">💬 営業からのコメントはありません</div>'}
-    <div class="grid grid-cols-2 gap-2">${a.photos.map((p, i) => `<img src="${p}" alt="写真${i + 1}" class="w-full rounded border" />`).join('')}</div>
+// 営業とのチャット（査定依頼）。営業は左、査定員（自分）は右
+function chatPanel(t) {
+  const bubbles = messagesOf(t).map((m) => {
+    const mine = m.from === 'hq';
+    return `<div class="flex ${mine ? 'justify-end' : 'justify-start'}"><div class="max-w-[88%] rounded-2xl px-3 py-2 space-y-1 ${mine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-900 rounded-bl-sm'}">
+      <div class="text-xs ${mine ? 'text-indigo-100' : 'text-slate-500'}">${mine ? '査定部' : esc(t.sender ?? '営業')} ${fmtTime(m.at)}${mine ? (t.salesReadAt >= m.at ? '　既読' : '　未読') : ''}</div>
+      ${m.tag ? `<span class="rounded bg-white/90 text-indigo-800 px-2 py-0.5 text-xs font-bold">${esc(m.tag)}</span>` : ''}
+      ${m.text ? `<div class="whitespace-pre-wrap ${mine ? '' : 'font-bold'}">${esc(m.text)}</div>` : ''}
+      ${m.photos?.length ? `<div class="grid grid-cols-2 gap-1">${m.photos.map((p, i) => `<img src="${p}" alt="写真${i + 1}" class="w-full rounded border" />`).join('')}</div>` : ''}
+      ${m.price ? `<div class="rounded bg-white text-indigo-800 font-bold text-sm px-2 py-1">提案査定額 ${yen(m.price)}（ランク${esc(m.rank)}）${m.adopted ? '<span class="text-emerald-700">／ 買取金額に反映済み</span>' : ''}</div>` : ''}
+    </div></div>`;
+  }).join('');
+  const done = t.status === '完結';
+  return `
+  <div class="border-2 ${t.status === '依頼中' ? 'border-amber-400 shadow-md' : 'border-slate-200'} rounded-lg p-3 space-y-2 bg-white">
+    <div class="flex justify-between items-center"><span class="font-bold">📨 査定依頼のやり取り</span>${apStatus(t)}</div>
+    <div class="space-y-2">${bubbles}</div>
+    ${done
+      ? `<div class="text-sm font-bold text-emerald-700">✓ 完結しました（${fmtTime(t.closedAt)}）。続きを送ると再開します。</div>`
+      : `<button class="w-full rounded border-2 border-emerald-600 text-emerald-700 font-bold py-2 hover:bg-emerald-50" data-close-thread="${t.id}">この査定依頼を完結する${helpIcon('完結すると、この商品を承認できます。営業が続けて送ると、再開します。')}</button>`}
   </div>`;
+}
 
 function aiCard(item) {
   const r = item?.aiAppraisal;
@@ -195,9 +208,10 @@ function aiCard(item) {
     <div class="text-slate-700">${esc(r.reason)}</div></div>`;
 }
 
-function approvalBlock(v, item, approvals) {
+function approvalBlock(v, item, approvals, aps) {
   const rec = latestApproval(approvals, v.visitId, item.id);
   const st = apvState(v, item, approvals);
+  const gate = canApprove(aps, v.visitId, item.id);
   const canDecide = item.price > 0 && st !== 'ok';
   return `
   <div class="rounded-lg border-2 ${canDecide ? 'border-amber-400' : 'border-slate-200'} bg-white p-3 space-y-2">
@@ -206,10 +220,11 @@ function approvalBlock(v, item, approvals) {
     ${st === 'stale' ? `<div class="text-sm text-orange-700 font-bold">前回の判断（${yen(rec.price)}・ランク${rec.rank}・${rec.qty}点）から変更されています。</div>` : ''}
     ${st === 'ok' ? `<div class="text-sm text-emerald-700 font-bold">承認済み（${fmtTime(rec.decidedAt)}）</div>` : ''}
     ${st === 'ng' ? `<div class="text-sm text-rose-700"><b>差戻し済み：</b>${esc(rec.comment)}（営業の見直しを待っています）</div>` : ''}
+    ${canDecide && !gate.ok ? `<div class="rounded bg-amber-50 border border-amber-300 text-amber-800 text-sm font-bold px-2 py-1">${esc(gate.reason)}</div>` : ''}
     ${canDecide ? `
       <textarea class="w-full border rounded px-3 py-2 text-sm" rows="2" data-f="reason" placeholder="差戻しの場合は理由を入力（必須）">${esc(draft.reason)}</textarea>
       <div class="grid grid-cols-2 gap-2">
-        <button class="bg-emerald-600 text-white font-bold rounded py-3" data-approve="${item.id}">承認する</button>
+        <button class="bg-emerald-600 text-white font-bold rounded py-3 disabled:opacity-40 disabled:cursor-not-allowed" data-approve="${item.id}" ${gate.ok ? '' : 'disabled'}>承認する</button>
         <button class="bg-white border-2 border-rose-500 text-rose-600 font-bold rounded py-3" data-reject="${item.id}">差戻し</button></div>` : ''}
   </div>`;
 }
@@ -221,16 +236,17 @@ function detailPanel(v, aps, cs, approvals) {
   const orphan = reqId ? aps.find((x) => x.id === reqId) : null;
   const itemId = orphan ? orphan.itemId : sel.id;
   const item = v.items.find((i) => i.id === itemId);
-  const mine = orphan ? [orphan] : aps.filter((a) => a.visitId === v.visitId && a.itemId === itemId);
+  const t = orphan ?? threadFor(aps, v.visitId, itemId);
   return `
   <div class="space-y-3">
     <div><div class="text-xl font-bold">${esc(item?.name ?? orphan?.name ?? '')}</div>
       ${item ? `<div class="text-sm text-slate-500">ランク${item.rank} ／ ${item.qty}点 ／ 営業の査定（合計） ${yen(item.price)}</div>` : ''}</div>
-    ${mine.map(requestCard).join('')}
+    ${t ? chatPanel(t) : ''}
     ${item ? aiCard(item) : ''}
-    ${item ? approvalBlock(v, item, approvals) : ''}
+    ${t ? sendForm(item?.id ?? t.itemId, item, true) : ''}
+    ${item ? approvalBlock(v, item, approvals, aps) : ''}
     ${thread(cs, itemId)}
-    ${item ? sendForm(item.id, item) : ''}
+    ${item && !t ? sendForm(item.id, item) : ''}
   </div>`;
 }
 
@@ -255,7 +271,16 @@ function composeModal() {
   </div>`;
 }
 
+// 開いている商品のやり取りは、読んだことにする（営業に「既読」が出る）
+function readSelected() {
+  if (!sel || !visitId) return;
+  const itemId = sel.type === 'req' ? loadAppraisals().find((x) => x.id === sel.id)?.itemId : sel.id;
+  const t = threadFor(loadAppraisals(), visitId, itemId);
+  if (t && hasUnread(t, 'hq')) upsertAppraisal(markRead(t, 'hq', Date.now()));
+}
+
 function render() {
+  readSelected();
   const visits = visitsSorted();
   const aps = loadAppraisals();
   const cs = loadComments().filter((c) => c.visitId === visitId);
@@ -280,7 +305,7 @@ function render() {
       <div class="flex justify-between items-end">
         <div><h1 class="text-2xl font-bold">${esc(v.customerName)} 様 <span class="text-base font-normal text-slate-500">${esc(v.staff)}</span></h1>
           <p class="text-sm text-slate-500">受付 ${esc(v.callInfo?.receptionNo ?? '')} ／ 開始 ${fmtTime(v.startedAt)} ／ 経過 <span data-elapsed="${v.startedAt}" data-end="${v.endedAt ?? ''}">${fmtElapsed(v.startedAt, v.endedAt ?? Date.now())}</span> ／ 最終更新 ${fmtTime(v.updatedAt)}</p></div>
-        <div class="text-right">${pendingApprovals(v, approvals).length ? `<button class="mr-3 bg-emerald-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>未承認${pendingApprovals(v, approvals).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-600" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-indigo-800">${yen(sum(v.items))}</div></div>
+        <div class="text-right">${approvable(v, approvals, aps).length ? `<button class="mr-3 bg-emerald-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>承認できる${approvable(v, approvals, aps).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-600" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-indigo-800">${yen(sum(v.items))}</div></div>
       </div>
       ${v.briefing?.propose ? `<div class="text-sm rounded-lg bg-slate-50 border px-3 py-1.5">査定前の説明：<b>実施済み</b> ／ 他商品の提案：<b class="${v.briefing.propose === 'yes' ? 'text-teal-700' : 'text-slate-600'}">${v.briefing.propose === 'yes' ? '提案してよい' : '提案は不要（お客様の希望）'}</b></div>` : ''}
       ${v.outcome ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3"><b>🚪 買取に至らず：${esc(v.outcome.label)}</b>${helpIcon('訪問実績として扱い、営業の業績には影響しません。')}${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}${v.outcome.memo ? `<div class="text-sm whitespace-pre-wrap">${esc(v.outcome.memo)}</div>` : ''}</div>` : ''}
@@ -298,6 +323,10 @@ function decideItem(itemId, ok) {
   const v = loadLive()[visitId];
   const item = v?.items.find((i) => i.id === itemId);
   if (!item || !(item.price > 0)) return false;
+  if (ok) {
+    const gate = canApprove(loadAppraisals(), visitId, itemId);
+    if (!gate.ok) { alert(gate.reason); return false; }
+  }
   if (!ok && !draft.reason.trim()) { alert('差戻しの理由を入力してください'); return false; }
   const now = Date.now();
   upsertApproval({
@@ -321,14 +350,17 @@ function send(itemId) {
   const v = loadLive()[visitId];
   const item = itemId ? v.items.find((i) => i.id === itemId) : null;
   const rank = draft.rank ?? item?.rank ?? 'A';
-  upsertComment({
-    id: newCommentId(), visitId, itemId: itemId || null, tag: draft.tag, text: text || '（査定額の提案）',
-    price: price || null, rank: price ? rank : null, from: '査定部', createdAt: Date.now(), ack: false, ackAt: null,
-  });
-  // 営業からの査定依頼が未回答なら、この送信で回答済みにする
-  loadAppraisals()
-    .filter((a) => a.visitId === visitId && a.itemId === itemId && a.status === '依頼中')
-    .forEach((a) => upsertAppraisal({ ...a, status: '回答済み', reply: { price: price || null, rank: price ? rank : null, comment: text, at: Date.now() } }));
+  const now = Date.now();
+  const t = itemId ? threadFor(loadAppraisals(), visitId, itemId) : null;
+  if (t) {
+    // 営業からの査定依頼があれば、そのチャットに返信する
+    upsertAppraisal(addMessage(t, { from: 'hq', tag: draft.tag, text, price: price || null, rank: price ? rank : null, at: now }));
+  } else {
+    upsertComment({
+      id: newCommentId(), visitId, itemId: itemId || null, tag: draft.tag, text: text || '（査定額の提案）',
+      price: price || null, rank: price ? rank : null, from: '査定部', createdAt: now, ack: false, ackAt: null,
+    });
+  }
   draft = emptyDraft();
 }
 
@@ -352,11 +384,16 @@ document.addEventListener('click', (e) => {
   else if (t.dataset.rank) draft = { ...draft, rank: t.dataset.rank };
   else if (t.dataset.tpl) draft = { ...draft, text: TEMPLATES[Number(t.dataset.tpl)] };
   else if ('send' in t.dataset) send(t.dataset.send);
+  else if (t.dataset.closeThread) {
+    const a = loadAppraisals().find((x) => x.id === t.dataset.closeThread);
+    if (a) upsertAppraisal(closeThread(a, Date.now()));
+  }
   else if (t.dataset.approve) decideItem(t.dataset.approve, true);
   else if (t.dataset.reject) { if (!decideItem(t.dataset.reject, false)) return; }
   else if ('approveAll' in t.dataset) {
     const v = loadLive()[visitId];
-    pendingApprovals(v, loadApprovals()).forEach((i) => decideItem(i.id, true));
+    const aps = loadAppraisals();
+    pendingApprovals(v, loadApprovals()).filter((i) => canApprove(aps, visitId, i.id).ok).forEach((i) => decideItem(i.id, true));
   }
   else if ('reset' in t.dataset) { if (!confirm(RESET_CONFIRM)) return; clearTransactions(); visitId = null; sel = null; }
   else return;

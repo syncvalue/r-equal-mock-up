@@ -1,6 +1,7 @@
 import { PRODUCTS, RANKS } from './data.js';
 import { masterBodyView } from './masterView.js';
 import { approvalState, latestApproval } from './store.js';
+import { threadFor, messagesOf, hasUnread } from './appraisalThread.js';
 import { themeToggleHtml } from './theme.js';
 import { roleLabel, userById } from './dashboard.js';
 import { eventById } from './schedule.js';
@@ -57,16 +58,18 @@ const commentBadge = (s) => {
     : '<button class="bg-slate-700 rounded-full w-11 h-11 text-xl" data-action="open-comments" aria-label="本社からのコメント">💬</button>';
 };
 
-// 明細行に出す本社査定の状態
+// 明細行に出す査定依頼の状態
 const apTag = (s, itemId) => {
-  const list = s.appraisals.filter((a) => a.itemId === itemId);
-  if (!list.length) return '';
-  if (list.some((a) => a.status === '依頼中')) return '<span class="ml-1 rounded whitespace-nowrap inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5">本社査定中</span>';
-  return '<span class="ml-1 rounded whitespace-nowrap inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5">本社回答済</span>';
+  const t = threadFor(s.appraisals, s.visitId, itemId);
+  if (!t) return '';
+  const [label, cls] = { 依頼中: ['査定中', 'bg-amber-100 text-amber-800'], 回答済み: ['返信あり', 'bg-sky-100 text-sky-800'], 完結: ['査定完結', 'bg-emerald-100 text-emerald-800'] }[t.status];
+  return `<span class="ml-1 rounded whitespace-nowrap inline-block ${cls} text-xs font-bold px-2 py-0.5">${label}</span>`;
 };
 
-const itemWarn = (s, itemId) =>
-  s.comments.some((c) => c.itemId === itemId && !c.ack) ? '<span class="text-rose-600 text-xl ml-1" title="本社からのコメント">❗</span>' : '';
+const itemWarn = (s, itemId) => {
+  const t = threadFor(s.appraisals, s.visitId, itemId);
+  return s.comments.some((c) => c.itemId === itemId && !c.ack) || (t && hasUnread(t, 'sales')) ? '<span class="text-rose-600 text-xl ml-1" title="査定部からのコメント・返信">❗</span>' : '';
+};
 
 // 査定の前に、お客様へ説明する事項。説明したことを記録してから査定に進む
 export const BRIEFING_CHECKS = [
@@ -818,19 +821,29 @@ function commentsModalView(s) {
   );
 }
 
-const AP_CLS = { 依頼中: 'bg-amber-100 text-amber-800', 回答済み: 'bg-emerald-100 text-emerald-800' };
+const photosHtml = (photos) => (photos?.length ? `<div class="flex gap-1 flex-wrap mt-1">${photos.slice(0, 4).map((p) => `<img src="${p}" class="h-16 w-16 object-cover rounded border" alt="" />`).join('')}</div>` : '');
 
-function apCardView(a) {
-  return `
-  <div class="border-2 rounded-xl p-3 mt-2 space-y-2 ${a.status === '回答済み' ? 'border-emerald-400' : 'border-slate-200'}">
-    <div class="flex justify-between items-center">
-      <span class="text-sm text-slate-500">${fmtTime(a.createdAt)} 依頼${a.note ? `：${esc(a.note)}` : ''}</span>
-      <span class="rounded px-2 py-0.5 text-sm font-bold ${AP_CLS[a.status]}">${a.status}</span></div>
-    <div class="flex gap-1">${a.photos.slice(0, 4).map((p) => `<img src="${p}" class="h-12 w-12 object-cover rounded border" alt="" />`).join('')}</div>
-    ${a.reply
-      ? '<p class="text-sm text-emerald-700 font-bold">✓ 本社から回答あり（❗を確認）</p>'
-      : '<p class="text-sm text-amber-700">本社の回答をお待ちください…</p>'}
-  </div>`;
+// 査定部とのチャット。営業は右、査定員は左。査定員の提案額は、ここから買取金額に反映する
+function chatView(t) {
+  const msgs = messagesOf(t);
+  const bubbles = msgs.map((m) => {
+    const mine = m.from === 'sales';
+    return `<div class="flex ${mine ? 'justify-end' : 'justify-start'}">
+      <div class="max-w-[85%] rounded-2xl px-3 py-2 space-y-1 ${mine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-900 rounded-bl-sm'}">
+        <div class="text-xs ${mine ? 'text-indigo-100' : 'text-slate-500'}">${mine ? 'あなた' : '査定部'} ${fmtTime(m.at)}</div>
+        ${m.tag ? `<span class="rounded px-2 py-0.5 text-xs font-bold ${TAG_CLS[m.tag] ?? TAG_CLS['その他']}">${esc(m.tag)}</span>` : ''}
+        ${m.text ? `<p class="whitespace-pre-wrap">${esc(m.text)}</p>` : ''}
+        ${photosHtml(m.photos)}
+        ${m.price ? `<div class="rounded-lg bg-white border border-indigo-200 text-slate-900 p-2 text-sm space-y-1">
+            <div>提案査定額 <b class="text-lg text-indigo-800">${yen(m.price)}</b>（ランク${esc(m.rank)}）</div>
+            ${m.adopted ? '<div class="text-emerald-700 font-bold">✓ 買取金額に反映済み</div>' : `<button class="btn btn-primary !py-1 !min-h-[40px] w-full" data-action="adopt-reply" data-id="${t.id}" data-msg="${m.id}">買取金額に反映</button>`}</div>` : ''}
+      </div></div>`;
+  }).join('');
+  const note = t.status === '完結'
+    ? '<p class="text-center text-sm font-bold text-emerald-700">✓ 査定が完結しました。続きがあれば、下から送ると再開します。</p>'
+    : t.status === '依頼中' ? '<p class="text-center text-sm text-amber-700">査定部の返信をお待ちください…</p>'
+    : '<p class="text-center text-sm text-sky-700">査定部から返信があります。必要なら、続けて送ってください。</p>';
+  return `<div class="rounded-xl border bg-white p-3 space-y-2">${bubbles}${note}</div>`;
 }
 
 function aiResultView(s, item) {
@@ -855,16 +868,17 @@ function aiResultView(s, item) {
 function appraisalComposeView(s, m) {
   const d = s.draft;
   const item = s.items.find((i) => i.id === m.itemId);
-  const history = s.appraisals.filter((a) => a.itemId === m.itemId);
+  const thread = threadFor(s.appraisals, s.visitId, m.itemId);
   const ai = s.apMode === 'ai';
   const tab = (key, label) => `<button class="flex-1 py-3 rounded-xl font-bold text-lg ${s.apMode === key ? (key === 'ai' ? 'bg-violet-600' : 'bg-indigo-600') + ' text-white' : 'bg-slate-100 text-slate-600'}" data-action="ap-mode" data-value="${key}">${label}</button>`;
   return modalShell(
-    ai ? '🤖 AI査定' : '📨 本社に査定依頼',
-    `<p class="font-bold text-lg">${esc(d.name)}${helpIcon(ai ? '画像からAIが買取額とランクを推定します。' : '写真を本社に送り、査定を依頼します。')}</p>
+    ai ? '🤖 AI査定' : '📨 査定部に査定依頼',
+    `<p class="font-bold text-lg">${esc(d.name)}${helpIcon(ai ? '画像からAIが買取額とランクを推定します。' : '写真を査定部に送り、査定を依頼します。やり取りは、査定員が完結するまで続けられます。商品の承認は、査定依頼が完結してからです。')}</p>
     <div class="flex gap-2">${tab('hq', '👤 査定部に依頼')}${tab('ai', '🤖 AI査定')}</div>
-    <label class="block"><span class="font-bold">状態・補足</span>
-      <textarea class="field mt-1" rows="2" data-draft="note" placeholder="傷、付属品、お客様の希望額など">${esc(d.note)}</textarea></label>
-    <div><div class="font-bold mb-1">写真（${d.photos.length}枚）</div>
+    ${!ai && thread ? chatView(thread) : ''}
+    <label class="block"><span class="font-bold">${!ai && thread ? 'メッセージ' : '状態・補足'}</span>
+      <textarea class="field mt-1" rows="2" data-draft="note" placeholder="${thread && !ai ? '返信や追加の情報' : '傷、付属品、お客様の希望額など'}">${esc(d.note)}</textarea></label>
+    <div><div class="font-bold mb-1">写真（${d.photos.length}枚）${thread && !ai ? '<span class="text-sm font-normal text-slate-500">　追加するときだけ</span>' : ''}</div>
       <div class="flex gap-2 flex-wrap">
         ${d.photos.map((p, i) => `<div class="relative"><img src="${p}" class="h-20 w-20 object-cover rounded-lg border" alt="写真${i + 1}" />
           <button class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-7 h-7" data-action="ap-remove-photo" data-idx="${i}" aria-label="削除">✕</button></div>`).join('')}
@@ -875,8 +889,7 @@ function appraisalComposeView(s, m) {
     ${ai
       ? `${item ? aiResultView(s, item) : ''}
          <button class="btn w-full bg-violet-600 text-white" data-action="ai-run" ${d.photos.length && !s.aiBusy ? '' : 'disabled'}>${item?.aiAppraisal ? 'もう一度AI査定する' : 'AI査定を実行'}</button>`
-      : `${history.length ? `<div><div class="font-bold">これまでの依頼・回答</div>${history.map(apCardView).join('')}</div>` : ''}
-         <button class="btn btn-primary w-full" data-action="send-appraisal" ${d.photos.length ? '' : 'disabled'}>本社に送信</button>
+      : `<button class="btn btn-primary w-full" data-action="send-appraisal" ${(thread ? d.note.trim() || d.photos.length : d.photos.length) ? '' : 'disabled'}>${thread ? '査定部に送る' : '査定部に依頼する'}</button>
          <button class="text-xs underline text-slate-400" data-action="open-hq">（デモ用）本社査定画面を別タブで開く</button>`}`,
   );
 }
