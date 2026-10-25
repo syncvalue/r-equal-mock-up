@@ -86,6 +86,36 @@ export function buildRows({ units, records, returns }, now = Date.now()) {
   });
 }
 
+// シールNo.（QR読取・手入力）で、1点を探す。前後の空白・大文字小文字は無視
+export function findByCode(rows, raw) {
+  const code = String(raw ?? '').trim().toUpperCase();
+  return code ? rows.find((r) => r.unit.code.toUpperCase() === code) ?? null : null;
+}
+
+// 1点の履歴（買取から、入庫・出品・売却・返品まで）を時系列に並べる。detail は画面に出す説明文
+export function historyOf({ units, records, returns }, code) {
+  const unit = units.find((u) => u.code === code);
+  if (!unit) return [];
+  const yen = (n) => `${Number(n).toLocaleString('ja-JP')}円`;
+  const rec = records[code];
+  const events = [{ at: unit.at, label: '買取', detail: `${unit.customerName} 様／${yen(unit.price)}` }];
+  if (unit.storedAt) {
+    events.push({ at: unit.storedAt, label: '入庫', detail: `${unit.location}／入庫 ${unit.by}${unit.check ? `（照合 ${unit.check.by}）` : '（倉庫での照合なし）'}` });
+  }
+  if (rec) {
+    const ch = channelOf(rec.channel);
+    const target = rec.vendor ? `${ch?.label}（委託先 ${rec.vendor}）` : ch?.label;
+    events.push({ at: rec.listedAt, label: ch?.consign ? '委託' : '出品', detail: `${target}／${yen(rec.listPrice)}${rec.listedBy ? `／${rec.listedBy}` : ''}` });
+    if (rec.stage === 'sold') events.push({ at: rec.soldAt, label: '売却', detail: `${yen(rec.soldPrice)}／手数料 ${yen(rec.fee)}・送料 ${yen(rec.shipping)}${rec.soldBy ? `／${rec.soldBy}` : ''}` });
+  }
+  returns.filter((r) => r.codes.includes(code)).forEach((r) => {
+    events.push({ at: r.requestedAt, label: '返品受付', detail: `${reasonOf(r.reason).label}${r.requestedBy ? `／${r.requestedBy}` : ''}` });
+    if (r.shippedAt) events.push({ at: r.shippedAt, label: '返送', detail: `追跡番号 ${r.tracking}${r.shippedBy ? `／${r.shippedBy}` : ''}` });
+    if (r.doneAt) events.push({ at: r.doneAt, label: '返品完了', detail: `買取代金 ${yen(r.refund)} の返還を確認${r.doneBy ? `／${r.doneBy}` : ''}` });
+  });
+  return events.sort((a, b) => a.at - b.at);
+}
+
 export function stockSummary(rows) {
   const count = (stage) => rows.filter((r) => r.stage === stage).length;
   const held = rows.filter((r) => r.stage === 'stock' || r.stage === 'listed');

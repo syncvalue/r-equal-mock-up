@@ -1,7 +1,8 @@
 // 📦 商品管理: 買い取った商品の在庫を、状態・キーワードで絞り込んで確認する。
-import { STAGES, channelOf, stockSummary, dateOf } from '../src/warehouse.js';
+import { STAGES, channelOf, stockSummary, dateOf, findByCode, historyOf } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
-import { badge, card, md, STAGE_CLS } from './ui.js';
+import { userById } from '../src/dashboard.js';
+import { badge, card, md, mdTime, STAGE_CLS } from './ui.js';
 
 export const FILTERS = [['all', 'すべて'], ['stock', '在庫'], ['listed', '出品中'], ['consigned', '委託中'], ['incoming', '入庫待ち・所在不明'], ['sold', '売却済み'], ['return', '返品']];
 const MATCH = {
@@ -27,10 +28,37 @@ function action(r) {
   return '';
 }
 
-export function stockTab({ rows }, { filter, q }) {
+// QRシール（シールNo.）を読み取った結果。商品の詳細と、買取から現在までの履歴
+function scanResult(data, scan) {
+  if (!scan.raw) return '';
+  const r = findByCode(data.rows, scan.raw);
+  if (!r) return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 text-sm font-bold text-rose-700 flex items-center">⚠ ${esc(scan.raw)} は、買取商品として登録されていません<button class="ml-auto b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>`;
+  const { unit } = r;
+  return `<section class="rounded-xl border-2 border-sky-400 bg-white p-4 space-y-3">
+    <div class="flex flex-wrap items-center gap-2"><span class="text-xs font-mono text-slate-500">${esc(unit.code)}</span><b class="text-lg">${esc(unit.name)}</b>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}${r.stage === 'stock' && r.cooling ? badge('bg-amber-100 text-amber-800', `${md(r.coolEnd)} まで保管（出品不可）`) : ''}
+      <span class="ml-auto">${action(r)}</span><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1 text-sm">
+      <div><span class="text-slate-500">カテゴリ・ランク</span><br>${esc(unit.category)}／ランク${esc(unit.rank)}</div>
+      <div><span class="text-slate-500">買取先</span><br>${esc(unit.customerName)} 様（${md(unit.date)}・担当営業 ${esc(userById(unit.userId)?.name ?? unit.userId)}）</div>
+      <div><span class="text-slate-500">原価（買取額）</span><br>${yen(unit.price)}</div>
+      <div><span class="text-slate-500">保管場所</span><br>${r.stage === 'consigned' ? '倉庫の外（委託中）' : esc(unit.location ?? '-')}</div>
+    </div>
+    <ol class="text-sm border-l-2 border-slate-200 pl-3 space-y-1">${historyOf(data, unit.code).map((e) => `<li><span class="text-xs text-slate-500">${mdTime(e.at)}</span> <b>${e.label}</b> <span class="text-slate-600">${esc(e.detail)}</span></li>`).join('')}</ol>
+  </section>`;
+}
+
+export function stockTab(data, { filter, q, scan }) {
+  const { rows } = data;
   const sum = stockSummary(rows);
   const shown = rows.filter((r) => MATCH[filter](r) && hit(r, q.trim())).sort((a, b) => b.unit.at - a.unit.at);
   return `
+  <div class="rounded-xl border bg-white p-3 flex flex-wrap items-center gap-2">
+    <label class="font-bold text-sm">🔳 QRで探す</label>
+    <input class="inp !w-72 font-mono" data-qr placeholder="シールのQRを読み取る（スキャナ）／シールNo." autocomplete="off" />
+    <button class="b b-pri" data-qr-submit>探す</button>
+    <span class="text-xs text-slate-500">QRリーダーで読み取ると、その商品の詳細と履歴が出ます。続けて読み取れます。</span>
+  </div>
+  ${scanResult(data, scan)}
   <div class="flex flex-wrap gap-3">
     ${card('すぐ出品できる在庫', `${sum.stock - sum.cooling} 点`, 'text-emerald-700')}
     ${card('保管期間中', `${sum.cooling} 点`, sum.cooling ? 'text-amber-700' : '')}

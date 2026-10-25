@@ -209,3 +209,26 @@ test('操作した担当者: 出品・売却・返品の各操作に、担当者
   assert.equal(shipped.returns[0].shippedBy, '藤田 結衣');
   assert.equal(W.completeReturn(shipped, r.ret.id, NOW, '小川 直樹').state.returns[0].doneBy, '小川 直樹');
 });
+
+test('シールNo.で探す: 前後の空白・小文字を無視して、1点を特定する。なければ null', () => {
+  const rows = W.buildRows(state([unit('RQ-AB12', 12), unit('RQ-CD34', 12)]), NOW);
+  assert.equal(W.findByCode(rows, ' rq-cd34 ').unit.code, 'RQ-CD34');
+  assert.equal(W.findByCode(rows, 'RQ-ZZ99'), null);
+  assert.equal(W.findByCode(rows, ''), null);
+});
+
+test('商品の履歴: 買取 → 入庫 → 出品 → 売却、返品の受付 → 返送 → 完了を、時系列に並べる', () => {
+  const u = unit('A', 20, { storedAt: day(20) + 3600000, by: '営業', check: { by: '小川 直樹', at: day(20) + 3600000, method: 'manual' } });
+  let s = W.listItem(state([u]), 'A', { channel: 'mercari', price: 15000, at: day(5), by: '中島 里奈' }).state;
+  s = W.sell(s, 'A', { price: 14000, at: day(2) }).state;
+  const h = W.historyOf(s, 'A');
+  assert.deepEqual(h.map((e) => e.label), ['買取', '入庫', '出品', '売却']);
+  assert.ok(h.every((e, i) => i === 0 || h[i - 1].at <= e.at));
+  assert.ok(h[1].detail.includes('小川 直樹')); // 照合した人
+  assert.ok(h[2].detail.includes('メルカリ') && h[2].detail.includes('中島 里奈'));
+
+  const r = W.requestReturn(state([unit('B', 3, { price: 8000 })]), { customerName: '山田 花子', codes: ['B'], reason: 'family', at: day(1) });
+  const shipped = W.shipReturn(r.state, r.ret.id, { tracking: '123', at: day(0) });
+  assert.deepEqual(W.historyOf(shipped, 'B').map((e) => e.label), ['買取', '入庫', '返品受付', '返送']);
+  assert.deepEqual(W.historyOf(s, 'ZZZ'), []);
+});

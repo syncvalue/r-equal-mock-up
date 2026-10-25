@@ -27,7 +27,7 @@ const REJECT_TEXT = { unknown: '登録のない商品', notStored: '入庫前の
 let tab = 'stock';
 let staff = loadSession(); // ログイン中の担当者（操作した人として記録する）
 let loginError = '';
-const ui = { rc: { location: LOCATIONS[0], last: null, checks: [] }, filter: 'all', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+const ui = { scan: { raw: '' }, rc: { location: LOCATIONS[0], last: null, checks: [] }, filter: 'all', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 const tabBody = (state, now) => {
@@ -99,6 +99,13 @@ function toggleAll(visitId) {
   const all = codes.every((c) => ui.rc.checks.includes(c));
   ui.rc = { ...ui.rc, checks: all ? ui.rc.checks.filter((c) => !codes.includes(c)) : [...new Set([...ui.rc.checks, ...codes])] };
 }
+// QRシールを読み取って、商品の詳細・履歴を表示する（商品管理タブ）
+function scanCode(raw) {
+  ui.scan = { raw: String(raw ?? '').trim() };
+  tab = 'stock';
+  ui.filter = 'all';
+  ui.q = '';
+}
 function goReturn(visitId) {
   const contract = returnableContracts(loadState()).find((c) => c.visitId === visitId);
   ui.rf = { ...blankReturn(), visitId, codes: contract ? contract.units.map((u) => u.code) : [] };
@@ -114,6 +121,8 @@ function doLogin() {
 const ACTIONS = {
   tab: (v) => { tab = v; },
   filter: (v) => { ui.filter = v; },
+  qrSubmit: () => scanCode($('[data-qr]')?.value),
+  qrClose: () => { ui.scan = { raw: '' }; },
   rcLoc: (v) => { ui.rc = { ...ui.rc, location: v }; },
   rcSubmit: () => storeCode($('[data-rc-code]')?.value),
   rcUnit: (v) => storeChecked([v]),
@@ -177,6 +186,12 @@ function onField(e, isInput) {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches?.('[data-login-id], [data-login-pw]')) { doLogin(); render(); return; }
+  if (e.key === 'Enter' && e.target.matches?.('[data-qr]')) {
+    scanCode(e.target.value);
+    render();
+    $('[data-qr]')?.focus(); // 続けて読み取れるように
+    return;
+  }
   if (e.key !== 'Enter' || !e.target.matches?.('[data-rc-code]')) return;
   storeCode(e.target.value);
   render();
