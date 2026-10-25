@@ -4,7 +4,7 @@ import { dateOf } from '../src/warehouse.js';
 import { warehouseById, warehouseIdOf } from '../src/warehouseMaster.js';
 
 export const STAGE_CLS = {
-  incoming: 'bg-slate-200 text-slate-600', missing: 'bg-rose-100 text-rose-700', stock: 'bg-emerald-100 text-emerald-800', listed: 'bg-sky-100 text-sky-800', consigned: 'bg-violet-50 text-violet-800',
+  incoming: 'bg-slate-200 text-slate-600', missing: 'bg-rose-100 text-rose-700', stock: 'bg-emerald-100 text-emerald-800', listed: 'bg-sky-100 text-sky-800', consigned: 'bg-violet-50 text-violet-800', transit: 'bg-amber-100 text-amber-800',
   sold: 'bg-indigo-100 text-indigo-800', returning: 'bg-amber-100 text-amber-800', returned: 'bg-slate-100 text-slate-600',
 };
 

@@ -3,6 +3,7 @@
 import { STOCK_KEY } from './store.js';
 import { loadUnits, addUnits } from './stock.js';
 import * as W from './warehouse.js';
+import * as T from './warehouseTransfer.js';
 import { DEFAULT_MASTER as MASTER } from './warehouseMaster.js';
 
 export const WH_SAMPLE_KEY = 'rq-mock-warehouse-sample'; // 初期化で消えない目印（初期化後に、自動で復活させない）
@@ -88,13 +89,17 @@ export function buildSample(now = Date.now()) {
     (s) => W.completeReturn(s, s.returns[0].id, at(6, 10)),
     (s) => W.requestReturn(s, { customerName: '斎藤 清', codes: [code(16)], reason: 'price', memo: '他社の見積もりのほうが高かったとのこと', at: at(5, 10) }),
     (s) => W.shipReturn(s, s.returns[0].id, { tracking: '5012-3344-2210', at: at(4, 15) }),
+    // 倉庫間の移動: K24インゴットは関東倉庫に移動して受取済み、ティファニーのペンダントは輸送中
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', codes: [code(13)], by: staffOfWh('W-OSAKA'), at: at(7) }),
+    (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-KANTO', location: '金庫室（高額品）', by: staffOfWh('W-KANTO'), at: at(5) }),
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', codes: [code(14)], by: staffOfWh('W-OSAKA'), at: at(1) }),
     (s) => W.requestReturn(s, { customerName: '松本 千春', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10) }),
   ];
   const state = steps.reduce((s, step) => {
     const r = step(s);
     if (r?.ok === false) throw new Error(`サンプルの作成に失敗: ${r.reason ?? ""} ${step}`);
     return r?.state ?? r;
-  }, { units, records: {}, returns: [] });
+  }, { units, records: {}, returns: [], transfers: [] });
   return state;
 }
 
@@ -102,11 +107,11 @@ export function buildSample(now = Date.now()) {
 // 営業が登録した入庫データ（見本以外）は消さずに残す
 export function seedSample(now = Date.now(), force = false) {
   try {
-    if (!force && (localStorage.getItem(WH_SAMPLE_KEY) || Object.keys(W.loadRecords()).length || W.loadReturns().length)) return false;
-    const { units, records, returns } = buildSample(now);
+    if (!force && (localStorage.getItem(WH_SAMPLE_KEY) || Object.keys(W.loadRecords()).length || W.loadReturns().length || W.loadTransfers().length)) return false;
+    const { units, records, returns, transfers } = buildSample(now);
     const mine = loadUnits().filter((u) => !u.code.startsWith(PREFIX));
     localStorage.setItem(STOCK_KEY, JSON.stringify(addUnits(mine, units)));
-    if (!W.saveState({ records, returns })) return false;
+    if (!W.saveState({ records, returns, transfers })) return false;
     localStorage.setItem(WH_SAMPLE_KEY, '1');
     return true;
   } catch {

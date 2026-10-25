@@ -61,10 +61,20 @@ test('サンプル: 既存の入庫データ（営業が登録したもの）が
 
 test('サンプル: 入庫済みの商品は、複数の倉庫に分かれ、保管場所はその倉庫の棚。入庫前・所在不明の商品は、倉庫が決まらない', async () => {
   const { DEFAULT_MASTER: M } = await import('../src/warehouseMaster.js');
-  const { units } = buildSample(NOW);
+  const { units, transfers } = buildSample(NOW);
+  const moved = new Set(transfers.flatMap((t) => t.codes));
   const stored = units.filter((u) => u.status === 'stored');
   assert.ok(new Set(stored.map((u) => u.warehouseId)).size >= 3);
   for (const u of stored) assert.ok(M.warehouses.find((w) => w.id === u.warehouseId).locations.includes(u.location), `${u.code}: ${u.location}`);
-  for (const u of stored.filter((x) => x.check)) assert.equal(M.staff.find((s) => s.name === u.check.by)?.warehouseId, u.warehouseId); // 照合したのは、その倉庫の担当者
+  for (const u of stored.filter((x) => x.check && !moved.has(x.code))) assert.equal(M.staff.find((s) => s.name === u.check.by)?.warehouseId, u.warehouseId); // 照合したのは、その倉庫の担当者
   for (const u of units.filter((x) => x.status !== 'stored')) assert.equal(u.warehouseId, undefined);
+});
+
+test('サンプル: 倉庫間の移動に、受取済み（移動先の倉庫の在庫になった）と輸送中がある', () => {
+  const rows = W.buildRows(W.loadState(), NOW);
+  assert.ok(rows.some((r) => r.stage === 'transit'));
+  const done = W.loadState().transfers.find((t) => t.status === 'received');
+  assert.ok(done);
+  const u = rows.find((r) => r.unit.code === done.codes[0]).unit;
+  assert.equal(u.warehouseId, done.toId); assert.equal(u.location, done.location);
 });

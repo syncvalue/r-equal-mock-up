@@ -1,7 +1,7 @@
 // 倉庫・物流デスク画面（ダミー・PC想定）。商品の管理、販売（出品）、売上管理、クーリングオフによる返品の対応。
-import { STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY } from '../src/store.js';
+import { STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY } from '../src/store.js';
 import {
-  MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveStaff, setWarehouseActive, warehouseById,
+  MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveStaff, setWarehouseActive, warehouseById, warehouseIdOf,
 } from '../src/warehouseMaster.js';
 import {
   loadState, saveState, buildRows, listItem, reprice, delist, recall, sell, requestReturn, shipReturn, completeReturn, returnableContracts, suggestPrice, scopeState, holdingByWarehouse,
@@ -18,11 +18,13 @@ import { salesTab } from './salesTab.js';
 import { returnTab } from './returnTab.js';
 import { receiveTab } from './receiveTab.js';
 import { masterTab } from './masterTab.js';
+import { transferTab } from './transferTab.js';
+import { sendTransfer, receiveTransfer, cancelTransfer, incoming } from '../src/warehouseTransfer.js';
 import { loginView } from './loginView.js';
 import { startScanner, cameraErrorText } from './camera.js';
 
 const $ = (s) => document.querySelector(s);
-const TABS = [['stock', '📦 商品管理'], ['receive', '📥 入庫'], ['list', '🛒 販売（出品）'], ['sales', '💹 売上管理'], ['return', '↩ クーリングオフ返品'], ['master', '🏭 倉庫マスタ']];
+const TABS = [['stock', '📦 商品管理'], ['receive', '📥 入庫'], ['transfer', '🚚 倉庫間移動'], ['list', '🛒 販売（出品）'], ['sales', '💹 売上管理'], ['return', '↩ クーリングオフ返品'], ['master', '🏭 倉庫マスタ']];
 const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' });
 const blankSell = () => ({ code: '', price: 0, shipping: 0, buyer: '' });
 const blankReturn = () => ({ visitId: '', codes: [], reason: 'family', memo: '' });
@@ -32,14 +34,14 @@ const MASTER_TEXT = {
   inUse: 'この倉庫には、保管中の商品（在庫・出品中・委託中・返品対応中）があるため、無効にできません', hasStaff: 'この倉庫には有効な担当者がいるため、無効にできません（担当者を別の倉庫に移すか、無効にしてください）',
 };
 const REASON_TEXT = { notListable: '出品できない商品です（クーリングオフ期間中・返品対応中など）', badInput: '販売先と、1円以上の価格を入力してください', notListed: '出品中の商品ではありません', alreadySold: 'すでに売却済みです', notShipped: '返送済みにしてから完了してください' };
-const REJECT_TEXT = { unknown: '登録のない商品', notStored: '入庫前の商品', expired: '保管期間（10日間）を過ぎた商品', inProgress: 'すでに返品対応中の商品', notReturnable: '返品できない状態の商品' };
+const REJECT_TEXT = { inTransit: '倉庫間を輸送中の商品（届いてから受け付けてください）', unknown: '登録のない商品', notStored: '入庫前の商品', expired: '保管期間（10日間）を過ぎた商品', inProgress: 'すでに返品対応中の商品', notReturnable: '返品できない状態の商品' };
 
 let tab = 'stock';
 let staff = loadSession(); // ログイン中の担当者（操作した人として記録する。所属する倉庫が、入庫先・表示の初期値になる）
 let loginError = '';
 const blankWh = () => ({ id: '', name: '', address: '', officeId: '', locations: '' });
 const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
-const ui = { scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+const ui = { tf: { toId: '', codes: [] }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();
@@ -48,11 +50,15 @@ const myWarehouse = () => warehouseById(master, staff.warehouseId);
 // 倉庫で絞り込んだ状態（scope）を、各タブに渡す。入庫タブは、全倉庫の入庫待ちを扱う。QR読取は、他の倉庫の商品も探す
 const tabBody = (full, now) => {
   const state = scopeState(full, ui.scope, master);
-  const data = { ...state, rows: buildRows(state, now), master, allRows: buildRows(full, now), full };
+  const data = { ...state, rows: buildRows(state, now), master, allRows: buildRows(full, now), full, me: staff };
+  // 出品・売却・返品は、自分の倉庫の商品だけ扱える（他の倉庫の商品は、先に移動する）
+  const own = scopeState(full, staff.warehouseId, master);
+  const ownNotice = `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">この画面で扱えるのは、あなたの倉庫（${esc(myWarehouse().name)}）の商品だけです。他の倉庫の商品は、先に「🚚 倉庫間移動」で、自分の倉庫に移してください。</div>`;
   if (tab === 'receive') return receiveTab(full, ui, myWarehouse());
-  if (tab === 'list') return listTab(data, ui);
-  if (tab === 'sales') return salesTab(state, ui, now);
-  if (tab === 'return') return returnTab(state, ui, now);
+  if (tab === 'transfer') return transferTab(full, master, ui, staff, now);
+  if (tab === 'list') return ownNotice + listTab({ ...own, rows: buildRows(own, now) }, ui);
+  if (tab === 'sales') return salesTab(full, master, ui, staff, now);
+  if (tab === 'return') return ownNotice + returnTab(own, ui, now);
   if (tab === 'master') return masterTab({ master, holding: holdingByWarehouse(full, master, now) }, ui, staff);
   return stockTab(data, ui);
 };
@@ -75,7 +81,7 @@ function render() {
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
   <header class="bg-sky-900 text-white px-4 md:px-6 py-3 flex flex-wrap gap-2 justify-between items-center">
     <div class="font-bold text-xl">倉庫・物流 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${scopeSelect()}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-logout>ログアウト</button> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
+    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${['stock', 'master'].includes(tab) ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter((r) => r.status !== 'done').length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-logout>ログアウト</button> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <nav class="bg-white border-b px-2 md:px-6 flex gap-1 items-center overflow-x-auto">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 whitespace-nowrap ${tab === k ? 'border-sky-700 text-sky-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}</nav>
   <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${tabBody(full, now)}</main></div>`;
@@ -87,13 +93,23 @@ const moneyOf = (el) => Number((el?.value ?? '').replace(/\D/g, '')) || 0;
 const inputBy = (attr, value) => [...document.querySelectorAll(`[${attr}]`)].find((el) => el.getAttribute(attr) === value);
 const unitOf = (code) => loadState().units.find((u) => u.code === code);
 
+// 他の倉庫の商品は扱えない（出品・売却・価格変更・返品など）。扱えるときは true
+const NOT_OWN = '他の倉庫の商品は扱えません。先に「倉庫間移動」で、自分の倉庫に移してください。';
+function ownsAll(codes) {
+  const ok = codes.every((c) => { const u = unitOf(c); return u && warehouseIdOf(u, master) === staff.warehouseId; });
+  if (!ok) alert(NOT_OWN);
+  return ok;
+}
+
 function addListing() {
+  if (!ownsAll([ui.lf.code])) return;
   const r = listItem(loadState(), ui.lf.code, { channel: ui.lf.channel, price: ui.lf.price, vendor: ui.lf.vendor, by: staff.name });
   if (!r.ok) return alert(REASON_TEXT[r.reason]);
   commit(r.state);
   ui.lf = { ...blankList(), channel: ui.lf.channel, vendor: ui.lf.vendor };
 }
 function registerSale(code) {
+  if (!ownsAll([code])) return;
   const r = sell(loadState(), code, { price: ui.sf.price, shipping: ui.sf.shipping, buyer: ui.sf.buyer.trim(), by: staff.name });
   if (!r.ok) return alert(REASON_TEXT[r.reason]);
   commit(r.state);
@@ -102,7 +118,7 @@ function registerSale(code) {
 function addReturn() {
   const state = loadState();
   const contract = returnableContracts(state).find((c) => c.visitId === ui.rf.visitId);
-  if (!contract || !ui.rf.codes.length) return;
+  if (!contract || !ui.rf.codes.length || !ownsAll(ui.rf.codes)) return;
   const r = requestReturn(state, { customerName: contract.customerName, codes: ui.rf.codes, reason: ui.rf.reason, memo: ui.rf.memo.trim(), by: staff.name });
   if (!r.ok) return alert(`返品を受け付けられませんでした。\n${r.rejected.map((x) => `${x.code}: ${REJECT_TEXT[x.reason]}`).join('\n')}`);
   commit(r.state);
@@ -173,6 +189,35 @@ async function openCamera(mode) {
   }
 }
 
+// ---- 倉庫間の移動 -----------------------------------------------------------------
+const TRANSFER_TEXT = {
+  sameWarehouse: '送り先は、別の倉庫を選んでください', badDestination: '送り先の倉庫が正しくありません', noItems: '送れる商品がありません（在庫のものだけ送れます）',
+  notInTransit: 'すでに受け取り済み、または取り消し済みです', notDestination: 'あなたの倉庫あてではないため、受け取れません', badLocation: '保管場所を選んでください', notSender: '送った倉庫でなければ、取り消せません',
+};
+const SEND_REJECT = { unknown: '登録のない商品', notStock: '在庫ではない商品（出品中・委託中・返品対応中・輸送中など）', otherWarehouse: '他の倉庫の商品' };
+function sendItems() {
+  const r = sendTransfer(loadState(), master, { fromId: staff.warehouseId, toId: ui.tf.toId, codes: ui.tf.codes, by: staff.name });
+  if (!r.ok) return alert(TRANSFER_TEXT[r.reason]);
+  commit(r.state);
+  if (r.rejected.length) alert(`送れなかった商品があります。\n${r.rejected.map((x) => `${x.code}: ${SEND_REJECT[x.reason]}`).join('\n')}`);
+  ui.tf = { toId: ui.tf.toId, codes: [] };
+}
+function receiveItems(id) {
+  const t = loadState().transfers.find((x) => x.id === id);
+  const location = ui.tr.locs[id] ?? myWarehouse().locations[0];
+  const r = receiveTransfer(loadState(), master, id, { receiverWarehouseId: staff.warehouseId, location, by: staff.name });
+  if (!r.ok) return alert(TRANSFER_TEXT[r.reason]);
+  if (!saveUnits(r.state.units)) return alert('保存できませんでした（容量超過）');
+  commit(r.state);
+  ui.tr = { ...ui.tr, checks: ui.tr.checks.filter((c) => !t.codes.includes(c)) };
+}
+function cancelItems(id) {
+  if (!confirm('この移動を取り消して、商品を自分の倉庫の在庫に戻します。よろしいですか？')) return;
+  const r = cancelTransfer(loadState(), id, { byWarehouseId: staff.warehouseId });
+  if (!r.ok) return alert(TRANSFER_TEXT[r.reason]);
+  commit(r.state);
+}
+
 // ---- 倉庫マスタ -------------------------------------------------------------------
 function commitMaster(next) { if (!saveMaster(next)) alert('保存できませんでした（容量超過）'); }
 function saveWh() {
@@ -228,6 +273,10 @@ const ACTIONS = {
   msEdit: (v) => { const st = master.staff.find((x) => x.id === v); ui.ms = { id: st.id, name: st.name, loginId: st.loginId, warehouseId: st.warehouseId }; },
   msCancel: () => { ui.ms = blankStaff(); },
   msToggle: toggleStaff,
+  tfSend: sendItems,
+  trReceive: receiveItems,
+  trCancel: cancelItems,
+  salesScope: (v) => { ui.salesScope = v; },
   qrClose: () => { ui.scan = { raw: '' }; },
   rcLoc: (v) => { ui.rc = { ...ui.rc, location: v }; },
   rcSubmit: () => storeCode($('[data-rc-code]')?.value),
@@ -241,20 +290,22 @@ const ACTIONS = {
   goReturn,
   lfChannel: (v) => { ui.lf = { ...ui.lf, channel: v }; },
   listAdd: addListing,
-  reprice: (v) => commit(reprice(loadState(), v, moneyOf(inputBy('data-reprice-input', v)))),
+  reprice: (v) => ownsAll([v]) && commit(reprice(loadState(), v, moneyOf(inputBy('data-reprice-input', v)))),
   sellOpen: (v) => { ui.sf = { ...blankSell(), code: v, price: loadState().records[v]?.listPrice ?? 0 }; },
   sellCancel: () => { ui.sf = blankSell(); },
   sellDone: registerSale,
-  delist: (v) => { if (confirm('この商品の出品を取り下げて、在庫に戻します。よろしいですか？')) commit(delist(loadState(), v)); },
-  recall: (v) => { if (confirm('この商品は売れ残り、委託先から倉庫に戻ってきましたか？ 倉庫の在庫に戻します。')) commit(recall(loadState(), v)); },
+  delist: (v) => { if (ownsAll([v]) && confirm('この商品の出品を取り下げて、在庫に戻します。よろしいですか？')) commit(delist(loadState(), v)); },
+  recall: (v) => { if (ownsAll([v]) && confirm('この商品は売れ残り、委託先から倉庫に戻ってきましたか？ 倉庫の在庫に戻します。')) commit(recall(loadState(), v)); },
   returnAdd: addReturn,
   ship: (v) => {
+    if (!ownsAll(loadState().returns.find((r) => r.id === v)?.codes ?? [])) return;
     const state = loadState();
     const next = shipReturn(state, v, { tracking: inputBy('data-track', v)?.value, by: staff.name });
     if (next === state) return alert('追跡番号を入力してください');
     commit(next);
   },
   returnDone: (v) => {
+    if (!ownsAll(loadState().returns.find((r) => r.id === v)?.codes ?? [])) return;
     if (!confirm('お客様から買取代金の返還を確認できましたか？ 完了すると、この商品は返品済みになります。')) return;
     const r = completeReturn(loadState(), v, Date.now(), staff.name);
     if (!r.ok) return alert(REASON_TEXT[r.reason]);
@@ -279,7 +330,7 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = { lf: () => ui.lf, sf: () => ui.sf, rf: () => ui.rf, mw: () => ui.mw, ms: () => ui.ms };
+const FORMS = { tf: () => ui.tf, lf: () => ui.lf, sf: () => ui.sf, rf: () => ui.rf, mw: () => ui.mw, ms: () => ui.ms };
 const MONEY = new Set(['lf.price', 'sf.price', 'sf.shipping']);
 function onField(e, isInput) {
   const f = e.target.dataset.f ?? '';
@@ -316,6 +367,19 @@ document.addEventListener('input', (e) => {
   onField(e, true);
 });
 document.addEventListener('change', (e) => {
+  if (e.target.matches?.('[data-tf-code]')) {
+    const code = e.target.dataset.tfCode;
+    ui.tf = { ...ui.tf, codes: e.target.checked ? [...ui.tf.codes, code] : ui.tf.codes.filter((c) => c !== code) };
+    render();
+    return;
+  }
+  if (e.target.matches?.('[data-tr-check]')) {
+    const code = e.target.dataset.trCheck;
+    ui.tr = { ...ui.tr, checks: e.target.checked ? [...ui.tr.checks, code] : ui.tr.checks.filter((c) => c !== code) };
+    render();
+    return;
+  }
+  if (e.target.matches?.('[data-tr-loc]')) { ui.tr = { ...ui.tr, locs: { ...ui.tr.locs, [e.target.dataset.trLoc]: e.target.value } }; return; }
   if (e.target.matches?.('[data-scope]')) { ui.scope = e.target.value; render(); return; }
   if (e.target.matches?.('[data-rc-check]')) {
     const code = e.target.dataset.rcCheck;
@@ -335,13 +399,13 @@ document.addEventListener('change', (e) => {
     const contract = returnableContracts(loadState()).find((c) => c.visitId === ui.rf.visitId);
     ui.rf = { ...ui.rf, codes: contract ? contract.units.map((u) => u.code) : [] };
   }
-  if (['lf.code', 'rf.visitId'].includes(e.target.dataset.f)) render(); // 金額・商品の一覧が変わるもの
+  if (['lf.code', 'rf.visitId', 'tf.toId'].includes(e.target.dataset.f)) render(); // 金額・商品の一覧が変わるもの
 });
 
 // 営業のタブレット（入庫）や、別タブでの更新を反映。入力中なら、入力欄から離れたときに反映する
 const isEditing = () => Boolean(document.activeElement?.matches?.('input, select, textarea'));
 window.addEventListener('storage', (e) => {
-  if (![STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, MASTER_KEY].includes(e.key)) return;
+  if (![STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, MASTER_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;
   else render();
 });

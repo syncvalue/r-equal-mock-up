@@ -1,8 +1,9 @@
 // 倉庫・物流のデータとロジック。買い取った商品（stock.js の入庫データ）を、フリマ・業者に販売し、売上を管理する。
 // お客様からのクーリングオフによる返品の対応も扱う（買取から10日間は、販売せずに保管する）。
 // 外部の市場（業者オークション）への販売は「委託」。委託中の商品は倉庫になく、売れたら代金が戻り、売れ残ったら倉庫に戻る。
-// 状態（state）は { units: 入庫データ, records: 出品・売却の記録（商品No.→記録）, returns: 返品の記録 }。操作はすべて新しい state を返す。
-import { WAREHOUSE_KEY, RETURN_KEY } from './store.js';
+// 倉庫間の移動（transfers）は warehouseTransfer.js。移動中の商品は「輸送中」になり、どちらの倉庫の在庫にも数えない。
+// 状態（state）は { units: 入庫データ, records: 出品・売却の記録（商品No.→記録）, returns: 返品の記録, transfers: 移動の記録 }。操作はすべて新しい state を返す。
+import { WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY } from './store.js';
 import { loadUnits } from './stock.js';
 import { dateKey } from './workday.js';
 import { warehouseIdOf } from './warehouseMaster.js';
@@ -33,7 +34,7 @@ export const RETURN_REASONS = [
 export const reasonOf = (key) => RETURN_REASONS.find((r) => r.key === key) ?? { key, label: key };
 
 export const STAGES = {
-  incoming: '入庫待ち', missing: '所在不明', stock: '在庫', listed: '出品中', consigned: '委託中', sold: '売却済み', returning: '返品対応中', returned: '返品済み',
+  incoming: '入庫待ち', missing: '所在不明', stock: '在庫', listed: '出品中', transit: '輸送中', consigned: '委託中', sold: '売却済み', returning: '返品対応中', returned: '返品済み',
 };
 
 // ---- 保存 -------------------------------------------------------------------
@@ -58,8 +59,11 @@ export const loadRecords = () => read(WAREHOUSE_KEY, {}, isObj);
 export const saveRecords = (records) => write(WAREHOUSE_KEY, records);
 export const loadReturns = () => read(RETURN_KEY, [], Array.isArray);
 export const saveReturns = (returns) => write(RETURN_KEY, returns);
-export const loadState = () => ({ units: loadUnits(), records: loadRecords(), returns: loadReturns() });
-export const saveState = (s) => saveRecords(s.records) && saveReturns(s.returns);
+export const loadTransfers = () => read(TRANSFER_KEY, [], Array.isArray);
+export const saveTransfers = (transfers) => write(TRANSFER_KEY, transfers);
+export const loadState = () => ({ units: loadUnits(), records: loadRecords(), returns: loadReturns(), transfers: loadTransfers() });
+// 入庫データ（units）は、入庫・移動の受取のときに、stock.js の saveUnits で別に保存する
+export const saveState = (s) => saveRecords(s.records) && saveReturns(s.returns) && saveTransfers(s.transfers ?? []);
 
 // ---- クーリングオフ -----------------------------------------------------------
 // 買取日（書面を受け取った日）を1日目として10日目まで
@@ -76,12 +80,13 @@ const returnStages = (returns) => {
   return map;
 };
 
-export function buildRows({ units, records, returns }, now = Date.now()) {
+export function buildRows({ units, records, returns, transfers = [] }, now = Date.now()) {
   const rs = returnStages(returns);
+  const inTransit = new Set(transfers.filter((t) => t.status === 'transit').flatMap((t) => t.codes));
   return units.map((unit) => {
     const rec = records[unit.code] ?? null;
     const stage = rs.get(unit.code)
-      ?? (rec ? rec.stage : unit.status === 'pending' ? 'incoming' : unit.status === 'missing' ? 'missing' : 'stock');
+      ?? (inTransit.has(unit.code) ? 'transit' : rec ? rec.stage : unit.status === 'pending' ? 'incoming' : unit.status === 'missing' ? 'missing' : 'stock');
     const cooling = inCoolingOff(unit, now);
     return { unit, rec, stage, cooling, coolEnd: coolingOffEnd(unit.date), canList: stage === 'stock' && !cooling };
   });
@@ -113,14 +118,15 @@ export function findByCode(rows, raw) {
 }
 
 // 1点の履歴（買取から、入庫・出品・売却・返品まで）を時系列に並べる。detail は画面に出す説明文
-export function historyOf({ units, records, returns }, code) {
+export function historyOf({ units, records, returns, transfers = [] }, code) {
   const unit = units.find((u) => u.code === code);
   if (!unit) return [];
   const yen = (n) => `${Number(n).toLocaleString('ja-JP')}円`;
   const rec = records[code];
   const events = [{ at: unit.at, label: '買取', detail: `${unit.customerName} 様／${yen(unit.price)}` }];
+  const moved = transfers.some((t) => t.status === 'received' && t.codes.includes(code));
   if (unit.storedAt) {
-    events.push({ at: unit.storedAt, label: '入庫', detail: `${unit.location}／入庫 ${unit.by}${unit.check ? `（照合 ${unit.check.by}）` : '（倉庫での照合なし）'}` });
+    events.push({ at: unit.storedAt, label: '入庫', detail: `${moved ? '' : `${unit.location}／`}入庫 ${unit.by}${unit.check ? `（照合 ${unit.check.by}）` : '（倉庫での照合なし）'}` });
   }
   if (rec) {
     const ch = channelOf(rec.channel);
@@ -128,6 +134,10 @@ export function historyOf({ units, records, returns }, code) {
     events.push({ at: rec.listedAt, label: ch?.consign ? '委託' : '出品', detail: `${target}／${yen(rec.listPrice)}${rec.listedBy ? `／${rec.listedBy}` : ''}` });
     if (rec.stage === 'sold') events.push({ at: rec.soldAt, label: '売却', detail: `${yen(rec.soldPrice)}／手数料 ${yen(rec.fee)}・送料 ${yen(rec.shipping)}${rec.soldBy ? `／${rec.soldBy}` : ''}` });
   }
+  transfers.filter((t) => t.codes.includes(code) && t.status !== 'cancelled').forEach((t) => {
+    events.push({ at: t.sentAt, label: '移動（送付）', detail: `${t.fromName} → ${t.toName}／${t.sentBy}` });
+    if (t.status === 'received') events.push({ at: t.receivedAt, label: '移動（受取）', detail: `${t.toName}／${t.location}／${t.receivedBy}` });
+  });
   returns.filter((r) => r.codes.includes(code)).forEach((r) => {
     events.push({ at: r.requestedAt, label: '返品受付', detail: `${reasonOf(r.reason).label}${r.requestedBy ? `／${r.requestedBy}` : ''}` });
     if (r.shippedAt) events.push({ at: r.shippedAt, label: '返送', detail: `追跡番号 ${r.tracking}${r.shippedBy ? `／${r.shippedBy}` : ''}` });
@@ -140,7 +150,7 @@ export function stockSummary(rows) {
   const count = (stage) => rows.filter((r) => r.stage === stage).length;
   const held = rows.filter((r) => r.stage === 'stock' || r.stage === 'listed');
   return {
-    incoming: count('incoming'), missing: count('missing'), stock: count('stock'), listed: count('listed'), consigned: count('consigned'), sold: count('sold'), returning: count('returning'), returned: count('returned'),
+    incoming: count('incoming'), missing: count('missing'), transit: count('transit'), stock: count('stock'), listed: count('listed'), consigned: count('consigned'), sold: count('sold'), returning: count('returning'), returned: count('returned'),
     cooling: rows.filter((r) => r.stage === 'stock' && r.cooling).length,
     inventoryCost: held.reduce((n, r) => n + r.unit.price, 0), // 倉庫にある在庫の原価
     consignedCost: rows.filter((r) => r.stage === 'consigned').reduce((n, r) => n + r.unit.price, 0),
@@ -222,6 +232,9 @@ export function salesStats(rows, period = '') {
   };
 }
 
+// 会社全体の売上を、倉庫別に分ける（売上の多い順）。売れた商品の倉庫は、入庫（移動した場合は受取）した倉庫
+export const salesByWarehouse = (rows, master) => group(rows, (r) => warehouseIdOf(r.unit, master), (id) => master.warehouses.find((w) => w.id === id)?.name ?? id);
+
 // ---- クーリングオフによる返品 --------------------------------------------------------
 // 契約（訪問）ごとの、返品を受け付けられる商品（入庫済み・期間内・対応中でない）
 export function returnableContracts(state, now = Date.now()) {
@@ -244,6 +257,7 @@ export function requestReturn(state, { customerName, codes, reason, memo = '', a
     const row = rows.find((r) => r.unit.code === code);
     const why = !row ? 'unknown'
       : row.unit.status !== 'stored' ? 'notStored'
+        : row.stage === 'transit' ? 'inTransit'
         : row.stage === 'returning' ? 'inProgress'
           : !row.cooling ? 'expired'
             : row.stage !== 'stock' ? 'notReturnable' : '';

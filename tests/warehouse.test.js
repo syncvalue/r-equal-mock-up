@@ -255,3 +255,17 @@ test('倉庫ごとの在庫: 倉庫の在庫の点数・原価を出す（売却
   assert.deepEqual({ ...by[WO] }, { count: 1, cost: 100 });
   assert.deepEqual({ ...by[WK] }, { count: 1, cost: 400 });
 });
+
+test('会社全体の売上: 倉庫別の売上・利益・点数に分けて出す（売上の多い順）。倉庫の記録がない古い商品は、先頭の倉庫', () => {
+  let s = state([unit('A', 20, { warehouseId: WO, price: 10000 }), unit('B', 20, { warehouseId: WK, price: 20000 }), unit('C', 20, { price: 1000 })]);
+  for (const [code, price] of [['A', 15000], ['B', 40000], ['C', 3000]]) {
+    s = W.sell(W.listItem(s, code, { channel: 'direct', price, at: NOW }).state, code, { price, at: NOW }).state;
+  }
+  const rows = W.salesRows(s);
+  const by = W.salesByWarehouse(rows, MA);
+  assert.deepEqual(by.map((g) => [g.key, g.label, g.count, g.revenue, g.profit]), [[WK, '関東倉庫', 1, 40000, 20000], [WO, '大阪倉庫', 2, 18000, 5000 + 2000]]);
+  assert.deepEqual(W.salesByWarehouse([], MA), []);
+  // 倉庫で絞った売上の合計は、全社の合計と一致する
+  const sum = (scope) => W.salesStats(W.salesRows(W.scopeState(s, scope, MA)), '').revenue;
+  assert.equal(sum(WO) + sum(WK), sum('all'));
+});

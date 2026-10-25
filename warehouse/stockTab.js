@@ -2,22 +2,27 @@
 import { STAGES, channelOf, stockSummary, dateOf, findByCode, historyOf } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
 import { userById } from '../src/dashboard.js';
+import { warehouseIdOf } from '../src/warehouseMaster.js';
 import { badge, card, md, mdTime, whName, STAGE_CLS } from './ui.js';
 
-export const FILTERS = [['all', 'すべて'], ['stock', '在庫'], ['listed', '出品中'], ['consigned', '委託中'], ['incoming', '入庫待ち・所在不明'], ['sold', '売却済み'], ['return', '返品']];
+export const FILTERS = [['all', 'すべて'], ['stock', '在庫'], ['listed', '出品中'], ['consigned', '委託中'], ['transit', '輸送中'], ['incoming', '入庫待ち・所在不明'], ['sold', '売却済み'], ['return', '返品']];
 const MATCH = {
   all: () => true,
   stock: (r) => r.stage === 'stock',
   listed: (r) => r.stage === 'listed',
   consigned: (r) => r.stage === 'consigned',
+  transit: (r) => r.stage === 'transit',
   incoming: (r) => r.stage === 'incoming' || r.stage === 'missing',
   sold: (r) => r.stage === 'sold',
   return: (r) => r.stage === 'returning' || r.stage === 'returned',
 };
 const hit = (r, q) => !q || [r.unit.name, r.unit.code, r.unit.customerName, r.unit.category].some((v) => v.toLowerCase().includes(q.toLowerCase()));
 
-function action(r) {
+// 他の倉庫の商品は、出品・売却・返品を扱えない（先に、自倉庫へ移動する）
+function action(r, data) {
   const { unit, rec } = r;
+  if (r.stage === 'transit') return `<span class="text-xs">→ ${esc(data.transfers?.find((t) => t.status === 'transit' && t.codes.includes(unit.code))?.toName ?? '')} へ輸送中</span>`;
+  if (['stock', 'listed', 'consigned'].includes(r.stage) && warehouseIdOf(unit, data.master) !== data.me.warehouseId) return '<span class="text-xs text-slate-500">他の倉庫の商品（扱うには、先に移動）</span>';
   if (r.canList) return `<button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-go-list="${esc(unit.code)}">出品する</button>`;
   if (r.stage === 'stock' && r.cooling) {
     return `<span class="text-xs text-amber-700 font-bold">${md(r.coolEnd)} まで出品不可</span> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-go-return="${esc(unit.visitId)}">返品受付</button>`;
@@ -36,7 +41,7 @@ function scanResult(data, scan) {
   const { unit } = r;
   return `<section class="rounded-xl border-2 border-sky-400 bg-white p-4 space-y-3">
     <div class="flex flex-wrap items-center gap-2"><span class="text-xs font-mono text-slate-500">${esc(unit.code)}</span><b class="text-lg">${esc(unit.name)}</b>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}${r.stage === 'stock' && r.cooling ? badge('bg-amber-100 text-amber-800', `${md(r.coolEnd)} まで保管（出品不可）`) : ''}
-      <span class="ml-auto">${action(r)}</span><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>
+      <span class="ml-auto">${action(r, data)}</span><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1 text-sm">
       <div><span class="text-slate-500">カテゴリ・ランク</span><br>${esc(unit.category)}／ランク${esc(unit.rank)}</div>
       <div><span class="text-slate-500">買取先</span><br>${esc(unit.customerName)} 様（${md(unit.date)}・担当営業 ${esc(userById(unit.userId)?.name ?? unit.userId)}）</div>
@@ -65,6 +70,7 @@ export function stockTab(data, { filter, q, scan }) {
     ${card('保管期間中', `${sum.cooling} 点`, sum.cooling ? 'text-amber-700' : '')}
     ${card('出品中', `${sum.listed} 点`, 'text-sky-700')}
     ${card('委託中（倉庫の外）', `${sum.consigned} 点`, 'text-violet-700')}
+    ${card('輸送中（倉庫間の移動）', `${sum.transit} 点`, sum.transit ? 'text-amber-700' : '')}
     ${card('入庫待ち・所在不明', `${sum.incoming + sum.missing} 点`, sum.missing ? 'text-rose-600' : '')}
     ${card('倉庫の在庫の原価', yen(sum.inventoryCost))}
     ${card('委託中の原価', yen(sum.consignedCost))}
@@ -77,7 +83,7 @@ export function stockTab(data, { filter, q, scan }) {
     ${shown.length ? shown.map((r) => `<tr class="border-b">
       <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)}</div></td><td>${esc(r.unit.rank)}</td>
       <td>${esc(r.unit.customerName)} 様</td><td>${md(r.unit.date)}</td><td class="text-right">${yen(r.unit.price)}</td><td class="text-xs">${r.stage === 'consigned' ? '倉庫の外（委託中）' : r.unit.status === 'stored' ? `${esc(whName(r.unit, data.master))}<div>${esc(r.unit.location)}</div>` : '-'}</td>
-      <td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r)}</td></tr>`).join('') : '<tr><td colspan="9" class="text-slate-400">該当する商品はありません。</td></tr>'}
+      <td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r, data)}</td></tr>`).join('') : '<tr><td colspan="9" class="text-slate-400">該当する商品はありません。</td></tr>'}
   </tbody></table>
   <p class="text-xs text-slate-500">買い取った商品は、クーリングオフに備え、買取から10日間は保管し、出品・販売できません（お客様の通知は郵送で届くため、法定の8日間に余裕を足しています）。保管期間が過ぎた入庫済みの商品から出品できます。入庫は営業のタブレット（商品の持ち帰り）で、QRシールを読み取って行います。</p>`;
 }
