@@ -1,7 +1,7 @@
 // 倉庫のマスタ。倉庫は営業所とは独立した施設で、営業所と一体の倉庫・倉庫のみ・倉庫のない営業所（営業のみ）がある。
 // 倉庫の担当者は、各倉庫に所属する。商品は、入庫した倉庫に保管される。操作はすべて新しいマスタを返す。
 import { AREAS } from './dispatch.js';
-import { LOCATIONS } from './stock.js';
+import { LOCATIONS, SEAL_COLORS } from './stock.js';
 
 export const MASTER_KEY = 'rq-mock-warehouse-master';
 
@@ -21,14 +21,14 @@ export const DEFAULT_MASTER = {
     { id: 'wh04', loginId: 'wh04', name: '藤田 結衣', warehouseId: 'W-FUKUOKA', active: true },
     { id: 'wh05', loginId: 'wh05', name: '岡田 剛', warehouseId: 'W-HONSHA', active: true },
   ],
-  // 高額品: 貴金属などのカテゴリ、または1点がこの金額以上の商品（金額が0なら、金額では判定しない）
-  highValue: { categories: ['ジュエリー・貴金属'], minPrice: 300000 },
+  // 高額品（本社の管理対象）: シールの色が、紫・赤の商品
+  highValue: { colors: ['purple', 'red'] },
 };
 
 export function loadMaster() {
   try {
     const m = JSON.parse(localStorage.getItem(MASTER_KEY));
-    return Array.isArray(m?.warehouses) && Array.isArray(m?.staff) ? { ...m, highValue: m.highValue ?? DEFAULT_MASTER.highValue } : DEFAULT_MASTER;
+    return Array.isArray(m?.warehouses) && Array.isArray(m?.staff) ? { ...m, highValue: Array.isArray(m.highValue?.colors) ? m.highValue : DEFAULT_MASTER.highValue } : DEFAULT_MASTER;
   } catch {
     return DEFAULT_MASTER;
   }
@@ -64,10 +64,7 @@ export const warehouseIdOf = (unit, master) => unit.warehouseId ?? master.wareho
 
 // ---- 本社（高額品の保管先）---------------------------------------------------
 export const honshaOf = (master) => activeWarehouses(master).find((w) => w.highValue) ?? null;
-export const isHighValue = (unit, master) => {
-  const { categories = [], minPrice = 0 } = master.highValue ?? {};
-  return categories.includes(unit.category) || (minPrice > 0 && unit.price >= minPrice);
-};
+export const isHighValue = (unit, master) => (master.highValue?.colors ?? []).includes(unit.sealColor);
 // 納入先の規則: 高額品は本社だけ、高額品以外は本社以外の倉庫だけ（本社が登録されていなければ、制限しない）。'' は問題なし
 export function destinationProblem(master, unit, warehouseId) {
   if (!honshaOf(master)) return '';
@@ -103,13 +100,12 @@ export function saveWarehouse(master, { id, name, address = '', officeId = '', l
   return { ok: true, master: { ...master, warehouses: old ? replaceAt(master.warehouses, id, item) : [...master.warehouses, item] } };
 }
 
-// 高額品の判定の設定（カテゴリと金額）。reason: noRule／badPrice
-export function saveHighValueRule(master, { categories, minPrice }) {
-  const raw = String(minPrice ?? 0).replace(/[,\s]/g, '') || '0';
-  if (!/^\d+$/.test(raw)) return fail(master, 'badPrice');
-  const cats = toList(categories);
-  if (!cats.length && Number(raw) === 0) return fail(master, 'noRule');
-  return { ok: true, master: { ...master, highValue: { categories: cats, minPrice: Number(raw) } } };
+// 高額品（本社の管理対象）にするシールの色の設定。reason: noRule／badColor
+export function saveHighValueRule(master, { colors }) {
+  const list = [...new Set(colors ?? [])];
+  if (!list.length) return fail(master, 'noRule');
+  if (list.some((c) => !SEAL_COLORS.some((x) => x.key === c))) return fail(master, 'badColor');
+  return { ok: true, master: { ...master, highValue: { colors: list } } };
 }
 
 // 担当者の登録・更新（id があれば更新）。reason: noName／badLoginId／noWarehouse／dupLoginId／notFound

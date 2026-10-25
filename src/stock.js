@@ -4,6 +4,14 @@
 import { STOCK_KEY } from './store.js';
 import { dateKey } from './workday.js';
 
+// シールの色。紫（最も高額）・赤は本社の管理対象（高額品）。黄・緑・青は、システム上は区別しない（青は1点では出品できないが、今は区別しない）
+export const SEAL_COLORS = [
+  { key: 'purple', label: '紫', note: '最も高額', dot: '🟣' },
+  { key: 'red', label: '赤', note: '高額', dot: '🔴' },
+  { key: 'other', label: '黄・緑・青', note: 'その他', dot: '🟡' },
+];
+export const sealColorOf = (key) => SEAL_COLORS.find((c) => c.key === key) ?? null;
+
 export const LOCATIONS = ['A棚（バッグ・小物）', 'B棚（時計・ジュエリー）', 'C棚（カメラ・家電）', '金庫室（高額品）', '要確認エリア'];
 
 // 状態: pending（入庫待ち）／stored（入庫済み）／missing（所在不明として報告）
@@ -27,13 +35,14 @@ export function saveUnits(list) {
 }
 
 // 訪問の買取商品（シール枠ごと）から、入庫待ちの実物リストを作る。シール未紐づけの枠は対象外
-export function unitsFromVisit({ visitId, userId, customerName, slots, labels, at = Date.now() }) {
+export function unitsFromVisit({ visitId, userId, customerName, slots, labels, colors = {}, at = Date.now() }) {
   return slots
     .filter((x) => labels[x.key])
     .map((x) => ({
       code: labels[x.key], visitId, userId, customerName, at, date: dateKey(new Date(at)),
       itemId: x.item.id, name: x.item.name, category: x.item.category, rank: x.item.rank,
       n: x.n, qty: x.item.qty, price: x.item.qty ? Math.round(x.item.price / x.item.qty) : x.item.price,
+      sealColor: colors[x.key] ?? null, // シールの色（紫・赤は本社管理の高額品）
       status: 'pending', storedAt: null, location: null, by: null,
     }));
 }

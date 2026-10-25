@@ -60,3 +60,13 @@ test('入庫した倉庫: 入庫すると、どの倉庫に入ったかを商品
   assert.deepEqual(many.list.slice(0, 2).map((x) => x.warehouseId), ['W-OSAKA', 'W-OSAKA']);
   assert.equal(many.list[4].warehouseId, undefined); // 入庫していない商品は、倉庫が決まらない
 });
+
+const { unitsFromVisit, SEAL_COLORS } = await import('../src/stock.js');
+
+test('シールの色: 紫・赤・その他（黄・緑・青）の3つ。買取のシール紐づけで選んだ色を、商品ごとに記録する', () => {
+  assert.deepEqual(SEAL_COLORS.map((c) => c.key), ['purple', 'red', 'other']);
+  const item = (id, name) => ({ id, name, category: 'x', rank: 'A', qty: 1, price: 1000 });
+  const slots = [{ key: 'a-1', item: item('a', 'A'), n: 1 }, { key: 'b-1', item: item('b', 'B'), n: 1 }, { key: 'c-1', item: item('c', 'C'), n: 1 }];
+  const units = unitsFromVisit({ visitId: 'V', userId: 'u01', customerName: 'x', slots, labels: { 'a-1': 'RQ-1', 'b-1': 'RQ-2', 'c-1': 'RQ-3' }, colors: { 'a-1': 'purple', 'b-1': 'other' } });
+  assert.deepEqual(units.map((u) => u.sealColor), ['purple', 'other', null]); // 色の記録がなければ null
+});

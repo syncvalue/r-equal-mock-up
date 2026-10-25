@@ -2,6 +2,7 @@
 import { yen, fmtTime } from '../src/format.js';
 import { dateOf } from '../src/warehouse.js';
 import { warehouseById, warehouseIdOf } from '../src/warehouseMaster.js';
+import { sealColorOf } from '../src/stock.js';
 
 export const STAGE_CLS = {
   incoming: 'bg-slate-200 text-slate-600', missing: 'bg-rose-100 text-rose-700', stock: 'bg-emerald-100 text-emerald-800', listed: 'bg-sky-100 text-sky-800', consigned: 'bg-violet-50 text-violet-800', transit: 'bg-amber-100 text-amber-800',
@@ -16,4 +17,6 @@ export const yenS = (n) => (n < 0 ? `−${yen(-n)}` : yen(n)); // マイナス�
 export const profitCls = (n) => (n < 0 ? 'text-rose-600' : 'text-emerald-700');
 // 商品が入庫されている倉庫の名前（入庫前は「-」）
 export const whName = (unit, master) => (unit.status === 'stored' ? warehouseById(master, warehouseIdOf(unit, master))?.name ?? '-' : '-');
+// シールの色の表示（紫・赤は本社管理の高額品）
+export const sealBadge = (unit) => { const c = sealColorOf(unit.sealColor); return c ? `<span class="text-xs whitespace-nowrap" title="シールの色: ${c.label}">${c.dot}${c.label}</span>` : ''; };
 export const pct = (r) => `${(r * 100).toFixed(1)}%`;

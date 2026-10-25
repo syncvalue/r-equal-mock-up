@@ -2,7 +2,7 @@
 import { AREAS } from '../src/dispatch.js';
 import { officeName, staffOf } from '../src/warehouseMaster.js';
 import { yen, esc } from '../src/format.js';
-import { yenText } from '../src/moneyInput.js';
+import { SEAL_COLORS } from '../src/stock.js';
 import { badge } from './ui.js';
 
 const ON = badge('bg-emerald-100 text-emerald-800', '有効');
@@ -58,14 +58,11 @@ function staffForm({ master }, ms) {
 }
 
 function highValueForm(data, hv) {
-  const cur = hv ?? { categories: data.master.highValue.categories.join(', '), minPrice: data.master.highValue.minPrice };
+  const cur = hv ?? data.master.highValue.colors;
   return `<div class="rounded-lg border bg-slate-50 p-3 space-y-3">
-    <h3 class="font-bold">高額品の判定（本社に納入する商品）</h3>
-    <p class="text-xs text-slate-500">次のどちらかに当てはまる商品は、納入のときから本社に入ります。それ以外は倉庫に入ります。</p>
-    <div class="grid sm:grid-cols-2 gap-3">
-      <label class="text-sm font-bold">貴金属などのカテゴリ<span class="font-normal text-xs text-slate-500">カンマ区切り</span><input class="inp mt-1 font-normal" data-f="hv.categories" value="${esc(cur.categories)}" placeholder="例: ジュエリー・貴金属" /></label>
-      <label class="text-sm font-bold">1点がこの金額以上<span class="font-normal text-xs text-slate-500">0なら金額では判定しない</span><input class="inp mt-1 font-normal text-right" inputmode="numeric" data-f="hv.minPrice" value="${yenText(cur.minPrice) || '0'}" placeholder="300,000" /></label>
-    </div>
+    <h3 class="font-bold">高額品の判定（シールの色）</h3>
+    <p class="text-xs text-slate-500">商品に貼るシールの色で、本社の管理対象（高額品）かどうかを決めます。チェックを付けた色の商品は、納入のときから本社に入り、それ以外は倉庫に入ります。紫が最も高額で、次が赤です。黄・緑・青は、システム上は区別しません。</p>
+    <div class="flex flex-wrap gap-4">${SEAL_COLORS.map((c) => `<label class="flex items-center gap-2 text-sm font-bold"><input type="checkbox" class="w-5 h-5" data-hv-color="${c.key}" ${cur.includes(c.key) ? 'checked' : ''} />${c.dot} ${c.label}<span class="font-normal text-xs text-slate-500">（${c.note}）</span></label>`).join('')}</div>
     <button class="b b-pri" data-hv-save>判定の設定を保存</button>
   </div>`;
 }

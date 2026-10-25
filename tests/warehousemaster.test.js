@@ -121,18 +121,19 @@ test('本社: 高額品の保管先として、倉庫マスタの1つ（本社�
   assert.equal(M.honshaOf({ ...HM, warehouses: HM.warehouses.map((w) => ({ ...w, highValue: false })) }), null);
 });
 
-test('高額品: 貴金属などのカテゴリ、または一定額以上の商品。マスタの設定で決まる', () => {
-  assert.equal(M.isHighValue({ category: 'ジュエリー・貴金属', price: 1000 }, HM), true);
-  assert.equal(M.isHighValue({ category: 'ブランドバッグ', price: HM.highValue.minPrice }, HM), true);
-  assert.equal(M.isHighValue({ category: 'ブランドバッグ', price: HM.highValue.minPrice - 1 }, HM), false);
-  assert.equal(M.isHighValue({ category: '腕時計', price: 100 }, { ...HM, highValue: { categories: ['腕時計'], minPrice: 0 } }), true);
-  assert.equal(M.isHighValue({ category: 'x', price: 99999999 }, { ...HM, highValue: { categories: [], minPrice: 0 } }), false); // 金額の設定が0なら、金額では判定しない
+test('高額品: シールの色が、紫・赤の商品（本社管理）。黄・緑・青（その他）は高額品ではない。マスタの設定で決まる', () => {
+  assert.deepEqual(HM.highValue, { colors: ['purple', 'red'] });
+  assert.equal(M.isHighValue({ sealColor: 'purple' }, HM), true);
+  assert.equal(M.isHighValue({ sealColor: 'red' }, HM), true);
+  assert.equal(M.isHighValue({ sealColor: 'other' }, HM), false);
+  assert.equal(M.isHighValue({ sealColor: null }, HM), false); // 色のない古い商品は、高額品として扱わない
+  assert.equal(M.isHighValue({ sealColor: 'other' }, { ...HM, highValue: { colors: ['other'] } }), true);
 });
 
 test('納入先の規則: 高額品は本社だけ、高額品以外は本社以外の倉庫だけ', () => {
   const w = HM.warehouses.find((x) => !x.highValue);
-  const high = { category: 'ジュエリー・貴金属', price: 1 };
-  const normal = { category: 'ブランドバッグ', price: 1 };
+  const high = { sealColor: 'purple' };
+  const normal = { sealColor: 'other' };
   assert.equal(M.destinationProblem(HM, high, hon.id), '');
   assert.equal(M.destinationProblem(HM, high, w.id), 'highToHonsha');
   assert.equal(M.destinationProblem(HM, normal, w.id), '');
@@ -142,8 +143,8 @@ test('納入先の規則: 高額品は本社だけ、高額品以外は本社以
 
 test('営業の納入先（商品ごと）: 高額品は本社に自動で、それ以外は選んだ倉庫（本社は選べない）', () => {
   const w = HM.warehouses.find((x) => x.officeId === 'osaka');
-  const high = { category: 'ジュエリー・貴金属', price: 1 };
-  const normal = { category: 'ブランドバッグ', price: 1 };
+  const high = { sealColor: 'purple' };
+  const normal = { sealColor: 'other' };
   const th = M.receiveTargetFor(HM, high, 'osaka', { warehouseId: w.id, location: w.locations[1] });
   assert.equal(th.warehouse.id, hon.id); assert.equal(th.location, hon.locations[0]);
   const tn = M.receiveTargetFor(HM, normal, 'osaka', { warehouseId: w.id, location: w.locations[1] });
@@ -157,10 +158,15 @@ test('本社の登録: 本社（高額品の保管先）は1つだけ。高額�
   assert.equal(dup.reason, 'dupHonsha');
   const ok = M.saveWarehouse(HM, { id: hon.id, name: hon.name, address: hon.address, officeId: '', locations: hon.locations, highValue: true });
   assert.equal(ok.ok, true);
-  const rule = M.saveHighValueRule(HM, { categories: 'ジュエリー・貴金属, 腕時計', minPrice: '500,000' });
-  assert.deepEqual(rule.master.highValue, { categories: ['ジュエリー・貴金属', '腕時計'], minPrice: 500000 });
-  assert.equal(M.saveHighValueRule(HM, { categories: '', minPrice: 0 }).reason, 'noRule');
-  assert.equal(M.saveHighValueRule(HM, { categories: 'x', minPrice: -1 }).reason, 'badPrice');
-  mem.set('rq-mock-warehouse-master', JSON.stringify({ warehouses: HM.warehouses, staff: HM.staff })); // 古い保存データ（設定なし）は、初期の設定を補う
+  const rule = M.saveHighValueRule(HM, { colors: ['purple'] });
+  assert.deepEqual(rule.master.highValue, { colors: ['purple'] });
+  assert.equal(M.saveHighValueRule(HM, { colors: [] }).reason, 'noRule');
+  assert.equal(M.saveHighValueRule(HM, { colors: ['purple', 'pink'] }).reason, 'badColor');
+  mem.set('rq-mock-warehouse-master', JSON.stringify({ warehouses: HM.warehouses, staff: HM.staff })); 
   assert.deepEqual(M.loadMaster().highValue, HM.highValue);
+});
+
+test('古い保存データ: 高額品の設定がない、または古い形式（カテゴリ・金額）なら、シールの色の初期設定を補う', () => {
+  mem.set('rq-mock-warehouse-master', JSON.stringify({ warehouses: HM.warehouses, staff: HM.staff, highValue: { categories: ['x'], minPrice: 1 } }));
+  assert.deepEqual(M.loadMaster().highValue, { colors: ['purple', 'red'] });
 });

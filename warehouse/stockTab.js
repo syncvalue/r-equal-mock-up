@@ -3,7 +3,7 @@ import { STAGES, channelOf, stockSummary, dateOf, findByCode, historyOf, lotsOf,
 import { yen, esc } from '../src/format.js';
 import { userById } from '../src/dashboard.js';
 import { warehouseIdOf } from '../src/warehouseMaster.js';
-import { badge, card, md, mdTime, whName, STAGE_CLS } from './ui.js';
+import { badge, card, md, mdTime, whName, sealBadge, STAGE_CLS } from './ui.js';
 
 export const FILTERS = [['all', 'すべて'], ['stock', '在庫'], ['listed', '出品中'], ['consigned', '委託中'], ['transit', '輸送中'], ['incoming', '入庫待ち・所在不明'], ['sold', '売却済み'], ['return', '返品']];
 const MATCH = {
@@ -50,7 +50,7 @@ function scanResult(data, scan) {
     <div class="flex flex-wrap items-center gap-2"><span class="text-xs font-mono text-slate-500">${esc(unit.code)}</span><b class="text-lg">${esc(unit.name)}</b>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}${r.stage === 'stock' && r.cooling ? badge('bg-amber-100 text-amber-800', `${md(r.coolEnd)} まで保管（出品不可）`) : ''}
       <span class="ml-auto">${action(r, data)}</span><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1 text-sm">
-      <div><span class="text-slate-500">カテゴリ・ランク</span><br>${esc(unit.category)}／ランク${esc(unit.rank)}</div>
+      <div><span class="text-slate-500">カテゴリ・ランク・シールの色</span><br>${esc(unit.category)}／ランク${esc(unit.rank)} ${sealBadge(unit)}</div>
       <div><span class="text-slate-500">買取先</span><br>${esc(unit.customerName)} 様（${md(unit.date)}・担当営業 ${esc(userById(unit.userId)?.name ?? unit.userId)}）</div>
       <div><span class="text-slate-500">原価（買取額）</span><br>${yen(unit.price)}</div>
       <div><span class="text-slate-500">倉庫・保管場所</span><br>${r.stage === 'consigned' ? `倉庫の外（委託中）／元の倉庫 ${esc(whName(unit, data.master))}` : unit.status === 'stored' ? `${esc(whName(unit, data.master))}／${esc(unit.location)}` : '入庫前'}</div>
@@ -71,7 +71,7 @@ function lotView(shown, data) {
     ${lots.filter((l) => l.date === d).map((l) => `<div class="rounded-xl border bg-white p-3 space-y-1">
       <div class="flex flex-wrap items-center gap-2 text-sm"><b class="text-base">${esc(l.customerName)} 様</b><span class="text-xs text-slate-500">担当営業 ${esc(userById(l.userId)?.name ?? l.userId)}／${l.rows.length}点 ${yen(l.total)}</span></div>
       <table class="w-full text-sm"><tbody>${l.rows.map((r) => `<tr class="border-t">
-        <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)}／ランク${esc(r.unit.rank)}</div></td><td class="text-right">${yen(r.unit.price)}</td>
+        <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)}／ランク${esc(r.unit.rank)} ${sealBadge(r.unit)}</div></td><td class="text-right">${yen(r.unit.price)}</td>
         <td class="text-xs">${where(r, data)}</td><td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r, data)}</td></tr>`).join('')}</tbody></table></div>`).join('')}</section>`).join('');
 }
 
@@ -107,7 +107,7 @@ export function stockTab(data, { filter, q, scan, view }) {
     <span class="text-xs text-slate-500">買取日・お客様（契約）ごとにまとめて保管します。クーリングオフのときも、同じ契約の商品をすぐ探せます。</span></div>
   ${view === 'lot' ? lotView(shown, data) : `<table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>シールNo.</th><th>商品</th><th>ランク</th><th>買取先</th><th>買取日</th><th class="text-right">原価</th><th>倉庫・保管場所</th><th>状態</th><th>操作・備考</th></tr></thead><tbody>
     ${shown.length ? shown.map((r) => `<tr class="border-b">
-      <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)}</div></td><td>${esc(r.unit.rank)}</td>
+      <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)} ${sealBadge(r.unit)}</div></td><td>${esc(r.unit.rank)}</td>
       <td>${esc(r.unit.customerName)} 様</td><td>${md(r.unit.date)}</td><td class="text-right">${yen(r.unit.price)}</td><td class="text-xs">${where(r, data)}</td>
       <td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r, data)}</td></tr>`).join('') : '<tr><td colspan="9" class="text-slate-400">該当する商品はありません。</td></tr>'}
   </tbody></table>`}

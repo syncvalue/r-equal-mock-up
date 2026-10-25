@@ -4,7 +4,7 @@
 import { userById } from '../src/dashboard.js';
 import { destinationProblem } from '../src/warehouseMaster.js';
 import { yen, esc } from '../src/format.js';
-import { badge, md, mdTime } from './ui.js';
+import { badge, md, mdTime, sealBadge } from './ui.js';
 
 const TAG = { pending: badge('bg-amber-100 text-amber-800', '入庫待ち'), missing: badge('bg-rose-100 text-rose-700', '所在不明'), stored: badge('bg-emerald-100 text-emerald-800', '入庫済み') };
 const salesName = (id) => userById(id)?.name ?? id;
@@ -13,7 +13,7 @@ function scanPanel(rc, todo, warehouse) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
     <h2 class="font-bold text-lg">📥 入庫する <span class="text-sm font-normal text-sky-700">入庫先: ${esc(warehouse.name)}</span></h2>
-    <p class="text-xs text-slate-500">営業から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。貴金属などの高額品は、納入のときから本社に入るため、本社の担当者だけが入庫できます（本社以外では、高額品以外を入庫します）。営業が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。</p>
+    <p class="text-xs text-slate-500">営業から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。シールの色が紫・赤の高額品は、納入のときから本社に入るため、本社の担当者だけが入庫できます（本社以外では、高額品以外を入庫します）。営業が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。</p>
     <div><div class="text-sm font-bold mb-1">保管場所<span class="font-normal text-xs text-slate-500">（入庫する商品は、ここに保管します）</span></div>
       <div class="flex flex-wrap gap-1.5">${warehouse.locations.map((l) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${rc.location === l ? 'on' : ''}" data-rc-loc="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>
     <label class="text-sm font-bold block">シールNo.（スキャナ・手入力。Enterで入庫。読み取りで、照合したものとして記録します）
@@ -43,7 +43,7 @@ function contractCard(units, rc, warehouse, master) {
     </div>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500"><th>☑ 明細と一致</th><th>シールNo.</th><th>商品</th><th>ランク</th><th class="text-right">買取額</th><th>状態</th><th>照合・保管場所</th></tr></thead><tbody>${units.map((u) => `<tr class="border-t ${u.status === 'stored' ? 'text-slate-400' : ''}">
       <td>${u.status === 'stored' ? '' : destinationProblem(master, u, warehouse.id) ? `<span class="text-xs text-amber-700 font-bold whitespace-normal">${PROBLEM_TEXT[destinationProblem(master, u, warehouse.id)]}</span>` : `<input type="checkbox" class="w-5 h-5" data-rc-check="${esc(u.code)}" ${rc.checks.includes(u.code) ? 'checked' : ''} aria-label="${esc(u.name)}を明細と照合した" />`}</td>
-      <td class="font-mono text-xs">${esc(u.code)}</td><td class="font-bold">${esc(u.name)}<div class="text-xs font-normal">${esc(u.category)}</div></td><td>${esc(u.rank)}</td><td class="text-right">${yen(u.price)}</td>
+      <td class="font-mono text-xs">${esc(u.code)}</td><td class="font-bold">${esc(u.name)}<div class="text-xs font-normal">${esc(u.category)} ${sealBadge(u)}</div></td><td>${esc(u.rank)}</td><td class="text-right">${yen(u.price)}</td>
       <td>${TAG[u.status]}</td><td class="text-xs !whitespace-normal">${u.status === 'stored' ? `📍 ${esc(u.location)}<div>${checkInfo(u)}</div>` : ''}</td></tr>`).join('')}</tbody></table>
     ${actionable.length ? `<div class="flex flex-wrap items-center gap-2">
       <button class="b b-sec !min-h-0 !py-1.5 !px-3 text-sm" data-rc-all="${esc(first.visitId)}">${checked.length === actionable.length ? '☑をすべて外す' : '残りをすべて☑'}</button>

@@ -12,6 +12,7 @@ import { hearingModal } from './hearingView.js';
 import { outcomeResultView } from './workdayView.js';
 import { messagesFor, unreadCount } from './messages.js';
 import { pendingCount } from './stockView.js';
+import { SEAL_COLORS } from './stock.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '説明事項', '買取明細', '買取商品の確認', 'シール紐づけ', '送信・終了'];
@@ -199,7 +200,7 @@ export function canProceed(s) {
     case 2: return briefingDone(s);
     case 3: return s.items.length > 0 && s.items.every((i) => i.price > 0);
     case 4: return selectedItems(s).length > 0 && allApproved(s);
-    case 5: return labelSlots(s).every((x) => s.labels[x.key]);
+    case 5: return labelSlots(s).every((x) => s.labels[x.key] && s.sealColors[x.key]);
     default: return true;
   }
 }
@@ -273,6 +274,11 @@ const sealChip = (s, i) => {
   return n ? `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${n === i.qty ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">🏷 シール ${n}/${i.qty}</span>` : '';
 };
 
+// シールの色の選択。紫・赤は、本社で管理する高額品（納入のときから本社に入る）。黄・緑・青は、区別しない
+const colorChips = (s, key, size) => `<div class="flex flex-wrap items-center gap-1.5 mt-1.5"><span class="${size === 'xs' ? 'text-xs' : 'text-sm'} font-bold text-slate-500">シールの色</span>
+  ${SEAL_COLORS.map((c) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${s.sealColors[key] === c.key ? 'active' : ''}" data-action="seal-color" data-key="${key}" data-value="${c.key}">${c.dot} ${c.label}</button>`).join('')}
+  ${s.sealColors[key] === 'purple' || s.sealColors[key] === 'red' ? '<span class="text-xs font-bold text-violet-700">本社へ納入</span>' : s.sealColors[key] ? '<span class="text-xs text-slate-400">倉庫へ納入</span>' : '<span class="text-xs text-rose-600 font-bold">選んでください</span>'}</div>`;
+
 // 商品の詳細モーダル内のシール貼付。買取明細の段階で、貼りながら進める場合に使う（あとの「シール紐づけ」で一括する場合は不要）
 function sealSection(s, item) {
   const slots = itemSlots(s, item);
@@ -289,6 +295,7 @@ function sealSection(s, item) {
         ${code
           ? `<span class="text-teal-700 font-bold text-sm">✅済</span><button class="btn btn-secondary !py-1 !min-h-[40px] !px-3 text-sm" data-action="clear-label" data-key="${x.key}">解除</button>`
           : `<button class="btn btn-primary !py-1 !min-h-[40px] !px-3 text-sm" data-action="dummy-scan" data-key="${x.key}">📷 QR読取</button>`}</div>
+        ${colorChips(s, x.key, 'xs')}
         ${err ? `<p class="text-rose-600 font-bold text-xs">${esc(err)}</p>` : ''}</div>`;
     }).join('')}
   </details>`;
@@ -543,6 +550,7 @@ export function labelView(s) {
             ? `<span class="text-teal-700 font-bold w-16">✅済</span><button class="btn btn-secondary !py-2 !min-h-[44px]" data-action="clear-label" data-key="${x.key}">解除</button>`
             : `<button class="btn btn-primary !py-2 !min-h-[44px]" data-action="dummy-scan" data-key="${x.key}">📷 QR読取</button>`}
         </div>
+        ${colorChips(s, x.key, 'sm')}
         ${err ? `<p class="text-rose-600 font-bold text-sm">${esc(err)}</p>` : ''}
       </div>`;
         })
@@ -615,7 +623,7 @@ export function endView(s) {
   const left = leaveRemaining(s);
   const auto = [
     ['GMOサインへの送信が完了している', Boolean(s.contract)],
-    ['買取商品すべてに、シールのQRコードを紐づけ済み', labelSlots(s).every((x) => s.labels[x.key])],
+    ['買取商品すべてに、シールのQRコードを紐づけ、シールの色を選択済み', labelSlots(s).every((x) => s.labels[x.key] && s.sealColors[x.key])],
   ];
   return `
   <section class="${SEC} flex items-center justify-center">

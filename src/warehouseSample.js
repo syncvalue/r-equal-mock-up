@@ -15,6 +15,8 @@ const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩
 // 高額品（貴金属など）は納入のときから本社、それ以外はお客様ごとの倉庫
 const whOf = (customerName, item) => (item && isHighValue(item, MASTER) ? 'W-HONSHA' : WH_OF[customerName] ?? 'W-OSAKA');
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
+// シールの色（見本）。貴金属・高額な商品が、紫・赤（本社管理）、それ以外は黄・緑・青
+const colorOf = (category, price) => (price >= 400000 ? 'purple' : category === 'ジュエリー・貴金属' || price >= 300000 ? 'red' : 'other');
 const SHELF_LETTER = { 'ブランドバッグ': 'A', '財布・小物': 'A', '腕時計': 'B', 'ジュエリー・貴金属': 'B', 'カメラ・家電': 'C' };
 // 保管場所は、入庫した倉庫の棚から選ぶ（高額品は金庫室、それ以外はカテゴリの棚。なければ先頭の棚）
 const placeOf = (category, price, warehouseId) => {
@@ -32,10 +34,11 @@ export function buildSample(now = Date.now()) {
   const purchase = (daysAgo, userId, customerName, items, status = 'stored') => items.map(([name, category, rank, price]) => {
     seq += 1;
     const stored = status === 'stored';
-    const wid = whOf(customerName, { category, price });
+    const sealColor = colorOf(category, price);
+    const wid = whOf(customerName, { sealColor });
     return {
       code: `${PREFIX}${String(seq).padStart(4, '0')}`, visitId: `V-WH-${daysAgo}-${userId}`, userId, customerName, at: at(daysAgo), date: W.dateOf(at(daysAgo)),
-      itemId: `wh-${seq}`, name, category, rank, n: 1, qty: 1, price, status,
+      itemId: `wh-${seq}`, name, category, rank, n: 1, qty: 1, price, sealColor, status,
       storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price, wid) : null,
       // 偶数日前の買取は倉庫の担当者が明細と照合して入庫、奇数日前は営業がタブレットから入庫
       by: !stored ? null : daysAgo % 2 === 0 ? staffOfWh(wid) : userId,

@@ -76,6 +76,7 @@ const initialState = () => ({
   mlimit: 40,
   recent: loadRecent(),
   labels: {},
+  sealColors: {}, // シールの色（枠ごと）。紫・赤は本社へ納入する高額品
   labelError: null,
   contract: null,
   appraisals: [],
@@ -307,10 +308,16 @@ const actions = {
     }, 2200);
   },
   'scan-cancel': () => { scanToken += 1; set({ scan: null }); },
-  'dummy-scan-all': () => V.labelSlots(state).forEach((x) => !state.labels[x.key] && assignLabel(x.key, newCode())),
+  // デモ用: 残りを一括で読み取る（色は、未選択のものを「その他」にする）
+  'dummy-scan-all': () => {
+    V.labelSlots(state).forEach((x) => !state.labels[x.key] && assignLabel(x.key, newCode()));
+    set({ sealColors: Object.fromEntries(V.labelSlots(state).map((x) => [x.key, state.sealColors[x.key] ?? 'other'])) });
+  },
+  'seal-color': (el) => set({ sealColors: { ...state.sealColors, [el.dataset.key]: el.dataset.value } }),
   'clear-label': (el) => {
     const { [el.dataset.key]: _removed, ...rest } = state.labels;
-    set({ labels: rest, labelError: null });
+    const { [el.dataset.key]: _color, ...colors } = state.sealColors;
+    set({ labels: rest, sealColors: colors, labelError: null });
   },
   // 本社からのメッセージ: タップで詳細をモーダルで開き、既読にする
   'msg-open': (el) => {
@@ -445,13 +452,14 @@ const actions = {
           },
     );
   },
-  'remove-item': (el) => set({ items: state.items.filter((i) => i.id !== el.dataset.id), labels: Object.fromEntries(Object.entries(state.labels).filter(([k]) => !k.startsWith(`${el.dataset.id}-`))), modal: null }),
+  'remove-item': (el) => set({ items: state.items.filter((i) => i.id !== el.dataset.id), labels: Object.fromEntries(Object.entries(state.labels).filter(([k]) => !k.startsWith(`${el.dataset.id}-`))), sealColors: Object.fromEntries(Object.entries(state.sealColors).filter(([k]) => !k.startsWith(`${el.dataset.id}-`))), modal: null }),
   qty: (el) => {
     const item = state.items.find((i) => i.id === el.dataset.id);
     const qty = Math.max(1, item.qty + Number(el.dataset.delta));
     updateItems(item.id, { qty });
     // 数量を減らしたら、なくなる分のシールの紐づけも外す
-    set({ labels: Object.fromEntries(Object.entries(state.labels).filter(([k]) => !k.startsWith(`${item.id}-`) || Number(k.slice(item.id.length + 1)) <= qty)) });
+    const kept = (m) => Object.fromEntries(Object.entries(m).filter(([k]) => !k.startsWith(`${item.id}-`) || Number(k.slice(item.id.length + 1)) <= qty));
+    set({ labels: kept(state.labels), sealColors: kept(state.sealColors) });
   },
   'toggle-sell': (el) =>
     set({ items: state.items.map((i) => (i.id === el.dataset.id ? { ...i, sell: !i.sell } : i)) }),
@@ -530,7 +538,7 @@ const actions = {
       showToast('買取代金を経費に計上できませんでした（保存容量不足）');
     }
     // 持ち帰り（入庫）の対象として、シールを貼った実物を1点ずつ登録する
-    const units = unitsFromVisit({ visitId: state.visitId, userId: state.user, customerName: state.customer.name, slots: V.labelSlots(state), labels: state.labels });
+    const units = unitsFromVisit({ visitId: state.visitId, userId: state.user, customerName: state.customer.name, slots: V.labelSlots(state), labels: state.labels, colors: state.sealColors });
     if (!saveUnits(addUnits(loadUnits(), units))) showToast('持ち帰り商品を登録できませんでした（保存容量不足）');
   },
   // 訪問できなかった（不在・日程変更の依頼など）場合の記録。訪問実績として残し、業績には影響させない

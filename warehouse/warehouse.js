@@ -29,7 +29,7 @@ const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' })
 const blankSell = () => ({ code: '', price: 0, shipping: 0, buyer: '' });
 const blankReturn = () => ({ visitId: '', codes: [], reason: 'family', memo: '' });
 const MASTER_TEXT = {
-  dupHonsha: '本社（高額品の保管先）は、すでに登録されています（1か所だけです）', noRule: '高額品の判定のカテゴリか金額を入力してください', badPrice: '金額は、数字で入力してください', noName: '名前を入力してください', noLocations: '保管場所（棚）を1つ以上入力してください', badOffice: '営業所の指定が正しくありません', dupName: '同じ名前の倉庫がすでにあります', notFound: '対象が見つかりません',
+  dupHonsha: '本社（高額品の保管先）は、すでに登録されています（1か所だけです）', noRule: '本社に納入するシールの色を、1つ以上選んでください', badColor: 'シールの色が正しくありません', noName: '名前を入力してください', noLocations: '保管場所（棚）を1つ以上入力してください', badOffice: '営業所の指定が正しくありません', dupName: '同じ名前の倉庫がすでにあります', notFound: '対象が見つかりません',
   badLoginId: 'ログインIDは、英数字・ハイフン・アンダースコアの3〜20文字にしてください', dupLoginId: '同じログインIDの担当者がすでにいます', noWarehouse: '所属する倉庫を選んでください',
   inUse: 'この倉庫には、保管中の商品（在庫・出品中・委託中・返品対応中）があるため、無効にできません', hasStaff: 'この倉庫には有効な担当者がいるため、無効にできません（担当者を別の倉庫に移すか、無効にしてください）',
 };
@@ -275,7 +275,7 @@ const ACTIONS = {
   mwSave: saveWh,
   mwEdit: (v) => { const w = warehouseById(master, v); ui.mw = { id: w.id, name: w.name, address: w.address, officeId: w.officeId, locations: w.locations.join('\n'), highValue: Boolean(w.highValue) }; },
   hvSave: () => {
-    const r = saveHighValueRule(master, ui.hv ?? { categories: master.highValue.categories, minPrice: master.highValue.minPrice });
+    const r = saveHighValueRule(master, { colors: ui.hv ?? master.highValue.colors });
     if (!r.ok) return alert(MASTER_TEXT[r.reason]);
     commitMaster(r.master);
     ui.hv = null;
@@ -343,7 +343,7 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = { hv: () => ui.hv ?? { categories: master.highValue.categories.join(', '), minPrice: master.highValue.minPrice }, tf: () => ui.tf, lf: () => ui.lf, sf: () => ui.sf, rf: () => ui.rf, mw: () => ui.mw, ms: () => ui.ms };
+const FORMS = { tf: () => ui.tf, lf: () => ui.lf, sf: () => ui.sf, rf: () => ui.rf, mw: () => ui.mw, ms: () => ui.ms };
 const MONEY = new Set(['lf.price', 'sf.price', 'sf.shipping']);
 function onField(e, isInput) {
   const f = e.target.dataset.f ?? '';
@@ -380,6 +380,12 @@ document.addEventListener('input', (e) => {
   onField(e, true);
 });
 document.addEventListener('change', (e) => {
+  if (e.target.matches?.('[data-hv-color]')) {
+    const cur = ui.hv ?? master.highValue.colors;
+    const c = e.target.dataset.hvColor;
+    ui.hv = e.target.checked ? [...new Set([...cur, c])] : cur.filter((x) => x !== c);
+    return;
+  }
   if (e.target.matches?.('[data-tf-code]')) {
     const code = e.target.dataset.tfCode;
     ui.tf = { ...ui.tf, codes: e.target.checked ? [...ui.tf.codes, code] : ui.tf.codes.filter((c) => c !== code) };

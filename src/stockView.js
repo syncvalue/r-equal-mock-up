@@ -117,7 +117,7 @@ function actionCard(s, mine) {
       <div class="font-bold text-sm mb-1">保管場所<span class="font-normal text-xs text-slate-500">（読み取った商品は、ここに入庫します）</span></div>
       <div class="flex flex-wrap gap-1.5">${target.warehouse.locations.map((l) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.location === l ? 'active' : ''}" data-action="stock-loc" data-value="${esc(l)}">${esc(l)}</button>`).join('')}</div>
     </div>
-    <div class="rounded-xl bg-violet-50 border border-violet-200 p-2 text-xs text-violet-800">貴金属などの高額品は、納入のときから<b>本社</b>に入ります。ここでは入庫せず、本社へ郵送・持参してください（本社で入庫します）。</div>
+    <div class="rounded-xl bg-violet-50 border border-violet-200 p-2 text-xs text-violet-800">シールの色が<b>紫・赤</b>の高額品は、納入のときから<b>本社</b>に入ります。ここでは入庫せず、本社へ郵送・持参してください（本社で入庫します）。</div>
     <button class="btn btn-primary w-full text-xl !py-4" data-action="stock-scan" ${todo.some((u) => !isHonshaItem(u)) ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
     <p class="text-xs text-slate-500 -mt-1">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
     <label class="block"><span class="font-bold text-sm">シールNo.を入力（スキャナ・手入力）</span>
