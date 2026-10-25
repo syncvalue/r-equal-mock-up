@@ -35,7 +35,9 @@ export function saveUnits(list) {
 }
 
 // 訪問の買取商品（シール枠ごと）から、入庫待ちの実物リストを作る。シール未紐づけの枠は対象外
-export function unitsFromVisit({ visitId, userId, customerName, slots, labels, colors = {}, at = Date.now() }) {
+// photos: 商品ID → 買取のときに撮影した写真（査定依頼の写真）。ない商品には付けない
+// phones: 訪問のお客様の電話番号（受付でヒアリングした1・2）。商品に控えて、クーリングオフの電話で探せるようにする
+export function unitsFromVisit({ visitId, userId, customerName, slots, labels, colors = {}, photos = {}, phones = [], at = Date.now() }) {
   return slots
     .filter((x) => labels[x.key])
     .map((x) => ({
@@ -43,8 +45,28 @@ export function unitsFromVisit({ visitId, userId, customerName, slots, labels, c
       itemId: x.item.id, name: x.item.name, category: x.item.category, rank: x.item.rank,
       n: x.n, qty: x.item.qty, price: x.item.qty ? Math.round(x.item.price / x.item.qty) : x.item.price,
       sealColor: colors[x.key] ?? null, // シールの色（紫・赤は本社管理の高額品）
+      phones: phones.map((p) => String(p ?? '').trim()).filter(Boolean),
+      ...(photos[x.item.id] ? { photo: photos[x.item.id] } : {}),
       status: 'pending', storedAt: null, location: null, by: null,
     }));
+}
+
+// 倉庫での写真の登録（撮り直しも同じ）と削除。写真と、登録した人・日時を商品に残す。削除すると、表示はダミーに戻る
+export function setUnitPhoto(list, code, photo, { by = '', at = Date.now() } = {}) {
+  if (!photo || !list.some((u) => u.code === code)) return list;
+  return list.map((u) => {
+    if (u.code !== code) return u;
+    const { photoBy, ...rest } = u; // 撮り直したら、前の登録者は残さない
+    return { ...rest, photo, photoAt: at, ...(by ? { photoBy: by } : {}) };
+  });
+}
+export function clearUnitPhoto(list, code) {
+  if (!list.some((u) => u.code === code && u.photo)) return list;
+  return list.map((u) => {
+    if (u.code !== code) return u;
+    const { photo, photoBy, photoAt, ...rest } = u;
+    return rest;
+  });
 }
 
 // 同じシールNo.は二重に登録しない

@@ -1,7 +1,8 @@
 // ↩ クーリングオフ返品: コールセンターが受電して作った依頼への、倉庫の対応（問い合わせへの回答 → 返送 → 代金の返還の確認）。
 import { reasonOf, isOpenReturn, returnSteps } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
-import { badge, md, mdTime } from './ui.js';
+import { badge, mdTime } from './ui.js';
+import { photoOf } from '../src/image.js';
 
 export const STATUS = {
   inquiring: ['倉庫に問い合わせ中', 'bg-rose-100 text-rose-800'], requested: ['返送の準備中', 'bg-amber-100 text-amber-800'], shipped: ['返送済み・代金の返還待ち', 'bg-sky-100 text-sky-800'],
@@ -15,7 +16,7 @@ export const stepsHtml = (r) => `<ol class="flex flex-wrap items-center gap-1 te
 // 商品の1行。保管場所と、期間超過の目印
 function unitLine(r, u) {
   const place = u?.status === 'stored' ? esc(u.location) : '入庫前';
-  return `<div class="flex flex-wrap items-center gap-2"><span class="text-xs font-mono text-slate-500">${esc(u?.code ?? '')}</span>${esc(u?.name ?? '')}<span class="text-slate-500">（${yen(u?.price ?? 0)}）</span><span class="text-xs text-violet-700">${place}</span>${r.expiredCodes?.includes(u?.code) ? badge('bg-rose-100 text-rose-700', '期間超過') : ''}</div>`;
+  return `<div class="flex flex-wrap items-center gap-2">${u?.name ? `<img src="${photoOf(u)}" alt="${esc(u.name)}" class="h-12 w-12 object-cover rounded border bg-slate-100" />` : ''}<span class="text-xs font-mono text-slate-500">${esc(u?.code ?? '')}</span>${esc(u?.name ?? '')}<span class="text-slate-500">（${yen(u?.price ?? 0)}）</span><span class="text-xs text-violet-700">${place}</span>${r.expiredCodes?.includes(u?.code) ? badge('bg-rose-100 text-rose-700', '期間超過') : ''}</div>`;
 }
 
 function returnItem(r, unitsByCode) {

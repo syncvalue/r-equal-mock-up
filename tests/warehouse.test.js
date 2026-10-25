@@ -217,6 +217,60 @@ test('依頼の探し方: お客様名・シールNo.・商品名で探し、契
   assert.equal(W.cooloffContracts(asked, '山田', NOW).find((c) => c.visitId === 'V-1').rows[0].check.kind, 'busy'); // すでに依頼中
 });
 
+test('依頼の探し方（電話で聞いた手がかり）: 買取日・カテゴリで絞る。名前は空白の有無を問わず、キーワードはカテゴリにも当たる。条件が何もなければ出さない', () => {
+  const s = state([
+    unit('A', 3, { visitId: 'V-1', name: 'ロレックス デイトジャスト', category: '腕時計', customerName: '山田 花子' }),
+    unit('B', 3, { visitId: 'V-1', name: 'オメガ シーマスター', category: '腕時計', customerName: '山田 花子' }),
+    unit('C', 3, { visitId: 'V-1', name: 'ヴィトン ネヴァーフル', category: 'ブランドバッグ', customerName: '山田 花子' }),
+    unit('D', 10, { visitId: 'V-2', name: 'カルティエ タンク', category: '腕時計', customerName: '山田 太郎' }),
+    unit('E', 3, { visitId: 'V-3', name: 'セイコー', category: '腕時計', customerName: '佐藤 一雄' }),
+  ]);
+  const ids = (c) => W.cooloffContracts(s, c, NOW).map((x) => x.visitId).sort();
+  assert.deepEqual(ids({}), []); // 条件なし
+  assert.deepEqual(ids({ q: '  ', dates: [], category: '' }), []);
+  assert.deepEqual(ids({ q: '山田花子' }), ['V-1']); // 空白なしでも当たる
+  assert.deepEqual(ids({ q: '山田' }), ['V-1', 'V-2']); // 同じ名字が複数
+  assert.deepEqual(ids({ q: '時計' }), ['V-1', 'V-2', 'V-3']); // カテゴリ（腕時計）にも当たる
+  assert.deepEqual(ids({ dates: [W.dateOf(day(3))] }), ['V-1', 'V-3']); // 買取日だけでも探せる
+  assert.deepEqual(ids({ q: '山田', dates: [W.dateOf(day(3))] }), ['V-1']);
+  assert.deepEqual(ids({ category: '腕時計', dates: [W.dateOf(day(3)), W.dateOf(day(10))] }), ['V-1', 'V-2', 'V-3']);
+  const v1 = W.cooloffContracts(s, { q: '山田', category: '腕時計' }, NOW).find((x) => x.visitId === 'V-1');
+  assert.deepEqual(v1.rows.map((r) => r.unit.code), ['A', 'B']); // カテゴリで絞ると、その商品だけ（同じ契約のバッグは出さない）
+  assert.equal(v1.total, 20000);
+  assert.equal(W.cooloffContracts(s, '山田', NOW).length, 2); // 文字列の指定も使える
+});
+
+test('依頼の探し方: お客様の電話番号（1・2）で探せる。ハイフンの有無・一部でもよい。短い数字は電話番号とみなさない', () => {
+  const s = state([
+    unit('A', 3, { visitId: 'V-1', customerName: '山田 花子', phones: ['090-2468-1357', '06-6123-4567'] }),
+    unit('B', 3, { visitId: 'V-1', customerName: '山田 花子', phones: ['090-2468-1357', '06-6123-4567'] }),
+    unit('C', 4, { visitId: 'V-2', customerName: '山田 太郎', phones: ['080-1111-2222'] }),
+    unit('D', 5, { visitId: 'V-3', customerName: '佐藤 一雄' }),
+  ]);
+  const ids = (c) => W.cooloffContracts(s, c, NOW).map((x) => x.visitId).sort();
+  assert.deepEqual(ids({ q: '090-2468-1357' }), ['V-1']);
+  assert.deepEqual(ids({ q: '09024681357' }), ['V-1']);
+  assert.deepEqual(ids({ q: '06-6123-4567' }), ['V-1']); // 電話番号2
+  assert.deepEqual(ids({ q: '1357' }), ['V-1']); // 下4桁だけ
+  assert.deepEqual(ids({ q: '080 1111' }), ['V-2']);
+  assert.deepEqual(ids({ q: '090' }), []); // 3桁以下は、電話番号として探さない（シールNo.・名前の検索にもならない）
+  assert.deepEqual(ids({ q: '999-9999' }), []);
+  const c = W.cooloffContracts(s, { q: '2468' }, NOW)[0];
+  assert.deepEqual(c.phones, ['090-2468-1357', '06-6123-4567']); // 契約の電話番号
+  assert.deepEqual(W.cooloffContracts(s, { q: '佐藤' }, NOW)[0].phones, []); // 番号の記録がない商品
+  assert.deepEqual(ids({ q: '1357', dates: [W.dateOf(day(4))] }), []); // ほかの条件と合わせて絞れる
+});
+
+test('買取日の一覧: 直近の日ごとに、曜日つきのラベルと、その日の契約（訪問）の数を出す', () => {
+  const s = state([unit('A', 0, { visitId: 'V-1' }), unit('B', 0, { visitId: 'V-1' }), unit('C', 0, { visitId: 'V-2' }), unit('D', 2, { visitId: 'V-3' })]);
+  const days = W.purchaseDays(s, NOW, 5);
+  assert.equal(days.length, 5);
+  assert.deepEqual(days.map((d) => d.date), [0, 1, 2, 3, 4].map((n) => W.dateOf(day(n))));
+  assert.deepEqual(days.map((d) => d.count), [2, 0, 1, 0, 0]);
+  assert.equal(days[0].label, '10/25(日)'); // 2026-10-25 は日曜日
+  assert.equal(days[2].label, '10/23(金)');
+});
+
 test('保存: 出品の記録と返品の記録は、保存して読み戻せる。壊れたデータは空として扱う', () => {
   assert.deepEqual(W.loadRecords(), {});
   assert.deepEqual(W.loadReturns(), []);

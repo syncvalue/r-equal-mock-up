@@ -538,7 +538,8 @@ const actions = {
       showToast('買取代金を経費に計上できませんでした（保存容量不足）');
     }
     // 持ち帰り（入庫）の対象として、シールを貼った実物を1点ずつ登録する
-    const units = unitsFromVisit({ visitId: state.visitId, userId: state.user, customerName: state.customer.name, slots: V.labelSlots(state), labels: state.labels, colors: state.sealColors });
+    const appraisalPhotos = (visitId) => Object.fromEntries(loadAppraisals().filter((a) => a.visitId === visitId && a.photos?.length).map((a) => [a.itemId, a.photos[0]])); // 商品ごとの、査定依頼の1枚目の写真
+    const units = unitsFromVisit({ visitId: state.visitId, userId: state.user, customerName: state.customer.name, slots: V.labelSlots(state), labels: state.labels, colors: state.sealColors, photos: appraisalPhotos(state.visitId), phones: [state.customer.phone, state.customer.phone2] });
     if (!saveUnits(addUnits(loadUnits(), units))) showToast('持ち帰り商品を登録できませんでした（保存容量不足）');
   },
   // 訪問できなかった（不在・日程変更の依頼など）場合の記録。訪問実績として残し、業績には影響させない

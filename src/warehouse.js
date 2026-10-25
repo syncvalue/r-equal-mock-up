@@ -314,18 +314,38 @@ export function cooloffCheck(row, busy = false) {
   return { kind: 'ask', label: `${STAGES[row.stage] ?? row.stage}（倉庫に確認）` };
 }
 
-// お客様名・シールNo.・商品名で探して、契約（訪問）ごとにまとめる。検索語がなければ空
-export function cooloffContracts(state, query, now = Date.now()) {
-  const q = String(query ?? '').trim().toLowerCase();
-  if (!q) return [];
+// 電話で聞いた手がかりで探して、契約（訪問）ごとにまとめる。criteria: { q: お客様名・電話番号（4桁以上の数字）・シールNo.・商品名・カテゴリ（空白は無視）, dates: 買取日（複数可）, category }。
+// 文字列なら q として扱う。条件が何もなければ空。カテゴリを指定すると、その商品だけを出す
+export function cooloffContracts(state, criteria, now = Date.now()) {
+  const c = typeof criteria === 'string' ? { q: criteria } : criteria ?? {};
+  const squash = (v) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
+  const q = squash(c.q);
+  const qDigits = q.replace(/\D/g, '');
+  const byPhone = /^[\d\-()+]+$/.test(q) && qDigits.length >= 4; // 数字（ハイフン可）の4桁以上は、電話番号として探す
+  const dates = c.dates ?? [];
+  const category = c.category ?? '';
+  if (!q && !dates.length && !category) return [];
   const busy = new Set(state.returns.filter(isOpenReturn).flatMap((r) => r.codes));
-  const rows = buildRows(state, now).map((r) => ({ ...r, check: cooloffCheck(r, busy.has(r.unit.code)) }));
-  const hit = new Set(rows.filter((r) => [r.unit.customerName, r.unit.code, r.unit.name].some((t) => String(t ?? '').toLowerCase().includes(q))).map((r) => r.unit.visitId));
+  const rows = buildRows(state, now).filter((r) => (!dates.length || dates.includes(r.unit.date)) && (!category || r.unit.category === category))
+    .map((r) => ({ ...r, check: cooloffCheck(r, busy.has(r.unit.code)) }));
+  const matches = (r) => (byPhone ? (r.unit.phones ?? []).some((p) => p.replace(/\D/g, '').includes(qDigits)) : [r.unit.customerName, r.unit.code, r.unit.name, r.unit.category].some((t) => squash(t).includes(q)));
+  const hit = new Set(rows.filter((r) => !q || matches(r)).map((r) => r.unit.visitId));
   return [...hit].map((visitId) => {
     const list = rows.filter((r) => r.unit.visitId === visitId);
     const { customerName, date } = list[0].unit;
-    return { visitId, customerName, date, coolEnd: coolingOffEnd(date), rows: list, total: sumBy(list, (r) => r.unit.price) };
+    return { visitId, customerName, date, phones: [...new Set(list.flatMap((r) => r.unit.phones ?? []))], coolEnd: coolingOffEnd(date), rows: list, total: sumBy(list, (r) => r.unit.price) };
   }).sort((a, b) => b.date.localeCompare(a.date) || a.customerName.localeCompare(b.customerName));
+}
+
+// 直近 n 日の、買取日ごとの契約（訪問）の数。「先週の金曜日に」のような手がかりで、日を選べるようにする
+export function purchaseDays(state, now = Date.now(), n = 14) {
+  const WEEK = '日月火水木金土';
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(now);
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate() - i);
+    const date = dateKey(day);
+    return { date, label: `${day.getMonth() + 1}/${day.getDate()}(${WEEK[day.getDay()]})`, count: new Set(state.units.filter((u) => u.date === date).map((u) => u.visitId)).size };
+  });
 }
 
 const newReturnId = (at) => `RT-${at.toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;

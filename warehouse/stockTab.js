@@ -5,9 +5,9 @@ import { userById } from '../src/dashboard.js';
 import { warehouseIdOf } from '../src/warehouseMaster.js';
 import { relabelForm } from './relabelForm.js';
 import { paginate, pageNumbers, PAGE_SIZES } from '../src/paging.js';
-import { badge, card, md, mdTime, whName, sealBadge, STAGE_CLS } from './ui.js';
+import { badge, card, md, mdTime, whName, sealBadge, photoSlot, STAGE_CLS } from './ui.js';
 
-export const FILTERS = [['all', 'すべて'], ['stock', '在庫'], ['listed', '出品中'], ['consigned', '委託中'], ['transit', '輸送中'], ['incoming', '入庫待ち・所在不明'], ['sold', '売却済み'], ['return', '返品']];
+export const FILTERS = [['all', 'すべて'], ['stock', '在庫'], ['listed', '出品中'], ['consigned', '委託中'], ['transit', '輸送中'], ['incoming', '入庫待ち・所在不明'], ['sold', '売却済み'], ['return', '返品'], ['nophoto', '写真未登録']];
 const MATCH = {
   all: () => true,
   stock: (r) => r.stage === 'stock',
@@ -17,6 +17,7 @@ const MATCH = {
   incoming: (r) => r.stage === 'incoming' || r.stage === 'missing',
   sold: (r) => r.stage === 'sold',
   return: (r) => r.stage === 'returning' || r.stage === 'returned',
+  nophoto: (r) => !r.unit.photo,
 };
 const hit = (r, q) => !q || [r.unit.name, r.unit.code, r.unit.customerName, r.unit.category].some((v) => v.toLowerCase().includes(q.toLowerCase()));
 
@@ -57,6 +58,10 @@ function scanResult(data, scan, rl) {
       <div><span class="text-slate-500">原価（買取額）</span><br>${yen(unit.price)}</div>
       <div><span class="text-slate-500">倉庫・保管場所</span><br>${r.stage === 'consigned' ? `倉庫の外（委託中）／元の倉庫 ${esc(whName(unit, data.master))}` : unit.status === 'stored' ? `${esc(whName(unit, data.master))}／${esc(unit.location)}` : '入庫前'}</div>
     </div>
+    <div class="flex flex-wrap items-center gap-3 rounded bg-slate-50 p-2">${photoSlot(unit, 'h-24 w-24')}
+      <div class="text-sm space-y-1"><div class="font-bold">商品の写真</div>
+        <div class="text-xs text-slate-600">${unit.photo ? `登録済み（${unit.photoBy ? `${esc(unit.photoBy)}・` : ''}${unit.photoAt ? mdTime(unit.photoAt) : ''}）。写真を押すと撮り直せます` : '未登録です（いまは仮の絵）。写真を押して、撮影・選択して登録してください。クーリングオフの電話で、お客様と商品を確認するときに使います'}</div>
+        <div class="flex gap-2"><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-photo-sample="${esc(unit.code)}">（デモ用）サンプル写真を登録</button>${unit.photo ? `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-photo-clear="${esc(unit.code)}">写真を削除</button>` : ''}</div></div></div>
     ${['incoming', 'missing', 'stock'].includes(r.stage) ? (rl.code === unit.code ? relabelForm(rl, unit) : `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-rl-open="${esc(unit.code)}">🏷 シール貼り替え（色の間違いなど）</button>`) : ''}
     ${siblingsHtml(data, unit.code)}
     <ol class="text-sm border-l-2 border-slate-200 pl-3 space-y-1">${historyOf(data.full, unit.code).map((e) => `<li><span class="text-xs text-slate-500">${mdTime(e.at)}</span> <b>${e.label}</b> <span class="text-slate-600">${esc(e.detail)}</span></li>`).join('')}</ol>
@@ -85,7 +90,7 @@ function lotView(lots, data) {
     ${lots.filter((l) => l.date === d).map((l) => `<div class="rounded-xl border bg-white p-3 space-y-1">
       <div class="flex flex-wrap items-center gap-2 text-sm"><b class="text-base">${esc(l.customerName)} 様</b><span class="text-xs text-slate-500">担当営業 ${esc(userById(l.userId)?.name ?? l.userId)}／${l.rows.length}点 ${yen(l.total)}</span></div>
       <table class="w-full text-sm"><tbody>${l.rows.map((r) => `<tr class="border-t">
-        <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)}／ランク${esc(r.unit.rank)} ${sealBadge(r.unit)}</div></td><td class="text-right">${yen(r.unit.price)}</td>
+        <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold"><div class="flex items-center gap-2">${photoSlot(r.unit)}<div>${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)}／ランク${esc(r.unit.rank)} ${sealBadge(r.unit)}</div></div></div></td><td class="text-right">${yen(r.unit.price)}</td>
         <td class="text-xs">${where(r, data)}</td><td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r, data)}</td></tr>`).join('')}</tbody></table></div>`).join('')}</section>`).join('');
 }
 
@@ -124,7 +129,7 @@ export function stockTab(data, { filter, q, scan, view, rl, page, pageSize }) {
   ${pagerHtml}
   ${byLot ? lotView(pg.items, data) : `<table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>シールNo.</th><th>商品</th><th>ランク</th><th>買取先</th><th>買取日</th><th class="text-right">原価</th><th>倉庫・保管場所</th><th>状態</th><th>操作・備考</th></tr></thead><tbody>
     ${pg.items.length ? pg.items.map((r) => `<tr class="border-b">
-      <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)} ${sealBadge(r.unit)}</div></td><td>${esc(r.unit.rank)}</td>
+      <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold"><div class="flex items-center gap-2">${photoSlot(r.unit)}<div>${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)} ${sealBadge(r.unit)}</div></div></div></td><td>${esc(r.unit.rank)}</td>
       <td>${esc(r.unit.customerName)} 様</td><td>${md(r.unit.date)}</td><td class="text-right">${yen(r.unit.price)}</td><td class="text-xs">${where(r, data)}</td>
       <td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r, data)}</td></tr>`).join('') : '<tr><td colspan="9" class="text-slate-400">該当する商品はありません。</td></tr>'}
   </tbody></table>`}

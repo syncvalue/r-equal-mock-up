@@ -19,9 +19,9 @@ import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
 import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
-import { cooloffPage, resultsHtml, formHtml as cooloffFormHtml, progressHtml, REJECT_TEXT } from './cooloffView.js';
+import { cooloffPage, filtersHtml, resultsHtml, formHtml as cooloffFormHtml, progressHtml, zoomHtml, REJECT_TEXT } from './cooloffView.js';
 import { RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY } from '../src/store.js';
-import { loadState as loadWarehouse, saveState as saveWarehouse, requestReturn, cooloffContracts } from '../src/warehouse.js';
+import { loadState as loadWarehouse, saveState as saveWarehouse, requestReturn, cooloffContracts, purchaseDays } from '../src/warehouse.js';
 import { loadMaster } from '../src/warehouseMaster.js';
 import { seedSample as seedWarehouseSample } from '../src/warehouseSample.js';
 
@@ -65,6 +65,9 @@ let boardSel = null; // カレンダーで選んでいる予約
 let dispDate = addDays(2); // 配車係が確定する日（主に翌々日の予定を、毎日確定する）
 let toast = '';
 let coQ = ''; // クーリングオフ: 商品を探す検索語
+let coDates = []; // 買取日で絞る（複数可）
+let coCat = ''; // 商品の種類で絞る
+let coZoom = ''; // 写真を拡大している商品（シールNo.）
 let coSel = { visitId: '', codes: [] }; // 依頼にする商品（1つの契約から）
 let coForm = { phone: '', reason: 'family', memo: '' };
 let lines = []; // 文字起こし（{ who, text, got: 入力欄にセットした項目 }）
@@ -336,20 +339,28 @@ const cooloffBadge = () => {
   const n = loadWarehouse().returns.filter((r) => r.status === 'inquiring').length; // 倉庫の回答待ち
   return n ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-xs text-white" title="倉庫の回答待ち">${n}</span>` : '';
 };
+const coCriteria = () => ({ q: coQ, dates: coDates, category: coCat });
 function cooloffParts() {
   const state = loadWarehouse();
-  const contracts = cooloffContracts(state, coQ);
-  return { resultsInner: resultsHtml(contracts, coQ, coSel), formInner: cooloffFormHtml(contracts, coSel, coForm), progressInner: progressHtml(state.returns, state.units) };
+  const criteria = coCriteria();
+  const contracts = cooloffContracts(state, criteria);
+  const categories = [...new Set(state.units.map((u) => u.category))].sort();
+  const zoomC = contracts.find((c) => c.rows.some((r) => r.unit.code === coZoom));
+  return {
+    filtersInner: filtersHtml({ days: purchaseDays(state, Date.now(), 14), categories, criteria }),
+    resultsInner: resultsHtml(contracts, criteria, coSel), formInner: cooloffFormHtml(contracts, coSel, coForm), progressInner: progressHtml(state.returns, state.units),
+    zoomInner: zoomHtml(zoomC, zoomC?.rows.find((r) => r.unit.code === coZoom)),
+  };
 }
 const renderCooloffParts = () => {
   const p = cooloffParts();
-  [['#co-results', p.resultsInner], ['#co-form', p.formInner], ['#co-progress', p.progressInner]].forEach(([sel, html]) => { const el = $(sel); if (el) el.innerHTML = html; });
+  [['#co-filters', p.filtersInner], ['#co-results', p.resultsInner], ['#co-form', p.formInner], ['#co-progress', p.progressInner], ['#co-zoom', p.zoomInner]].forEach(([sel, html]) => { const el = $(sel); if (el) el.innerHTML = html; });
 };
 function createCooloff() {
   const state = loadWarehouse();
-  const contract = cooloffContracts(state, coQ).find((c) => c.visitId === coSel.visitId);
+  const contract = cooloffContracts(state, coCriteria()).find((c) => c.visitId === coSel.visitId);
   if (!contract || !coSel.codes.length) return;
-  const r = requestReturn(state, { customerName: contract.customerName, phone: coForm.phone.trim(), codes: coSel.codes, reason: coForm.reason, memo: coForm.memo.trim(), by: operator, master: loadMaster() });
+  const r = requestReturn(state, { customerName: contract.customerName, phone: coForm.phone.trim() || contract.phones[0] || '', codes: coSel.codes, reason: coForm.reason, memo: coForm.memo.trim(), by: operator, master: loadMaster() });
   if (!r.ok) return alert(`依頼を作れませんでした。\n${r.rejected.map((x) => `${x.code}: ${REJECT_TEXT[x.reason]}`).join('\n')}`);
   if (!saveWarehouse(r.state)) return alert('保存できませんでした（容量超過）');
   const asked = r.rets.filter((x) => x.status === 'inquiring').length;
@@ -457,6 +468,11 @@ document.addEventListener('click', (e) => {
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
   if (d.tab) { stopDemo(); tab = d.tab; render(); }
   else if ('coCreate' in d) createCooloff();
+  else if (d.coDay) { coDates = coDates.includes(d.coDay) ? coDates.filter((x) => x !== d.coDay) : [...coDates, d.coDay]; renderCooloffParts(); }
+  else if ('coCat' in d) { coCat = d.coCat; renderCooloffParts(); }
+  else if ('coClear' in d) { coQ = ''; coDates = []; coCat = ''; coSel = { visitId: '', codes: [] }; render(); }
+  else if (d.coZoom) { coZoom = d.coZoom; renderCooloffParts(); }
+  else if ('coZoomclose' in d) { coZoom = ''; renderCooloffParts(); }
   else if (d.area) { form = { ...form, areaId: d.area, areaAddr: form.address.trim() }; renderDispatch(); }
   else if (d.gender) { form = { ...form, gender: d.gender }; refresh(); }
   else if ('phone2none' in d) { form = { ...form, phone2None: !form.phone2None, phone2: form.phone2None ? form.phone2 : '' }; refresh(); }
@@ -634,7 +650,7 @@ document.addEventListener('drop', (e) => {
 });
 
 
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && (staffInfoId || custInfoRid)) { staffInfoId = null; custInfoRid = null; render(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && coZoom) { coZoom = ''; renderCooloffParts(); return; } if (e.key === 'Escape' && (staffInfoId || custInfoRid)) { staffInfoId = null; custInfoRid = null; render(); } });
 
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
 window.addEventListener('storage', (e) => {

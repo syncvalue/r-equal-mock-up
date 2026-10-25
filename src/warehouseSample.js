@@ -16,6 +16,12 @@ const PREFIX = 'RQ-WH';
 const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '山口 拓海': 'W-KANTO', '西田 久美': 'W-FUKUOKA', '石川 陽平': 'W-KANTO', '松井 恵': 'W-FUKUOKA', '三浦 香織': 'W-KANTO', '宮本 諒': 'W-FUKUOKA', '平田 美咲': 'W-FUKUOKA', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
 // 高額品（貴金属など）は納入のときから本社、それ以外はお客様ごとの倉庫
 const whOf = (customerName, item) => (item && isHighValue(item, MASTER) ? 'W-HONSHA' : WH_OF[customerName] ?? 'W-OSAKA');
+// お客様の電話番号（受付でヒアリングした番号1・2。商品は訪問に、訪問はお客様に紐づく）。見本の返品の受電と同じ番号。載せていないお客様は、名前から決めた番号
+const PHONES = { '山田 花子': ['090-2468-1357', '06-6123-4567'], '岡本 優': ['090-3456-7788'], '斎藤 清': ['080-2211-9034'], '森田 誠': ['090-7788-3456'], '松本 千春': ['090-5566-1020'], '岡田 裕子': ['070-4488-2301'] };
+const phonesOf = (name) => {
+  const h = [...name].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 100003, 7);
+  return PHONES[name] ?? [`0${[90, 80, 70][h % 3]}-${1000 + (h % 9000)}-${1000 + ((h * 7) % 9000)}`];
+};
 const CO_OPERATOR = '佐藤'; // クーリングオフ用の番号を受けたオペレーター（見本。コールセンターの受付者）
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
 // シールの色（見本）。貴金属・高額な商品が、紫・赤（本社管理）、それ以外は黄・緑・青
@@ -41,7 +47,7 @@ export function buildSample(now = Date.now()) {
     const wid = whOf(customerName, { sealColor });
     return {
       code: `${PREFIX}${String(seq).padStart(4, '0')}`, visitId: `V-WH-${daysAgo}-${userId}`, userId, customerName, at: at(daysAgo), date: W.dateOf(at(daysAgo)),
-      itemId: `wh-${seq}`, name, category, rank, n: 1, qty: 1, price, sealColor, status,
+      itemId: `wh-${seq}`, name, category, rank, n: 1, qty: 1, price, sealColor, status, phones: phonesOf(customerName),
       storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price, wid) : null,
       // 偶数日前の買取は倉庫の担当者が明細と照合して入庫、奇数日前は営業がタブレットから入庫
       by: !stored ? null : daysAgo % 2 === 0 ? staffOfWh(wid) : userId,

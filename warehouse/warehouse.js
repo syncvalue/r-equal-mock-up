@@ -6,7 +6,8 @@ import {
 import {
   loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, answerInquiry, isOpenReturn, shipReturn, completeReturn, suggestPrice, scopeState, holdingByWarehouse,
 } from '../src/warehouse.js';
-import { loadUnits, saveUnits, receive, receiveCodes, resultMessage } from '../src/stock.js';
+import { loadUnits, saveUnits, receive, receiveCodes, resultMessage, setUnitPhoto, clearUnitPhoto } from '../src/stock.js';
+import { shrinkImage, productPhoto } from '../src/image.js';
 import { seedSample } from '../src/warehouseSample.js';
 import { login, loadSession, saveSession, clearSession } from '../src/warehouseStaff.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -141,6 +142,12 @@ function answer(id, ok) {
   if (next === state) { alert('対応できない場合は、メモに理由を入力してください'); return false; }
   commit(next);
 }
+// 商品の写真の登録・削除（在庫の操作ではないので、どの倉庫の商品でも登録できる）
+function savePhotos(list) {
+  if (!saveUnits(list)) alert('保存できませんでした（容量超過）。写真を減らしてください');
+  render();
+}
+const registerPhoto = (code, photo) => savePhotos(setUnitPhoto(loadUnits(), code, photo, { by: staff.name }));
 // 入庫（誰の商品でも入庫できる）。シールを読み取った場合は、読取で照合したものとして記録する
 const DEST_TEXT = { highToHonsha: 'は高額品のため、本社に納入します（本社の担当者が入庫します）', normalToWarehouse: 'は高額品ではないため、本社ではなく倉庫に納入します' };
 function storeCode(raw) {
@@ -455,6 +462,8 @@ const ACTIONS = {
   sellDone: registerSale,
   delist: (v) => { if (ownsAll([v]) && confirm('この商品の出品を取り下げて、在庫に戻します。よろしいですか？')) commit(delist(loadState(), v)); },
   recall: (v) => { if (ownsAll([v]) && confirm('この商品は売れ残り、委託先から倉庫に戻ってきましたか？ 倉庫の在庫に戻します。')) commit(recall(loadState(), v)); },
+  photoSample: (v) => { const u = unitOf(v); if (u) registerPhoto(v, productPhoto(u.name, u.category)); return false; },
+  photoClear: (v) => { if (confirm('登録した写真を削除します（表示は、仮の絵に戻ります）。よろしいですか？')) savePhotos(clearUnitPhoto(loadUnits(), v)); return false; },
   inqOk: (v) => answer(v, true),
   inqNg: (v) => answer(v, false),
   ship: (v) => {
@@ -546,6 +555,12 @@ document.addEventListener('input', (e) => {
   onField(e, true);
 });
 document.addEventListener('change', (e) => {
+  if (e.target.matches?.('[data-photo-file]')) { // 商品の写真を撮影・選択して登録する
+    const file = e.target.files?.[0];
+    const code = e.target.dataset.photoFile;
+    if (file) shrinkImage(file).then((img) => registerPhoto(code, img)).catch(() => alert('画像を読み込めませんでした'));
+    return;
+  }
   if (e.target.matches?.('[data-page-size]')) { ui.pageSize = Number(e.target.value); ui.page = 1; render(); return; }
   if (e.target.matches?.('[data-hv-color]')) {
     const cur = ui.hv ?? master.highValue.colors;
