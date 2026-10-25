@@ -50,8 +50,7 @@ function listHtml(returns, units, rt) {
 function actionsHtml(r) {
   if (r.status === 'inquiring') {
     return `<div class="rounded bg-rose-50 border border-rose-200 p-2 space-y-2">
-      <div class="text-xs text-rose-800 font-bold">商品があって、お客様へ返送できるか回答してください。${r.expiredCodes?.length ? '期間（10日間）を過ぎた商品を含むので、返送するか個別に判断してください。' : ''}</div>
-      <label class="text-xs font-bold block">回答のメモ（対応できない場合は理由が必要）<input class="inp mt-1 font-normal" data-inq-note="${esc(r.id)}" placeholder="例: 在庫にあります／出品の準備に入っており、お断りします" /></label>
+      <div class="text-xs text-rose-800 font-bold">商品があって、お客様へ返送できるか回答してください。${r.expiredCodes?.length ? '期間（10日間）を過ぎた商品を含むので、返送するか個別に判断してください。' : ''}上の入力欄の内容が、回答のメモとして、やり取りに残ります（「対応できない」場合は、理由の入力が必要です）。</div>
       <div class="flex gap-2"><button class="b b-pri" data-inq-ok="${esc(r.id)}">返送できる（準備に進む）</button><button class="b b-sec" data-inq-ng="${esc(r.id)}">対応できない</button></div></div>`;
   }
   if (r.status === 'requested') return `<div class="flex items-end gap-2"><label class="text-xs font-bold flex-1">返送の追跡番号<input class="inp mt-1 font-normal" data-track="${esc(r.id)}" placeholder="例: 5012-3344-9871" /></label><button class="b b-pri" data-ship="${esc(r.id)}">返送済みにする</button></div>`;
@@ -76,7 +75,7 @@ function modalHtml(r, unitsByCode, draft) {
         ${r.status === 'unavailable' ? '' : `<div class="text-sm">お客様から返していただく買取代金 <b>${yen(r.refund)}</b>${r.groupRefund && r.groupRefund !== r.refund ? `<span class="text-xs text-slate-500">（同じ契約の、他の保管場所の分を含めた合計 ${yen(r.groupRefund)}）</span>` : ''}</div>`}
         <div class="rounded-lg border bg-slate-50 p-2"><div class="text-xs font-bold text-slate-500 mb-1">やり取り（コールセンター ⇄ 倉庫）</div>
           <div id="ret-chat" class="space-y-2 max-h-72 overflow-y-auto pr-1">${bubblesHtml(r)}</div></div>
-        ${messageBoxHtml(r.id, draft, { msg: 'ret-msg', send: 'ret-send' })}
+        ${messageBoxHtml(r.id, draft, { msg: 'ret-msg', send: 'ret-send', placeholder: r.status === 'inquiring' ? 'メッセージ／回答のメモ（Enterで送信）' : undefined })}
         ${actionsHtml(r)}
       </div>
     </div></div>`;

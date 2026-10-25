@@ -136,13 +136,15 @@ function ownsReturn(id) {
   alert('他の倉庫の依頼は扱えません。');
   return false;
 }
-// 倉庫が問い合わせに回答する（対応できない場合は、メモに理由が必要）
+// 倉庫が問い合わせに回答する（対応できない場合は、理由が必要。メッセージ欄の内容を回答のメモにする）
 function answer(id, ok) {
   if (!ownsReturn(id)) return false;
   const state = loadState();
-  const next = answerInquiry(state, id, { ok, note: inputBy('data-inq-note', id)?.value, by: staff.name });
-  if (next === state) { alert('対応できない場合は、メモに理由を入力してください'); return false; }
+  const note = inputBy('data-ret-msg', id)?.value ?? ui.rt.draft[id]; // やり取りの入力欄を、回答のメモとして使う（入力欄は1つ）
+  const next = answerInquiry(state, id, { ok, note, by: staff.name });
+  if (next === state) { alert('対応できない場合は、理由をメッセージ欄に入力してください'); return false; }
   commit(next);
+  ui.rt = { ...ui.rt, draft: { ...ui.rt.draft, [id]: '' } };
 }
 // 商品の写真の登録・削除（在庫の操作ではないので、どの倉庫の商品でも登録できる）
 function savePhotos(list) {

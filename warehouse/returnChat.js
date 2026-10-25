@@ -16,6 +16,6 @@ export const bubblesHtml = (ret) => returnTimeline(ret).map((m) => (m.side === '
     <div class="whitespace-pre-line break-words">${esc(m.text)}</div></div></div>`)).join('');
 
 // メッセージの入力欄。attr: 入力欄・送信ボタンの data 属性名（例: ret-msg → data-ret-msg / data-ret-send）
-export const messageBoxHtml = (id, draft, { msg, send }) => `<div class="flex gap-2 items-end">
-  <input class="inp font-normal flex-1" data-${msg}="${esc(id)}" value="${esc(draft ?? '')}" placeholder="メッセージを入力（Enterで送信）" autocomplete="off" />
+export const messageBoxHtml = (id, draft, { msg, send, placeholder = 'メッセージを入力（Enterで送信）' }) => `<div class="flex gap-2 items-end">
+  <input class="inp font-normal flex-1" data-${msg}="${esc(id)}" value="${esc(draft ?? '')}" placeholder="${esc(placeholder)}" autocomplete="off" />
   <button class="b b-pri" data-${send}="${esc(id)}">送信</button></div>`;

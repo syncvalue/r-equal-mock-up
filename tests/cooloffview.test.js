@@ -41,7 +41,7 @@ test('倉庫のクーリングオフ画面: 一覧は、キーワードと状態
 test('倉庫のクーリングオフ画面: 詳細（モーダル）に、やり取りが時系列のチャットで並び、メッセージ送信と、回答・返送・完了の操作がある', () => {
   const asked = sample.returns.find((x) => x.status === 'inquiring');
   const d = detail(asked);
-  for (const k of ['role="dialog"', 'data-ret-close', 'id="ret-chat"', 'data-ret-msg="' + asked.id, 'data-ret-send="' + asked.id, 'data-inq-ok="' + asked.id, 'data-inq-ng="' + asked.id, 'data-inq-note="' + asked.id, '依頼です']) assert.ok(d.includes(k), k);
+  for (const k of ['role="dialog"', 'data-ret-close', 'id="ret-chat"', 'data-ret-msg="' + asked.id, 'data-ret-send="' + asked.id, 'data-inq-ok="' + asked.id, 'data-inq-ng="' + asked.id, '依頼です']) assert.ok(d.includes(k), k);
   const shipped = sample.returns.find((x) => x.status === 'shipped');
   const ds = detail(shipped);
   assert.ok(ds.includes('data-return-done="' + shipped.id) && ds.includes(shipped.tracking) && ds.includes('返送しました'));
@@ -54,6 +54,7 @@ test('倉庫のクーリングオフ画面: 詳細（モーダル）に、やり
   // 吹き出しは、コールセンター・倉庫・システムで見分けられる
   const withMsg = W.addReturnMessage({ ...sample }, asked.id, { side: 'warehouse', text: '確認します', by: '藤田', at: NOW });
   const chat = returnTab(W.scopeState(withMsg, asked.warehouseId, MASTER), { rt: { q: '', filter: 'all', open: asked.id, draft: { [asked.id]: '下書き' } } }, NOW, { full: withMsg, master: MASTER });
+  assert.ok(!d.includes('data-inq-note') && (d.match(/<input class="inp[^>]*data-ret-msg/g) ?? []).length === 1); // 入力欄は1つ（回答のメモも、ここに書く）
   assert.ok(chat.includes('data-side="callcenter"') && chat.includes('data-side="warehouse"') && chat.includes('確認します') && chat.includes('下書き'));
 });
 
