@@ -232,3 +232,26 @@ test('商品の履歴: 買取 → 入庫 → 出品 → 売却、返品の受付
   assert.deepEqual(W.historyOf(shipped, 'B').map((e) => e.label), ['買取', '入庫', '返品受付', '返送']);
   assert.deepEqual(W.historyOf(s, 'ZZZ'), []);
 });
+
+const MA = (await import('../src/warehouseMaster.js')).DEFAULT_MASTER;
+const [WO, WK] = MA.warehouses.map((w) => w.id);
+
+test('倉庫での絞り込み: その倉庫に入庫した商品だけ見える。入庫前の商品はどの倉庫にも属さない。全倉庫なら全部', () => {
+  const s = state([unit('A', 12, { warehouseId: WO }), unit('B', 12, { warehouseId: WK }), unit('C', 12), unit('D', 1, { status: 'pending', storedAt: null })], {}, [
+    { id: 'R1', codes: ['A'], status: 'requested' }, { id: 'R2', codes: ['B'], status: 'requested' },
+  ]);
+  const osaka = W.scopeState(s, WO, MA);
+  assert.deepEqual(osaka.units.map((u) => u.code), ['A', 'C']); // C は倉庫の記録がない古い商品＝先頭（大阪）の倉庫
+  assert.deepEqual(osaka.returns.map((r) => r.id), ['R1']);
+  assert.deepEqual(W.scopeState(s, WK, MA).units.map((u) => u.code), ['B']);
+  assert.equal(W.scopeState(s, 'all', MA).units.length, 4);
+  assert.equal(W.scopeState(s, 'all', MA), s);
+});
+
+test('倉庫ごとの在庫: 倉庫の在庫の点数・原価を出す（売却済み・返品済みは含めない）', () => {
+  const s = state([unit('A', 12, { warehouseId: WO, price: 100 }), unit('B', 12, { warehouseId: WO, price: 200 }), unit('C', 12, { warehouseId: WK, price: 400 })]);
+  const sold = W.sell(W.listItem(s, 'B', { channel: 'mercari', price: 1000, at: NOW }).state, 'B', { price: 900, at: NOW }).state;
+  const by = W.holdingByWarehouse(sold, MA, NOW);
+  assert.deepEqual({ ...by[WO] }, { count: 1, cost: 100 });
+  assert.deepEqual({ ...by[WK] }, { count: 1, cost: 400 });
+});

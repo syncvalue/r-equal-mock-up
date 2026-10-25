@@ -3,28 +3,30 @@ import assert from 'node:assert/strict';
 
 const store = new Map();
 globalThis.sessionStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+const mem = new Map();
+globalThis.localStorage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 
 const S = await import('../src/warehouseStaff.js');
+const { DEFAULT_MASTER: M, saveStaff } = await import('../src/warehouseMaster.js');
 
-test('担当者: 複数名がいて、ログインIDで探せる（大文字・前後の空白は無視）', () => {
-  assert.ok(S.STAFF.length >= 3);
-  assert.equal(new Set(S.STAFF.map((s) => s.loginId)).size, S.STAFF.length);
-  assert.equal(S.findStaff(' WH01 ').id, S.STAFF[0].id);
-  assert.equal(S.findStaff('nobody'), null);
-});
-
-test('ログイン: 登録のあるIDと、空でないパスワードが必要（モックのため、パスワードの中身は問わない）', () => {
-  assert.equal(S.login('wh02', 'x').ok, true);
-  assert.equal(S.login('wh02', 'x').staff.id, S.findStaff('wh02').id);
+test('ログイン: 登録のある有効な担当者のIDと、空でないパスワードが必要（モックのため、パスワードの中身は問わない）', () => {
+  const r = S.login(' WH02 ', 'x');
+  assert.equal(r.ok, true);
+  assert.equal(r.staff.id, 'wh02');
+  assert.equal(r.staff.warehouseId, M.staff[1].warehouseId); // 所属倉庫が分かる
   assert.equal(S.login('nobody', 'x').ok, false);
   assert.equal(S.login('wh02', '').ok, false);
   assert.equal(S.login('', 'x').ok, false);
+  const off = saveStaff(M, { ...M.staff[1], active: false }).master;
+  assert.equal(S.login('wh02', 'x', off).ok, false); // 無効な担当者は、ログインできない
 });
 
-test('ログイン状態: タブを閉じるまで保持し、ログアウトで消える。未知のIDは無効', () => {
+test('ログイン状態: タブを閉じるまで保持し、ログアウトで消える。未知・無効の担当者は無効', () => {
   assert.equal(S.loadSession(), null);
-  S.saveSession(S.STAFF[1].id);
-  assert.equal(S.loadSession().id, S.STAFF[1].id);
+  S.saveSession('wh02');
+  assert.equal(S.loadSession().id, 'wh02');
+  const off = saveStaff(M, { ...M.staff[1], active: false }).master;
+  assert.equal(S.loadSession(off), null);
   S.clearSession();
   assert.equal(S.loadSession(), null);
   store.set('rq-mock-wh-session', 'unknown');

@@ -58,3 +58,13 @@ test('サンプル: 既存の入庫データ（営業が登録したもの）が
   const codes = W.loadState().units.map((u) => u.code);
   assert.ok(codes.includes('RQ-MINE') && codes.length > 10);
 });
+
+test('サンプル: 入庫済みの商品は、複数の倉庫に分かれ、保管場所はその倉庫の棚。入庫前・所在不明の商品は、倉庫が決まらない', async () => {
+  const { DEFAULT_MASTER: M } = await import('../src/warehouseMaster.js');
+  const { units } = buildSample(NOW);
+  const stored = units.filter((u) => u.status === 'stored');
+  assert.ok(new Set(stored.map((u) => u.warehouseId)).size >= 3);
+  for (const u of stored) assert.ok(M.warehouses.find((w) => w.id === u.warehouseId).locations.includes(u.location), `${u.code}: ${u.location}`);
+  for (const u of stored.filter((x) => x.check)) assert.equal(M.staff.find((s) => s.name === u.check.by)?.warehouseId, u.warehouseId); // 照合したのは、その倉庫の担当者
+  for (const u of units.filter((x) => x.status !== 'stored')) assert.equal(u.warehouseId, undefined);
+});

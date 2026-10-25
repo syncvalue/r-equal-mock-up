@@ -27,7 +27,7 @@ import {
 import {
   loadUnits, saveUnits, unitsFromVisit, addUnits, byUser, inScope, pendingOf, receive, markMissing, resultMessage, demoUnits,
 } from './stock.js';
-import { DEFAULT_STOCK } from './stockView.js';
+import { DEFAULT_STOCK, stockTarget } from './stockView.js';
 
 // 予定（訪問）から、コールセンター受付情報の表示用データを作る
 function callInfoOf(ev, userId) {
@@ -246,7 +246,8 @@ let scanToken = 0;
 
 // シールNo.（読取・入力）を入庫する。結果は画面に表示する
 function receiveCode(raw) {
-  const { list, result } = receive(loadUnits(), state.user, raw, { location: state.stock.location, by: userById(state.user).name });
+  const target = stockTarget(state);
+  const { list, result } = receive(loadUnits(), state.user, raw, { location: target.location, by: userById(state.user).name, warehouseId: target.warehouse.id });
   if (result.type === 'ok' && !saveUnits(list)) {
     showToast('入庫を保存できませんでした（保存容量不足）');
     return result;
@@ -563,6 +564,7 @@ const actions = {
   // 商品の持ち帰り（入庫）
   'stock-tab': (el) => set({ stock: { ...state.stock, tab: el.dataset.value } }),
   'stock-scope': (el) => set({ stock: { ...state.stock, scope: el.dataset.value, last: null } }),
+  'stock-wh': (el) => set({ stock: { ...state.stock, warehouseId: el.dataset.value, location: null } }),
   'stock-loc': (el) => set({ stock: { ...state.stock, location: el.dataset.value } }),
   'stock-submit': () => submitStockCode(),
   'stock-missing': (el) => {

@@ -5,6 +5,7 @@
 import { WAREHOUSE_KEY, RETURN_KEY } from './store.js';
 import { loadUnits } from './stock.js';
 import { dateKey } from './workday.js';
+import { warehouseIdOf } from './warehouseMaster.js';
 
 // 法律上のクーリングオフは、書面を受け取った日から8日間。お客様の通知は郵送で届くため、余裕を見て10日間は販売せず保管する（返品もこの間は受け付ける）
 export const COOLING_OFF_DAYS = 10;
@@ -84,6 +85,25 @@ export function buildRows({ units, records, returns }, now = Date.now()) {
     const cooling = inCoolingOff(unit, now);
     return { unit, rec, stage, cooling, coolEnd: coolingOffEnd(unit.date), canList: stage === 'stock' && !cooling };
   });
+}
+
+// 倉庫で絞り込む（scope は 'all' か倉庫ID）。倉庫の在庫は、その倉庫に入庫した商品。入庫前の商品は、どの倉庫にも属さない
+export function scopeState(state, scope, master) {
+  if (scope === 'all') return state;
+  const units = state.units.filter((u) => u.status === 'stored' && warehouseIdOf(u, master) === scope);
+  const codes = new Set(units.map((u) => u.code));
+  return { ...state, units, returns: state.returns.filter((r) => r.codes.some((c) => codes.has(c))) };
+}
+
+// 倉庫ごとの、いま保管している商品（在庫・出品中・委託中・返品対応中）の点数と原価
+export function holdingByWarehouse(state, master, now = Date.now()) {
+  const by = {};
+  buildRows(state, now).filter((r) => ['stock', 'listed', 'consigned', 'returning'].includes(r.stage)).forEach((r) => {
+    const id = warehouseIdOf(r.unit, master);
+    const cur = by[id] ?? { count: 0, cost: 0 };
+    by[id] = { count: cur.count + 1, cost: cur.cost + r.unit.price };
+  });
+  return by;
 }
 
 // シールNo.（QR読取・手入力）で、1点を探す。前後の空白・大文字小文字は無視

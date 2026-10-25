@@ -2,7 +2,7 @@
 import { STAGES, channelOf, stockSummary, dateOf, findByCode, historyOf } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
 import { userById } from '../src/dashboard.js';
-import { badge, card, md, mdTime, STAGE_CLS } from './ui.js';
+import { badge, card, md, mdTime, whName, STAGE_CLS } from './ui.js';
 
 export const FILTERS = [['all', 'すべて'], ['stock', '在庫'], ['listed', '出品中'], ['consigned', '委託中'], ['incoming', '入庫待ち・所在不明'], ['sold', '売却済み'], ['return', '返品']];
 const MATCH = {
@@ -31,7 +31,7 @@ function action(r) {
 // QRシール（シールNo.）を読み取った結果。商品の詳細と、買取から現在までの履歴
 function scanResult(data, scan) {
   if (!scan.raw) return '';
-  const r = findByCode(data.rows, scan.raw);
+  const r = findByCode(data.allRows, scan.raw); // 読み取りは、他の倉庫の商品も探す
   if (!r) return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 text-sm font-bold text-rose-700 flex items-center">⚠ ${esc(scan.raw)} は、買取商品として登録されていません<button class="ml-auto b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>`;
   const { unit } = r;
   return `<section class="rounded-xl border-2 border-sky-400 bg-white p-4 space-y-3">
@@ -41,9 +41,9 @@ function scanResult(data, scan) {
       <div><span class="text-slate-500">カテゴリ・ランク</span><br>${esc(unit.category)}／ランク${esc(unit.rank)}</div>
       <div><span class="text-slate-500">買取先</span><br>${esc(unit.customerName)} 様（${md(unit.date)}・担当営業 ${esc(userById(unit.userId)?.name ?? unit.userId)}）</div>
       <div><span class="text-slate-500">原価（買取額）</span><br>${yen(unit.price)}</div>
-      <div><span class="text-slate-500">保管場所</span><br>${r.stage === 'consigned' ? '倉庫の外（委託中）' : esc(unit.location ?? '-')}</div>
+      <div><span class="text-slate-500">倉庫・保管場所</span><br>${r.stage === 'consigned' ? `倉庫の外（委託中）／元の倉庫 ${esc(whName(unit, data.master))}` : unit.status === 'stored' ? `${esc(whName(unit, data.master))}／${esc(unit.location)}` : '入庫前'}</div>
     </div>
-    <ol class="text-sm border-l-2 border-slate-200 pl-3 space-y-1">${historyOf(data, unit.code).map((e) => `<li><span class="text-xs text-slate-500">${mdTime(e.at)}</span> <b>${e.label}</b> <span class="text-slate-600">${esc(e.detail)}</span></li>`).join('')}</ol>
+    <ol class="text-sm border-l-2 border-slate-200 pl-3 space-y-1">${historyOf(data.full, unit.code).map((e) => `<li><span class="text-xs text-slate-500">${mdTime(e.at)}</span> <b>${e.label}</b> <span class="text-slate-600">${esc(e.detail)}</span></li>`).join('')}</ol>
   </section>`;
 }
 
@@ -73,10 +73,10 @@ export function stockTab(data, { filter, q, scan }) {
     ${FILTERS.map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}
     <input class="inp !w-64 ml-auto" data-q placeholder="商品名・シールNo.・お客様名" value="${esc(q)}" />
   </div>
-  <table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>シールNo.</th><th>商品</th><th>ランク</th><th>買取先</th><th>買取日</th><th class="text-right">原価</th><th>保管場所</th><th>状態</th><th>操作・備考</th></tr></thead><tbody>
+  <table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>シールNo.</th><th>商品</th><th>ランク</th><th>買取先</th><th>買取日</th><th class="text-right">原価</th><th>倉庫・保管場所</th><th>状態</th><th>操作・備考</th></tr></thead><tbody>
     ${shown.length ? shown.map((r) => `<tr class="border-b">
       <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)}</div></td><td>${esc(r.unit.rank)}</td>
-      <td>${esc(r.unit.customerName)} 様</td><td>${md(r.unit.date)}</td><td class="text-right">${yen(r.unit.price)}</td><td class="text-xs">${r.stage === 'consigned' ? '倉庫の外（委託中）' : esc(r.unit.location ?? '-')}</td>
+      <td>${esc(r.unit.customerName)} 様</td><td>${md(r.unit.date)}</td><td class="text-right">${yen(r.unit.price)}</td><td class="text-xs">${r.stage === 'consigned' ? '倉庫の外（委託中）' : r.unit.status === 'stored' ? `${esc(whName(r.unit, data.master))}<div>${esc(r.unit.location)}</div>` : '-'}</td>
       <td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r)}</td></tr>`).join('') : '<tr><td colspan="9" class="text-slate-400">該当する商品はありません。</td></tr>'}
   </tbody></table>
   <p class="text-xs text-slate-500">買い取った商品は、クーリングオフに備え、買取から10日間は保管し、出品・販売できません（お客様の通知は郵送で届くため、法定の8日間に余裕を足しています）。保管期間が過ぎた入庫済みの商品から出品できます。入庫は営業のタブレット（商品の持ち帰り）で、QRシールを読み取って行います。</p>`;

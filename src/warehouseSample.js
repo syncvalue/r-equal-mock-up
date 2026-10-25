@@ -3,12 +3,22 @@
 import { STOCK_KEY } from './store.js';
 import { loadUnits, addUnits } from './stock.js';
 import * as W from './warehouse.js';
+import { DEFAULT_MASTER as MASTER } from './warehouseMaster.js';
 
 export const WH_SAMPLE_KEY = 'rq-mock-warehouse-sample'; // 初期化で消えない目印（初期化後に、自動で復活させない）
 const PREFIX = 'RQ-WH';
 
-const SHELF = { 'バッグ': 'A棚（バッグ・小物）', 'ファッション小物': 'A棚（バッグ・小物）', '腕時計': 'B棚（時計・ジュエリー）', 'ジュエリー': 'B棚（時計・ジュエリー）', 'カメラ': 'C棚（カメラ・家電）' };
-const placeOf = (category, price) => (price >= 300000 ? '金庫室（高額品）' : SHELF[category] ?? '要確認エリア');
+// 保管場所は、入庫した倉庫の棚から選ぶ
+// お客様ごとの入庫先の倉庫（大阪・関東・福岡に分かれる）
+const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
+const whOf = (customerName) => WH_OF[customerName] ?? 'W-OSAKA';
+const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
+const SHELF_LETTER = { 'バッグ': 'A', 'ファッション小物': 'A', '腕時計': 'B', 'ジュエリー': 'B', 'カメラ': 'C' };
+// 保管場所は、入庫した倉庫の棚から選ぶ（高額品は金庫室、それ以外はカテゴリの棚。なければ先頭の棚）
+const placeOf = (category, price, warehouseId) => {
+  const locs = MASTER.warehouses.find((w) => w.id === warehouseId).locations;
+  return (price >= 300000 ? locs.find((l) => l.includes('金庫')) : locs.find((l) => l.startsWith(SHELF_LETTER[category]))) ?? locs[0];
+};
 
 export function buildSample(now = Date.now()) {
   const at = (daysAgo, h = 15) => {
@@ -23,9 +33,11 @@ export function buildSample(now = Date.now()) {
     return {
       code: `${PREFIX}${String(seq).padStart(4, '0')}`, visitId: `V-WH-${daysAgo}-${userId}`, userId, customerName, at: at(daysAgo), date: W.dateOf(at(daysAgo)),
       itemId: `wh-${seq}`, name, category, rank, n: 1, qty: 1, price, status,
-      storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price) : null,
+      storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price, whOf(customerName)) : null,
       // 偶数日前の買取は倉庫の担当者が明細と照合して入庫、奇数日前は営業がタブレットから入庫
-      by: !stored ? null : daysAgo % 2 === 0 ? '小川 直樹' : userId, check: stored && daysAgo % 2 === 0 ? { by: '小川 直樹', at: at(daysAgo, 17), method: 'manual' } : null,
+      by: !stored ? null : daysAgo % 2 === 0 ? staffOfWh(whOf(customerName)) : userId,
+      check: stored && daysAgo % 2 === 0 ? { by: staffOfWh(whOf(customerName)), at: at(daysAgo, 17), method: 'manual' } : null,
+      ...(stored ? { warehouseId: whOf(customerName) } : {}),
     };
   });
 
@@ -46,7 +58,7 @@ export function buildSample(now = Date.now()) {
     ...purchase(1, 'u05', '吉田 浩', [['K18 ブレスレット', 'ジュエリー', 'A', 38000], ['ダイヤ リング 0.5ct', 'ジュエリー', 'A', 150000]], 'stored'), // 21・22（期間中）
     ...purchase(0, 'u11', '福田 美香', [['ルイ・ヴィトン ポシェット', 'バッグ', 'B', 32000], ['ハミルトン カーキ', '腕時計', 'C', 40000]], 'pending'), // 23・24（入庫待ち）
   ];
-  units[22] = { ...units[22], status: 'missing', storedAt: null, location: null, by: null }; // 所在不明
+  units[22] = { ...units[22], status: 'missing', storedAt: null, location: null, by: null, check: null, warehouseId: undefined }; // 所在不明
 
   const code = (i) => units[i].code;
   const steps = [

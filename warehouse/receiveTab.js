@@ -1,7 +1,6 @@
 // 📥 入庫: 倉庫の担当者が、営業から渡された買取商品を入庫する。QRシール（シールNo.）を読み取るか、契約書（明細）と実物を見比べて☑を付けた商品を入庫する。
 // ☑（照合）は、誰がいつ付けたかが、入庫した商品に記録される。
 // 営業のタブレットでも入庫できる。倉庫では、誰が買い取った商品でも入庫できる。
-import { LOCATIONS } from '../src/stock.js';
 import { userById } from '../src/dashboard.js';
 import { yen, esc } from '../src/format.js';
 import { badge, md, mdTime } from './ui.js';
@@ -9,13 +8,13 @@ import { badge, md, mdTime } from './ui.js';
 const TAG = { pending: badge('bg-amber-100 text-amber-800', '入庫待ち'), missing: badge('bg-rose-100 text-rose-700', '所在不明'), stored: badge('bg-emerald-100 text-emerald-800', '入庫済み') };
 const salesName = (id) => userById(id)?.name ?? id;
 
-function scanPanel(rc, todo) {
+function scanPanel(rc, todo, warehouse) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">📥 入庫する</h2>
-    <p class="text-xs text-slate-500">営業から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。営業が自分でタブレットから入庫することもできます。</p>
+    <h2 class="font-bold text-lg">📥 入庫する <span class="text-sm font-normal text-sky-700">入庫先: ${esc(warehouse.name)}</span></h2>
+    <p class="text-xs text-slate-500">営業から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。営業が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。</p>
     <div><div class="text-sm font-bold mb-1">保管場所<span class="font-normal text-xs text-slate-500">（入庫する商品は、ここに保管します）</span></div>
-      <div class="flex flex-wrap gap-1.5">${LOCATIONS.map((l) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${rc.location === l ? 'on' : ''}" data-rc-loc="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>
+      <div class="flex flex-wrap gap-1.5">${warehouse.locations.map((l) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${rc.location === l ? 'on' : ''}" data-rc-loc="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>
     <label class="text-sm font-bold block">シールNo.（スキャナ・手入力。Enterで入庫。読み取りで、照合したものとして記録します）
       <div class="flex gap-2 mt-1"><input class="inp font-mono font-normal" data-rc-code placeholder="RQ-XXXXXXXX" autocomplete="off" /><button class="b b-pri" data-rc-submit>入庫</button></div></label>
     <button class="b b-pri w-full !bg-teal-700" data-cam-receive>📷 カメラで読み取って入庫</button>
@@ -48,11 +47,11 @@ function contractCard(units, rc) {
   </div>`;
 }
 
-export function receiveTab({ units }, { rc }) {
+export function receiveTab({ units }, { rc }, warehouse) {
   const todo = units.filter((u) => u.status !== 'stored');
   const visits = [...new Set(todo.map((u) => u.visitId))];
   const contracts = visits.map((v) => units.filter((u) => u.visitId === v)).sort((a, b) => b[0].at - a[0].at);
-  return `<div class="grid xl:grid-cols-[26rem_1fr] gap-4 items-start">${scanPanel(rc, todo)}
+  return `<div class="grid xl:grid-cols-[26rem_1fr] gap-4 items-start">${scanPanel(rc, todo, warehouse)}
     <section class="rounded-xl border bg-white p-4 space-y-3">
       <h2 class="font-bold text-lg">入庫待ちの契約（${contracts.length}件）</h2>
       <p class="text-xs text-slate-500">契約書（明細）と、届いた商品を見比べて、一致した商品に☑を付けてから入庫します。☑は、誰がいつ付けたかが、商品の記録に残ります。</p>

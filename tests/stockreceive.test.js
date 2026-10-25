@@ -52,3 +52,11 @@ test('QRの読み取り結果から、シールNo.を取り出す（前後の空
   assert.equal(codeFromQr('その他の文字'), 'その他の文字'); // シールNo.の形でなければ、そのまま（未登録として扱う）
   assert.equal(codeFromQr(null), '');
 });
+
+test('入庫した倉庫: 入庫すると、どの倉庫に入ったかを商品に記録する（まとめて入庫でも）', () => {
+  const r = receive(list(), null, 'A', { location: 'A棚', by: 'x', warehouseId: 'W-KANTO' });
+  assert.equal(r.list[0].warehouseId, 'W-KANTO');
+  const many = receiveCodes(list(), ['A', 'B'], { location: 'A棚', by: 'x', warehouseId: 'W-OSAKA', method: 'manual' });
+  assert.deepEqual(many.list.slice(0, 2).map((x) => x.warehouseId), ['W-OSAKA', 'W-OSAKA']);
+  assert.equal(many.list[4].warehouseId, undefined); // 入庫していない商品は、倉庫が決まらない
+});

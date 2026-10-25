@@ -1,6 +1,7 @@
 // 倉庫・物流画面の共通部品（見た目の小さな部品と、表示用の整形）。
 import { yen, fmtTime } from '../src/format.js';
 import { dateOf } from '../src/warehouse.js';
+import { warehouseById, warehouseIdOf } from '../src/warehouseMaster.js';
 
 export const STAGE_CLS = {
   incoming: 'bg-slate-200 text-slate-600', missing: 'bg-rose-100 text-rose-700', stock: 'bg-emerald-100 text-emerald-800', listed: 'bg-sky-100 text-sky-800', consigned: 'bg-violet-50 text-violet-800',
@@ -13,4 +14,6 @@ export const md = (date) => { const [, m, d] = date.split('-'); return `${Number
 export const mdTime = (ms) => `${md(dateOf(ms))} ${fmtTime(ms).slice(0, 5)}`;
 export const yenS = (n) => (n < 0 ? `−${yen(-n)}` : yen(n)); // マイナスは「−」で表す
 export const profitCls = (n) => (n < 0 ? 'text-rose-600' : 'text-emerald-700');
+// 商品が入庫されている倉庫の名前（入庫前は「-」）
+export const whName = (unit, master) => (unit.status === 'stored' ? warehouseById(master, warehouseIdOf(unit, master))?.name ?? '-' : '-');
 export const pct = (r) => `${(r * 100).toFixed(1)}%`;

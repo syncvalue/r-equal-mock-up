@@ -1,7 +1,9 @@
 // 商品の持ち帰り（事務所での入庫）の画面。QRコード付きシールを読み取りながら、買取商品を倉庫に入庫する。
 import { esc, yen, fmtTime } from './format.js';
 import { dateKey } from './workday.js';
-import { LOCATIONS, byUser, inScope, pendingOf, dateKeys } from './stock.js';
+import { byUser, inScope, pendingOf, dateKeys } from './stock.js';
+import { loadMaster, activeWarehouses, receiveTarget, officeName } from './warehouseMaster.js';
+import { areaOfUser } from './dispatch.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const SEC = 'h-full min-h-0 p-4';
@@ -10,7 +12,10 @@ const dateLabel = (key) => {
   return `${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${key === dateKey() ? ' 今日' : ''}`;
 };
 
-export const DEFAULT_STOCK = { tab: 'pending', scope: 'all', location: LOCATIONS[0], last: null };
+export const DEFAULT_STOCK = { tab: 'pending', scope: 'all', warehouseId: null, location: null, last: null };
+
+// 入庫の納入先（倉庫）と保管場所。未選択のときは、自分の営業所に併設の倉庫が初期値になる
+export const stockTarget = (s) => receiveTarget(loadMaster(), areaOfUser(s.user), s.stock);
 
 // メニューのバッジ用: 自分の入庫待ちの点数
 export const pendingCount = (s) => pendingOf(byUser(s.units ?? [], s.user)).length;
@@ -94,14 +99,20 @@ function listCard(s, mine) {
 }
 
 function actionCard(s, mine) {
+  const master = loadMaster();
+  const target = stockTarget(s);
   const todo = pendingOf(inScope(mine, s.stock.scope));
   const last = s.stock.last;
   return `
   <div class="card !p-4 w-[24rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[50%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="stockR">
     <h3 class="font-bold text-lg">入庫する</h3>
     <div>
+      <div class="font-bold text-sm mb-1">納入先の倉庫<span class="font-normal text-xs text-slate-500">（倉庫の担当者に渡す場合も、倉庫を選んでください）</span></div>
+      <div class="flex flex-wrap gap-1.5">${activeWarehouses(master).map((w) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.warehouse.id === w.id ? 'active' : ''}" data-action="stock-wh" data-value="${esc(w.id)}">${esc(w.name)}${w.officeId ? `<span class="text-xs opacity-70">（${esc(officeName(w.officeId))}営業所と一体）</span>` : ''}</button>`).join('')}</div>
+    </div>
+    <div>
       <div class="font-bold text-sm mb-1">保管場所<span class="font-normal text-xs text-slate-500">（読み取った商品は、ここに入庫します）</span></div>
-      <div class="flex flex-wrap gap-1.5">${LOCATIONS.map((l) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${s.stock.location === l ? 'active' : ''}" data-action="stock-loc" data-value="${esc(l)}">${esc(l)}</button>`).join('')}</div>
+      <div class="flex flex-wrap gap-1.5">${target.warehouse.locations.map((l) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.location === l ? 'active' : ''}" data-action="stock-loc" data-value="${esc(l)}">${esc(l)}</button>`).join('')}</div>
     </div>
     <button class="btn btn-primary w-full text-xl !py-4" data-action="stock-scan" ${todo.length ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
     <p class="text-xs text-slate-500 -mt-1">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
