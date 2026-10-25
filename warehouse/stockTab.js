@@ -1,0 +1,54 @@
+// 📦 商品管理: 買い取った商品の在庫を、状態・キーワードで絞り込んで確認する。
+import { STAGES, channelOf, stockSummary, dateOf } from '../src/warehouse.js';
+import { yen, esc } from '../src/format.js';
+import { badge, card, md, STAGE_CLS } from './ui.js';
+
+export const FILTERS = [['all', 'すべて'], ['stock', '在庫'], ['listed', '出品中'], ['consigned', '委託中'], ['incoming', '入庫待ち・所在不明'], ['sold', '売却済み'], ['return', '返品']];
+const MATCH = {
+  all: () => true,
+  stock: (r) => r.stage === 'stock',
+  listed: (r) => r.stage === 'listed',
+  consigned: (r) => r.stage === 'consigned',
+  incoming: (r) => r.stage === 'incoming' || r.stage === 'missing',
+  sold: (r) => r.stage === 'sold',
+  return: (r) => r.stage === 'returning' || r.stage === 'returned',
+};
+const hit = (r, q) => !q || [r.unit.name, r.unit.code, r.unit.customerName, r.unit.category].some((v) => v.toLowerCase().includes(q.toLowerCase()));
+
+function action(r) {
+  const { unit, rec } = r;
+  if (r.canList) return `<button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-go-list="${esc(unit.code)}">出品する</button>`;
+  if (r.stage === 'stock' && r.cooling) {
+    return `<span class="text-xs text-amber-700 font-bold">${md(r.coolEnd)} まで出品不可</span> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-go-return="${esc(unit.visitId)}">返品受付</button>`;
+  }
+  if (r.stage === 'listed') return `<span class="text-xs">${esc(channelOf(rec.channel)?.label)}で ${yen(rec.listPrice)}</span>`;
+  if (r.stage === 'consigned') return `<span class="text-xs">${esc(rec.vendor || '委託先')}に委託中（${md(dateOf(rec.listedAt))}〜）</span>`;
+  if (r.stage === 'sold') return `<span class="text-xs">${esc(channelOf(rec.channel)?.label)}で ${yen(rec.soldPrice)}</span>`;
+  return '';
+}
+
+export function stockTab({ rows }, { filter, q }) {
+  const sum = stockSummary(rows);
+  const shown = rows.filter((r) => MATCH[filter](r) && hit(r, q.trim())).sort((a, b) => b.unit.at - a.unit.at);
+  return `
+  <div class="flex flex-wrap gap-3">
+    ${card('すぐ出品できる在庫', `${sum.stock - sum.cooling} 点`, 'text-emerald-700')}
+    ${card('保管期間中', `${sum.cooling} 点`, sum.cooling ? 'text-amber-700' : '')}
+    ${card('出品中', `${sum.listed} 点`, 'text-sky-700')}
+    ${card('委託中（倉庫の外）', `${sum.consigned} 点`, 'text-violet-700')}
+    ${card('入庫待ち・所在不明', `${sum.incoming + sum.missing} 点`, sum.missing ? 'text-rose-600' : '')}
+    ${card('倉庫の在庫の原価', yen(sum.inventoryCost))}
+    ${card('委託中の原価', yen(sum.consignedCost))}
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    ${FILTERS.map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}
+    <input class="inp !w-64 ml-auto" data-q placeholder="商品名・シールNo.・お客様名" value="${esc(q)}" />
+  </div>
+  <table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>シールNo.</th><th>商品</th><th>ランク</th><th>買取先</th><th>買取日</th><th class="text-right">原価</th><th>保管場所</th><th>状態</th><th>操作・備考</th></tr></thead><tbody>
+    ${shown.length ? shown.map((r) => `<tr class="border-b">
+      <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)}</div></td><td>${esc(r.unit.rank)}</td>
+      <td>${esc(r.unit.customerName)} 様</td><td>${md(r.unit.date)}</td><td class="text-right">${yen(r.unit.price)}</td><td class="text-xs">${r.stage === 'consigned' ? '倉庫の外（委託中）' : esc(r.unit.location ?? '-')}</td>
+      <td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r)}</td></tr>`).join('') : '<tr><td colspan="9" class="text-slate-400">該当する商品はありません。</td></tr>'}
+  </tbody></table>
+  <p class="text-xs text-slate-500">買い取った商品は、クーリングオフに備え、買取から10日間は保管し、出品・販売できません（お客様の通知は郵送で届くため、法定の8日間に余裕を足しています）。保管期間が過ぎた入庫済みの商品から出品できます。入庫は営業のタブレット（商品の持ち帰り）で、QRシールを読み取って行います。</p>`;
+}

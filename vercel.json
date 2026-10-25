@@ -9,6 +9,10 @@
       "destination": "/accounting/index.html"
     },
     {
+      "source": "/warehouse",
+      "destination": "/warehouse/index.html"
+    },
+    {
       "source": "/gmosign",
       "destination": "/gmosign/index.html"
     },

@@ -104,12 +104,15 @@ export const SESSION_KEY = 'rq-mock-session';
 
 // 買取商品の持ち帰り（実物1点ごとの入庫状況）
 export const STOCK_KEY = 'rq-mock-stock';
+// 倉庫・物流: 商品ごとの出品・売却の記録と、クーリングオフによる返品の記録
+export const WAREHOUSE_KEY = 'rq-mock-warehouse';
+export const RETURN_KEY = 'rq-mock-returns';
 
 export { RESERVATION_KEY };
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, STOCK_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
 };

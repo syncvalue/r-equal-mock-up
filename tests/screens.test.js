@@ -21,3 +21,10 @@ test('本社 経理部の画面は、描画できる（サンプルデータ入�
   await import('../accounting/accounting.js');
   assert.ok(root.innerHTML.includes('本社 経理部') && root.innerHTML.includes('所持金の確認') && root.innerHTML.includes('鈴木 一郎'));
 });
+
+test('倉庫・物流の画面は、描画できる（サンプルデータ入り）。商品管理のほか、出品・売上・返品の各タブも表示できる', async () => {
+  root.innerHTML = '';
+  await import('../warehouse/warehouse.js');
+  assert.ok(root.innerHTML.includes('倉庫・物流') && root.innerHTML.includes('商品管理') && root.innerHTML.includes('ルイ・ヴィトン ネヴァーフル MM'));
+  assert.ok(root.innerHTML.includes('クーリングオフ返品') && root.innerHTML.includes('売上管理'));
+});
