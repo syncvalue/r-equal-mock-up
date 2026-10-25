@@ -220,7 +220,7 @@ export function stockSummary(rows) {
 }
 
 // ---- 出品・売却 -----------------------------------------------------------------
-// 操作した担当者の名前（指定されたときだけ記録する）
+// 操作した倉庫担当の名前（指定されたときだけ記録する）
 const who = (key, by) => (by ? { [key]: by } : {});
 const fail = (state, reason) => ({ ok: false, state, reason });
 const withRecord = (state, code, rec) => ({ ...state, records: { ...state.records, [code]: rec } });

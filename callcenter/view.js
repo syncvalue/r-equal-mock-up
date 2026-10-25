@@ -19,7 +19,7 @@ export const genderLabel = (g) => GENDER[g] ?? '';
 export const genderParen = (g) => (GENDER[g] ? `（${GENDER[g]}）` : ''); // 性別が分からない予約（営業の元からの予定）は、かっこごと出さない
 
 // ---- 時間帯のバー ------------------------------------------------------------------
-// 訪問の帯の色は、仮確定が薄い青、確定済みが濃い青。営業の元からの予定も、確定済みの訪問として、濃い青で出す（アポは、基本的にすべて電話でオペレーターが入れるため、出どころの区別はしない）
+// 訪問の帯の色は、仮確定が薄い青、確定済みが濃い青。営業の元からの予定も、確定済みの訪問として、濃い青で出す（訪問は、基本的にすべて電話でオペレーターが入れるため、出どころの区別はしない）
 // まだ一度も確定していない仮確定は薄い青、一度確定して仮確定に戻されたものは橙、確定済みは濃い青
 export const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? (b.reverted ? 'bg-amber-600' : 'bg-indigo-400') : 'bg-indigo-700');
 export const isTentativeBlock = (b) => b.source === 'reservation' && b.status === 'tentative';
@@ -35,20 +35,20 @@ export const legendHtml = ({ want = true } = {}) => `<span class="font-normal te
 const RANK_CLS = { S: 'bg-amber-400 text-slate-900', A: 'bg-indigo-600 text-white', B: 'bg-slate-500 text-white', C: 'bg-slate-300 text-slate-800' };
 export const rankBadge = (rank) => (rank ? `<span class="inline-block rounded px-1.5 text-[10px] font-bold leading-4 ${RANK_CLS[rank] ?? 'bg-slate-200'}" title="営業のランク">${esc(rank)}</span>` : '');
 
-// 前後のアポから、今回のお客様の住所までの距離（概算）。prev=直前のアポ（なければ営業所から）／next=直後のアポ。short=営業ごとの列の見出し用の短い表記
+// 前後の訪問から、今回のお客様の住所までの距離（概算）。prev=直前の訪問（なければ営業所から）／next=直後の訪問。short=営業ごとの列の見出し用の短い表記
 const distText = (l) => `${l.km}km・約${l.min}分`;
 const legText = (l, dir, short = false) => {
-  if (!l) return dir === 'prev' ? '前のアポなし' : '';
-  if (dir === 'prev') return short ? `前 ${l.label} ${minToHHMM(l.at)}終 ${distText(l)}` : `前のアポ ${l.label}（${minToHHMM(l.at)}終了）→ 今回のお客様宅まで ${distText(l)}`;
-  return short ? `次 ${l.label} ${minToHHMM(l.at)}始 ${distText(l)}` : `次のアポ ${l.label}（${minToHHMM(l.at)}開始）← 今回のお客様宅から ${distText(l)}`;
+  if (!l) return dir === 'prev' ? '前の訪問なし' : '';
+  if (dir === 'prev') return short ? `前 ${l.label} ${minToHHMM(l.at)}終 ${distText(l)}` : `前の訪問 ${l.label}（${minToHHMM(l.at)}終了）→ 今回のお客様宅まで ${distText(l)}`;
+  return short ? `次 ${l.label} ${minToHHMM(l.at)}始 ${distText(l)}` : `次の訪問 ${l.label}（${minToHHMM(l.at)}開始）← 今回のお客様宅から ${distText(l)}`;
 };
 export const travelTitle = (t) => (t ? [legText(t.prev, 'prev'), legText(t.next, 'next')].filter(Boolean).join('\n') : '');
 // 担当候補の行に出す、色付きの見出し付きの表記
 export const legHtml = (l, dir) => {
   const chip = (t, cls) => `<span class="mr-1 rounded px-1 text-[10px] font-bold ${cls}">${t}</span>`;
-  if (!l) return dir === 'prev' ? chip('前のアポなし', 'bg-sky-100 text-sky-800') : ''; // 直前のアポがなければ、距離は出さない
-  if (dir === 'prev') return `${chip('前のアポ', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}終了）→ 今回のお客様宅まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;
-  return `${chip('次のアポ', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}開始）まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;
+  if (!l) return dir === 'prev' ? chip('前の訪問なし', 'bg-sky-100 text-sky-800') : ''; // 直前の訪問がなければ、距離は出さない
+  if (dir === 'prev') return `${chip('前の訪問', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}終了）→ 今回のお客様宅まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;
+  return `${chip('次の訪問', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}開始）まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;
 };
 
 // ---- 通話の文字起こし（デモ） -----------------------------------------------------------

@@ -1,4 +1,4 @@
-// 📥 入庫: 倉庫の担当者が、営業から渡された買取商品を入庫する。QRシール（シールNo.）を読み取るか、契約書（明細）と実物を見比べて☑を付けた商品を入庫する。
+// 📥 入庫: 倉庫担当が、営業から渡された買取商品を入庫する。QRシール（シールNo.）を読み取るか、契約書（明細）と実物を見比べて☑を付けた商品を入庫する。
 // ☑（照合）は、誰がいつ付けたかが、入庫した商品に記録される。
 // 営業のタブレットでも入庫できる。倉庫では、誰が買い取った商品でも入庫できる。
 import { userById } from '../src/dashboard.js';
@@ -14,7 +14,7 @@ function scanPanel(rc, todo, warehouse) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
     <h2 class="font-bold text-lg">📥 入庫する <span class="text-sm font-normal text-sky-700">入庫先: ${esc(warehouse.name)}</span></h2>
-    <p class="text-xs text-slate-500">営業から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。シールの色が紫・赤の高額品は、納入のときから本社に入るため、本社の担当者だけが入庫できます（本社以外では、高額品以外を入庫します）。営業が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。</p>
+    <p class="text-xs text-slate-500">営業から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。シールの色が紫・赤の高額品は、納入のときから本社に入るため、本社の倉庫担当だけが入庫できます（本社以外では、高額品以外を入庫します）。営業が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。</p>
     <div><div class="text-sm font-bold mb-1">保管場所<span class="font-normal text-xs text-slate-500">（入庫する商品は、ここに保管します）</span></div>
       <div class="flex flex-wrap gap-1.5">${warehouse.locations.map((l) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${rc.location === l ? 'on' : ''}" data-rc-loc="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>
     <label class="text-sm font-bold block">シールNo.（スキャナ・手入力。Enterで入庫。読み取りで、照合したものとして記録します）

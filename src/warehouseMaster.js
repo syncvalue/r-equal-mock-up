@@ -1,7 +1,8 @@
 // 倉庫のマスタ。倉庫は営業所とは独立した施設で、営業所と一体の倉庫・倉庫のみ・倉庫のない営業所（営業のみ）がある。
-// 倉庫の担当者は、各倉庫に所属する。商品は、入庫した倉庫に保管される。操作はすべて新しいマスタを返す。
+// 倉庫担当（master.staff）は、ユーザー管理の「倉庫担当」から読み込む（登録・所属変更・有効/無効はユーザー管理）。商品は、入庫した倉庫に保管される。操作はすべて新しいマスタを返す。
 import { AREAS } from './dispatch.js';
 import { LOCATIONS, SEAL_COLORS } from './stock.js';
+import { DEFAULT_USERS, loadUsers, warehouseStaffOf } from './users.js';
 
 export const MASTER_KEY = 'rq-mock-warehouse-master';
 
@@ -14,13 +15,7 @@ export const DEFAULT_MASTER = {
     { id: 'W-FUKUOKA', name: '福岡倉庫', zip: '812-0011', address: '福岡県福岡市博多区博多駅前1-1-1', phone: '092-000-0003', officeId: '', locations: ['A棚', 'B棚', '金庫室（高額品）'], active: true },
     { id: 'W-HONSHA', name: '本社', zip: '541-0041', address: '大阪府大阪市中央区北浜1-1-1', phone: '06-0000-0004', officeId: '', locations: ['金庫室（高額品）', '貴金属保管庫'], highValue: true, active: true },
   ],
-  staff: [
-    { id: 'wh01', loginId: 'wh01', name: '小川 直樹', warehouseId: 'W-OSAKA', active: true },
-    { id: 'wh02', loginId: 'wh02', name: '中島 里奈', warehouseId: 'W-OSAKA', active: true },
-    { id: 'wh03', loginId: 'wh03', name: '山本 大地', warehouseId: 'W-KANTO', active: true },
-    { id: 'wh04', loginId: 'wh04', name: '藤田 結衣', warehouseId: 'W-FUKUOKA', active: true },
-    { id: 'wh05', loginId: 'wh05', name: '岡田 剛', warehouseId: 'W-HONSHA', active: true },
-  ],
+  staff: warehouseStaffOf(DEFAULT_USERS),
   // 委託先（業者）。業者オークションなど、外部の市場に商品を委託して販売する送り先（ダミー）
   vendors: [
     { id: 'V-OSAKA-WATCH', name: '大阪時計オークション', zip: '556-0011', address: '大阪府大阪市浪速区難波中2-1-1', phone: '06-1111-0001', active: true },
@@ -34,7 +29,7 @@ export const DEFAULT_MASTER = {
 export function loadMaster() {
   try {
     const m = JSON.parse(localStorage.getItem(MASTER_KEY));
-    return Array.isArray(m?.warehouses) && Array.isArray(m?.staff) ? { ...m, highValue: Array.isArray(m.highValue?.colors) ? m.highValue : DEFAULT_MASTER.highValue, vendors: Array.isArray(m.vendors) ? m.vendors : DEFAULT_MASTER.vendors } : DEFAULT_MASTER;
+    return Array.isArray(m?.warehouses) ? { ...m, staff: warehouseStaffOf(loadUsers()), highValue: Array.isArray(m.highValue?.colors) ? m.highValue : DEFAULT_MASTER.highValue, vendors: Array.isArray(m.vendors) ? m.vendors : DEFAULT_MASTER.vendors } : { ...DEFAULT_MASTER, staff: warehouseStaffOf(loadUsers()) };
   } catch {
     return DEFAULT_MASTER;
   }
@@ -42,7 +37,8 @@ export function loadMaster() {
 
 export function saveMaster(master) {
   try {
-    localStorage.setItem(MASTER_KEY, JSON.stringify(master));
+    const { staff, ...rest } = master; // 倉庫担当は、ユーザー管理が持つ
+    localStorage.setItem(MASTER_KEY, JSON.stringify(rest));
     return true;
   } catch {
     return false;
@@ -139,21 +135,7 @@ export function saveHighValueRule(master, { colors }) {
   return { ok: true, master: { ...master, highValue: { colors: list } } };
 }
 
-// 担当者の登録・更新（id があれば更新）。reason: noName／badLoginId／noWarehouse／dupLoginId／notFound
-export function saveStaff(master, { id, loginId, name, warehouseId, active }) {
-  const login = String(loginId ?? '').trim().toLowerCase();
-  const n = String(name ?? '').trim();
-  const old = id ? master.staff.find((s) => s.id === id) : null;
-  if (id && !old) return fail(master, 'notFound');
-  if (!n) return fail(master, 'noName');
-  if (!/^[a-z0-9_-]{3,20}$/.test(login)) return fail(master, 'badLoginId');
-  if (!warehouseById(master, warehouseId)) return fail(master, 'noWarehouse');
-  if (master.staff.some((s) => s.loginId === login && s.id !== id)) return fail(master, 'dupLoginId');
-  const item = { id: id ?? newId('ST'), loginId: login, name: n, warehouseId, active: active ?? old?.active ?? true };
-  return { ok: true, master: { ...master, staff: old ? replaceAt(master.staff, id, item) : [...master.staff, item] } };
-}
-
-// 倉庫の有効・無効。無効にできるのは、在庫（holding: 保管・出品・委託・返品対応中の点数）も有効な担当者もいない倉庫だけ
+// 倉庫の有効・無効。無効にできるのは、在庫（holding: 保管・出品・委託・返品対応中の点数）も有効な倉庫担当もいない倉庫だけ
 export function setWarehouseActive(master, id, active, { holding = 0 } = {}) {
   const w = warehouseById(master, id);
   if (!w) return fail(master, 'notFound');
@@ -162,5 +144,5 @@ export function setWarehouseActive(master, id, active, { holding = 0 } = {}) {
   return { ok: true, master: { ...master, warehouses: replaceAt(master.warehouses, id, { ...w, active }) } };
 }
 
-// ログインできるのは、有効な担当者だけ（IDの大文字・前後の空白は無視）
+// ログインできるのは、有効な倉庫担当だけ（IDの大文字・前後の空白は無視）
 export const findStaff = (master, loginId) => master.staff.find((s) => s.active && s.loginId === String(loginId ?? '').trim().toLowerCase()) ?? null;

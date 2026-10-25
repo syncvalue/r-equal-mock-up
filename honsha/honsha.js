@@ -4,7 +4,8 @@ import {
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
 import { RANKS } from '../src/data.js';
-import { USERS, APPRAISERS } from '../src/dashboard.js';
+import { USERS } from '../src/dashboard.js';
+import { loadUsers, appraisersOf } from '../src/users.js';
 import { eventsOfDay } from '../src/schedule.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
@@ -16,9 +17,10 @@ let sel = null; // { type: 'item' | 'req', id }
 let draft = { tag: '', text: '', price: '', rank: null, reason: '' }; // 営業への送信内容（コメント＋任意で提案査定額）
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 保存できなくても動作は継続（モック） */ } };
-let appraiserId = pref('rq-mock-hq-appraiser', APPRAISERS[0].id); // 画面を使っている査定部の担当者（デモ用に切り替え可）
+const appraisers = () => appraisersOf(loadUsers()); // 査定員は、ユーザー管理から読み込む（有効な人だけ）
+let appraiserId = pref('rq-mock-hq-appraiser', appraisers()[0]?.id ?? ''); // 画面を使っている査定員（デモ用に切り替え可）
 let hideDone = pref('rq-mock-hq-hidedone', '0') === '1'; // 訪問完了した予定を一覧から隠す
-const appraiser = () => APPRAISERS.find((a) => a.id === appraiserId) ?? APPRAISERS[0];
+const appraiser = () => appraisers().find((a) => a.id === appraiserId) ?? appraisers()[0] ?? { id: '', name: '', groups: [] };
 const scopeUsers = () => USERS.filter((u) => appraiser().groups.includes(u.group));
 let compose = null; // 営業へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
@@ -264,7 +266,7 @@ function render() {
   $('#root').innerHTML = `
   <header class="bg-indigo-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">本社 査定部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <label class="ml-3 text-xs text-white/80">担当 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${APPRAISERS.map((a) => `<option class="text-slate-800" value="${a.id}" ${a.id === appraiserId ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
+    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <label class="ml-3 text-xs text-white/80">査定員 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${appraisers().map((a) => `<option class="text-slate-800" value="${esc(a.id)}" ${a.id === appraiser().id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
   <div class="grid grid-cols-[19rem_1fr_26rem] h-[calc(100vh-52px)]">
     <aside class="bg-white border-r overflow-y-auto">

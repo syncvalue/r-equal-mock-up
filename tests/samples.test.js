@@ -45,7 +45,7 @@ test('サンプルの受付: 電話番号から、受付済みの予約が見つ
   assert.equal(found[0].customer.name, '山田 花子');
 });
 
-test('サンプルの受付: 休みの時間（欠勤の日・午前休・午後半休）に、アポが入らない', () => {
+test('サンプルの受付: 休みの時間（欠勤の日・午前休・午後半休）に、訪問が入らない', () => {
   list.filter((r) => !isCancelled(r)).forEach((r) => {
     const att = attendanceOf(r.userId, r.date, NOW);
     assert.equal(inOffTime(att, toM(r.start), toM(r.end)), false, `${r.id} ${r.date} ${r.start} は ${att.label}`);

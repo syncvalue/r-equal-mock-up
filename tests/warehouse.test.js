@@ -408,7 +408,7 @@ test('在庫の集計: 委託中は倉庫の在庫の原価に入れず、別に
   assert.equal(sum.inventoryCost, 5000);
 });
 
-test('操作した担当者: 出品・売却・返品の各操作に、担当者名を記録できる（指定しなければ記録しない）', () => {
+test('操作した倉庫担当: 出品・売却・返品の各操作に、倉庫担当名を記録できる（指定しなければ記録しない）', () => {
   const s0 = state([unit('A', 12), unit('B', 3)]);
   const listed = W.listItem(s0, 'A', { channel: 'mercari', price: 15000, at: NOW, by: '小川 直樹' }).state;
   assert.equal(listed.records.A.listedBy, '小川 直樹');

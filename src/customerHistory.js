@@ -109,7 +109,7 @@ const AUTO_RANK = [[1000000, 'S'], [500000, 'A'], [200000, 'B'], [1, 'C']];
 export function customerProfile(phones) {
   const list = [...new Set(phones.filter(Boolean))];
   const seeds = list.map((p) => SEED[p]).filter(Boolean);
-  const stored = loadCustomerEval(list); // 登録されたお客様の評価（アポの評価とは別に管理）
+  const stored = loadCustomerEval(list); // 登録されたお客様の評価（訪問の評価とは別に管理）
   const seedProfile = seeds.find((s) => s.profile)?.profile ?? null;
   const manual = stored ?? seedProfile;
   const sum = purchaseSummary(list);
@@ -124,7 +124,7 @@ export function customerProfile(phones) {
   };
 }
 
-// 営業の評価・メモは、アポ（訪問）ごとに登録される。その訪問の評価を探す（訪問の識別子があればそれ、なければ同じ日）
+// 営業の評価・メモは、訪問ごとに登録される。その訪問の評価を探す（訪問の識別子があればそれ、なければ同じ日）
 const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
 export const evalOfVisit = (v, evals) => evals.find((e) => (v.visitId && e.visitId ? e.visitId === v.visitId : sameDay(e.savedAt, v.at))) ?? null;
 
@@ -172,18 +172,18 @@ export function historyOf(customer, { visitId = null, before = Infinity } = {}) 
     .filter((c) => c.customer?.phone === customer.phone && c.sentAt < before)
     .map((c) => ({ at: c.sentAt, items: c.items.map((i) => i.name).join('・'), total: c.total, visitId: c.visitId, lines: c.items.map((i) => ({ name: i.name, qty: i.qty ?? 1, price: i.price })) }));
   const evals = [...seed.evals, ...loadEvals().filter((e) => e.phone === customer.phone && e.visitId !== visitId)];
-  const visits = [...seed.visits, ...contracts].sort((a, b) => b.at - a.at).map((v) => ({ ...v, eval: evalOfVisit(v, evals) })); // 各アポに、そのアポの評価を結びつける
+  const visits = [...seed.visits, ...contracts].sort((a, b) => b.at - a.at).map((v) => ({ ...v, eval: evalOfVisit(v, evals) })); // 各訪問に、その訪問の評価を結びつける
   return {
     visits, count: visits.length, isRepeat: visits.length > 0, ordinal: visits.length + 1,
     latestEval: evals.sort((a, b) => b.savedAt - a.savedAt)[0] ?? null,
   };
 }
 
-// 営業がアポの評価を保存したとき、これが初めてのアポで、お客様の評価が未登録なら、そのアポの評価を、お客様の評価の初期値にする
+// 営業が訪問の評価を保存したとき、これが初めての訪問で、お客様の評価が未登録なら、その訪問の評価を、お客様の評価の初期値にする
 export function setFirstVisitCustomerEval(record, { before = Infinity } = {}) {
   const phone = record.phone;
   if (!phone || loadCustomerEval([phone]) || SEED[phone]?.profile) return false;
-  if (historyOf({ phone }, { visitId: record.visitId, before }).count > 0) return false; // 2回目以降のアポは、自動では設定しない
-  saveCustomerEval(phone, customerEvalFromVisit(record), { by: '自動（初回のアポの評価）', source: 'first-visit' });
+  if (historyOf({ phone }, { visitId: record.visitId, before }).count > 0) return false; // 2回目以降の訪問は、自動では設定しない
+  saveCustomerEval(phone, customerEvalFromVisit(record), { by: '自動（初回の訪問の評価）', source: 'first-visit' });
   return true;
 }

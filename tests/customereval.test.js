@@ -13,7 +13,7 @@ beforeEach(() => store.clear());
 
 const visitEval = (o = {}) => ({ visitId: 'V1', phone: '090-1111-2222', customerName: 'A', savedAt: Date.UTC(2026, 9, 20), by: '営業 鈴木 一郎', overall: 4, attitude: '良好', repeat: '高い', wealth: '高そう', timing: '3か月以内', cats: [], flags: [], memo: '初回。丁寧に対応', ...o });
 
-test('アポの評価から、お客様の評価の初期値を作る（資力→ランク、フラグ・態度→厄介度）', () => {
+test('訪問の評価から、お客様の評価の初期値を作る（資力→ランク、フラグ・態度→厄介度）', () => {
   assert.deepEqual(customerEvalFromVisit(visitEval()), { rank: 'A', trouble: { level: 'none', tags: [], memo: '' }, memo: '初回。丁寧に対応' });
   assert.equal(customerEvalFromVisit(visitEval({ wealth: '普通' })).rank, 'B');
   assert.equal(customerEvalFromVisit(visitEval({ wealth: '低そう' })).rank, 'C');
@@ -35,34 +35,34 @@ test('お客様の評価の登録・読み出し（電話番号で。ハイフ�
   assert.equal(customerProfile(['080-8901-2345']).cooloff.length, 1); // クーリングオフ歴は、お客様の評価を登録し直しても消えない
 });
 
-test('初めてのアポの評価は、そのまま、お客様の評価の初期値になる。2回目以降・登録済みなら、設定しない', () => {
+test('初めての訪問の評価は、そのまま、お客様の評価の初期値になる。2回目以降・登録済みなら、設定しない', () => {
   const rec = visitEval({ phone: '090-3333-4444' });
   assert.equal(setFirstVisitCustomerEval(rec), true);
   const p = customerProfile(['090-3333-4444']);
-  assert.deepEqual([p.rank, p.meta.source, p.meta.by], ['A', 'first-visit', '自動（初回のアポの評価）']);
+  assert.deepEqual([p.rank, p.meta.source, p.meta.by], ['A', 'first-visit', '自動（初回の訪問の評価）']);
   // 登録済みなら、上書きしない
   assert.equal(setFirstVisitCustomerEval(visitEval({ phone: '090-3333-4444', wealth: '低そう', visitId: 'V2' })), false);
   assert.equal(customerProfile(['090-3333-4444']).rank, 'A');
-  // 過去のアポがある（サンプルの履歴）お客様は、初回ではない
+  // 過去の訪問がある（サンプルの履歴）お客様は、初回ではない
   assert.equal(setFirstVisitCustomerEval(visitEval({ phone: '090-7777-0001', visitId: 'V9' }), {}), true);
   assert.equal(setFirstVisitCustomerEval(visitEval({ phone: '080-2345-6789' })), false); // 登録済みのお客様
 });
 
-test('アポの評価は、アポごとに別。お客様の評価とは別に管理する', () => {
+test('訪問の評価は、訪問ごとに別。お客様の評価とは別に管理する', () => {
   upsertEval(visitEval({ visitId: 'V1', phone: '090-5555-6666', savedAt: Date.UTC(2026, 9, 1), overall: 5, memo: '1回目' }));
   upsertEval(visitEval({ visitId: 'V2', phone: '090-5555-6666', savedAt: Date.UTC(2026, 9, 10), overall: 2, memo: '2回目は難あり' }));
   const d = customerDossier(['090-5555-6666']);
-  assert.equal(d.evals.length, 2); // アポの評価は、アポの数だけ
+  assert.equal(d.evals.length, 2); // 訪問の評価は、訪問の数だけ
   assert.equal(loadCustomerEval(['090-5555-6666']), null); // お客様の評価は、まだ登録されていない
   const seedVisit = customerDossier(['090-5050-6060']).visits[0];
   assert.ok(seedVisit.eval && seedVisit.eval.memo); // 履歴の各回に、その回の評価が結びつく
   assert.equal(evalOfVisit({ at: 5, visitId: 'X' }, [{ visitId: 'X', savedAt: 999 }]).visitId, 'X'); // 識別子があれば、それで結びつく
 });
 
-test('営業のタブレット: 過去のアポごとの評価を、アポの数だけ出す', () => {
+test('営業のタブレット: 過去の訪問ごとの評価を、訪問の数だけ出す', () => {
   const h = { isRepeat: true, count: 3, visits: customerDossier(['090-5050-6060']).visits };
   const t = text(pastEvalView(h));
-  assert.match(t, /過去のアポごとの評価（3回）/);
+  assert.match(t, /過去の訪問ごとの評価（3回）/);
   assert.ok(['バーキンの査定額に不満が強く', '査定額への不満を繰り返し言われた', '骨董を中心に売却', 'エルメス バーキン30'].every((k) => t.includes(k)), t); // 回ごとの評価・メモと、品目
   assert.equal((pastEvalView(h).match(/<details class="group rounded-lg border bg-white"/g) || []).length, 3);
   assert.match(text(pastEvalView({ isRepeat: false })), /初めてのお客様/);

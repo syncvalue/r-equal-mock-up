@@ -256,7 +256,7 @@ export function customerView(s) {
         <span class="text-sm text-slate-500">受付 ${esc(call.receptionNo)} ／ ${esc(call.receivedAt)} ／ 担当 ${esc(call.operator)}</span>
       </div>
       <p class="text-slate-600">ご本人かどうか、確認してください。</p>
-      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 担当者用の情報（過去の評価）を隠す' : '担当者用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
+      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 営業用の情報（過去の評価）を隠す' : '営業用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
       <dl class="grid grid-cols-[8rem_1fr] gap-y-2 text-xl">
         ${row('氏名', c.name)}${row('フリガナ', c.kana)}${row('生年月日', c.birth)}
         ${row('電話番号', c.phone2 ? `${c.phone} ／ ${c.phone2}` : c.phone)}${row('住所', `${c.zip} ${c.address}`)}${row('職業', c.occupation)}
@@ -415,7 +415,7 @@ const confirmTag = (state) => state === 'ok'
   : '<span class="ml-2 rounded-full whitespace-nowrap inline-block text-sm font-bold px-3 py-0.5 bg-amber-200 text-amber-900 animate-pulse">⏳ 確認中</span>';
 
 // 買取商品の確認。お客様に画面を見せながら確定する画面。社内向けの情報（査定部の承認・AI査定・本社コメント）は、
-// 「担当者用の情報」を開いたときだけ表示する
+// 「営業用の情報」を開いたときだけ表示する
 export const isCustomerFacing = (s) => s.view === 'visit' && s.step === 4 && !s.showStaff;
 
 export function selectView(s) {
@@ -432,9 +432,9 @@ export function selectView(s) {
       <div class="flex items-start justify-between gap-3">
         <div><h2 class="text-2xl font-bold">買取商品のご確認</h2>
           <p class="text-slate-600">${esc(s.customer.name)} 様、以下の内容で買取いたします。</p></div>
-        <button class="shrink-0 text-xs underline ${staff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 担当者用の情報を隠す' : '担当者用の情報を表示'}</button>
+        <button class="shrink-0 text-xs underline ${staff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 営業用の情報を隠す' : '営業用の情報を表示'}</button>
       </div>
-      ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-900 font-bold">担当者用（お客様には見せないでください）　承認 ${okCount} / ${chosen.length}点。</div>` : ''}
+      ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-900 font-bold">営業用（お客様には見せないでください）　承認 ${okCount} / ${chosen.length}点。</div>` : ''}
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="select">
       ${s.items
         .map((i) => {

@@ -8,12 +8,12 @@ export const repeatBadge = (h, { small = false } = {}) => h.isRepeat
   ? `<span class="inline-block rounded-full bg-indigo-600 text-white font-bold ${small ? 'text-[11px] px-2 py-0' : 'text-sm px-3 py-0.5'}">🔁 リピーター ${h.ordinal}回目</span>`
   : `<span class="inline-block rounded-full bg-sky-100 text-sky-800 font-bold ${small ? 'text-[11px] px-2 py-0' : 'text-sm px-3 py-0.5'}">🆕 初めてのお客様</span>`;
 
-// アポごとの評価と、ご利用履歴（営業の内部情報。お客様には見せない）。評価は、アポごとに営業が入力したもの。お客様情報に紐づく評価（ランク・厄介度）は、別のカードで出す
+// 訪問ごとの評価と、ご利用履歴（営業の内部情報。お客様には見せない）。評価は、訪問ごとに営業が入力したもの。お客様情報に紐づく評価（ランク・厄介度）は、別のカードで出す
 const row = (k, v) => (v && v.length ? `<div><span class="text-xs text-slate-500">${k}</span> <b>${Array.isArray(v) ? v.map(esc).join('・') : esc(v)}</b></div>` : '');
 const starsHtml = (n) => `<span class="text-amber-400 tracking-tight">${'★'.repeat(n)}<span class="text-slate-300">${'★'.repeat(5 - n)}</span></span>`;
 
 function visitEvalHtml(e) {
-  if (!e) return '<div class="text-sm text-slate-400">このアポの評価は、記録されていません。</div>';
+  if (!e) return '<div class="text-sm text-slate-400">この訪問の評価は、記録されていません。</div>';
   const warn = (e.flags ?? []).includes('クレーム注意');
   return `<div class="rounded-lg border ${warn ? 'border-rose-300' : 'border-indigo-200'} bg-indigo-50/40 p-2 space-y-1">
     <div class="flex items-center gap-2 text-sm">${starsHtml(e.overall)}<span class="text-xs text-slate-500">${esc(e.by)} ／ ${dateStr(e.savedAt)} 記録</span></div>
@@ -35,7 +35,7 @@ export function pastEvalView(h) {
   const RECENT = 5;
   return `
   <div class="rounded-xl border-2 border-indigo-300 bg-indigo-50/30 p-3 space-y-2">
-    <div class="font-bold">⭐ 過去のアポごとの評価（${h.count}回）<span class="ml-2 text-xs font-normal text-slate-500">（お客様には見せないでください）</span></div>
+    <div class="font-bold">⭐ 過去の訪問ごとの評価（${h.count}回）<span class="ml-2 text-xs font-normal text-slate-500">（お客様には見せないでください）</span></div>
     <div class="space-y-1">${h.visits.slice(0, RECENT).map((v, i) => visit(v, i === 0)).join('')}
       ${h.visits.length > RECENT ? `<details class="rounded-lg border border-dashed bg-white"><summary class="cursor-pointer px-2 py-1.5 text-sm font-bold text-slate-600">さらに以前の ${h.visits.length - RECENT}回分</summary><div class="max-h-72 space-y-1 overflow-y-auto p-1">${h.visits.slice(RECENT).map((v) => visit(v, false)).join('')}</div></details>` : ''}</div>
   </div>`;

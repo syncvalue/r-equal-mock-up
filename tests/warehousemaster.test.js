@@ -16,7 +16,7 @@ test('初期のマスタ: 倉庫は営業所とは独立。営業所と一体の
   assert.ok(AREAS.some((a) => !withOffice.has(a.id))); // 営業のみ（倉庫のない営業所）
   assert.ok([...withOffice].every((id) => AREAS.some((a) => a.id === id))); // 併設先は、実在する営業所
   assert.ok(m.warehouses.every((w) => w.locations.length >= 1 && w.active));
-  assert.ok(m.staff.every((s) => m.warehouses.some((w) => w.id === s.warehouseId))); // 担当者は、いずれかの倉庫に所属
+  assert.ok(m.staff.every((s) => m.warehouses.some((w) => w.id === s.warehouseId))); // 倉庫担当は、いずれかの倉庫に所属
   assert.ok(new Set(m.staff.map((s) => s.warehouseId)).size >= 2);
 });
 
@@ -55,22 +55,19 @@ test('倉庫の更新: idを指定すると、その倉庫を直す（自分自�
   assert.equal(M.saveWarehouse(m, { id: 'nope', name: 'q', locations: 'X' }).reason, 'notFound');
 });
 
-test('担当者の登録: 名前・ログインID・所属倉庫が必要。IDは重複不可。所属の変更もできる', () => {
-  const m = M.DEFAULT_MASTER;
-  const wid = m.warehouses[1].id;
-  const ok = M.saveStaff(m, { loginId: 'WH09', name: '新人 太郎', warehouseId: wid });
-  assert.equal(ok.ok, true);
-  const s = ok.master.staff.at(-1);
-  assert.deepEqual({ loginId: s.loginId, warehouseId: s.warehouseId, active: s.active }, { loginId: 'wh09', warehouseId: wid, active: true }); // IDは小文字にそろえる
-  assert.equal(M.saveStaff(ok.master, { loginId: 'wh09', name: 'x', warehouseId: wid }).reason, 'dupLoginId');
-  assert.equal(M.saveStaff(m, { loginId: 'wh10', name: '', warehouseId: wid }).reason, 'noName');
-  assert.equal(M.saveStaff(m, { loginId: 'a b', name: 'x', warehouseId: wid }).reason, 'badLoginId');
-  assert.equal(M.saveStaff(m, { loginId: 'wh10', name: 'x', warehouseId: 'nope' }).reason, 'noWarehouse');
-  const moved = M.saveStaff(ok.master, { id: s.id, loginId: 'wh09', name: s.name, warehouseId: m.warehouses[0].id, active: true });
-  assert.equal(moved.master.staff.at(-1).warehouseId, m.warehouses[0].id);
+test('倉庫担当は、ユーザー管理の倉庫担当から読み込む。倉庫マスタには保存しない（登録・所属変更・有効/無効はユーザー管理）', async () => {
+  const U = await import('../src/users.js');
+  assert.deepEqual(M.loadMaster().staff, U.warehouseStaffOf(U.DEFAULT_USERS));
+  const added = U.saveUser(U.loadUsers(), { loginId: 'wh09', name: '新人 太郎', role: 'warehouse', warehouseId: 'W-KANTO' }, { warehouseIds: ['W-KANTO'] });
+  U.saveUsers(added.users);
+  assert.equal(M.loadMaster().staff.at(-1).loginId, 'wh09'); // 登録すると、倉庫マスタの倉庫担当にも出る
+  M.saveMaster(M.loadMaster());
+  assert.equal('staff' in JSON.parse(mem.get('rq-mock-warehouse-master')), false);
+  mem.delete('rq-mock-users');
+  mem.delete('rq-mock-warehouse-master');
 });
 
-test('無効化: 在庫を持つ倉庫・有効な担当者がいる倉庫は無効にできない。無効にした担当者はログインできない', () => {
+test('無効化: 在庫を持つ倉庫・有効な倉庫担当がいる倉庫は無効にできない。無効にした倉庫担当はログインできない', () => {
   const m = M.DEFAULT_MASTER;
   const wid = m.warehouses[0].id;
   assert.equal(M.setWarehouseActive(m, wid, false, { holding: 3 }).reason, 'inUse');
@@ -82,7 +79,7 @@ test('無効化: 在庫を持つ倉庫・有効な担当者がいる倉庫は無
   assert.equal(M.activeWarehouses(off.master).some((w) => w.id === eid), false);
   assert.equal(M.setWarehouseActive(off.master, eid, true, {}).ok, true);
   const st = m.staff[0];
-  const disabled = M.saveStaff(m, { ...st, active: false }).master;
+  const disabled = { ...m, staff: m.staff.map((x) => (x.id === st.id ? { ...x, active: false } : x)) };
   assert.equal(M.findStaff(disabled, st.loginId), null);
   assert.equal(M.findStaff(m, ` ${st.loginId.toUpperCase()} `).id, st.id);
 });
@@ -113,7 +110,7 @@ test('営業の納入先: 選んだ倉庫・保管場所を使う。未選択、
 const HM = M.DEFAULT_MASTER;
 const hon = HM.warehouses.find((w) => w.highValue);
 
-test('本社: 高額品の保管先として、倉庫マスタの1つ（本社も、倉庫と同じ保管場所の1つ）。担当者もいる', () => {
+test('本社: 高額品の保管先として、倉庫マスタの1つ（本社も、倉庫と同じ保管場所の1つ）。倉庫担当もいる', () => {
   assert.ok(hon && hon.active && hon.officeId === '');
   assert.equal(M.honshaOf(HM).id, hon.id);
   assert.equal(HM.warehouses.filter((w) => w.highValue).length, 1);

@@ -1,7 +1,7 @@
 // 倉庫・物流デスク画面（ダミー・PC想定）。商品の管理、販売（出品）、売上管理、クーリングオフによる返品の対応。
 import { STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY } from '../src/store.js';
 import {
-  MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveStaff, saveVendor, setVendorActive, vendorById, saveHighValueRule, destinationProblem, setWarehouseActive, warehouseById, warehouseIdOf,
+  MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveVendor, setVendorActive, vendorById, saveHighValueRule, destinationProblem, setWarehouseActive, warehouseById, warehouseIdOf,
 } from '../src/warehouseMaster.js';
 import {
   loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, answerInquiry, isOpenReturn, shipReturn, completeReturn, addReturnMessage, returnAlerts, suggestPrice, scopeState, holdingByWarehouse,
@@ -36,20 +36,18 @@ const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' })
 const blankSell = () => ({ code: '', price: 0, shipping: 0, buyer: '' });
 const MASTER_TEXT = {
   dupHonsha: '本社（高額品の保管先）は、すでに登録されています（1か所だけです）', noRule: '本社に納入するシールの色を、1つ以上選んでください', badColor: 'シールの色が正しくありません', noName: '名前を入力してください', noLocations: '保管場所（棚）を1つ以上入力してください', badOffice: '営業所の指定が正しくありません', badZip: '郵便番号は、123-4567 の形式で入力してください', dupName: '同じ名前の倉庫がすでにあります', notFound: '対象が見つかりません',
-  badLoginId: 'ログインIDは、英数字・ハイフン・アンダースコアの3〜20文字にしてください', dupLoginId: '同じログインIDの担当者がすでにいます', noWarehouse: '所属する倉庫を選んでください',
-  inUse: 'この倉庫には、保管中の商品（在庫・出品中・委託中・返品対応中）があるため、無効にできません', hasStaff: 'この倉庫には有効な担当者がいるため、無効にできません（担当者を別の倉庫に移すか、無効にしてください）',
+  inUse: 'この倉庫には、保管中の商品（在庫・出品中・委託中・返品対応中）があるため、無効にできません', hasStaff: 'この倉庫には有効な倉庫担当がいるため、無効にできません（ユーザー管理で、倉庫担当を別の倉庫に移すか、無効にしてください）',
 };
 const REASON_TEXT = { notListable: '出品できない商品です（クーリングオフ期間中・返品対応中など）', badInput: '販売先と、1円以上の価格を入力してください', notListed: '出品中の商品ではありません', alreadySold: 'すでに売却済みです', notShipped: '返送済みにしてから完了してください' };
 
 let tab = 'stock';
 let menuOpen = false; // 左側のメニューの開閉
-let staff = loadSession(); // ログイン中の担当者（操作した人として記録する。所属する倉庫が、入庫先・表示の初期値になる）
+let staff = loadSession(); // ログイン中の倉庫担当（操作した人として記録する。所属する倉庫が、入庫先・表示の初期値になる）
 let loginError = '';
 const blankPk = () => ({ id: '', toId: '', q: '', last: null, tracking: '', bName: '', bZip: '', bAddress: '', bPhone: '' }); // 送るパックの作業（開いているパック）
 const blankWh = () => ({ id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false });
 const blankVendor = () => ({ id: '', name: '', zip: '', address: '', phone: '' });
-const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
-const ui = { mv: blankVendor(), rl: { code: '', newCode: '', color: '' }, hv: null, pk: blankPk(), tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rt: { q: '', filter: 'all', open: '', draft: {} } };
+const ui = { mv: blankVendor(), rl: { code: '', newCode: '', color: '' }, hv: null, pk: blankPk(), tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rt: { q: '', filter: 'all', open: '', draft: {} } };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();
@@ -76,7 +74,7 @@ const scopeSelect = () => `<label class="text-xs">対象の倉庫 <select class=
 
 function render() {
   master = loadMaster();
-  staff = staff ? loadSession(master) : null; // マスタで無効になった担当者は、ログアウトになる
+  staff = staff ? loadSession(master) : null; // マスタで無効になった倉庫担当は、ログアウトになる
   if (!staff) { $('#root').innerHTML = loginView(loginError, master); return; }
   if (ui.scope !== 'all' && !warehouseById(master, ui.scope)) ui.scope = 'all';
   const wh = myWarehouse();
@@ -128,7 +126,7 @@ function registerSale(code) {
   commit(r.state);
   ui.sf = blankSell();
 }
-// 返品の依頼は、問い合わせを受けた倉庫（入庫前の商品の依頼も含む）の担当者だけが対応できる
+// 返品の依頼は、問い合わせを受けた倉庫（入庫前の商品の依頼も含む）の倉庫担当だけが対応できる
 function ownsReturn(id) {
   const r = loadState().returns.find((x) => x.id === id);
   if (!r) return false;
@@ -161,7 +159,7 @@ function sendMessage(id) {
   ui.rt = { ...ui.rt, draft: { ...ui.rt.draft, [id]: '' } };
 }
 // 入庫（誰の商品でも入庫できる）。シールを読み取った場合は、読取で照合したものとして記録する
-const DEST_TEXT = { highToHonsha: 'は高額品のため、本社に納入します（本社の担当者が入庫します）', normalToWarehouse: 'は高額品ではないため、本社ではなく倉庫に納入します' };
+const DEST_TEXT = { highToHonsha: 'は高額品のため、本社に納入します（本社の倉庫担当が入庫します）', normalToWarehouse: 'は高額品ではないため、本社ではなく倉庫に納入します' };
 function storeCode(raw) {
   const unit = loadUnits().find((u) => u.code === String(raw ?? '').trim().toUpperCase());
   const problem = unit && unit.status !== 'stored' ? destinationProblem(master, unit, staff.warehouseId) : '';
@@ -386,20 +384,6 @@ function saveVd() {
   commitMaster(r.master);
   ui.mv = blankVendor();
 }
-function saveSt() {
-  const r = saveStaff(master, { ...ui.ms, id: ui.ms.id || undefined });
-  if (!r.ok) return alert(MASTER_TEXT[r.reason]);
-  commitMaster(r.master);
-  ui.ms = blankStaff();
-}
-function toggleStaff(id) {
-  const st = master.staff.find((x) => x.id === id);
-  if (st.id === staff.id && st.active) return alert('ログイン中の自分自身は、無効にできません');
-  const r = saveStaff(master, { ...st, active: !st.active });
-  if (!r.ok) return alert(MASTER_TEXT[r.reason]);
-  commitMaster(r.master);
-}
-
 function doLogin() {
   const r = login($('[data-login-id]')?.value, $('[data-login-pw]')?.value, loadMaster());
   loginError = r.ok ? '' : r.error;
@@ -429,10 +413,6 @@ const ACTIONS = {
   mvEdit: (v) => { const x = vendorById(master, v); ui.mv = { id: x.id, name: x.name, zip: x.zip ?? '', address: x.address ?? '', phone: x.phone ?? '' }; },
   mvCancel: () => { ui.mv = blankVendor(); },
   mvToggle: (v) => { const x = vendorById(master, v); const r = setVendorActive(master, v, !x.active); if (r.ok) commitMaster(r.master); },
-  msSave: saveSt,
-  msEdit: (v) => { const st = master.staff.find((x) => x.id === v); ui.ms = { id: st.id, name: st.name, loginId: st.loginId, warehouseId: st.warehouseId }; },
-  msCancel: () => { ui.ms = blankStaff(); },
-  msToggle: toggleStaff,
   trReceive: receiveItems,
   trCancel: cancelItems,
   salesScope: (v) => { ui.salesScope = v; },
@@ -514,7 +494,7 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = { mv: () => ui.mv, rl: () => ui.rl, pk: () => ui.pk, lf: () => ui.lf, sf: () => ui.sf, mw: () => ui.mw, ms: () => ui.ms };
+const FORMS = { mv: () => ui.mv, rl: () => ui.rl, pk: () => ui.pk, lf: () => ui.lf, sf: () => ui.sf, mw: () => ui.mw };
 const MONEY = new Set(['lf.price', 'sf.price', 'sf.shipping']);
 function onField(e, isInput) {
   const f = e.target.dataset.f ?? '';

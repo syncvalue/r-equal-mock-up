@@ -14,7 +14,7 @@ test('入庫: 営業は自分の商品だけ入庫できる（他の営業の商
   assert.equal(receive(list(), 'u01', 'A', { location: 'A棚', by: '営業' }).result.type, 'ok');
 });
 
-test('入庫: 倉庫の担当者（営業を指定しない）は、誰が買い取った商品でも入庫でき、誰が受け取ったかを記録する', () => {
+test('入庫: 倉庫担当（営業を指定しない）は、誰が買い取った商品でも入庫でき、誰が受け取ったかを記録する', () => {
   const r = receive(list(), null, 'e', { location: 'B棚', by: '倉庫担当', at: 1000 }); // 小文字でも読み取れる
   assert.equal(r.result.type, 'ok');
   const e = r.list.find((x) => x.code === 'E');

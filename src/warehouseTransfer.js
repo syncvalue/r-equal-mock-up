@@ -47,7 +47,7 @@ export function sendTransfer(state, master, { fromId, toId, codes, by, at = Date
   return { ok: true, state: { ...state, transfers: [transfer, ...(state.transfers ?? [])] }, transfer, rejected };
 }
 
-// 受け取る。移動先の倉庫の担当者（receiverWarehouseId）だけが、その倉庫の棚（location）を決めて受け取れる。商品は移動先の倉庫の在庫になる
+// 受け取る。移動先の倉庫担当（receiverWarehouseId）だけが、その倉庫の棚（location）を決めて受け取れる。商品は移動先の倉庫の在庫になる
 export function receiveTransfer(state, master, id, { receiverWarehouseId, location, by, at = Date.now() }) {
   const t = (state.transfers ?? []).find((x) => x.id === id);
   if (t?.status !== 'transit') return fail(state, 'notInTransit');

@@ -135,7 +135,7 @@ export function travelAround(blocks, start, end, here) {
   const before = [...blocks].filter((b) => b.end <= start).sort((a, b) => b.end - a.end)[0];
   const after = blocks.find((b) => b.start >= end);
   return {
-    prev: before ? leg(before, before.label, before.end) : null, // 直前のアポがなければ、距離は出さない（営業所からの距離は見ない）
+    prev: before ? leg(before, before.label, before.end) : null, // 直前の訪問がなければ、距離は出さない（営業所からの距離は見ない）
     next: after ? leg(after, after.label, after.start) : null,
   };
 }
@@ -150,7 +150,7 @@ const DUMMY_ADDRESS = {
 };
 
 // 予定のない日は、営業ごとに日付で決まる「他の訪問」（ダミー）を入れて、空き状況が見本になるようにする
-// 予定が入っていない営業（入社間もなく、まだ訪問が少ない想定）。「前のアポなし（営業所から）」の例として、常に空く
+// 予定が入っていない営業（入社間もなく、まだ訪問が少ない想定）。「前の訪問なし（営業所から）」の例として、常に空く
 const LIGHT_SCHEDULE = new Set(['u09']);
 
 // 配車係が別の営業・時間に動かして、予約として取り込んだ元の予定（動かしたあとは、元の位置には出さない）。画面側が、保存先から入れる
@@ -323,8 +323,8 @@ export function canPlace(rec, userId, start, reservations, now = new Date()) {
   return conflict ? { ok: false, reason: conflictText(conflict) } : { ok: true, reason: '', start, end };
 }
 
-// ---- 1日の移動（アポからアポへ） --------------------------------------------------------
-// 連続するアポの間の移動距離（概算）。gap=アポとアポの間の時間（分）、tight=移動時間が間隔に収まらない
+// ---- 1日の移動（訪問から訪問へ） --------------------------------------------------------
+// 連続する訪問の間の移動距離（概算）。gap=訪問と訪問の間の時間（分）、tight=移動時間が間隔に収まらない
 export function travelLegs(blocks) {
   const list = [...blocks].sort((a, b) => a.start - b.start);
   const legs = [];
@@ -340,7 +340,7 @@ export function travelLegs(blocks) {
   return legs;
 }
 
-// その日の総移動距離（アポからアポへの合計）。アポが2件未満なら、移動なし
+// その日の総移動距離（訪問から訪問への合計）。訪問が2件未満なら、移動なし
 export function dayTravel(blocks) {
   const legs = travelLegs(blocks);
   const km = Math.round(legs.reduce((n, l) => n + l.km, 0) * 10) / 10;

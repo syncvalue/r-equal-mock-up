@@ -1,11 +1,12 @@
 // 業績ダッシュボードのデータとロジック。
-// 表示する業績は、すべて静的なダミーデータ（ユーザー×日付から決まる疑似乱数）。保存領域や他の画面のデータは使わない。
+// 表示する業績は、すべて静的なダミーデータ（営業×日付から決まる疑似乱数）。保存領域や他の画面のデータは使わない。
 
 export const GROUPS = [
   { id: 'A', name: 'グループA（東日本）' },
   { id: 'B', name: 'グループB（西日本）' },
 ];
 
+// ※ここでの USERS／userId は営業だけを指す（歴史的な名前）。ユーザー管理の名簿は src/users.js
 // role: leader = グループリーダー（グループ全員の業績を閲覧可）／member = 一般（自分の業績のみ）
 // target: 月間の買取金額目標, skill: 成約しやすさ, base: 1契約あたりの平均買取額（ダミーデータ生成用）
 export const USERS = [
@@ -27,18 +28,12 @@ export const USERS = [
   { id: 'u16', name: '三浦 彩', group: 'B', role: 'member', target: 3500000, skill: 0.56, base: 162000 },
 ];
 
-// 本社 査定部の担当者。担当するグループの営業の予定・訪問を、本社画面で見る
-export const APPRAISERS = [
-  { id: 'a1', name: '査定部 青木', groups: ['A'] },
-  { id: 'a2', name: '査定部 井上', groups: ['B'] },
-];
-
 export const userById = (id) => USERS.find((u) => u.id === id) ?? USERS[0];
 export const isLeader = (u) => u.role === 'leader';
 export const roleLabel = (u) => (isLeader(u) ? 'グループリーダー' : '営業');
 export const groupMembers = (u) => USERS.filter((x) => x.group === u.group);
 
-// 閲覧できるユーザー: リーダーはグループ全員、一般は自分のみ（asLeader で、表示するロールをデモ用に切り替えられる）
+// 閲覧できる営業: リーダーはグループ全員、一般は自分のみ（asLeader で、表示する役割をデモ用に切り替えられる）
 export function visibleUsers(user, scope, memberId, asLeader = isLeader(user)) {
   if (!asLeader) return [user];
   const members = groupMembers(user);
@@ -61,7 +56,7 @@ const daysIn = ({ start, end }) => Math.round((end - start) / 86400000) + 1;
 export const prevRange = (r) => ({ start: addDays(r.start, -daysIn(r)), end: addDays(r.start, -1) });
 export const eachDay = (r) => Array.from({ length: daysIn(r) }, (_, i) => addDays(r.start, i));
 
-// ---- ダミーの業績データ（ユーザー×日付で固定の疑似乱数） ---------------------------
+// ---- ダミーの業績データ（営業×日付で固定の疑似乱数） ---------------------------
 const seeded = (str) => {
   let h = 2166136261;
   for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
@@ -83,7 +78,7 @@ const LOST_REASONS = ['金額が合わず、見送り', '家族の同意が得�
 const SLOTS = ['09:30', '11:00', '13:00', '14:30', '16:00', '17:30'];
 const pick = (rnd, list) => list[Math.floor(rnd() * list.length)];
 
-// その日の訪問の記録（ダミー）。件数・契約・金額は、ユーザー×日付で固定
+// その日の訪問の記録（ダミー）。件数・契約・金額は、営業×日付で固定
 function dummyVisits(user, date, isToday) {
   const rnd = seeded(`${user.id}-${ymd(date)}`);
   const rnd2 = seeded(`detail-${user.id}-${ymd(date)}`);
@@ -116,7 +111,7 @@ function dummyDay(user, date, isToday) {
   return { visits: v.filter((x) => !RESULTS[x.result].excluded).length, contracts: v.filter((x) => x.result === 'won').length, amount: v.reduce((n, x) => n + x.amount, 0) };
 }
 
-// その日の日報（ダミー）。訪問の結果は、業績の集計と同じもの。現金は、買取代金を含む経費・入金から、ユーザー×日付で固定の値を作る
+// その日の日報（ダミー）。訪問の結果は、業績の集計と同じもの。現金は、買取代金を含む経費・入金から、営業×日付で固定の値を作る
 const EXPENSE_LABELS = { purchase: '買取代金', gas: 'ガソリン代', lunch: '昼食代', toll: '高速・駐車場', supply: '備品購入' };
 const DIFF_NOTES = ['小銭の数え間違い', '駐車場代のレシートを紛失', '釣り銭の渡し間違い'];
 const REPORT_COMMENTS = ['', '', '午後の訪問で、次回のご提案につながるお話ができた。', '渋滞で移動に時間がかかった。明日は早めに出発する。', 'お客様から、知人の紹介の話をいただいた。'];
@@ -149,12 +144,12 @@ export function dummyReport(user, date, now = new Date()) {
   };
 }
 
-// 指定ユーザー・期間の日報（新しい日から）。日曜（休み）と、これからの日はない
+// 指定した営業・期間の日報（新しい日から）。日曜（休み）と、これからの日はない
 export function reportsOf(user, range, now = new Date()) {
   return eachDay(range).map((d) => dummyReport(user, d, now)).filter(Boolean).reverse();
 }
 
-// 指定ユーザー・期間の、訪問ごとの結果（新しい順）
+// 指定した営業・期間の、訪問ごとの結果（新しい順）
 export function visitRecords(users, range, now = new Date()) {
   const todayKey = ymd(now);
   return eachDay(range)
@@ -162,7 +157,7 @@ export function visitRecords(users, range, now = new Date()) {
     .sort((a, b) => b.date - a.date || b.time.localeCompare(a.time));
 }
 
-// 指定ユーザー・期間の日別データ
+// 指定した営業・期間の日別データ
 export function dailySeries(users, range, now = new Date()) {
   const todayKey = ymd(now);
   return eachDay(range).map((d) => {

@@ -636,8 +636,8 @@ const actions = {
     const record = {
       visitId: state.visitId, customerName: state.customer.name, phone: state.customer.phone, savedAt: Date.now(), by: `営業 ${userById(state.user).name}`, ...e, memo: e.memo.trim(),
     };
-    upsertEval(record); // 営業が入力するのは、アポごとの評価
-    setFirstVisitCustomerEval(record, { before: state.visitStartedAt ?? Infinity }); // 初めてのアポなら、お客様の評価の初期値にもなる（あとから登録し直せる）
+    upsertEval(record); // 営業が入力するのは、訪問ごとの評価
+    setFirstVisitCustomerEval(record, { before: state.visitStartedAt ?? Infinity }); // 初めての訪問なら、お客様の評価の初期値にもなる（あとから登録し直せる）
     set({ evaluation: { ...e, memo: e.memo.trim() }, modal: null });
     showToast('お客様の評価を保存しました');
   },

@@ -22,7 +22,7 @@ const phonesOf = (name) => {
   const h = [...name].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 100003, 7);
   return PHONES[name] ?? [`0${[90, 80, 70][h % 3]}-${1000 + (h % 9000)}-${1000 + ((h * 7) % 9000)}`];
 };
-const CO_OPERATOR = '佐藤'; // クーリングオフ用の番号を受けたオペレーター（見本。コールセンターの受付者）
+const CO_OPERATOR = '佐藤'; // クーリングオフ用の番号を受けたオペレーター（見本。コールセンターのオペレーター）
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
 // シールの色（見本）。貴金属・高額な商品が、紫・赤（本社管理）、それ以外は黄・緑・青
 const colorOf = (category, price) => (price >= 400000 ? 'purple' : category === 'ジュエリー・貴金属' || price >= 300000 ? 'red' : 'other');
@@ -49,7 +49,7 @@ export function buildSample(now = Date.now()) {
       code: `${PREFIX}${String(seq).padStart(4, '0')}`, visitId: `V-WH-${daysAgo}-${userId}`, userId, customerName, at: at(daysAgo), date: W.dateOf(at(daysAgo)),
       itemId: `wh-${seq}`, name, category, rank, n: 1, qty: 1, price, sealColor, status, phones: phonesOf(customerName),
       storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price, wid) : null,
-      // 偶数日前の買取は倉庫の担当者が明細と照合して入庫、奇数日前は営業がタブレットから入庫
+      // 偶数日前の買取は倉庫担当が明細と照合して入庫、奇数日前は営業がタブレットから入庫
       by: !stored ? null : daysAgo % 2 === 0 ? staffOfWh(wid) : userId,
       check: stored && daysAgo % 2 === 0 ? { by: staffOfWh(wid), at: at(daysAgo, 17), method: 'manual' } : null,
       ...(stored ? { warehouseId: wid } : {}),

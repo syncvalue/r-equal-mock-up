@@ -47,7 +47,7 @@ test('送る: 在庫でない商品・自倉庫にない商品は送れない（
   assert.equal(send(send(base()).state, { codes: ['A'] }).reason, 'noItems'); // 輸送中の商品は、二重に送れない
 });
 
-test('受け取る: 送り先の倉庫の担当者が、その倉庫の棚を決めて受け取る。商品は送り先の倉庫の在庫になる', () => {
+test('受け取る: 送り先の倉庫担当が、その倉庫の棚を決めて受け取る。商品は送り先の倉庫の在庫になる', () => {
   const sent = send(base());
   const id = sent.transfer.id;
   const r = T.receiveTransfer(sent.state, M, id, { receiverWarehouseId: KANTO.id, location: KANTO.locations[2], by: '山本 大地', at: NOW + 1000 });
@@ -61,7 +61,7 @@ test('受け取る: 送り先の倉庫の担当者が、その倉庫の棚を決
   assert.equal(sent.state.units.find((u) => u.code === 'A').warehouseId, OSAKA.id); // 元は変更されない
 });
 
-test('受け取り: 送り先の倉庫の担当者でなければ、その倉庫にない棚なら、輸送中でなければ、受け取れない', () => {
+test('受け取り: 送り先の倉庫担当でなければ、その倉庫にない棚なら、輸送中でなければ、受け取れない', () => {
   const sent = send(base());
   const id = sent.transfer.id;
   const opt = { receiverWarehouseId: KANTO.id, location: KANTO.locations[0], by: 'x' };

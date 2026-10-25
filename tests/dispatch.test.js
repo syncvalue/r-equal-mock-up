@@ -167,7 +167,7 @@ test('住所の位置は、同じ住所なら毎回同じで、エリアの中�
   assert.equal(locateAddress('大阪府…', null), null);
 });
 
-test('前後のアポからの距離: 直前の予定がなければ、その側は出さない（営業所からの距離は見ない）', () => {
+test('前後の訪問からの距離: 直前の予定がなければ、その側は出さない（営業所からの距離は見ない）', () => {
   const here = { lat: 34.7, lng: 135.5 };
   const blocks = [
     { start: 600, end: 690, label: 'A 様', source: 'event', lat: 34.65, lng: 135.5 },
@@ -195,7 +195,7 @@ test('営業は16名（大阪10・兵庫京都2・関東2・東海2）で、全�
   assert.ok(USERS.every((u) => areaOfUser(u.id) && rankOfUser(u.id) && fairnessStats([], NOW)[u.id].total > 0));
 });
 
-test('予定のない営業は、直前のアポがなく、距離は出ない', () => {
+test('予定のない営業は、直前の訪問がなく、距離は出ない', () => {
   const here = locateAddress('大阪府大阪市阿倍野区1-2-3', areaById('osaka'));
   const date = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29'].find((d) => !isAbsent('u09', d, NOW)); // 欠勤でない日
   const { inArea } = rankCandidates({ gender: 'f', areaId: 'osaka', date, start: 780, dur: 90, reservations: [], here, now: NOW });
@@ -313,7 +313,7 @@ test('元の予定を動かして取り込んでも、元の位置に、別の�
   assert.ok(withTwo > 5); // 1日に2件以上ある日も、見本として、ある
 });
 
-test('1日の移動距離: アポからアポへの距離と、1日の合計（概算）', () => {
+test('1日の移動距離: 訪問から訪問への距離と、1日の合計（概算）', () => {
   const blocks = [
     { start: 600, end: 660, label: 'A', lat: 34.65, lng: 135.5 },
     { start: 720, end: 780, label: 'B', lat: 34.70, lng: 135.5 },

@@ -110,7 +110,7 @@ function actionCard(s, mine) {
   <div class="card !p-4 w-[24rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[50%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="stockR">
     <h3 class="font-bold text-lg">入庫する</h3>
     <div>
-      <div class="font-bold text-sm mb-1">納入先の倉庫<span class="font-normal text-xs text-slate-500">（倉庫の担当者に渡す場合も、倉庫を選んでください）</span></div>
+      <div class="font-bold text-sm mb-1">納入先の倉庫<span class="font-normal text-xs text-slate-500">（倉庫担当に渡す場合も、倉庫を選んでください）</span></div>
       <div class="flex flex-wrap gap-1.5">${activeWarehouses(master).map((w) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.warehouse.id === w.id ? 'active' : ''}" data-action="stock-wh" data-value="${esc(w.id)}">${esc(w.name)}${w.officeId ? `<span class="text-xs opacity-70">（${esc(officeName(w.officeId))}営業所と一体）</span>` : ''}</button>`).join('')}</div>
     </div>
     <div>

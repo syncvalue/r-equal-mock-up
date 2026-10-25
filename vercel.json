@@ -13,6 +13,10 @@
       "destination": "/warehouse/index.html"
     },
     {
+      "source": "/users",
+      "destination": "/users/index.html"
+    },
+    {
       "source": "/gmosign",
       "destination": "/gmosign/index.html"
     },

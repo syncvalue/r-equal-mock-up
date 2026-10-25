@@ -1,4 +1,4 @@
-// 倉庫・物流のログイン（モック）。担当者（倉庫マスタ）ごとにログインし、入庫・出品・売却などの操作を誰がしたかを記録する。
+// 倉庫・物流のログイン（モック）。倉庫担当（倉庫マスタ）ごとにログインし、入庫・出品・売却などの操作を誰がしたかを記録する。
 // モックのため、パスワードは空でなければ何でも通る。実装時はサーバー側で認証する。
 import { loadMaster, findStaff } from './warehouseMaster.js';
 
@@ -10,7 +10,7 @@ export function login(loginId, password, master = loadMaster()) {
   return { ok: true, staff };
 }
 
-// ログイン状態は、タブを閉じるまで。無効になった担当者・マスタにいない担当者は、ログアウト扱い
+// ログイン状態は、タブを閉じるまで。無効になった倉庫担当・マスタにいない倉庫担当は、ログアウト扱い
 export const loadSession = (master = loadMaster()) => {
   try {
     const id = sessionStorage.getItem(STAFF_SESSION_KEY);

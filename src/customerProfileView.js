@@ -1,4 +1,4 @@
-// お客様のランク・厄介度・クーリングオフ歴の表示（コールセンターの配車係の画面と、営業のタブレットで共通）。
+// 顧客ランク・厄介度・クーリングオフ歴の表示（コールセンターの配車係の画面と、営業のタブレットで共通）。
 // 顧客ランク＝資産・売却の見込み（S〜C）。厄介度＝ランクとは別の軸（金があっても売らない・文句が多い など）。
 import { esc, yen } from './format.js';
 
@@ -6,7 +6,7 @@ import { esc, yen } from './format.js';
 export const CRANK_CLS = { S: 'bg-fuchsia-700 text-white', A: 'bg-fuchsia-500 text-white', B: 'bg-fuchsia-200 text-fuchsia-900', C: 'bg-slate-200 text-slate-700' };
 export const dateYmd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
 
-export const custRankBadge = (p) => (p?.rank ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${CRANK_CLS[p.rank]}" title="お客様のランク（資産・売却の見込み）${p.rankAuto ? '。総買取額から自動で決めています' : ''}">顧客${esc(p.rank)}</span>` : (p?.known === false ? '<span class="inline-block rounded bg-sky-100 px-1.5 text-[11px] font-bold leading-4 text-sky-800" title="買取の実績がありません">新規</span>' : ''));
+export const custRankBadge = (p) => (p?.rank ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${CRANK_CLS[p.rank]}" title="顧客ランク（資産・売却の見込み）${p.rankAuto ? '。総買取額から自動で決めています' : ''}">顧客${esc(p.rank)}</span>` : (p?.known === false ? '<span class="inline-block rounded bg-sky-100 px-1.5 text-[11px] font-bold leading-4 text-sky-800" title="買取の実績がありません">新規</span>' : ''));
 export const troubleBadge = (p) => (p && p.trouble.level !== 'none' ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${p.trouble.level === 'alert' ? 'bg-rose-600 text-white' : 'bg-amber-200 text-amber-900'}" title="${esc(`${p.trouble.tags.join('、')}${p.trouble.memo ? `　${p.trouble.memo}` : ''}`)}">${p.trouble.level === 'alert' ? '🚨 要注意' : '⚠ 注意'}</span>` : '');
 export const cooloffBadge = (p) => (p?.cooloff.length ? `<span class="inline-block rounded border border-rose-500 bg-white px-1.5 text-[11px] font-bold leading-4 text-rose-700" title="${esc(p.cooloff.map((c) => `${dateYmd(c.at)} ${c.items}${c.memo ? `（${c.memo}）` : ''}`).join(' ／ '))}">クーリングオフ ${p.cooloff.length}回</span>` : '');
 
@@ -28,7 +28,7 @@ export function customerProfileHtml(p, { advice = false } = {}) {
     ${p.purchase.count ? `<span class="text-slate-500">買取 ${p.purchase.count}回・総額 ${yen(p.purchase.total)}</span>` : ''}</div>
     ${p.trouble.tags.length ? `<div class="text-slate-700">${esc(p.trouble.tags.join('、'))}${p.trouble.memo ? `<span class="text-slate-500">　${esc(p.trouble.memo)}</span>` : ''}</div>` : ''}
     ${p.memo ? `<div class="text-slate-700">メモ：${esc(p.memo)}</div>` : ''}
-    ${p.meta ? `<div class="text-[11px] text-slate-400">登録：${esc(p.meta.by)}　${dateYmd(p.meta.at)}${p.meta.source === 'first-visit' ? '（初回のアポの評価から設定）' : ''}</div>` : ''}
+    ${p.meta ? `<div class="text-[11px] text-slate-400">登録：${esc(p.meta.by)}　${dateYmd(p.meta.at)}${p.meta.source === 'first-visit' ? '（初回の訪問の評価から設定）' : ''}</div>` : ''}
     ${p.cooloff.length ? `<div class="text-rose-700">クーリングオフ：${p.cooloff.map((c) => `${dateYmd(c.at)} ${esc(c.items)}${c.memo ? `（${esc(c.memo)}）` : ''}`).join(' ／ ')}</div>` : ''}
     ${advice ? assignAdvice(p) : ''}</div>`;
 }

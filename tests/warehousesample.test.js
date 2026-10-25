@@ -74,7 +74,7 @@ test('サンプル: 入庫済みの商品は、複数の倉庫に分かれ、保
   const stored = units.filter((u) => u.status === 'stored');
   assert.ok(new Set(stored.map((u) => u.warehouseId)).size >= 3);
   for (const u of stored) assert.ok(M.warehouses.find((w) => w.id === u.warehouseId).locations.includes(u.location), `${u.code}: ${u.location}`);
-  for (const u of stored.filter((x) => x.check && !moved.has(x.code))) assert.equal(M.staff.find((s) => s.name === u.check.by)?.warehouseId, u.warehouseId); // 照合したのは、その倉庫の担当者
+  for (const u of stored.filter((x) => x.check && !moved.has(x.code))) assert.equal(M.staff.find((s) => s.name === u.check.by)?.warehouseId, u.warehouseId); // 照合したのは、その倉庫担当
   for (const u of units.filter((x) => x.status !== 'stored')) assert.equal(u.warehouseId, undefined);
 });
 
@@ -87,7 +87,7 @@ test('サンプル: 倉庫間の移動に、受取済み（移動先の倉庫の
   assert.equal(u.warehouseId, done.toId); assert.equal(u.location, done.location);
 });
 
-test('サンプル: どの倉庫（本社を含む）の担当者でログインしても、倉庫間移動の「受け取り待ち」「送った商品・輸送中」「移動の履歴」のダミーが見える', async () => {
+test('サンプル: どの倉庫（本社を含む）の倉庫担当でログインしても、倉庫間移動の「受け取り待ち」「送った商品・輸送中」「移動の履歴」のダミーが見える', async () => {
   const MM = await import('../src/warehouseMaster.js');
   const M = MM.DEFAULT_MASTER;
   const T = await import('../src/warehouseTransfer.js');

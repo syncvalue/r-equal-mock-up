@@ -78,7 +78,7 @@ export const pendingOf = (list) => list.filter((u) => u.status !== 'stored');
 export const dateKeys = (list) => [...new Set(list.map((u) => u.date))].sort();
 
 // 読み取った（入力した）シールNo.を入庫する。userId を指定すると、その営業の商品だけ入庫できる（営業のタブレット）。
-// userId が null のときは、誰の商品でも入庫できる（倉庫の担当者。契約書とともに商品一式を渡された場合など）。結果: ok／dup（入庫済み）／other（他の営業の商品）／unknown（未登録）
+// userId が null のときは、誰の商品でも入庫できる（倉庫担当。契約書とともに商品一式を渡された場合など）。結果: ok／dup（入庫済み）／other（他の営業の商品）／unknown（未登録）
 export function receive(list, userId, raw, { location, by, at = Date.now(), method = null, warehouseId = null }) {
   const code = String(raw ?? '').trim().toUpperCase();
   const unit = list.find((u) => u.code === code);

@@ -36,7 +36,7 @@ test('お客様の詳細: 実績のないお客様は、新規と出す', () => 
   assert.ok(t.includes('買取の実績はありません（新規のお客様）'));
 });
 
-test('お客様の詳細: 評価・メモは、アポごとに出る（アポが複数なら、評価・メモも複数）', () => {
+test('お客様の詳細: 評価・メモは、訪問ごとに出る（訪問が複数なら、評価・メモも複数）', () => {
   const html = customerModalHtml({ rid: 'r1', reservations: [rec('090-5050-6060')], now: NOW });
   const t = text(html);
   assert.equal((html.match(/営業の評価<\/b>/g) || []).length, 3); // 3回の訪問に、それぞれ、評価・メモ

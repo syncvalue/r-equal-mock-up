@@ -2,12 +2,13 @@
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を仮確定する。担当の確定は配車係が行い（配車確定タブ）、確定した予約が営業アプリの予定に出る。
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
+import { loadUsers, operatorNames } from '../src/users.js';
 import { AREAS, canPlace, hiddenBlocks, busyBlocks, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
 import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, removeReservations, holdReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { esc } from '../src/format.js';
-import { OPERATORS, CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
+import { CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
 import { dispatcherHtml, staffModalHtml, customerModalHtml, BOARD_ROW } from './dispatcherView.js';
 import { blankForm as makeBlankForm } from './form.js';
@@ -43,7 +44,8 @@ const digits = (s) => String(s ?? '').replace(/\D/g, '');
 const blankForm = () => makeBlankForm();
 
 let tab = 'new';
-let operator = pref('rq-mock-cc-operator', OPERATORS[0]);
+const operators = () => operatorNames(loadUsers()); // オペレーターは、ユーザー管理から読み込む（有効な人だけ）
+let operator = operators().includes(pref('rq-mock-cc-operator', '')) ? pref('rq-mock-cc-operator', '') : operators()[0] ?? '';
 let form = blankForm();
 let done = null; // 確定した直後の予約（確定画面を表示している間）
 let quoted = false; // 過去のお客様情報を引用済みか
@@ -95,7 +97,7 @@ function compute() {
   const proposal = areaOfAddress(form.address);
   const confirmed = form.areaId && form.areaAddr === form.address.trim() ? areaById(form.areaId) : null;
   const area = confirmed ?? proposal;
-  const here = area?.lat != null ? locateAddress(form.address, area) : null; // 今回のお客様の住所の位置（概算）。前のアポからの距離に使う
+  const here = area?.lat != null ? locateAddress(form.address, area) : null; // 今回のお客様の住所の位置（概算）。前の訪問からの距離に使う
   const full = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here });
   // 営業の絞り込み。絞ったときは、表示している営業の中で、おすすめ（担当が最も少ない人）を決め直す
   const staffSel = calStaff.filter((id) => full.inArea.some((c) => c.user.id === id));
@@ -313,6 +315,8 @@ const syncHidden = () => { hiddenBlocks.clear(); loadMovedIds().forEach((id) => 
 
 function render() {
   syncHidden();
+  const ops = operators();
+  if (!ops.includes(operator)) operator = ops[0] ?? operator; // オペレーターが、ユーザー管理で無効になっていたら、先頭の人に
   $('#root').innerHTML = `
   <header class="bg-teal-800 text-white px-6 h-[52px] flex justify-between items-center">
     <div class="font-bold text-xl">📞 コールセンター 受付・配車 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
@@ -322,7 +326,7 @@ function render() {
       <button class="rounded px-4 py-1.5 font-bold ${tab === 'cooloff' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="cooloff">クーリングオフ${cooloffBadge()}</button>
     </nav>
     <div class="text-sm flex items-center gap-3">
-      <label class="text-xs text-white/80">受付者 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${OPERATORS.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
+      <label class="text-xs text-white/80">オペレーター <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${ops.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
       ${tab === 'new' && !editId ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">🎙 音声入力デモ${demoOpen ? 'を閉じる' : '（今後の拡張）'}</button>` : ''}
       <a class="underline text-white/80 text-xs" href="/tablet/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
@@ -539,7 +543,7 @@ document.addEventListener('click', (e) => {
     if (editId === (r?.id ?? null)) { editId = null; form = blankForm(); }
     if (r) flash(`${r.customer.name} 様の受付を取り消しました`); else render();
   }
-  else if ('custevalSave' in d) { // 配車係が、お客様の評価を登録する（アポごとの評価とは別）
+  else if ('custevalSave' in d) { // 配車係が、お客様の評価を登録する（訪問ごとの評価とは別）
     const box = document.querySelector('[data-custeval]');
     const val = (k) => box?.querySelector(`[data-ce="${k}"]`)?.value ?? '';
     if (box) {
