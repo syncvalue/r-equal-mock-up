@@ -55,15 +55,15 @@ test('倉庫の更新: idを指定すると、その倉庫を直す（自分自�
   assert.equal(M.saveWarehouse(m, { id: 'nope', name: 'q', locations: 'X' }).reason, 'notFound');
 });
 
-test('倉庫担当は、マスタ管理のユーザー（倉庫担当）から読み込む。倉庫マスタには保存しない（登録・所属変更・有効/無効はユーザー管理）', async () => {
-  const U = await import('../src/users.js');
-  assert.deepEqual(M.loadMaster().staff, U.warehouseStaffOf(U.DEFAULT_USERS));
-  const added = U.saveUser(U.loadUsers(), { loginId: 'wh09', name: '新人 太郎', role: 'warehouse', warehouseId: 'W-KANTO' }, { warehouseIds: ['W-KANTO'] });
-  U.saveUsers(added.users);
+test('倉庫担当は、マスタ管理の社員（倉庫担当）から読み込む。倉庫マスタには保存しない（登録・所属変更・有効/無効は社員管理）', async () => {
+  const U = await import('../src/employees.js');
+  assert.deepEqual(M.loadMaster().staff, U.warehouseStaffOf(U.DEFAULT_EMPLOYEES));
+  const added = U.saveEmployee(U.loadEmployees(), { loginId: 'wh09', name: '新人 太郎', role: 'warehouse', departmentId: 'D-LOGISTICS', warehouseId: 'W-KANTO' }, { warehouseIds: ['W-KANTO'], departmentIds: ['D-LOGISTICS'] });
+  U.saveEmployees(added.employees);
   assert.equal(M.loadMaster().staff.at(-1).loginId, 'wh09'); // 登録すると、倉庫マスタの倉庫担当にも出る
   M.saveMaster(M.loadMaster());
   assert.equal('staff' in JSON.parse(mem.get('rq-mock-warehouse-master')), false);
-  mem.delete('rq-mock-users');
+  mem.delete('rq-mock-employees');
   mem.delete('rq-mock-warehouse-master');
 });
 

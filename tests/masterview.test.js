@@ -5,30 +5,34 @@ const mem = new Map();
 globalThis.localStorage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 
 const { masterHtml, MASTERS, REASON_TEXT } = await import('../master/view.js');
-const { DEFAULT_USERS } = await import('../src/users.js');
+const { DEFAULT_EMPLOYEES } = await import('../src/employees.js');
 const { DEFAULT_OFFICES } = await import('../src/offices.js');
+const { DEFAULT_DEPARTMENTS } = await import('../src/departments.js');
 const { DEFAULT_MASTER } = await import('../src/warehouseMaster.js');
-const { blankForm } = await import('../master/usersPanel.js');
+const { blankForm } = await import('../master/employeesPanel.js');
 const { blankOffice, formFromOffice } = await import('../master/officesPanel.js');
 
 const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const blankWh = { id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false };
 const blankVd = { id: '', name: '', zip: '', address: '', phone: '' };
 const ctx = (tab, over = {}) => ({
-  tab, users: DEFAULT_USERS, offices: DEFAULT_OFFICES, wmaster: DEFAULT_MASTER, holding: { 'W-OSAKA': { count: 3, cost: 120000 } },
-  ui: { users: { role: '', q: '', status: '', form: null }, offices: { mo: blankOffice() }, warehouses: { mw: blankWh, hv: null }, vendors: { mv: blankVd } }, ...over,
+  tab, employees: DEFAULT_EMPLOYEES, departments: DEFAULT_DEPARTMENTS, offices: DEFAULT_OFFICES, wmaster: DEFAULT_MASTER, holding: { 'W-OSAKA': { count: 3, cost: 120000 } },
+  ui: { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: { id: '', name: '' } }, offices: { mo: blankOffice() }, warehouses: { mw: blankWh, hv: null }, vendors: { mv: blankVd } }, ...over,
 });
 
-test('マスタの切り替え: ユーザー・営業所・倉庫・委託先の4つ。選んだものが強調される', () => {
-  assert.deepEqual(MASTERS.map((m) => m.key), ['users', 'offices', 'warehouses', 'vendors']);
-  const html = masterHtml(ctx('offices'));
-  assert.equal((html.match(/data-master="/g) || []).length, 4);
-  assert.match(html, /class="b on" data-master="offices"/);
-  assert.ok(text(html).includes('マスタ管理'));
+test('マスタの切り替え: 左側の開閉式メニュー。初めは閉じていて、☰で開く。社員・部署・営業所・倉庫・委託先の5つで、選んだものが強調される', () => {
+  assert.deepEqual(MASTERS.map((m) => m.key), ['employees', 'departments', 'offices', 'warehouses', 'vendors']);
+  const closed = masterHtml(ctx('offices'));
+  assert.ok(closed.includes('data-menu-open') && !closed.includes('data-master=') && !closed.includes('メインメニュー'));
+  assert.ok(/マスタ管理 › 営業所|マスタ管理\s*<\/span><span[^>]*>›<\/span><span[^>]*>営業所/.test(closed)); // いま開いているマスタが、見出しに出る
+  const html = masterHtml(ctx('offices', { menuOpen: true }));
+  assert.equal((html.match(/data-master="/g) || []).length, 5);
+  assert.match(html, /bg-teal-700[^"]*"[^>]*data-master="offices"/);
+  assert.ok(html.includes('メインメニュー') && html.includes('data-menu-close'));
 });
 
-test('ユーザー: ユーザーの一覧と、新規登録ボタンが出る', () => {
-  const t = text(masterHtml(ctx('users')));
+test('社員: 社員の一覧と、新規登録ボタンが出る', () => {
+  const t = text(masterHtml(ctx('employees')));
   assert.ok(t.includes('鈴木 一郎') && t.includes('小川 直樹') && t.includes('新規登録'));
 });
 
@@ -74,4 +78,28 @@ test('エラーの文言: 営業所・倉庫・委託先のエラー理由にも
     W.setWarehouseActive(m, 'W-FUKUOKA', false, { holding: 1 }), W.setWarehouseActive(m, 'W-OSAKA', false, {}), W.setWarehouseActive(m, 'nope', false, {}),
   ];
   for (const r of reasons) { assert.equal(r.ok, false); assert.ok(REASON_TEXT[r.reason], r.reason); }
+});
+
+test('部署: 会社（REqual）・部署の一覧・社員の人数・登録フォームが出る。有効な社員がいる部署の人数が数えられる', async () => {
+  const { formFromDepartment } = await import('../master/departmentsPanel.js');
+  const html = masterHtml(ctx('departments'));
+  const t = text(html);
+  assert.ok(t.includes('REqual') && /営業部 REqual 16名/.test(t) && /コールセンター REqual 3名/.test(t) && /物流部 REqual 5名/.test(t), t);
+  for (const a of ['data-md-edit="D-SALES"', 'data-md-toggle="D-SALES"', 'data-md-save', 'data-f="md.name"']) assert.ok(html.includes(a), a);
+  const edit = masterHtml(ctx('departments', { ui: { ...ctx('departments').ui, departments: { md: formFromDepartment(DEFAULT_DEPARTMENTS[0]) } } }));
+  assert.ok(text(edit).includes('部署の編集') && edit.includes('data-md-cancel'));
+});
+
+test('社員の一覧とフォーム: 部署の列・部署の絞り込み・部署の選択肢（有効な部署と、いまの所属）が出る', () => {
+  const html = masterHtml(ctx('employees'));
+  assert.ok(/小川 直樹 wh01 物流部 倉庫担当/.test(text(html)));
+  assert.ok(html.includes('data-dept') && html.includes('すべての部署'));
+  assert.ok(!html.includes('data-f="departmentId"')); // フォームは、開いたときだけ
+  const form = { id: '', role: 'warehouse', name: '', loginId: '', departmentId: 'D-LOGISTICS', warehouseId: '', groups: [] };
+  const withForm = masterHtml(ctx('employees', { ui: { ...ctx('employees').ui, employees: { ...ctx('employees').ui.employees, form } } }));
+  const select = withForm.match(/data-f="departmentId"[\s\S]*?<\/select>/)[0];
+  assert.ok(select.includes('営業部') && /selected[^>]*>物流部|value="D-LOGISTICS"\s+selected/.test(select));
+  const off = DEFAULT_DEPARTMENTS.map((d) => (d.id === 'D-APPRAISAL' ? { ...d, active: false } : d));
+  const sel2 = masterHtml(ctx('employees', { departments: off, ui: { ...ctx('employees').ui, employees: { ...ctx('employees').ui.employees, form } } })).match(/data-f="departmentId"[\s\S]*?<\/select>/)[0];
+  assert.ok(!sel2.includes('査定部')); // 無効な部署は選べない
 });

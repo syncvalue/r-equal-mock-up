@@ -76,7 +76,7 @@ export function warehousesPanelHtml({ wmaster, holding, offices, ui }) {
   const data = { master: wmaster, holding, offices };
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
       <h2 class="font-bold text-lg">🏭 倉庫（${wmaster.warehouses.filter((w) => w.active).length}か所）</h2>
-      <p class="text-xs text-slate-500">倉庫は、営業所とは独立した施設です。営業所と一体の倉庫、倉庫のみの施設があり、倉庫のない営業所（営業のみ）もあります。${only.length ? `いま倉庫のない営業所: ${esc(only.join('・'))}。` : ''}倉庫担当の所属は、ユーザーで変更します。</p>
+      <p class="text-xs text-slate-500">倉庫は、営業所とは独立した施設です。営業所と一体の倉庫、倉庫のみの施設があり、倉庫のない営業所（営業のみ）もあります。${only.length ? `いま倉庫のない営業所: ${esc(only.join('・'))}。` : ''}倉庫担当の所属は、社員で変更します。</p>
       ${warehouseTable(data)}${warehouseForm(ui.mw, offices)}${highValueForm(data, ui.hv)}
     </section>`;
 }

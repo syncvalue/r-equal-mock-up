@@ -5,7 +5,7 @@ import {
 } from '../src/store.js';
 import { RANKS } from '../src/data.js';
 import { USERS } from '../src/dashboard.js';
-import { loadUsers, appraisersOf } from '../src/users.js';
+import { loadEmployees, appraisersOf } from '../src/employees.js';
 import { eventsOfDay } from '../src/schedule.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
@@ -17,7 +17,7 @@ let sel = null; // { type: 'item' | 'req', id }
 let draft = { tag: '', text: '', price: '', rank: null, reason: '' }; // 営業への送信内容（コメント＋任意で提案査定額）
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 保存できなくても動作は継続（モック） */ } };
-const appraisers = () => appraisersOf(loadUsers()); // 査定員は、ユーザー管理から読み込む（有効な人だけ）
+const appraisers = () => appraisersOf(loadEmployees()); // 査定員は、社員管理から読み込む（有効な人だけ）
 let appraiserId = pref('rq-mock-hq-appraiser', appraisers()[0]?.id ?? ''); // 画面を使っている査定員（デモ用に切り替え可）
 let hideDone = pref('rq-mock-hq-hidedone', '0') === '1'; // 訪問完了した予定を一覧から隠す
 const appraiser = () => appraisers().find((a) => a.id === appraiserId) ?? appraisers()[0] ?? { id: '', name: '', groups: [] };

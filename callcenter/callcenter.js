@@ -2,7 +2,7 @@
 // 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を仮確定する。担当の確定は配車係が行い（配車確定タブ）、確定した予約が営業アプリの予定に出る。
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
-import { loadUsers, operatorNames } from '../src/users.js';
+import { loadEmployees, operatorNames } from '../src/employees.js';
 import { AREAS, canPlace, hiddenBlocks, busyBlocks, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
 import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, removeReservations, holdReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
@@ -44,7 +44,7 @@ const digits = (s) => String(s ?? '').replace(/\D/g, '');
 const blankForm = () => makeBlankForm();
 
 let tab = 'new';
-const operators = () => operatorNames(loadUsers()); // オペレーターは、ユーザー管理から読み込む（有効な人だけ）
+const operators = () => operatorNames(loadEmployees()); // オペレーターは、社員管理から読み込む（有効な人だけ）
 let operator = operators().includes(pref('rq-mock-cc-operator', '')) ? pref('rq-mock-cc-operator', '') : operators()[0] ?? '';
 let form = blankForm();
 let done = null; // 確定した直後の予約（確定画面を表示している間）
@@ -316,7 +316,7 @@ const syncHidden = () => { hiddenBlocks.clear(); loadMovedIds().forEach((id) => 
 function render() {
   syncHidden();
   const ops = operators();
-  if (!ops.includes(operator)) operator = ops[0] ?? operator; // オペレーターが、ユーザー管理で無効になっていたら、先頭の人に
+  if (!ops.includes(operator)) operator = ops[0] ?? operator; // オペレーターが、社員管理で無効になっていたら、先頭の人に
   $('#root').innerHTML = `
   <header class="bg-teal-800 text-white px-6 h-[52px] flex justify-between items-center">
     <div class="font-bold text-xl">📞 コールセンター 受付・配車 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>

@@ -1,11 +1,13 @@
-// マスタ管理画面（ダミー・PC想定）。ユーザー・営業所・倉庫・委託先の一覧、登録・変更、有効/無効。
-import { USERS_KEY, DEFAULT_USERS, loadUsers, saveUsers, saveUser, setUserActive, isReadOnlyRole } from '../src/users.js';
+// マスタ管理画面（ダミー・PC想定）。社員・営業所・倉庫・委託先の一覧、登録・変更、有効/無効。
+import { EMPLOYEES_KEY, DEFAULT_EMPLOYEES, loadEmployees, saveEmployees, saveEmployee, setEmployeeActive, isReadOnlyRole } from '../src/employees.js';
+import { DEPARTMENTS_KEY, DEFAULT_DEPARTMENTS, loadDepartments, saveDepartments, saveDepartment, setDepartmentActive, activeDepartments, defaultDepartmentOf } from '../src/departments.js';
 import { OFFICES_KEY, DEFAULT_OFFICES, loadOffices, saveOffices, saveOffice, setOfficeActive } from '../src/offices.js';
 import { MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveVendor, setVendorActive, saveHighValueRule, setWarehouseActive, warehouseById, vendorById, activeWarehouses, DEFAULT_MASTER } from '../src/warehouseMaster.js';
 import { loadState, holdingByWarehouse } from '../src/warehouse.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { masterHtml, REASON_TEXT } from './view.js';
-import { listHtml, blankForm, formFromUser } from './usersPanel.js';
+import { listHtml, blankForm, formFromEmployee } from './employeesPanel.js';
+import { blankDepartment, formFromDepartment } from './departmentsPanel.js';
 import { blankOffice, formFromOffice } from './officesPanel.js';
 
 const $ = (s) => document.querySelector(s);
@@ -13,39 +15,58 @@ const blankWh = () => ({ id: '', name: '', zip: '', address: '', phone: '', offi
 const blankVendor = () => ({ id: '', name: '', zip: '', address: '', phone: '' });
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 
-let users = loadUsers();
+let employees = loadEmployees();
+let departments = loadDepartments();
 let offices = loadOffices();
-let tab = ['users', 'offices', 'warehouses', 'vendors'].includes(pref('rq-mock-master-tab', '')) ? pref('rq-mock-master-tab', '') : 'users';
-let ui = { users: { role: '', q: '', status: '', form: null }, offices: { mo: blankOffice() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
+let menuOpen = false; // 左側のメニューの開閉
+let tab = ['employees', 'departments', 'offices', 'warehouses', 'vendors'].includes(pref('rq-mock-master-tab', '')) ? pref('rq-mock-master-tab', '') : 'employees';
+let ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
 const setUi = (name, patch) => { ui = { ...ui, [name]: { ...ui[name], ...patch } }; };
 
 const ctx = () => {
   const wmaster = loadMaster();
-  return { tab, users, offices, wmaster, holding: holdingByWarehouse(loadState(), wmaster), ui, themeHtml: themeToggleHtml() };
+  return { tab, menuOpen, employees, departments, offices, wmaster, holding: holdingByWarehouse(loadState(), wmaster), ui, themeHtml: themeToggleHtml() };
 };
 const render = () => { $('#root').innerHTML = masterHtml(ctx()); };
-const renderList = () => { const el = $('[data-list]'); if (el) el.innerHTML = listHtml({ users, warehouses: loadMaster().warehouses, ui: ui.users }); };
+const renderList = () => { const el = $('[data-list]'); if (el) el.innerHTML = listHtml({ employees, departments, warehouses: loadMaster().warehouses, ui: ui.employees }); };
 const warn = (reason) => alert(REASON_TEXT[reason] ?? '保存できませんでした');
 const commitWh = (next) => { if (!saveMaster(next)) alert('保存できませんでした（容量超過）'); };
 
-// ---- ユーザー ---------------------------------------------------------------------
+// ---- 社員 ---------------------------------------------------------------------
 function commitUsers(next) {
-  if (!saveUsers(next)) return alert('保存できませんでした（容量超過）');
-  users = next;
+  if (!saveEmployees(next)) return alert('保存できませんでした（容量超過）');
+  employees = next;
 }
 function saveUserForm() {
-  const f = ui.users.form;
-  const current = users.find((u) => u.id === f.id)?.warehouseId; // いま所属している倉庫は、無効でも保てる
+  const f = ui.employees.form;
+  const current = employees.find((u) => u.id === f.id)?.warehouseId; // いま所属している倉庫は、無効でも保てる
   const warehouseIds = [...activeWarehouses(loadMaster()).map((w) => w.id), ...(current ? [current] : [])];
-  const r = saveUser(users, { ...f, id: f.id || undefined }, { warehouseIds });
+  const currentDept = employees.find((u) => u.id === f.id)?.departmentId; // いま所属している部署は、無効でも保てる
+  const departmentIds = [...activeDepartments(departments).map((d) => d.id), ...(currentDept ? [currentDept] : [])];
+  const r = saveEmployee(employees, { ...f, id: f.id || undefined }, { warehouseIds, departmentIds });
   if (!r.ok) return warn(r.reason);
-  commitUsers(r.users);
-  setUi('users', { form: null });
+  commitUsers(r.employees);
+  setUi('employees', { form: null });
 }
 function toggleUser(id) {
-  const r = setUserActive(users, id, !users.find((x) => x.id === id).active);
+  const r = setEmployeeActive(employees, id, !employees.find((x) => x.id === id).active);
   if (!r.ok) return warn(r.reason);
-  commitUsers(r.users);
+  commitUsers(r.employees);
+}
+
+// ---- 部署 -------------------------------------------------------------------------
+function saveDepartmentForm() {
+  const f = ui.departments.md;
+  const r = saveDepartment(departments, { ...f, id: f.id || undefined });
+  if (!r.ok) return warn(r.reason);
+  if (!saveDepartments(r.departments)) return alert('保存できませんでした（容量超過）');
+  departments = r.departments;
+  setUi('departments', { md: blankDepartment() });
+}
+function toggleDepartment(id) {
+  const r = setDepartmentActive(departments, id, !departments.find((d) => d.id === id).active, { employees });
+  if (!r.ok) return warn(r.reason);
+  if (saveDepartments(r.departments)) departments = r.departments;
 }
 
 // ---- 営業所 -----------------------------------------------------------------------
@@ -101,13 +122,19 @@ function toggleVendor(id) {
 
 // ---- 操作の対応表（data-属性の名前 → 処理）。false を返すと、再描画しない --------------------
 const CLICK = {
-  master: (v) => { tab = v; try { localStorage.setItem('rq-mock-master-tab', v); } catch { /* 保存できなくても動作は継続（モック） */ } },
-  role: (v) => setUi('users', { role: v }),
-  new: () => setUi('users', { form: blankForm(ui.users.role && !isReadOnlyRole(ui.users.role) ? ui.users.role : 'operator') }),
-  edit: (v) => setUi('users', { form: formFromUser(users.find((u) => u.id === v)) }),
+  menuOpen: () => { menuOpen = true; },
+  menuClose: () => { menuOpen = false; },
+  master: (v) => { tab = v; menuOpen = false; try { localStorage.setItem('rq-mock-master-tab', v); } catch { /* 保存できなくても動作は継続（モック） */ } },
+  role: (v) => setUi('employees', { role: v }),
+  new: () => setUi('employees', { form: blankForm(ui.employees.role && !isReadOnlyRole(ui.employees.role) ? ui.employees.role : 'operator') }),
+  edit: (v) => setUi('employees', { form: formFromEmployee(employees.find((u) => u.id === v)) }),
   toggle: toggleUser,
   save: saveUserForm,
-  cancel: () => setUi('users', { form: null }),
+  cancel: () => setUi('employees', { form: null }),
+  mdSave: saveDepartmentForm,
+  mdEdit: (v) => setUi('departments', { md: formFromDepartment(departments.find((d) => d.id === v)) }),
+  mdCancel: () => setUi('departments', { md: blankDepartment() }),
+  mdToggle: toggleDepartment,
   moSave: saveOfficeForm,
   moEdit: (v) => setUi('offices', { mo: formFromOffice(offices.find((o) => o.id === v)) }),
   moCancel: () => setUi('offices', { mo: blankOffice() }),
@@ -122,11 +149,12 @@ const CLICK = {
   mvCancel: () => setUi('vendors', { mv: blankVendor() }),
   mvToggle: toggleVendor,
   reset: () => {
-    if (!confirm('ユーザー・営業所・倉庫・委託先を、すべて初期値（見本のデータ）に戻します。登録・変更した内容は消えます。よろしいですか？')) return false;
-    commitUsers(DEFAULT_USERS);
+    if (!confirm('社員・営業所・倉庫・委託先を、すべて初期値（見本のデータ）に戻します。登録・変更した内容は消えます。よろしいですか？')) return false;
+    commitUsers(DEFAULT_EMPLOYEES);
+    saveDepartments(DEFAULT_DEPARTMENTS); departments = DEFAULT_DEPARTMENTS;
     saveOffices(DEFAULT_OFFICES); offices = DEFAULT_OFFICES;
     commitWh({ ...DEFAULT_MASTER, staff: undefined });
-    ui = { users: { role: '', q: '', status: '', form: null }, offices: { mo: blankOffice() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
+    ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
   },
 };
 const SELECTOR = Object.keys(CLICK).map((k) => `[data-${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}]`).join(',');
@@ -138,8 +166,8 @@ document.addEventListener('click', (e) => {
   if (CLICK[name](value) !== false) render();
 });
 
-// 入力欄: 「ユーザー」は data-f="name"、ほかは data-f="mw.name" のように、フォームの名前つき。入力中は再描画しない（検索は一覧だけ更新）
-const FORMS = { mo: ['offices', 'mo'], mw: ['warehouses', 'mw'], mv: ['vendors', 'mv'] };
+// 入力欄: 「社員」は data-f="name"、ほかは data-f="mw.name" のように、フォームの名前つき。入力中は再描画しない（検索は一覧だけ更新）
+const FORMS = { md: ['departments', 'md'], mo: ['offices', 'mo'], mw: ['warehouses', 'mw'], mv: ['vendors', 'mv'] };
 function onField(e) {
   const [form, key] = (e.target.dataset.f ?? '').split('.');
   const target = FORMS[form];
@@ -149,13 +177,14 @@ function onField(e) {
   return true;
 }
 document.addEventListener('input', (e) => {
-  if (e.target.matches('[data-q]')) { setUi('users', { q: e.target.value }); renderList(); return; }
+  if (e.target.matches('[data-q]')) { setUi('employees', { q: e.target.value }); renderList(); return; }
   if (onField(e)) return;
   const key = e.target.dataset.f;
-  if (key && e.target.tagName === 'INPUT') setUi('users', { form: { ...ui.users.form, [key]: e.target.value } });
+  if (key && e.target.tagName === 'INPUT') setUi('employees', { form: { ...ui.employees.form, [key]: e.target.value } });
 });
 document.addEventListener('change', (e) => {
-  if (e.target.matches('[data-status]')) { setUi('users', { status: e.target.value }); renderList(); return; }
+  if (e.target.matches('[data-dept]')) { setUi('employees', { departmentId: e.target.value }); renderList(); return; }
+  if (e.target.matches('[data-status]')) { setUi('employees', { status: e.target.value }); renderList(); return; }
   if (e.target.dataset.hvColor) { // 高額品にするシールの色
     const cur = ui.warehouses.hv ?? loadMaster().highValue.colors;
     const c = e.target.dataset.hvColor;
@@ -164,18 +193,19 @@ document.addEventListener('change', (e) => {
   }
   if (e.target.dataset.group) {
     const g = e.target.dataset.group;
-    const groups = e.target.checked ? [...new Set([...ui.users.form.groups, g])] : ui.users.form.groups.filter((x) => x !== g);
-    setUi('users', { form: { ...ui.users.form, groups } });
+    const groups = e.target.checked ? [...new Set([...ui.employees.form.groups, g])] : ui.employees.form.groups.filter((x) => x !== g);
+    setUi('employees', { form: { ...ui.employees.form, groups } });
     return;
   }
-  if (e.target.dataset.f === 'role') { setUi('users', { form: { ...blankForm(e.target.value), name: ui.users.form.name, loginId: ui.users.form.loginId } }); render(); return; } // 役割で、入力欄が変わる
+  if (e.target.dataset.f === 'role') { setUi('employees', { form: { ...blankForm(e.target.value), name: ui.employees.form.name, loginId: ui.employees.form.loginId, departmentId: ui.employees.form.departmentId === defaultDepartmentOf(ui.employees.form.role) ? defaultDepartmentOf(e.target.value) : ui.employees.form.departmentId } }); render(); return; } // 役割で、入力欄が変わる
   if (onField(e)) return;
-  if (e.target.dataset.f === 'warehouseId') setUi('users', { form: { ...ui.users.form, warehouseId: e.target.value } });
+  if (['warehouseId', 'departmentId'].includes(e.target.dataset.f)) setUi('employees', { form: { ...ui.employees.form, [e.target.dataset.f]: e.target.value } });
 });
 
-// 別のタブで、マスタが変わったときに追従する（入力中の欄を壊さないよう、ユーザーの一覧だけ）
+// 別のタブで、マスタが変わったときに追従する（入力中の欄を壊さないよう、社員の一覧だけ）
 window.addEventListener('storage', (e) => {
-  if (e.key === USERS_KEY) { users = loadUsers(); renderList(); }
+  if (e.key === EMPLOYEES_KEY) { employees = loadEmployees(); renderList(); }
+  if (e.key === DEPARTMENTS_KEY) { departments = loadDepartments(); renderList(); }
   if (e.key === OFFICES_KEY) offices = loadOffices();
   if (e.key === MASTER_KEY) renderList();
 });

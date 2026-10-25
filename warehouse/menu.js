@@ -30,7 +30,7 @@ export function menuView({ tab, badges, staff, warehouseName }) {
           ${badges[t.key] ? `<span class="text-xs font-bold rounded-full ${badge[t.key][0]} px-2 py-0.5 whitespace-nowrap">${badge[t.key][1]} ${badges[t.key]}</span>` : ''}
         </button>`).join('')}
         <a class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] hover:bg-white/10 active:bg-white/20" href="/master/index.html" target="_blank" rel="noopener">
-          <span class="text-3xl">🗃</span><span class="flex-1"><span class="block font-bold text-lg leading-tight">マスタ管理</span><span class="text-xs text-slate-300">倉庫・委託先・営業所・ユーザー（別画面）</span></span>
+          <span class="text-3xl">🗃</span><span class="flex-1"><span class="block font-bold text-lg leading-tight">マスタ管理</span><span class="text-xs text-slate-300">倉庫・委託先・営業所・社員（別画面）</span></span>
         </a>
       </div>
       <div class="px-5 py-3 border-t border-white/10 flex items-center justify-between gap-2"><span class="text-xs text-slate-400">${esc(staff.name)}（${esc(warehouseName)}）</span>

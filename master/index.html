@@ -13,6 +13,8 @@
     .b-pri { background: #0f766e; color: #fff; } .b-sec { background: #fff; border: 1px solid #94a3b8; }
     .b.on { background: #0f766e; color: #fff; border: 1px solid #0f766e; }
     .b:disabled { opacity: .4; }
+    @keyframes menuSlide { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+    .menu-slide { animation: menuSlide .18s ease-out; }
     th, td { padding: .4rem .4rem; white-space: nowrap; }
   </style>
   <link rel="stylesheet" href="/src/theme.css" />

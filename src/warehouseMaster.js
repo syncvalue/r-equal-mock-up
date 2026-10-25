@@ -1,8 +1,8 @@
 // 倉庫のマスタ。倉庫は営業所とは独立した施設で、営業所と一体の倉庫・倉庫のみ・倉庫のない営業所（営業のみ）がある。
-// 倉庫担当（master.staff）は、マスタ管理のユーザー（倉庫担当）から読み込む（登録・所属変更・有効/無効はユーザー管理）。商品は、入庫した倉庫に保管される。操作はすべて新しいマスタを返す。
+// 倉庫担当（master.staff）は、マスタ管理の社員（倉庫担当）から読み込む（登録・所属変更・有効/無効は社員管理）。商品は、入庫した倉庫に保管される。操作はすべて新しいマスタを返す。
 import { loadOffices, officeName as officeNameOf } from './offices.js';
 import { LOCATIONS, SEAL_COLORS } from './stock.js';
-import { DEFAULT_USERS, loadUsers, warehouseStaffOf } from './users.js';
+import { DEFAULT_EMPLOYEES, loadEmployees, warehouseStaffOf } from './employees.js';
 
 export const MASTER_KEY = 'rq-mock-warehouse-master';
 
@@ -15,7 +15,7 @@ export const DEFAULT_MASTER = {
     { id: 'W-FUKUOKA', name: '福岡倉庫', zip: '812-0011', address: '福岡県福岡市博多区博多駅前1-1-1', phone: '092-000-0003', officeId: '', locations: ['A棚', 'B棚', '金庫室（高額品）'], active: true },
     { id: 'W-HONSHA', name: '本社', zip: '541-0041', address: '大阪府大阪市中央区北浜1-1-1', phone: '06-0000-0004', officeId: '', locations: ['金庫室（高額品）', '貴金属保管庫'], highValue: true, active: true },
   ],
-  staff: warehouseStaffOf(DEFAULT_USERS),
+  staff: warehouseStaffOf(DEFAULT_EMPLOYEES),
   // 委託先（業者）。業者オークションなど、外部の市場に商品を委託して販売する送り先（ダミー）
   vendors: [
     { id: 'V-OSAKA-WATCH', name: '大阪時計オークション', zip: '556-0011', address: '大阪府大阪市浪速区難波中2-1-1', phone: '06-1111-0001', active: true },
@@ -29,7 +29,7 @@ export const DEFAULT_MASTER = {
 export function loadMaster() {
   try {
     const m = JSON.parse(localStorage.getItem(MASTER_KEY));
-    return Array.isArray(m?.warehouses) ? { ...m, staff: warehouseStaffOf(loadUsers()), highValue: Array.isArray(m.highValue?.colors) ? m.highValue : DEFAULT_MASTER.highValue, vendors: Array.isArray(m.vendors) ? m.vendors : DEFAULT_MASTER.vendors } : { ...DEFAULT_MASTER, staff: warehouseStaffOf(loadUsers()) };
+    return Array.isArray(m?.warehouses) ? { ...m, staff: warehouseStaffOf(loadEmployees()), highValue: Array.isArray(m.highValue?.colors) ? m.highValue : DEFAULT_MASTER.highValue, vendors: Array.isArray(m.vendors) ? m.vendors : DEFAULT_MASTER.vendors } : { ...DEFAULT_MASTER, staff: warehouseStaffOf(loadEmployees()) };
   } catch {
     return DEFAULT_MASTER;
   }
@@ -37,7 +37,7 @@ export function loadMaster() {
 
 export function saveMaster(master) {
   try {
-    const { staff, ...rest } = master; // 倉庫担当は、ユーザー（src/users.js）が持つ
+    const { staff, ...rest } = master; // 倉庫担当は、社員（src/employees.js）が持つ
     localStorage.setItem(MASTER_KEY, JSON.stringify(rest));
     return true;
   } catch {

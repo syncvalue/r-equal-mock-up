@@ -22,7 +22,7 @@ test('本社 経理部の画面は、描画できる（サンプルデータ入�
   assert.ok(root.innerHTML.includes('本社 経理部') && root.innerHTML.includes('所持金の確認') && root.innerHTML.includes('鈴木 一郎'));
 });
 
-test('マスタ管理の画面は、描画できる。ユーザー・営業所・倉庫・委託先の各マスタを切り替えて表示できる', async () => {
+test('マスタ管理の画面は、描画できる。社員・営業所・倉庫・委託先の各マスタを切り替えて表示できる', async () => {
   root.innerHTML = '';
   await import('../master/master.js');
   assert.ok(root.innerHTML.includes('マスタ管理') && root.innerHTML.includes('鈴木 一郎') && root.innerHTML.includes('小川 直樹') && root.innerHTML.includes('data-new'));

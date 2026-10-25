@@ -6,6 +6,7 @@ import { addDeposit, depositsOf, carryoverFor, todayRows, loadDay, loadDays, sav
 import {
   flagsOf, expenseStats, officeUsers, onlyOffice, canProxy, proxyExpense, PAY_REASONS, reasonOf, paymentReady, loadCustomerPayments, addCustomerPayment, markPaid,
 } from '../src/accounting.js';
+import { tabLabel, menuView } from './menu.js';
 import { seedSample } from '../src/accountingSample.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
@@ -13,7 +14,6 @@ import { yen, fmtTime, esc } from '../src/format.js';
 
 const $ = (s) => document.querySelector(s);
 const BY = '本社 経理部';
-const TABS = [['cash', '💴 所持金の確認'], ['deposit', '🏦 入金処理'], ['expense', '🧾 経費の入力代行'], ['overview', '📊 経費の全体状況']];
 const PHASE = { before: ['未始業', 'bg-slate-200 text-slate-600'], open: ['業務中', 'bg-emerald-100 text-emerald-800'], closed: ['終業済み', 'bg-indigo-100 text-indigo-800'] };
 const LEVEL = { danger: 'bg-rose-100 text-rose-700', warn: 'bg-amber-100 text-amber-800', info: 'bg-slate-100 text-slate-600' };
 const blankDeposit = () => ({ userId: scoped()[0]?.id ?? '', amount: 0, memo: '' });
@@ -27,6 +27,7 @@ const officeOf = (userId) => areaById(areaOfUser(userId))?.name.replace('エリ�
 const withOffice = (u) => `${u.name}（${officeOf(u.id)}）`;
 const scopedIds = () => scoped().map((u) => u.id);
 let tab = 'cash';
+let menuOpen = false; // 左側のメニューの開閉
 let selUser = null; // 所持金の確認で、明細を開いている営業
 let period = 'day'; // 経費の全体状況: day（今日）／ month（今月）
 let dep = blankDeposit();
@@ -181,14 +182,14 @@ function render() {
   const rows = todayRows().filter((r) => scopedIds().includes(r.user.id));
   const alerts = rows.filter((r) => r.summary && flagsOf(r.day, r.summary).length).length;
   const pending = onlyOffice(loadCustomerPayments(), scopedIds(), Boolean(office)).filter((p) => p.status === 'pending').length;
-  $('#root').innerHTML = `
-  <header class="bg-teal-800 text-white px-6 py-3 flex justify-between items-center">
-    <div class="font-bold text-xl">本社 経理部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">確認が必要な営業 <b class="text-lg">${alerts}</b>人 ／ 振込待ち <b class="text-lg">${pending}</b>件 <button class="ml-3 text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
+  $('#root').innerHTML = `<div class="flex flex-col h-screen">
+  <header class="bg-teal-800 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
+    <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${alerts || pending ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
+      <span class="font-bold text-xl">本社 経理部</span><span class="text-teal-200">›</span><span class="font-bold">${tabLabel(tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
+    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1"><label class="text-xs font-bold">営業所 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-office><option class="text-slate-800" value="">全営業所（${USERS.length}人）</option>${AREAS.map((a) => `<option class="text-slate-800" value="${a.id}" ${office === a.id ? 'selected' : ''}>${esc(a.name.replace('エリア', ''))}（${officeUsers(USERS, a.id, areaOfUser).length}人）</option>`).join('')}</select></label>
+      <span>確認が必要な営業 <b class="text-lg">${alerts}</b>人 ／ 振込待ち <b class="text-lg">${pending}</b>件</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
-  <nav class="bg-white border-b px-6 flex gap-1 items-center">${TABS.map(([k, l]) => `<button class="px-4 py-3 font-bold border-b-4 ${tab === k ? 'border-teal-700 text-teal-800' : 'border-transparent text-slate-500'}" data-tab="${k}">${l}</button>`).join('')}
-    <label class="ml-auto text-sm font-bold">営業所 <select class="border rounded px-2 py-1 font-normal" data-office><option value="">全営業所（${USERS.length}人）</option>${AREAS.map((a) => `<option value="${a.id}" ${office === a.id ? 'selected' : ''}>${esc(a.name.replace('エリア', ''))}（${officeUsers(USERS, a.id, areaOfUser).length}人）</option>`).join('')}</select></label></nav>
-  <main class="p-4 space-y-4 overflow-y-auto" style="height:calc(100vh - 112px)">${VIEWS[tab]()}</main>`;
+  <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${VIEWS[tab]()}</main>${menuOpen ? menuView({ tab, badges: { cash: alerts, deposit: pending } }) : ''}</div>`;
 }
 
 // ---- 操作 -----------------------------------------------------------------------
@@ -214,7 +215,9 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest('button, tr[data-sel-user]');
   if (!t) return;
   const d = t.dataset;
-  if (d.tab) tab = d.tab;
+  if (d.tab) { tab = d.tab; menuOpen = false; }
+  else if ('menuOpen' in d) menuOpen = true;
+  else if ('menuClose' in d) menuOpen = false;
   else if (d.selUser) selUser = selUser === d.selUser ? null : d.selUser;
   else if (d.period) period = d.period;
   else if ('sample' in d) { if (!confirm('営業の始業・経費・入金・お客様への入金のデータを、サンプルデータに置き換えます。よろしいですか？')) return; seedSample(Date.now(), true); selUser = null; }
