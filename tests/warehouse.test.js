@@ -269,3 +269,23 @@ test('会社全体の売上: 倉庫別の売上・利益・点数に分けて出
   const sum = (scope) => W.salesStats(W.salesRows(W.scopeState(s, scope, MA)), '').revenue;
   assert.equal(sum(WO) + sum(WK), sum('all'));
 });
+
+test('買取日・お客様ごとのまとまり: 新しい買取日から、同じ日の同じ契約（訪問）の商品をまとめる。同じ日に別のお客様なら別のまとまり', () => {
+  const rows = W.buildRows(state([
+    unit('A', 5, { visitId: 'V1', customerName: '山田 花子' }), unit('B', 5, { visitId: 'V1', customerName: '山田 花子' }),
+    unit('C', 5, { visitId: 'V2', customerName: '佐藤 一雄' }), unit('D', 2, { visitId: 'V3', customerName: '井上 和夫' }),
+  ]), NOW);
+  const lots = W.lotsOf(rows);
+  assert.deepEqual(lots.map((l) => [l.date, l.visitId, l.rows.map((r) => r.unit.code)]), [
+    [W.dateOf(day(2)), 'V3', ['D']], [W.dateOf(day(5)), 'V1', ['A', 'B']], [W.dateOf(day(5)), 'V2', ['C']],
+  ]);
+  assert.equal(lots[1].customerName, '山田 花子'); assert.equal(lots[1].total, 20000);
+  assert.deepEqual(W.lotsOf([]), []);
+});
+
+test('同じ契約の商品: クーリングオフ対応のとき、同じ契約で一緒に買い取った他の商品を探せる', () => {
+  const rows = W.buildRows(state([unit('A', 5, { visitId: 'V1' }), unit('B', 5, { visitId: 'V1' }), unit('C', 5, { visitId: 'V2' })]), NOW);
+  assert.deepEqual(W.siblingsOf(rows, 'A').map((r) => r.unit.code), ['B']);
+  assert.deepEqual(W.siblingsOf(rows, 'C'), []);
+  assert.deepEqual(W.siblingsOf(rows, 'ZZZ'), []);
+});

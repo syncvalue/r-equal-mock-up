@@ -109,3 +109,58 @@ test('営業の納入先: 選んだ倉庫・保管場所を使う。未選択、
   assert.equal(M.receiveTarget(m, 'kanto', { warehouseId: kanto.id, location: osaka.locations[2] }).location, kanto.locations[0]); // 別の倉庫の棚は使えない
   assert.equal(M.receiveTarget(m, 'kanto', { warehouseId: 'gone' }).warehouse.id, kanto.id);
 });
+
+const HM = M.DEFAULT_MASTER;
+const hon = HM.warehouses.find((w) => w.highValue);
+
+test('本社: 高額品の保管先として、倉庫マスタの1つ（本社も、倉庫と同じ保管場所の1つ）。担当者もいる', () => {
+  assert.ok(hon && hon.active && hon.officeId === '');
+  assert.equal(M.honshaOf(HM).id, hon.id);
+  assert.equal(HM.warehouses.filter((w) => w.highValue).length, 1);
+  assert.ok(HM.staff.some((s) => s.warehouseId === hon.id));
+  assert.equal(M.honshaOf({ ...HM, warehouses: HM.warehouses.map((w) => ({ ...w, highValue: false })) }), null);
+});
+
+test('高額品: 貴金属などのカテゴリ、または一定額以上の商品。マスタの設定で決まる', () => {
+  assert.equal(M.isHighValue({ category: 'ジュエリー・貴金属', price: 1000 }, HM), true);
+  assert.equal(M.isHighValue({ category: 'ブランドバッグ', price: HM.highValue.minPrice }, HM), true);
+  assert.equal(M.isHighValue({ category: 'ブランドバッグ', price: HM.highValue.minPrice - 1 }, HM), false);
+  assert.equal(M.isHighValue({ category: '腕時計', price: 100 }, { ...HM, highValue: { categories: ['腕時計'], minPrice: 0 } }), true);
+  assert.equal(M.isHighValue({ category: 'x', price: 99999999 }, { ...HM, highValue: { categories: [], minPrice: 0 } }), false); // 金額の設定が0なら、金額では判定しない
+});
+
+test('納入先の規則: 高額品は本社だけ、高額品以外は本社以外の倉庫だけ', () => {
+  const w = HM.warehouses.find((x) => !x.highValue);
+  const high = { category: 'ジュエリー・貴金属', price: 1 };
+  const normal = { category: 'ブランドバッグ', price: 1 };
+  assert.equal(M.destinationProblem(HM, high, hon.id), '');
+  assert.equal(M.destinationProblem(HM, high, w.id), 'highToHonsha');
+  assert.equal(M.destinationProblem(HM, normal, w.id), '');
+  assert.equal(M.destinationProblem(HM, normal, hon.id), 'normalToWarehouse');
+  assert.equal(M.destinationProblem({ ...HM, warehouses: HM.warehouses.filter((x) => !x.highValue) }, high, w.id), ''); // 本社が登録されていなければ、制限しない
+});
+
+test('営業の納入先（商品ごと）: 高額品は本社に自動で、それ以外は選んだ倉庫（本社は選べない）', () => {
+  const w = HM.warehouses.find((x) => x.officeId === 'osaka');
+  const high = { category: 'ジュエリー・貴金属', price: 1 };
+  const normal = { category: 'ブランドバッグ', price: 1 };
+  const th = M.receiveTargetFor(HM, high, 'osaka', { warehouseId: w.id, location: w.locations[1] });
+  assert.equal(th.warehouse.id, hon.id); assert.equal(th.location, hon.locations[0]);
+  const tn = M.receiveTargetFor(HM, normal, 'osaka', { warehouseId: w.id, location: w.locations[1] });
+  assert.equal(tn.warehouse.id, w.id); assert.equal(tn.location, w.locations[1]);
+  assert.equal(M.receiveTargetFor(HM, normal, 'osaka', { warehouseId: hon.id }).warehouse.id, w.id); // 本社は、通常の納入先に選べない
+  assert.ok(!M.receiveTarget(HM, 'nowhere', {}).warehouse.highValue); // 営業所に倉庫がなくても、本社にはならない
+});
+
+test('本社の登録: 本社（高額品の保管先）は1つだけ。高額品の判定の設定は保存できる', () => {
+  const dup = M.saveWarehouse(HM, { name: '第二本社', locations: 'A', highValue: true });
+  assert.equal(dup.reason, 'dupHonsha');
+  const ok = M.saveWarehouse(HM, { id: hon.id, name: hon.name, address: hon.address, officeId: '', locations: hon.locations, highValue: true });
+  assert.equal(ok.ok, true);
+  const rule = M.saveHighValueRule(HM, { categories: 'ジュエリー・貴金属, 腕時計', minPrice: '500,000' });
+  assert.deepEqual(rule.master.highValue, { categories: ['ジュエリー・貴金属', '腕時計'], minPrice: 500000 });
+  assert.equal(M.saveHighValueRule(HM, { categories: '', minPrice: 0 }).reason, 'noRule');
+  assert.equal(M.saveHighValueRule(HM, { categories: 'x', minPrice: -1 }).reason, 'badPrice');
+  mem.set('rq-mock-warehouse-master', JSON.stringify({ warehouses: HM.warehouses, staff: HM.staff })); // 古い保存データ（設定なし）は、初期の設定を補う
+  assert.deepEqual(M.loadMaster().highValue, HM.highValue);
+});

@@ -27,7 +27,7 @@ import {
 import {
   loadUnits, saveUnits, unitsFromVisit, addUnits, byUser, inScope, pendingOf, receive, markMissing, resultMessage, demoUnits,
 } from './stock.js';
-import { DEFAULT_STOCK, stockTarget } from './stockView.js';
+import { DEFAULT_STOCK, stockTarget, isHonshaItem } from './stockView.js';
 
 // 予定（訪問）から、コールセンター受付情報の表示用データを作る
 function callInfoOf(ev, userId) {
@@ -246,6 +246,12 @@ let scanToken = 0;
 
 // シールNo.（読取・入力）を入庫する。結果は画面に表示する
 function receiveCode(raw) {
+  const unit = loadUnits().find((u) => u.code === String(raw ?? '').trim().toUpperCase());
+  if (unit && unit.userId === state.user && unit.status !== 'stored' && isHonshaItem(unit)) {
+    const result = { type: 'honsha', code: unit.code };
+    set({ stock: { ...state.stock, last: { ok: false, text: `${unit.code} は高額品のため、本社に納入します。本社へ郵送・持参してください（本社で入庫します）` } } });
+    return result;
+  }
   const target = stockTarget(state);
   const { list, result } = receive(loadUnits(), state.user, raw, { location: target.location, by: userById(state.user).name, warehouseId: target.warehouse.id });
   if (result.type === 'ok' && !saveUnits(list)) {
@@ -266,7 +272,7 @@ function submitStockCode() {
 function stockScanStep(token) {
   setTimeout(() => {
     if (token !== scanToken) return;
-    const todo = pendingOf(inScope(byUser(loadUnits(), state.user), state.stock.scope));
+    const todo = pendingOf(inScope(byUser(loadUnits(), state.user), state.stock.scope)).filter((u) => !isHonshaItem(u)); // 高額品は、本社で入庫する
     if (!todo.length) { set({ scan: { ...state.scan, status: 'empty', left: 0 } }); rerenderKeepScroll(); return; }
     const unit = todo[0];
     set({ scan: { ...state.scan, status: 'found', code: unit.code, name: unit.name, left: todo.length } });
@@ -576,7 +582,7 @@ const actions = {
   },
   // 連続QR読取（モック）: 入庫待ちのシールを順に読み取り、入庫する。「完了」で終了
   'stock-scan': () => {
-    const todo = pendingOf(inScope(byUser(loadUnits(), state.user), state.stock.scope));
+    const todo = pendingOf(inScope(byUser(loadUnits(), state.user), state.stock.scope)).filter((u) => !isHonshaItem(u)); // 高額品は、本社で入庫する
     if (!todo.length) return;
     scanToken += 1;
     set({ scan: { mode: 'stock', status: 'scanning', code: '', name: '', stored: 0, left: todo.length, location: state.stock.location } });

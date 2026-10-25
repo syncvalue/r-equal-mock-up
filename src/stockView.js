@@ -2,7 +2,7 @@
 import { esc, yen, fmtTime } from './format.js';
 import { dateKey } from './workday.js';
 import { byUser, inScope, pendingOf, dateKeys } from './stock.js';
-import { loadMaster, activeWarehouses, receiveTarget, officeName } from './warehouseMaster.js';
+import { loadMaster, activeWarehouses, receiveTarget, officeName, isHighValue } from './warehouseMaster.js';
 import { areaOfUser } from './dispatch.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
@@ -15,6 +15,9 @@ const dateLabel = (key) => {
 export const DEFAULT_STOCK = { tab: 'pending', scope: 'all', warehouseId: null, location: null, last: null };
 
 // 入庫の納入先（倉庫）と保管場所。未選択のときは、自分の営業所に併設の倉庫が初期値になる
+// 高額品（貴金属など）は、納入のときから本社に入る（営業は入庫せず、本社へ郵送・持参する）
+export const isHonshaItem = (u) => isHighValue(u, loadMaster());
+
 export const stockTarget = (s) => receiveTarget(loadMaster(), areaOfUser(s.user), s.stock);
 
 // メニューのバッジ用: 自分の入庫待ちの点数
@@ -36,7 +39,7 @@ const unitRow = (u, { showLocation }) => `
       ? `<div class="text-right text-xs text-slate-600"><div class="font-bold">📍 ${esc(u.location)}</div><div>${fmtTime(u.storedAt)}</div></div>`
       : u.status === 'missing'
         ? '<span class="text-xs text-rose-600">シールを読み取れば入庫できます</span>'
-        : `<button class="btn btn-secondary !py-1 !px-3 !min-h-[40px] !text-sm text-rose-600" data-action="stock-missing" data-code="${esc(u.code)}">所在不明</button>`}
+        : `${u.status === 'pending' && isHonshaItem(u) ? '<span class="rounded bg-violet-50 text-violet-800 text-xs font-bold px-2 py-0.5 whitespace-normal">高額品 → 本社へ</span>' : ''}<button class="btn btn-secondary !py-1 !px-3 !min-h-[40px] !text-sm text-rose-600" data-action="stock-missing" data-code="${esc(u.code)}">所在不明</button>`}
     ${TAG[u.status]}
   </div>`;
 
@@ -114,7 +117,8 @@ function actionCard(s, mine) {
       <div class="font-bold text-sm mb-1">保管場所<span class="font-normal text-xs text-slate-500">（読み取った商品は、ここに入庫します）</span></div>
       <div class="flex flex-wrap gap-1.5">${target.warehouse.locations.map((l) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.location === l ? 'active' : ''}" data-action="stock-loc" data-value="${esc(l)}">${esc(l)}</button>`).join('')}</div>
     </div>
-    <button class="btn btn-primary w-full text-xl !py-4" data-action="stock-scan" ${todo.length ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
+    <div class="rounded-xl bg-violet-50 border border-violet-200 p-2 text-xs text-violet-800">貴金属などの高額品は、納入のときから<b>本社</b>に入ります。ここでは入庫せず、本社へ郵送・持参してください（本社で入庫します）。</div>
+    <button class="btn btn-primary w-full text-xl !py-4" data-action="stock-scan" ${todo.some((u) => !isHonshaItem(u)) ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
     <p class="text-xs text-slate-500 -mt-1">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
     <label class="block"><span class="font-bold text-sm">シールNo.を入力（スキャナ・手入力）</span>
       <div class="flex gap-2 mt-1"><input id="stock-code" class="field font-mono !py-2" placeholder="RQ-XXXXXXXX" autocomplete="off" data-stock-code />

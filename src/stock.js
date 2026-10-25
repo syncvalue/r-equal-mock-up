@@ -89,11 +89,11 @@ export function resultMessage(r) {
 
 // ---- デモ用: 過去2日分の「入庫待ち」のダミー（まとめて入庫する場面の確認用） -------------------
 const DEMO_ITEMS = [
-  { id: 'demo-1', name: 'ルイ・ヴィトン ネヴァーフル MM', category: 'バッグ', rank: 'A', price: 98000, qty: 1 },
+  { id: 'demo-1', name: 'ルイ・ヴィトン ネヴァーフル MM', category: 'ブランドバッグ', rank: 'A', price: 98000, qty: 1 },
   { id: 'demo-2', name: 'ロレックス デイトジャスト', category: '腕時計', rank: 'B', price: 420000, qty: 1 },
-  { id: 'demo-3', name: 'K18 ネックレス', category: 'ジュエリー', rank: 'A', price: 52000, qty: 2 },
-  { id: 'demo-4', name: 'キヤノン EOS R6 ボディ', category: 'カメラ', rank: 'B', price: 180000, qty: 1 },
-  { id: 'demo-5', name: 'エルメス ブランケット', category: 'ファッション小物', rank: 'S', price: 36000, qty: 1 },
+  { id: 'demo-3', name: 'K18 ネックレス', category: 'ジュエリー・貴金属', rank: 'A', price: 52000, qty: 2 },
+  { id: 'demo-4', name: 'キヤノン EOS R6 ボディ', category: 'カメラ・家電', rank: 'B', price: 180000, qty: 1 },
+  { id: 'demo-5', name: 'エルメス ブランケット', category: '財布・小物', rank: 'S', price: 36000, qty: 1 },
 ];
 
 export function demoUnits(userId, existing, now = new Date()) {

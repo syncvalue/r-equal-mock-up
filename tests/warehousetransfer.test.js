@@ -111,3 +111,35 @@ test('保存: 移動の記録は保存して読み戻せる。壊れたデータ
   mem.set('rq-mock-transfers', '{"x":1}');
   assert.deepEqual(W.loadTransfers(), []);
 });
+
+const HON = M.warehouses.find((w) => w.highValue);
+
+test('送る: 納入先の規則は移動でも守る（高額品は本社へ、高額品以外は本社以外の倉庫へだけ）', () => {
+  const high = unit('H', HON.id, { category: 'ジュエリー・貴金属', price: 500000, location: HON.locations[0] });
+  const s = { ...base(), units: [...base().units, high] };
+  const toHon = T.sendTransfer(s, M, { fromId: OSAKA.id, toId: HON.id, codes: ['A', 'H'], by: 'x', at: NOW }); // A は高額品でない／H は本社にある（元の倉庫が違う）
+  assert.equal(toHon.reason, 'noItems');
+  assert.deepEqual(toHon.rejected.sort((a, b) => a.code.localeCompare(b.code)), [{ code: 'A', reason: 'wrongDestination' }, { code: 'H', reason: 'otherWarehouse' }]);
+  const fromHon = T.sendTransfer(s, M, { fromId: HON.id, toId: OSAKA.id, codes: ['H'], by: 'x', at: NOW });
+  assert.equal(fromHon.reason, 'noItems'); // 高額品を、本社以外の倉庫へは送れない
+  assert.deepEqual(fromHon.rejected, [{ code: 'H', reason: 'wrongDestination' }]);
+  const high2 = unit('H2', OSAKA.id, { category: 'ジュエリー・貴金属', price: 500000 }); // 例外的に倉庫にある高額品（本社へ移す）
+  const ok = T.sendTransfer({ ...s, units: [...s.units, high2] }, M, { fromId: OSAKA.id, toId: HON.id, codes: ['H2', 'A'], by: 'x', at: NOW });
+  assert.deepEqual(ok.transfer.codes, ['H2']);
+});
+
+test('返品: 契約の商品が複数の倉庫（本社と倉庫）に分かれていても受け付け、倉庫ごとの返品に分けて、同じ契約として結びつける', () => {
+  const same = { visitId: 'V-1', at: day(3), date: W.dateOf(day(3)), storedAt: day(3) + 1 };
+  const s = { ...base(), units: [unit('A', OSAKA.id, { ...same, price: 12000 }), unit('B', HON.id, { ...same, price: 480000, category: 'ジュエリー・貴金属' }), unit('E', OSAKA.id, { ...same, price: 3000 })] };
+  const r = W.requestReturn(s, { customerName: '山田 花子', codes: ['A', 'B', 'E'], reason: 'family', at: NOW, by: '小川 直樹', master: M });
+  assert.equal(r.ok, true);
+  assert.equal(r.rets.length, 2);
+  const by = Object.fromEntries(r.rets.map((x) => [x.warehouseId, x]));
+  assert.deepEqual(by[OSAKA.id].codes, ['A', 'E']); assert.equal(by[OSAKA.id].refund, 15000);
+  assert.deepEqual(by[HON.id].codes, ['B']); assert.equal(by[HON.id].refund, 480000);
+  assert.equal(by[OSAKA.id].groupId, by[HON.id].groupId);
+  assert.equal(by[OSAKA.id].groupRefund, 495000); // お客様から返していただく代金は、契約全体の合計
+  assert.equal(r.state.returns.length, 2);
+  const one = W.requestReturn(s, { customerName: '山田 花子', codes: ['A'], reason: 'family', at: NOW, master: M });
+  assert.equal(one.rets.length, 1); assert.equal(one.ret.warehouseId, OSAKA.id);
+});

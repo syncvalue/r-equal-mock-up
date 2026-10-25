@@ -4,7 +4,7 @@ import { STOCK_KEY } from './store.js';
 import { loadUnits, addUnits } from './stock.js';
 import * as W from './warehouse.js';
 import * as T from './warehouseTransfer.js';
-import { DEFAULT_MASTER as MASTER } from './warehouseMaster.js';
+import { DEFAULT_MASTER as MASTER, isHighValue } from './warehouseMaster.js';
 
 export const WH_SAMPLE_KEY = 'rq-mock-warehouse-sample'; // 初期化で消えない目印（初期化後に、自動で復活させない）
 const PREFIX = 'RQ-WH';
@@ -12,9 +12,10 @@ const PREFIX = 'RQ-WH';
 // 保管場所は、入庫した倉庫の棚から選ぶ
 // お客様ごとの入庫先の倉庫（大阪・関東・福岡に分かれる）
 const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
-const whOf = (customerName) => WH_OF[customerName] ?? 'W-OSAKA';
+// 高額品（貴金属など）は納入のときから本社、それ以外はお客様ごとの倉庫
+const whOf = (customerName, item) => (item && isHighValue(item, MASTER) ? 'W-HONSHA' : WH_OF[customerName] ?? 'W-OSAKA');
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
-const SHELF_LETTER = { 'バッグ': 'A', 'ファッション小物': 'A', '腕時計': 'B', 'ジュエリー': 'B', 'カメラ': 'C' };
+const SHELF_LETTER = { 'ブランドバッグ': 'A', '財布・小物': 'A', '腕時計': 'B', 'ジュエリー・貴金属': 'B', 'カメラ・家電': 'C' };
 // 保管場所は、入庫した倉庫の棚から選ぶ（高額品は金庫室、それ以外はカテゴリの棚。なければ先頭の棚）
 const placeOf = (category, price, warehouseId) => {
   const locs = MASTER.warehouses.find((w) => w.id === warehouseId).locations;
@@ -31,33 +32,35 @@ export function buildSample(now = Date.now()) {
   const purchase = (daysAgo, userId, customerName, items, status = 'stored') => items.map(([name, category, rank, price]) => {
     seq += 1;
     const stored = status === 'stored';
+    const wid = whOf(customerName, { category, price });
     return {
       code: `${PREFIX}${String(seq).padStart(4, '0')}`, visitId: `V-WH-${daysAgo}-${userId}`, userId, customerName, at: at(daysAgo), date: W.dateOf(at(daysAgo)),
       itemId: `wh-${seq}`, name, category, rank, n: 1, qty: 1, price, status,
-      storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price, whOf(customerName)) : null,
+      storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price, wid) : null,
       // 偶数日前の買取は倉庫の担当者が明細と照合して入庫、奇数日前は営業がタブレットから入庫
-      by: !stored ? null : daysAgo % 2 === 0 ? staffOfWh(whOf(customerName)) : userId,
-      check: stored && daysAgo % 2 === 0 ? { by: staffOfWh(whOf(customerName)), at: at(daysAgo, 17), method: 'manual' } : null,
-      ...(stored ? { warehouseId: whOf(customerName) } : {}),
+      by: !stored ? null : daysAgo % 2 === 0 ? staffOfWh(wid) : userId,
+      check: stored && daysAgo % 2 === 0 ? { by: staffOfWh(wid), at: at(daysAgo, 17), method: 'manual' } : null,
+      ...(stored ? { warehouseId: wid } : {}),
     };
   });
 
   const units = [
-    ...purchase(50, 'u05', '岡田 裕子', [['プラダ ナイロンバッグ', 'バッグ', 'B', 18000], ['コーチ 長財布', 'ファッション小物', 'A', 9000]]), // 0・1
-    ...purchase(25, 'u01', '山田 花子', [['ルイ・ヴィトン ネヴァーフル MM', 'バッグ', 'A', 98000], ['エルメス スカーフ', 'ファッション小物', 'S', 36000]]), // 2・3
+    ...purchase(50, 'u05', '岡田 裕子', [['プラダ ナイロンバッグ', 'ブランドバッグ', 'B', 18000], ['コーチ 長財布', '財布・小物', 'A', 9000]]), // 0・1
+    ...purchase(25, 'u01', '山田 花子', [['ルイ・ヴィトン ネヴァーフル MM', 'ブランドバッグ', 'A', 98000], ['エルメス スカーフ', '財布・小物', 'S', 36000]]), // 2・3
     ...purchase(22, 'u03', '佐藤 一雄', [['ロレックス デイトジャスト', '腕時計', 'B', 420000], ['オメガ シーマスター', '腕時計', 'B', 180000]]), // 4・5
-    ...purchase(20, 'u06', '田村 恵子', [['K18 ネックレス', 'ジュエリー', 'A', 52000], ['プラチナ リング', 'ジュエリー', 'A', 64000]]), // 6・7
-    ...purchase(18, 'u07', '中村 正', [['キヤノン EOS R6 ボディ', 'カメラ', 'B', 180000], ['ソニー α7 IV ボディ', 'カメラ', 'A', 210000]]), // 8・9
-    ...purchase(15, 'u03', '井上 和夫', [['シャネル マトラッセ', 'バッグ', 'A', 240000]]), // 10
-    ...purchase(12, 'u02', '小林 由美', [['カルティエ タンク', '腕時計', 'B', 310000], ['グッチ 長財布', 'ファッション小物', 'C', 12000]]), // 11・12
-    ...purchase(10, 'u05', '林 美穂', [['K24 インゴット 50g', 'ジュエリー', 'S', 480000], ['ティファニー ペンダント', 'ジュエリー', 'A', 28000]]), // 13・14
-    ...purchase(9, 'u10', '岡本 優', [['セリーヌ ラゲージ', 'バッグ', 'B', 70000]]), // 15（返品済み）
-    ...purchase(6, 'u09', '斎藤 清', [['ニコン Z6 II ボディ', 'カメラ', 'B', 120000]]), // 16（返送済み）
+    ...purchase(20, 'u06', '田村 恵子', [['K18 ネックレス', 'ジュエリー・貴金属', 'A', 52000], ['プラチナ リング', 'ジュエリー・貴金属', 'A', 64000]]), // 6・7
+    ...purchase(18, 'u07', '中村 正', [['キヤノン EOS R6 ボディ', 'カメラ・家電', 'B', 180000], ['ソニー α7 IV ボディ', 'カメラ・家電', 'A', 210000]]), // 8・9
+    ...purchase(15, 'u03', '井上 和夫', [['シャネル マトラッセ', 'ブランドバッグ', 'A', 240000]]), // 10
+    ...purchase(12, 'u02', '小林 由美', [['カルティエ タンク', '腕時計', 'B', 310000], ['グッチ 長財布', '財布・小物', 'C', 12000]]), // 11・12
+    ...purchase(10, 'u05', '林 美穂', [['K24 インゴット 50g', 'ジュエリー・貴金属', 'S', 480000], ['ティファニー ペンダント', 'ジュエリー・貴金属', 'A', 28000]]), // 13・14
+    ...purchase(9, 'u10', '岡本 優', [['セリーヌ ラゲージ', 'ブランドバッグ', 'B', 70000]]), // 15（返品済み）
+    ...purchase(6, 'u09', '斎藤 清', [['ニコン Z6 II ボディ', 'カメラ・家電', 'B', 120000]]), // 16（返送済み）
     ...purchase(5, 'u04', '森田 誠', [['ブライトリング ナビタイマー', '腕時計', 'B', 260000]]), // 17（期間中）
-    ...purchase(4, 'u08', '松本 千春', [['ボッテガ イントレチャート', 'バッグ', 'A', 85000], ['フェンディ バゲット', 'バッグ', 'B', 45000]]), // 18・19（返品受付）
-    ...purchase(3, 'u02', '加藤 彩', [['シャネル 長財布', 'ファッション小物', 'A', 56000]]), // 20（期間中）
-    ...purchase(1, 'u05', '吉田 浩', [['K18 ブレスレット', 'ジュエリー', 'A', 38000], ['ダイヤ リング 0.5ct', 'ジュエリー', 'A', 150000]], 'stored'), // 21・22（期間中）
-    ...purchase(0, 'u11', '福田 美香', [['ルイ・ヴィトン ポシェット', 'バッグ', 'B', 32000], ['ハミルトン カーキ', '腕時計', 'C', 40000]], 'pending'), // 23・24（入庫待ち）
+    ...purchase(4, 'u08', '松本 千春', [['ボッテガ イントレチャート', 'ブランドバッグ', 'A', 85000], ['フェンディ バゲット', 'ブランドバッグ', 'B', 45000]]), // 18・19（返品受付）
+    ...purchase(3, 'u02', '加藤 彩', [['シャネル 長財布', '財布・小物', 'A', 56000]]), // 20（期間中）
+    ...purchase(1, 'u05', '吉田 浩', [['K18 ブレスレット', 'ジュエリー・貴金属', 'A', 38000], ['ダイヤ リング 0.5ct', 'ジュエリー・貴金属', 'A', 150000]], 'stored'), // 21・22（期間中）
+    ...purchase(0, 'u11', '福田 美香', [['ルイ・ヴィトン ポシェット', 'ブランドバッグ', 'B', 32000], ['ハミルトン カーキ', '腕時計', 'C', 40000]], 'pending'), // 23・24（入庫待ち）
+    ...purchase(11, 'u12', '松田 理恵', [['エルメス ケリー', 'ブランドバッグ', 'A', 280000], ['コーチ ショルダー', 'ブランドバッグ', 'B', 15000]]), // 25・26（倉庫間の移動の見本）
   ];
   units[22] = { ...units[22], status: 'missing', storedAt: null, location: null, by: null, check: null, warehouseId: undefined }; // 所在不明
 
@@ -84,16 +87,16 @@ export function buildSample(now = Date.now()) {
     (s) => W.sell(s, code(10), { price: 285000, shipping: 1500, at: at(0) }), // 今日の売上
     (s) => W.listItem(s, code(11), { channel: 'auction', price: 355000, vendor: '大阪時計オークション', at: at(2) }),
     // 返品（クーリングオフ）: 期間内に受付 → 返送 → 完了
-    (s) => W.requestReturn(s, { customerName: '岡本 優', codes: [code(15)], reason: 'regret', at: at(8, 11) }),
+    (s) => W.requestReturn(s, { master: MASTER, customerName: '岡本 優', codes: [code(15)], reason: 'regret', at: at(8, 11) }),
     (s) => W.shipReturn(s, s.returns[0].id, { tracking: '5012-3344-9871', at: at(7, 14) }),
     (s) => W.completeReturn(s, s.returns[0].id, at(6, 10)),
-    (s) => W.requestReturn(s, { customerName: '斎藤 清', codes: [code(16)], reason: 'price', memo: '他社の見積もりのほうが高かったとのこと', at: at(5, 10) }),
+    (s) => W.requestReturn(s, { master: MASTER, customerName: '斎藤 清', codes: [code(16)], reason: 'price', memo: '他社の見積もりのほうが高かったとのこと', at: at(5, 10) }),
     (s) => W.shipReturn(s, s.returns[0].id, { tracking: '5012-3344-2210', at: at(4, 15) }),
-    // 倉庫間の移動: K24インゴットは関東倉庫に移動して受取済み、ティファニーのペンダントは輸送中
-    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', codes: [code(13)], by: staffOfWh('W-OSAKA'), at: at(7) }),
-    (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-KANTO', location: '金庫室（高額品）', by: staffOfWh('W-KANTO'), at: at(5) }),
-    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', codes: [code(14)], by: staffOfWh('W-OSAKA'), at: at(1) }),
-    (s) => W.requestReturn(s, { customerName: '松本 千春', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10) }),
+    // 倉庫間の移動: エルメス ケリーは関東倉庫に移動して受取済み、コーチ ショルダーは輸送中
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', codes: [code(25)], by: staffOfWh('W-OSAKA'), at: at(7) }),
+    (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-KANTO', location: 'A棚（バッグ・小物）', by: staffOfWh('W-KANTO'), at: at(5) }),
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', codes: [code(26)], by: staffOfWh('W-OSAKA'), at: at(1) }),
+    (s) => W.requestReturn(s, { master: MASTER, customerName: '松本 千春', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10) }),
   ];
   const state = steps.reduce((s, step) => {
     const r = step(s);

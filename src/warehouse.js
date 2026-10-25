@@ -111,6 +111,23 @@ export function holdingByWarehouse(state, master, now = Date.now()) {
   return by;
 }
 
+// 買取日・お客様（契約）ごとのまとまり。最初は買取日単位・お客様単位に保管するため、新しい買取日から並べる
+export function lotsOf(rows) {
+  const lots = [];
+  [...rows].sort((a, b) => b.unit.date.localeCompare(a.unit.date) || a.unit.at - b.unit.at).forEach((r) => {
+    const lot = lots.find((l) => l.visitId === r.unit.visitId && l.date === r.unit.date);
+    if (lot) lot.rows.push(r);
+    else lots.push({ date: r.unit.date, visitId: r.unit.visitId, customerName: r.unit.customerName, userId: r.unit.userId, rows: [r] });
+  });
+  return lots.map((l) => ({ ...l, total: sumBy(l.rows, (r) => r.unit.price) }));
+}
+
+// 同じ契約（同じ訪問）で、一緒に買い取った他の商品
+export const siblingsOf = (rows, code) => {
+  const me = rows.find((r) => r.unit.code === code);
+  return me ? rows.filter((r) => r.unit.visitId === me.unit.visitId && r.unit.code !== code) : [];
+};
+
 // シールNo.（QR読取・手入力）で、1点を探す。前後の空白・大文字小文字は無視
 export function findByCode(rows, raw) {
   const code = String(raw ?? '').trim().toUpperCase();
@@ -249,7 +266,8 @@ export function returnableContracts(state, now = Date.now()) {
 const newReturnId = (at) => `RT-${at.toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
 // 受け付けられない商品は rejected に理由つきで返す（unknown／notStored／expired／inProgress／notReturnable）
-export function requestReturn(state, { customerName, codes, reason, memo = '', at = Date.now(), by = '' }) {
+// master を渡すと、商品が複数の倉庫（本社を含む）に分かれている契約は、倉庫ごとの返品に分け、groupId で同じ契約として結びつける
+export function requestReturn(state, { customerName, codes, reason, memo = '', at = Date.now(), by = '', master = null }) {
   const rows = buildRows(state, at);
   const accepted = [];
   const rejected = [];
@@ -265,11 +283,15 @@ export function requestReturn(state, { customerName, codes, reason, memo = '', a
     else accepted.push(row.unit);
   });
   if (!accepted.length) return { ok: false, state, rejected };
-  const ret = {
-    id: newReturnId(at), customerName, codes: accepted.map((u) => u.code), reason, memo, refund: sumBy(accepted, (u) => u.price),
+  const groups = master ? [...new Set(accepted.map((u) => warehouseIdOf(u, master)))].map((id) => [id, accepted.filter((u) => warehouseIdOf(u, master) === id)]) : [[undefined, accepted]];
+  const groupId = newReturnId(at);
+  const groupRefund = sumBy(accepted, (u) => u.price);
+  const rets = groups.map(([warehouseId, list]) => ({
+    id: groups.length === 1 ? groupId : newReturnId(at), customerName, codes: list.map((u) => u.code), reason, memo, refund: sumBy(list, (u) => u.price),
     status: 'requested', requestedAt: at, shippedAt: null, tracking: '', doneAt: null, ...who('requestedBy', by),
-  };
-  return { ok: true, state: { ...state, returns: [ret, ...state.returns] }, ret, rejected };
+    ...(master ? { warehouseId, groupId, groupRefund } : {}),
+  }));
+  return { ok: true, state: { ...state, returns: [...rets, ...state.returns] }, ret: rets[0], rets, rejected };
 }
 
 const patchReturn = (state, id, patch) => ({ ...state, returns: state.returns.map((r) => (r.id === id ? { ...r, ...patch } : r)) });

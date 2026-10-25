@@ -5,25 +5,30 @@ import { LOCATIONS } from './stock.js';
 
 export const MASTER_KEY = 'rq-mock-warehouse-master';
 
+// 本社も、倉庫と同じ保管場所の1つ（highValue: 高額品の保管先）。貴金属などの高額品は、納入のときから本社に入り、それ以外は倉庫に入る。
 // 初期値（ダミー）。大阪・関東は営業所と一体、福岡は倉庫のみ。兵庫・京都、東海の営業所には倉庫がない（営業のみ）
 export const DEFAULT_MASTER = {
   warehouses: [
     { id: 'W-OSAKA', name: '大阪倉庫', address: '大阪府大阪市', officeId: 'osaka', locations: LOCATIONS, active: true },
     { id: 'W-KANTO', name: '関東倉庫', address: '埼玉県さいたま市', officeId: 'kanto', locations: ['A棚（バッグ・小物）', 'B棚（時計・ジュエリー）', '金庫室（高額品）', '要確認エリア'], active: true },
     { id: 'W-FUKUOKA', name: '福岡倉庫', address: '福岡県福岡市', officeId: '', locations: ['A棚', 'B棚', '金庫室（高額品）'], active: true },
+    { id: 'W-HONSHA', name: '本社', address: '大阪府大阪市（本社）', officeId: '', locations: ['金庫室（高額品）', '貴金属保管庫'], highValue: true, active: true },
   ],
   staff: [
     { id: 'wh01', loginId: 'wh01', name: '小川 直樹', warehouseId: 'W-OSAKA', active: true },
     { id: 'wh02', loginId: 'wh02', name: '中島 里奈', warehouseId: 'W-OSAKA', active: true },
     { id: 'wh03', loginId: 'wh03', name: '山本 大地', warehouseId: 'W-KANTO', active: true },
     { id: 'wh04', loginId: 'wh04', name: '藤田 結衣', warehouseId: 'W-FUKUOKA', active: true },
+    { id: 'wh05', loginId: 'wh05', name: '岡田 剛', warehouseId: 'W-HONSHA', active: true },
   ],
+  // 高額品: 貴金属などのカテゴリ、または1点がこの金額以上の商品（金額が0なら、金額では判定しない）
+  highValue: { categories: ['ジュエリー・貴金属'], minPrice: 300000 },
 };
 
 export function loadMaster() {
   try {
     const m = JSON.parse(localStorage.getItem(MASTER_KEY));
-    return Array.isArray(m?.warehouses) && Array.isArray(m?.staff) ? m : DEFAULT_MASTER;
+    return Array.isArray(m?.warehouses) && Array.isArray(m?.staff) ? { ...m, highValue: m.highValue ?? DEFAULT_MASTER.highValue } : DEFAULT_MASTER;
   } catch {
     return DEFAULT_MASTER;
   }
@@ -45,17 +50,37 @@ export const officeName = (officeId) => AREAS.find((a) => a.id === officeId)?.na
 
 // 営業所に併設の倉庫を優先し、なければ先頭の有効な倉庫（営業が入庫するときの、納入先の初期値）
 export const defaultWarehouseFor = (master, officeId) => {
-  const list = activeWarehouses(master);
+  const list = activeWarehouses(master).filter((w) => !w.highValue); // 本社は、通常の納入先ではない
   return list.find((w) => officeId && w.officeId === officeId) ?? list[0] ?? null;
 };
 // 営業が入庫するときの、納入先の倉庫と保管場所。選択が未指定・無効なら、営業所に併設の倉庫（なければ先頭）の先頭の棚
 export function receiveTarget(master, officeId, { warehouseId, location } = {}) {
-  const warehouse = activeWarehouses(master).find((w) => w.id === warehouseId) ?? defaultWarehouseFor(master, officeId);
+  const warehouse = activeWarehouses(master).find((w) => w.id === warehouseId && !w.highValue) ?? defaultWarehouseFor(master, officeId);
   return { warehouse, location: warehouse?.locations.includes(location) ? location : warehouse?.locations[0] };
 }
 
 // 商品が入庫されている倉庫。倉庫の記録がない古い商品は、先頭の倉庫として扱う
-export const warehouseIdOf = (unit, master) => unit.warehouseId ?? master.warehouses[0]?.id;
+export const warehouseIdOf = (unit, master) => unit.warehouseId ?? master.warehouses.find((w) => !w.highValue)?.id;
+
+// ---- 本社（高額品の保管先）---------------------------------------------------
+export const honshaOf = (master) => activeWarehouses(master).find((w) => w.highValue) ?? null;
+export const isHighValue = (unit, master) => {
+  const { categories = [], minPrice = 0 } = master.highValue ?? {};
+  return categories.includes(unit.category) || (minPrice > 0 && unit.price >= minPrice);
+};
+// 納入先の規則: 高額品は本社だけ、高額品以外は本社以外の倉庫だけ（本社が登録されていなければ、制限しない）。'' は問題なし
+export function destinationProblem(master, unit, warehouseId) {
+  if (!honshaOf(master)) return '';
+  const toHonsha = Boolean(warehouseById(master, warehouseId)?.highValue);
+  const high = isHighValue(unit, master);
+  return high && !toHonsha ? 'highToHonsha' : !high && toHonsha ? 'normalToWarehouse' : '';
+}
+// 商品ごとの納入先。高額品は本社に自動で、それ以外は選んだ倉庫（本社は選べない）
+export function receiveTargetFor(master, unit, officeId, sel = {}) {
+  const hon = honshaOf(master);
+  if (hon && isHighValue(unit, master)) return { warehouse: hon, location: hon.locations.includes(sel.location) ? sel.location : hon.locations[0] };
+  return receiveTarget(master, officeId, sel);
+}
 
 const newId = (prefix) => `${prefix}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 const toList = (v) => [...new Set((Array.isArray(v) ? v : String(v ?? '').split(/[,、\n]/)).map((x) => String(x).trim()).filter(Boolean))];
@@ -63,7 +88,7 @@ const fail = (master, reason) => ({ ok: false, master, reason });
 const replaceAt = (list, id, item) => list.map((x) => (x.id === id ? item : x));
 
 // 倉庫の登録・更新（id があれば更新）。reason: noName／noLocations／badOffice／dupName／notFound
-export function saveWarehouse(master, { id, name, address = '', officeId = '', locations, active }) {
+export function saveWarehouse(master, { id, name, address = '', officeId = '', locations, active, highValue }) {
   const n = String(name ?? '').trim();
   const locs = toList(locations);
   const old = id ? warehouseById(master, id) : null;
@@ -72,8 +97,19 @@ export function saveWarehouse(master, { id, name, address = '', officeId = '', l
   if (!locs.length) return fail(master, 'noLocations');
   if (officeId && !AREAS.some((a) => a.id === officeId)) return fail(master, 'badOffice');
   if (master.warehouses.some((w) => w.name === n && w.id !== id)) return fail(master, 'dupName');
-  const item = { id: id ?? newId('W'), name: n, address: String(address).trim(), officeId, locations: locs, active: active ?? old?.active ?? true };
+  const hv = Boolean(highValue ?? old?.highValue);
+  if (hv && master.warehouses.some((w) => w.highValue && w.id !== id)) return fail(master, 'dupHonsha');
+  const item = { id: id ?? newId('W'), name: n, address: String(address).trim(), officeId, locations: locs, active: active ?? old?.active ?? true, ...(hv ? { highValue: true } : {}) };
   return { ok: true, master: { ...master, warehouses: old ? replaceAt(master.warehouses, id, item) : [...master.warehouses, item] } };
+}
+
+// 高額品の判定の設定（カテゴリと金額）。reason: noRule／badPrice
+export function saveHighValueRule(master, { categories, minPrice }) {
+  const raw = String(minPrice ?? 0).replace(/[,\s]/g, '') || '0';
+  if (!/^\d+$/.test(raw)) return fail(master, 'badPrice');
+  const cats = toList(categories);
+  if (!cats.length && Number(raw) === 0) return fail(master, 'noRule');
+  return { ok: true, master: { ...master, highValue: { categories: cats, minPrice: Number(raw) } } };
 }
 
 // 担当者の登録・更新（id があれば更新）。reason: noName／badLoginId／noWarehouse／dupLoginId／notFound
