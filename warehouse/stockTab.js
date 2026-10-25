@@ -83,11 +83,10 @@ export function stockTab(data, { filter, q, scan, view, rl }) {
   const shown = rows.filter((r) => MATCH[filter](r) && hit(r, q.trim())).sort((a, b) => b.unit.at - a.unit.at);
   return `
   <div class="rounded-xl border bg-white p-3 flex flex-wrap items-center gap-2">
-    <label class="font-bold text-sm">🔳 QRで探す</label>
-    <input class="inp !w-72 font-mono" data-qr placeholder="シールのQRを読み取る（スキャナ）／シールNo." autocomplete="off" />
-    <button class="b b-pri" data-qr-submit>探す</button>
+    <label class="font-bold text-sm" for="wh-search">🔍 商品を探す</label>
+    <input id="wh-search" class="inp !w-96 max-w-full" data-q placeholder="商品名・シールNo.・お客様名（QRリーダーで読み取りも可）" value="${esc(q)}" autocomplete="off" />
     <button class="b b-pri !bg-teal-700" data-cam-search>📷 カメラで読み取る</button>
-    <span class="text-xs text-slate-500">タブレットのカメラ、またはQRリーダーで読み取ると、その商品の詳細と履歴が出ます。</span>
+    <span class="text-xs text-slate-500">入力すると、下の一覧が絞り込まれます。シールのQRを読み取る（またはシールNo.を入力してEnter）と、その商品の詳細と履歴が出ます。</span>
   </div>
   ${scanResult(data, scan, rl)}
   <div class="flex flex-wrap gap-3">
@@ -102,7 +101,6 @@ export function stockTab(data, { filter, q, scan, view, rl }) {
   </div>
   <div class="flex flex-wrap items-center gap-2">
     ${FILTERS.map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}
-    <input class="inp !w-64 ml-auto" data-q placeholder="商品名・シールNo.・お客様名" value="${esc(q)}" />
   </div>
   <div class="flex gap-2 items-center"><span class="text-sm font-bold">表示</span>
     ${[['lot', '📅 買取日・お客様別'], ['list', '☰ 一覧']].map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${view === k ? 'on' : ''}" data-view="${k}">${l}</button>`).join('')}

@@ -292,7 +292,6 @@ const ACTIONS = {
   tab: (v) => { tab = v; },
   filter: (v) => { ui.filter = v; },
   view: (v) => { ui.view = v; },
-  qrSubmit: () => scanCode($('[data-qr]')?.value),
   camSearch: () => { openCamera('search'); return false; },
   camReceive: () => { openCamera('receive'); return false; },
   mwSave: saveWh,
@@ -383,10 +382,13 @@ function onField(e, isInput) {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches?.('[data-login-id], [data-login-pw]')) { doLogin(); render(); return; }
-  if (e.key === 'Enter' && e.target.matches?.('[data-qr]')) {
-    scanCode(e.target.value);
+  // 検索欄でEnter: シールNo.（QR読取・手入力）なら、その商品の詳細を表示する。それ以外は、入力のまま一覧を絞り込む
+  if (e.key === 'Enter' && e.target.matches?.('[data-q]')) {
+    const raw = e.target.value.trim();
+    if (!raw || !(loadUnits().some((u) => u.code === raw.toUpperCase()) || replacedCode(loadUnits(), raw) || /^RQ-/i.test(raw))) return;
+    scanCode(raw);
     render();
-    $('[data-qr]')?.focus(); // 続けて読み取れるように
+    $('[data-q]')?.focus(); // 続けて読み取れるように
     return;
   }
   if (e.key !== 'Enter' || !e.target.matches?.('[data-rc-code]')) return;
