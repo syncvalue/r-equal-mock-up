@@ -61,7 +61,10 @@ export function receive(list, userId, raw, { location, by, at = Date.now(), meth
   const code = String(raw ?? '').trim().toUpperCase();
   const unit = list.find((u) => u.code === code);
   if (!code) return { list, result: { type: 'empty' } };
-  if (!unit) return { list, result: { type: 'unknown', code } };
+  if (!unit) {
+    const old = list.find((u) => (u.relabels ?? []).some((r) => r.from === code)); // 貼り替え済みの古いシール
+    return { list, result: old ? { type: 'replaced', code, newCode: old.code } : { type: 'unknown', code } };
+  }
   if (userId != null && unit.userId !== userId) return { list, result: { type: 'other', code, unit } };
   if (unit.status === 'stored') return { list, result: { type: 'dup', code, unit } };
   // method（scan＝シール読取／manual＝明細と実物を見比べて☑）は、倉庫での照合の記録。営業のタブレットからの入庫は null
@@ -91,6 +94,7 @@ export function resultMessage(r) {
     case 'ok': return { ok: true, text: `${r.unit.name}（${r.code}）を ${r.unit.location} に入庫しました` };
     case 'dup': return { ok: false, text: `${r.code} は入庫済みです（${r.unit.location}）` };
     case 'other': return { ok: false, text: `${r.code} は、他の営業の買取商品です` };
+    case 'replaced': return { ok: false, text: `${r.code} は、貼り替え済みの古いシールです。新しいシール（${r.newCode}）を読み取ってください` };
     case 'unknown': return { ok: false, text: `${r.code} は、買取商品として登録されていません` };
     default: return { ok: false, text: 'シールNo.を入力してください' };
   }

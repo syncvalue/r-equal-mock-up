@@ -3,6 +3,7 @@ import { STAGES, channelOf, stockSummary, dateOf, findByCode, historyOf, lotsOf,
 import { yen, esc } from '../src/format.js';
 import { userById } from '../src/dashboard.js';
 import { warehouseIdOf } from '../src/warehouseMaster.js';
+import { relabelForm } from './relabelForm.js';
 import { badge, card, md, mdTime, whName, sealBadge, STAGE_CLS } from './ui.js';
 
 export const FILTERS = [['all', 'すべて'], ['stock', '在庫'], ['listed', '出品中'], ['consigned', '委託中'], ['transit', '輸送中'], ['incoming', '入庫待ち・所在不明'], ['sold', '売却済み'], ['return', '返品']];
@@ -41,12 +42,12 @@ function siblingsHtml(data, code) {
     ${sib.length ? sib.map((r) => `<div class="flex flex-wrap gap-x-3"><span class="font-bold">${esc(r.unit.name)}</span><span class="font-mono text-xs text-slate-500">${esc(r.unit.code)}</span><span class="text-xs">${r.stage === 'consigned' ? '倉庫の外（委託中）' : r.unit.status === 'stored' ? `${esc(whName(r.unit, data.master))}／${esc(r.unit.location)}` : '入庫前'}</span>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</div>`).join('') : '<span class="text-slate-500">同じ契約の他の商品はありません。</span>'}</div>`;
 }
 
-function scanResult(data, scan) {
+function scanResult(data, scan, rl) {
   if (!scan.raw) return '';
   const r = findByCode(data.allRows, scan.raw); // 読み取りは、他の倉庫の商品も探す
   if (!r) return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 text-sm font-bold text-rose-700 flex items-center">⚠ ${esc(scan.raw)} は、買取商品として登録されていません<button class="ml-auto b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>`;
   const { unit } = r;
-  return `<section class="rounded-xl border-2 border-sky-400 bg-white p-4 space-y-3">
+  return `<section class="rounded-xl border-2 border-sky-400 bg-white p-4 space-y-3">${scan.notice ? `<div class="rounded bg-amber-50 border border-amber-300 p-2 text-sm font-bold text-amber-800">${esc(scan.notice)}</div>` : ''}
     <div class="flex flex-wrap items-center gap-2"><span class="text-xs font-mono text-slate-500">${esc(unit.code)}</span><b class="text-lg">${esc(unit.name)}</b>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}${r.stage === 'stock' && r.cooling ? badge('bg-amber-100 text-amber-800', `${md(r.coolEnd)} まで保管（出品不可）`) : ''}
       <span class="ml-auto">${action(r, data)}</span><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1 text-sm">
@@ -55,6 +56,7 @@ function scanResult(data, scan) {
       <div><span class="text-slate-500">原価（買取額）</span><br>${yen(unit.price)}</div>
       <div><span class="text-slate-500">倉庫・保管場所</span><br>${r.stage === 'consigned' ? `倉庫の外（委託中）／元の倉庫 ${esc(whName(unit, data.master))}` : unit.status === 'stored' ? `${esc(whName(unit, data.master))}／${esc(unit.location)}` : '入庫前'}</div>
     </div>
+    ${['incoming', 'missing', 'stock'].includes(r.stage) ? (rl.code === unit.code ? relabelForm(rl, unit) : `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-rl-open="${esc(unit.code)}">🏷 シール貼り替え（色の間違いなど）</button>`) : ''}
     ${siblingsHtml(data, unit.code)}
     <ol class="text-sm border-l-2 border-slate-200 pl-3 space-y-1">${historyOf(data.full, unit.code).map((e) => `<li><span class="text-xs text-slate-500">${mdTime(e.at)}</span> <b>${e.label}</b> <span class="text-slate-600">${esc(e.detail)}</span></li>`).join('')}</ol>
   </section>`;
@@ -75,7 +77,7 @@ function lotView(shown, data) {
         <td class="text-xs">${where(r, data)}</td><td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r, data)}</td></tr>`).join('')}</tbody></table></div>`).join('')}</section>`).join('');
 }
 
-export function stockTab(data, { filter, q, scan, view }) {
+export function stockTab(data, { filter, q, scan, view, rl }) {
   const { rows } = data;
   const sum = stockSummary(rows);
   const shown = rows.filter((r) => MATCH[filter](r) && hit(r, q.trim())).sort((a, b) => b.unit.at - a.unit.at);
@@ -87,7 +89,7 @@ export function stockTab(data, { filter, q, scan, view }) {
     <button class="b b-pri !bg-teal-700" data-cam-search>📷 カメラで読み取る</button>
     <span class="text-xs text-slate-500">タブレットのカメラ、またはQRリーダーで読み取ると、その商品の詳細と履歴が出ます。</span>
   </div>
-  ${scanResult(data, scan)}
+  ${scanResult(data, scan, rl)}
   <div class="flex flex-wrap gap-3">
     ${card('すぐ出品できる在庫', `${sum.stock - sum.cooling} 点`, 'text-emerald-700')}
     ${card('保管期間中', `${sum.cooling} 点`, sum.cooling ? 'text-amber-700' : '')}

@@ -4,7 +4,7 @@ import {
   MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveStaff, saveHighValueRule, destinationProblem, setWarehouseActive, warehouseById, warehouseIdOf,
 } from '../src/warehouseMaster.js';
 import {
-  loadState, saveState, buildRows, listItem, reprice, delist, recall, sell, requestReturn, shipReturn, completeReturn, returnableContracts, suggestPrice, scopeState, holdingByWarehouse,
+  loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, requestReturn, shipReturn, completeReturn, returnableContracts, suggestPrice, scopeState, holdingByWarehouse,
 } from '../src/warehouse.js';
 import { loadUnits, saveUnits, receive, receiveCodes, resultMessage, codeFromQr } from '../src/stock.js';
 import { seedSample } from '../src/warehouseSample.js';
@@ -41,7 +41,7 @@ let staff = loadSession(); // ログイン中の担当者（操作した人と�
 let loginError = '';
 const blankWh = () => ({ id: '', name: '', address: '', officeId: '', locations: '', highValue: false });
 const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
-const ui = { hv: null, tf: { toId: '', codes: [] }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'lot', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+const ui = { rl: { code: '', newCode: '', color: '' }, hv: null, tf: { toId: '', codes: [] }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'lot', q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();
@@ -151,7 +151,9 @@ function toggleAll(visitId) {
 }
 // QRシールを読み取って、商品の詳細・履歴を表示する（商品管理タブ）
 function scanCode(raw) {
-  ui.scan = { raw: String(raw ?? '').trim() };
+  const rep = replacedCode(loadUnits(), raw); // 貼り替え済みの古いシールなら、新しいシールの商品を表示する
+  ui.scan = rep ? { raw: rep.to, notice: `${rep.from} は、貼り替え済みの古いシールです。新しいシールNo.（${rep.to}）の商品を表示しています。` } : { raw: String(raw ?? '').trim() };
+  ui.rl = { code: '', newCode: '', color: '' };
   tab = 'stock';
   ui.filter = 'all';
   ui.q = '';
@@ -193,6 +195,27 @@ async function openCamera(mode) {
     closeCamera();
     alert(cameraErrorText(e));
   }
+}
+
+// ---- シールの貼り替え（色の間違いなど。シールNo.も新しくなる）-----------------------------
+const RELABEL_TEXT = {
+  unknown: '商品が見つかりません', badCode: '新しいシールNo.を入力してください', sameCode: '新しいシールNo.が、いまと同じです', dupCode: 'そのシールNo.は、すでに使われています（貼り替え済みの古いNo.も使えません）',
+  badColor: '新しいシールの色を選んでください', notRelabelable: '出品中・委託中・売却済み・返品対応中・輸送中の商品は、貼り替えられません',
+};
+function doRelabel(code) {
+  const state = loadState();
+  const unit = state.units.find((u) => u.code === code);
+  if (unit?.status === 'stored' && !ownsAll([code])) return;
+  const r = relabelUnit(state, code, { newCode: ui.rl.newCode, color: ui.rl.color, by: staff.name });
+  if (!r.ok) return alert(RELABEL_TEXT[r.reason]);
+  if (!saveUnits(r.state.units)) return alert('保存できませんでした（容量超過）');
+  commit(r.state);
+  const next = r.state.units.find((u) => u.sealColor === ui.rl.color && u.relabels?.at(-1)?.from === code);
+  const problem = next.status === 'stored' ? destinationProblem(master, next, next.warehouseId ?? staff.warehouseId) : '';
+  ui.rc = { ...ui.rc, checks: ui.rc.checks.filter((c) => c !== code) };
+  ui.rl = { code: '', newCode: '', color: '' };
+  if (ui.scan.raw === code) ui.scan = { raw: next.code };
+  alert(`シールを貼り替えました。新しいシールNo.: ${next.code}${problem ? `\n\nシールの色が変わり、${problem === 'highToHonsha' ? '高額品になった' : '高額品でなくなった'}ため、${problem === 'highToHonsha' ? '本社' : '倉庫'}に移す必要があります。「🚚 倉庫間移動」で移してください。` : ''}`);
 }
 
 // ---- 倉庫間の移動 -----------------------------------------------------------------
@@ -290,6 +313,10 @@ const ACTIONS = {
   trReceive: receiveItems,
   trCancel: cancelItems,
   salesScope: (v) => { ui.salesScope = v; },
+  rlOpen: (v) => { ui.rl = { code: v, newCode: '', color: '' }; },
+  rlCancel: () => { ui.rl = { code: '', newCode: '', color: '' }; },
+  rlColor: (v) => { ui.rl = { ...ui.rl, color: v }; },
+  rlDo: doRelabel,
   qrClose: () => { ui.scan = { raw: '' }; },
   rcLoc: (v) => { ui.rc = { ...ui.rc, location: v }; },
   rcSubmit: () => storeCode($('[data-rc-code]')?.value),
@@ -343,7 +370,7 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = { tf: () => ui.tf, lf: () => ui.lf, sf: () => ui.sf, rf: () => ui.rf, mw: () => ui.mw, ms: () => ui.ms };
+const FORMS = { rl: () => ui.rl, tf: () => ui.tf, lf: () => ui.lf, sf: () => ui.sf, rf: () => ui.rf, mw: () => ui.mw, ms: () => ui.ms };
 const MONEY = new Set(['lf.price', 'sf.price', 'sf.shipping']);
 function onField(e, isInput) {
   const f = e.target.dataset.f ?? '';

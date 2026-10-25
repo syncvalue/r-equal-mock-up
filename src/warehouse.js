@@ -4,7 +4,7 @@
 // 倉庫間の移動（transfers）は warehouseTransfer.js。移動中の商品は「輸送中」になり、どちらの倉庫の在庫にも数えない。
 // 状態（state）は { units: 入庫データ, records: 出品・売却の記録（商品No.→記録）, returns: 返品の記録, transfers: 移動の記録 }。操作はすべて新しい state を返す。
 import { WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY } from './store.js';
-import { loadUnits } from './stock.js';
+import { loadUnits, SEAL_COLORS, sealColorOf } from './stock.js';
 import { dateKey } from './workday.js';
 import { warehouseIdOf } from './warehouseMaster.js';
 
@@ -92,6 +92,39 @@ export function buildRows({ units, records, returns, transfers = [] }, now = Dat
   });
 }
 
+// ---- シールの貼り替え -------------------------------------------------------------
+// シールの色が変わる（間違えていた）と、シールそのものが別になるため、商品のシールNo.（ID）も新しくなる。古いNo.・色は unit.relabels に残す。
+// 貼り替えられるのは、入庫前・所在不明・在庫の商品だけ。reason: unknown／badCode／sameCode／dupCode／badColor／notRelabelable
+export function relabelUnit(state, code, { newCode, color, by = '', at = Date.now() }) {
+  const unit = state.units.find((u) => u.code === code);
+  if (!unit) return fail(state, 'unknown');
+  const next = String(newCode ?? '').trim().toUpperCase();
+  if (!next) return fail(state, 'badCode');
+  if (next === code) return fail(state, 'sameCode');
+  if (state.units.some((u) => u.code === next || (u.relabels ?? []).some((r) => r.from === next))) return fail(state, 'dupCode');
+  if (!SEAL_COLORS.some((c) => c.key === color)) return fail(state, 'badColor');
+  if (!['incoming', 'missing', 'stock'].includes(rowOf(state, code, at).stage)) return fail(state, 'notRelabelable');
+  const swap = (c) => (c === code ? next : c);
+  const entry = { from: code, to: next, fromColor: unit.sealColor ?? null, toColor: color, by, at };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      units: state.units.map((u) => (u.code === code ? { ...u, code: next, sealColor: color, relabels: [...(u.relabels ?? []), entry] } : u)),
+      records: Object.fromEntries(Object.entries(state.records).map(([k, v]) => [swap(k), v])),
+      returns: state.returns.map((r) => ({ ...r, codes: r.codes.map(swap) })),
+      transfers: (state.transfers ?? []).map((t) => ({ ...t, codes: t.codes.map(swap) })),
+    },
+  };
+}
+
+// 貼り替え済みの古いシールNo.なら、{ from, to: いまのNo. }。そうでなければ null（読み取ったとき、新しいNo.を知らせる）
+export function replacedCode(units, raw) {
+  const from = String(raw ?? '').trim().toUpperCase();
+  const unit = from ? units.find((u) => (u.relabels ?? []).some((r) => r.from === from)) : null;
+  return unit ? { from, to: unit.code } : null;
+}
+
 // 倉庫で絞り込む（scope は 'all' か倉庫ID）。倉庫の在庫は、その倉庫に入庫した商品。入庫前の商品は、どの倉庫にも属さない
 export function scopeState(state, scope, master) {
   if (scope === 'all') return state;
@@ -151,6 +184,7 @@ export function historyOf({ units, records, returns, transfers = [] }, code) {
     events.push({ at: rec.listedAt, label: ch?.consign ? '委託' : '出品', detail: `${target}／${yen(rec.listPrice)}${rec.listedBy ? `／${rec.listedBy}` : ''}` });
     if (rec.stage === 'sold') events.push({ at: rec.soldAt, label: '売却', detail: `${yen(rec.soldPrice)}／手数料 ${yen(rec.fee)}・送料 ${yen(rec.shipping)}${rec.soldBy ? `／${rec.soldBy}` : ''}` });
   }
+  (unit.relabels ?? []).forEach((r) => events.push({ at: r.at, label: 'シール貼り替え', detail: `${r.from}（${sealColorOf(r.fromColor)?.label ?? '未選択'}）→ ${r.to}（${sealColorOf(r.toColor)?.label ?? '未選択'}）${r.by ? `／${r.by}` : ''}` }));
   transfers.filter((t) => t.codes.includes(code) && t.status !== 'cancelled').forEach((t) => {
     events.push({ at: t.sentAt, label: '移動（送付）', detail: `${t.fromName} → ${t.toName}／${t.sentBy}` });
     if (t.status === 'received') events.push({ at: t.receivedAt, label: '移動（受取）', detail: `${t.toName}／${t.location}／${t.receivedBy}` });

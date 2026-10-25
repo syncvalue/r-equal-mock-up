@@ -5,6 +5,7 @@ import { userById } from '../src/dashboard.js';
 import { destinationProblem } from '../src/warehouseMaster.js';
 import { yen, esc } from '../src/format.js';
 import { badge, md, mdTime, sealBadge } from './ui.js';
+import { relabelForm } from './relabelForm.js';
 
 const TAG = { pending: badge('bg-amber-100 text-amber-800', '入庫待ち'), missing: badge('bg-rose-100 text-rose-700', '所在不明'), stored: badge('bg-emerald-100 text-emerald-800', '入庫済み') };
 const salesName = (id) => userById(id)?.name ?? id;
@@ -31,7 +32,7 @@ const checkInfo = (u) => (u.check
 // 納入先の規則: 高額品は本社で、高額品以外は倉庫で入庫する（自分の倉庫で入庫できない商品は、☑できない）
 const PROBLEM_TEXT = { highToHonsha: '高額品 → 本社で入庫', normalToWarehouse: '高額品以外 → 倉庫で入庫' };
 
-function contractCard(units, rc, warehouse, master) {
+function contractCard(units, rc, rl, warehouse, master) {
   const first = units[0];
   const todo = units.filter((u) => u.status !== 'stored');
   const actionable = todo.filter((u) => !destinationProblem(master, u, warehouse.id));
@@ -44,7 +45,7 @@ function contractCard(units, rc, warehouse, master) {
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500"><th>☑ 明細と一致</th><th>シールNo.</th><th>商品</th><th>ランク</th><th class="text-right">買取額</th><th>状態</th><th>照合・保管場所</th></tr></thead><tbody>${units.map((u) => `<tr class="border-t ${u.status === 'stored' ? 'text-slate-400' : ''}">
       <td>${u.status === 'stored' ? '' : destinationProblem(master, u, warehouse.id) ? `<span class="text-xs text-amber-700 font-bold whitespace-normal">${PROBLEM_TEXT[destinationProblem(master, u, warehouse.id)]}</span>` : `<input type="checkbox" class="w-5 h-5" data-rc-check="${esc(u.code)}" ${rc.checks.includes(u.code) ? 'checked' : ''} aria-label="${esc(u.name)}を明細と照合した" />`}</td>
       <td class="font-mono text-xs">${esc(u.code)}</td><td class="font-bold">${esc(u.name)}<div class="text-xs font-normal">${esc(u.category)} ${sealBadge(u)}</div></td><td>${esc(u.rank)}</td><td class="text-right">${yen(u.price)}</td>
-      <td>${TAG[u.status]}</td><td class="text-xs !whitespace-normal">${u.status === 'stored' ? `📍 ${esc(u.location)}<div>${checkInfo(u)}</div>` : ''}</td></tr>`).join('')}</tbody></table>
+      <td>${TAG[u.status]}</td><td class="text-xs !whitespace-normal">${u.status === 'stored' ? `📍 ${esc(u.location)}<div>${checkInfo(u)}</div>` : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-rl-open="${esc(u.code)}">シール貼り替え</button>`}</td></tr>${rl.code === u.code ? `<tr><td colspan="7">${relabelForm(rl, u)}</td></tr>` : ''}`).join('')}</tbody></table>
     ${actionable.length ? `<div class="flex flex-wrap items-center gap-2">
       <button class="b b-sec !min-h-0 !py-1.5 !px-3 text-sm" data-rc-all="${esc(first.visitId)}">${checked.length === actionable.length ? '☑をすべて外す' : '残りをすべて☑'}</button>
       <button class="b b-pri !min-h-0 !py-1.5 !px-3 text-sm" data-rc-visit="${esc(first.visitId)}" ${checked.length ? '' : 'disabled'}>☑した${checked.length}点を入庫（${esc(rc.location.replace(/（.*/, ''))}）</button>
@@ -52,7 +53,7 @@ function contractCard(units, rc, warehouse, master) {
   </div>`;
 }
 
-export function receiveTab({ units }, { rc }, warehouse, master) {
+export function receiveTab({ units }, { rc, rl }, warehouse, master) {
   const todo = units.filter((u) => u.status !== 'stored');
   const visits = [...new Set(todo.map((u) => u.visitId))];
   const contracts = visits.map((v) => units.filter((u) => u.visitId === v)).sort((a, b) => b[0].at - a[0].at);
@@ -60,6 +61,6 @@ export function receiveTab({ units }, { rc }, warehouse, master) {
     <section class="rounded-xl border bg-white p-4 space-y-3">
       <h2 class="font-bold text-lg">入庫待ちの契約（${contracts.length}件）</h2>
       <p class="text-xs text-slate-500">契約書（明細）と、届いた商品を見比べて、一致した商品に☑を付けてから入庫します。☑は、誰がいつ付けたかが、商品の記録に残ります。</p>
-      ${contracts.length ? contracts.map((c) => contractCard(c, rc, warehouse, master)).join('') : '<p class="text-sm text-slate-500 py-8 text-center">入庫待ちの商品はありません。</p>'}
+      ${contracts.length ? contracts.map((c) => contractCard(c, rc, rl, warehouse, master)).join('') : '<p class="text-sm text-slate-500 py-8 text-center">入庫待ちの商品はありません。</p>'}
     </section></div>`;
 }
