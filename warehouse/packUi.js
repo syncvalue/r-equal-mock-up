@@ -140,7 +140,7 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
         <span class="text-xs text-slate-500">${tx.listHint}</span></div></div>
 
     <div class="space-y-2">${step(4, `発送伝票・CSVを出力して、${consign ? '委託' : '発送'}`)}
-      ${problems.length ? `<div class="rounded bg-amber-50 border border-amber-300 p-2 text-xs text-amber-800">伝票・CSVに必要な情報が足りません: ${problems.map(esc).join('、')}。「🏭 倉庫マスタ」で登録してください。</div>` : ''}
+      ${problems.length ? `<div class="rounded bg-amber-50 border border-amber-300 p-2 text-xs text-amber-800">伝票・CSVに必要な情報が足りません: ${problems.map(esc).join('、')}。「マスタ管理」の倉庫で登録してください。</div>` : ''}
       <div class="flex flex-wrap items-center gap-3"><button class="b b-pri" data-pk-print-label ${ready ? '' : 'disabled'}>🖨 発送伝票を出力（印刷）</button>${tick(pack.labelPrintedAt, '発送伝票')}
         ${c?.csvLabel ? `<button class="b b-sec" data-pk-csv="${c.key}" ${ready ? '' : 'disabled'}>⬇ CSV出力（${esc(c.csvLabel)}）</button>` : ''}</div>
       <p class="text-xs text-slate-500">配送業者のシステム（${CARRIERS.filter((x) => x.csvLabel).map((x) => esc(x.label)).join('・')}）には、CSVを取り込んで送り状を出力します。CSVの列は、仮の並びです（実際の取込形式に合わせて調整します）。</p>

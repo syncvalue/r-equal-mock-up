@@ -1,10 +1,10 @@
-// ユーザー管理画面の表示（画面に依存しない純関数）。状態は引数で受け取り、HTML文字列を返す。
+// マスタ管理「ユーザー」パネルの表示（画面に依存しない純関数）。状態は引数で受け取り、HTML文字列を返す。
 import { ROLES, roleLabel, isReadOnlyRole, filterUsers, countByRole } from '../src/users.js';
 import { GROUPS } from '../src/dashboard.js';
 import { areaById, areaOfUser } from '../src/dispatch.js';
 import { esc } from '../src/format.js';
 
-export const REASON_TEXT = {
+export const USER_REASON_TEXT = {
   badRole: '役割を選んでください', readOnly: '営業は、ここでは登録・変更できません（参照のみです）', notFound: '対象のユーザーが見つかりません', roleLocked: '役割は、登録したあとは変えられません（別の役割にするときは、新しく登録してください）',
   noName: '氏名を入力してください', badLoginId: 'ログインIDは、英数字・ハイフン・アンダースコアの3〜20文字にしてください', dupLoginId: '同じログインIDのユーザーがすでにいます',
   noWarehouse: '所属する倉庫を選んでください', noGroup: '担当するグループを、1つ以上選んでください', lastActive: 'この役割で有効なユーザーが、いなくなってしまうため、無効にできません（先に、別のユーザーを登録してください）',
@@ -63,16 +63,12 @@ function formHtml({ warehouses, ui }) {
   </section>`;
 }
 
-export function usersHtml(ctx) {
-  const { users, ui } = ctx; // ctx.themeHtml: 画面の切り替えボタン（画面側で渡す）
+export function usersPanelHtml(ctx) {
+  const { users, ui } = ctx;
   const counts = countByRole(users);
   const tab = (key, label) => `<button class="b !min-h-0 !py-1.5 !px-3 text-sm ${ui.role === key ? 'on' : 'b-sec'}" data-role="${key}">${esc(label)} <b>${counts[key || 'all']}</b></button>`;
-  return `<header class="bg-teal-800 text-white px-6 h-[52px] flex justify-between items-center">
-    <div class="font-bold text-xl">👥 ユーザー管理 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm flex items-center gap-3"><a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">画面一覧</a><button class="text-xs underline text-white/70" data-reset>初期値に戻す</button>${ctx.themeHtml ?? ''}</div>
-  </header>
-  <main class="max-w-6xl mx-auto p-4 space-y-4 overflow-y-auto" style="height:calc(100vh - 52px)">
-    <section class="rounded-xl border bg-white p-4 space-y-3">
+  return `<section class="rounded-xl border bg-white p-4 space-y-3">
+      <h2 class="font-bold text-lg">👥 ユーザー（${users.filter((u) => u.active).length}名）</h2>
       <p class="text-xs text-slate-500">ユーザーは、このシステムを使う社内の人です。役割はひとつで、使う画面が決まります。倉庫担当・オペレーター・査定員は、ここで登録した人が、各画面に反映されます。</p>
       <details class="text-xs text-slate-600"><summary class="cursor-pointer font-bold">役割と、使う画面</summary>
         <ul class="mt-1 grid sm:grid-cols-2 gap-x-6">${ROLES.map((r) => `<li><b>${esc(r.label)}</b> … ${esc(r.where)}</li>`).join('')}</ul></details>
@@ -85,6 +81,5 @@ export function usersHtml(ctx) {
       ${ui.role === 'sales' ? '<p class="rounded bg-amber-50 border border-amber-300 text-amber-900 text-xs p-2">営業は、業績・担当エリア・始業終業などの記録が、各画面に固定されていて、まだこの名簿とつながっていないため、ここでは参照のみです（登録・変更は、各画面とつなぐときに対応します）。</p>' : ''}
       <div data-list>${listHtml(ctx)}</div>
     </section>
-    ${formHtml(ctx)}
-  </main>`;
+    ${formHtml(ctx)}`;
 }

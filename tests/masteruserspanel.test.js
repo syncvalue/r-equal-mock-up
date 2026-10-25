@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { usersHtml, listHtml, blankForm, formFromUser, REASON_TEXT } = await import('../users/view.js');
+const { usersPanelHtml: usersHtml, listHtml, blankForm, formFromUser } = await import('../master/usersPanel.js');
+const { REASON_TEXT } = await import('../master/view.js');
 const { DEFAULT_USERS, saveUser, setUserActive } = await import('../src/users.js');
 const { DEFAULT_MASTER } = await import('../src/warehouseMaster.js');
 
@@ -92,7 +93,7 @@ test('エラーの文言: 保存・無効化で返る理由すべてに、利用
   assert.equal(reasons.size, 10);
 });
 
-test('画面: 描画できる。役割ごとの使う画面の説明がある', () => {
+test('パネル: 描画できる。役割ごとの使う画面の説明がある', () => {
   const t = text(usersHtml(base));
-  assert.ok(t.includes('ユーザー管理') && t.includes('営業タブレット') && t.includes('本社 査定部') && t.includes('倉庫・物流'));
+  assert.ok(t.includes('ユーザー') && t.includes('営業タブレット') && t.includes('本社 査定部') && t.includes('倉庫・物流'));
 });

@@ -6,7 +6,7 @@ export const GROUPS = [
   { id: 'B', name: 'グループB（西日本）' },
 ];
 
-// ※ここでの USERS／userId は営業だけを指す（歴史的な名前）。ユーザー管理の名簿は src/users.js
+// ※ここでの USERS／userId は営業だけを指す（歴史的な名前）。マスタ管理のユーザーの名簿は src/users.js
 // role: leader = グループリーダー（グループ全員の業績を閲覧可）／member = 一般（自分の業績のみ）
 // target: 月間の買取金額目標, skill: 成約しやすさ, base: 1契約あたりの平均買取額（ダミーデータ生成用）
 export const USERS = [

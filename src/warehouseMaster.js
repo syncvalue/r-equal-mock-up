@@ -1,6 +1,6 @@
 // 倉庫のマスタ。倉庫は営業所とは独立した施設で、営業所と一体の倉庫・倉庫のみ・倉庫のない営業所（営業のみ）がある。
-// 倉庫担当（master.staff）は、ユーザー管理の「倉庫担当」から読み込む（登録・所属変更・有効/無効はユーザー管理）。商品は、入庫した倉庫に保管される。操作はすべて新しいマスタを返す。
-import { AREAS } from './dispatch.js';
+// 倉庫担当（master.staff）は、マスタ管理のユーザー（倉庫担当）から読み込む（登録・所属変更・有効/無効はユーザー管理）。商品は、入庫した倉庫に保管される。操作はすべて新しいマスタを返す。
+import { loadOffices, officeName as officeNameOf } from './offices.js';
 import { LOCATIONS, SEAL_COLORS } from './stock.js';
 import { DEFAULT_USERS, loadUsers, warehouseStaffOf } from './users.js';
 
@@ -37,7 +37,7 @@ export function loadMaster() {
 
 export function saveMaster(master) {
   try {
-    const { staff, ...rest } = master; // 倉庫担当は、ユーザー管理が持つ
+    const { staff, ...rest } = master; // 倉庫担当は、ユーザー（src/users.js）が持つ
     localStorage.setItem(MASTER_KEY, JSON.stringify(rest));
     return true;
   } catch {
@@ -48,7 +48,7 @@ export function saveMaster(master) {
 export const warehouseById = (master, id) => master.warehouses.find((w) => w.id === id) ?? null;
 export const activeWarehouses = (master) => master.warehouses.filter((w) => w.active);
 export const staffOf = (master, warehouseId) => master.staff.filter((s) => s.warehouseId === warehouseId);
-export const officeName = (officeId) => AREAS.find((a) => a.id === officeId)?.name.replace('エリア', '') ?? '';
+export const officeName = (officeId) => officeNameOf(officeId); // 営業所マスタから引く
 
 // 営業所に併設の倉庫を優先し、なければ先頭の有効な倉庫（営業が入庫するときの、納入先の初期値）
 export const defaultWarehouseFor = (master, officeId) => {
@@ -87,14 +87,14 @@ const fail = (master, reason) => ({ ok: false, master, reason });
 const replaceAt = (list, id, item) => list.map((x) => (x.id === id ? item : x));
 
 // 倉庫の登録・更新（id があれば更新）。zip・phone は、発送伝票・CSVの住所に使う。reason: noName／noLocations／badOffice／badZip／dupName／dupHonsha／notFound
-export function saveWarehouse(master, { id, name, address = '', zip, phone, officeId = '', locations, active, highValue }) {
+export function saveWarehouse(master, { id, name, address = '', zip, phone, officeId = '', locations, active, highValue }, { officeIds = loadOffices().map((o) => o.id) } = {}) {
   const n = String(name ?? '').trim();
   const locs = toList(locations);
   const old = id ? warehouseById(master, id) : null;
   if (id && !old) return fail(master, 'notFound');
   if (!n) return fail(master, 'noName');
   if (!locs.length) return fail(master, 'noLocations');
-  if (officeId && !AREAS.some((a) => a.id === officeId)) return fail(master, 'badOffice');
+  if (officeId && !officeIds.includes(officeId)) return fail(master, 'badOffice');
   const z = zip === undefined ? old?.zip ?? '' : String(zip).trim().replace(/^(\d{3})(\d{4})$/, '$1-$2');
   if (z && !/^\d{3}-\d{4}$/.test(z)) return fail(master, 'badZip');
   if (master.warehouses.some((w) => w.name === n && w.id !== id)) return fail(master, 'dupName');

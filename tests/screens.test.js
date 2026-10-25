@@ -22,10 +22,10 @@ test('本社 経理部の画面は、描画できる（サンプルデータ入�
   assert.ok(root.innerHTML.includes('本社 経理部') && root.innerHTML.includes('所持金の確認') && root.innerHTML.includes('鈴木 一郎'));
 });
 
-test('ユーザー管理の画面は、描画できる。ユーザー一覧と、役割ごとの人数が出る', async () => {
+test('マスタ管理の画面は、描画できる。ユーザー・営業所・倉庫・委託先の各マスタを切り替えて表示できる', async () => {
   root.innerHTML = '';
-  await import('../users/users.js');
-  assert.ok(root.innerHTML.includes('ユーザー管理') && root.innerHTML.includes('鈴木 一郎') && root.innerHTML.includes('小川 直樹') && root.innerHTML.includes('data-new'));
+  await import('../master/master.js');
+  assert.ok(root.innerHTML.includes('マスタ管理') && root.innerHTML.includes('鈴木 一郎') && root.innerHTML.includes('小川 直樹') && root.innerHTML.includes('data-new'));
 });
 
 globalThis.sessionStorage = { getItem: (k) => (k === 'rq-mock-wh-session' ? 'wh01' : null), setItem() {}, removeItem() {} }; // 倉庫担当としてログイン済み
@@ -36,6 +36,6 @@ test('倉庫・物流の画面は、描画できる（サンプルデータ入�
   assert.ok(root.innerHTML.includes('倉庫・物流') && root.innerHTML.includes('商品管理') && root.innerHTML.includes('ルイ・ヴィトン ネヴァーフル MM'));
   const { TABS, menuView } = await import('../warehouse/menu.js'); // 各画面へは、左側の開閉式メニューから移動する
   const menu = menuView({ tab: 'stock', badges: {}, staff: { name: '小川 直樹' }, warehouseName: '大阪倉庫' });
-  for (const label of ['商品管理', '入庫', '倉庫間移動', '販売（出品）', '売上管理', 'クーリングオフ返品', '倉庫マスタ']) assert.ok(TABS.some((t) => t.label === label) && menu.includes(label), label);
+  for (const label of ['商品管理', '入庫', '倉庫間移動', '販売（出品）', '売上管理', 'クーリングオフ返品']) assert.ok(TABS.some((t) => t.label === label) && menu.includes(label), label);
   assert.ok(!root.innerHTML.includes('メインメニュー')); // 初めは、メニューは閉じている
 });

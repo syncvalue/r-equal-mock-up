@@ -55,7 +55,7 @@ test('倉庫の更新: idを指定すると、その倉庫を直す（自分自�
   assert.equal(M.saveWarehouse(m, { id: 'nope', name: 'q', locations: 'X' }).reason, 'notFound');
 });
 
-test('倉庫担当は、ユーザー管理の倉庫担当から読み込む。倉庫マスタには保存しない（登録・所属変更・有効/無効はユーザー管理）', async () => {
+test('倉庫担当は、マスタ管理のユーザー（倉庫担当）から読み込む。倉庫マスタには保存しない（登録・所属変更・有効/無効はユーザー管理）', async () => {
   const U = await import('../src/users.js');
   assert.deepEqual(M.loadMaster().staff, U.warehouseStaffOf(U.DEFAULT_USERS));
   const added = U.saveUser(U.loadUsers(), { loginId: 'wh09', name: '新人 太郎', role: 'warehouse', warehouseId: 'W-KANTO' }, { warehouseIds: ['W-KANTO'] });
@@ -207,4 +207,16 @@ test('委託先（業者）のマスタ: 名前・郵便番号・住所・電話
 test('古い保存データ: 委託先がなければ、初期の委託先を補う', () => {
   mem.set('rq-mock-warehouse-master', JSON.stringify({ warehouses: HM.warehouses, staff: HM.staff, highValue: HM.highValue }));
   assert.equal(M.loadMaster().vendors.length, HM.vendors.length);
+});
+
+test('営業所との関係: 営業所マスタで登録した営業所も指定できる（指定しなければ、初期の営業所）。名前は営業所マスタから引く', async () => {
+  const m = M.DEFAULT_MASTER;
+  assert.equal(M.saveWarehouse(m, { name: '名古屋倉庫', officeId: 'O-NEW', locations: 'A' }).reason, 'badOffice');
+  assert.equal(M.saveWarehouse(m, { name: '名古屋倉庫', officeId: 'O-NEW', locations: 'A' }, { officeIds: ['O-NEW'] }).ok, true);
+  const { saveOffice, saveOffices, DEFAULT_OFFICES } = await import('../src/offices.js');
+  const added = saveOffice(DEFAULT_OFFICES, { id: undefined, name: '福岡', prefs: '福岡県' }).offices;
+  saveOffices(added);
+  assert.equal(M.officeName(added.at(-1).id), '福岡');
+  mem.delete('rq-mock-offices');
+  assert.equal(M.officeName('osaka'), '大阪');
 });

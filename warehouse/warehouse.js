@@ -1,10 +1,10 @@
 // 倉庫・物流デスク画面（ダミー・PC想定）。商品の管理、販売（出品）、売上管理、クーリングオフによる返品の対応。
 import { STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY } from '../src/store.js';
 import {
-  MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveVendor, setVendorActive, vendorById, saveHighValueRule, destinationProblem, setWarehouseActive, warehouseById, warehouseIdOf,
+  MASTER_KEY, loadMaster, destinationProblem, warehouseById, warehouseIdOf,
 } from '../src/warehouseMaster.js';
 import {
-  loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, answerInquiry, isOpenReturn, shipReturn, completeReturn, addReturnMessage, returnAlerts, suggestPrice, scopeState, holdingByWarehouse,
+  loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, answerInquiry, isOpenReturn, shipReturn, completeReturn, addReturnMessage, returnAlerts, suggestPrice, scopeState,
 } from '../src/warehouse.js';
 import { loadUnits, saveUnits, receive, receiveCodes, resultMessage, setUnitPhoto, clearUnitPhoto } from '../src/stock.js';
 import { shrinkImage, productPhoto } from '../src/image.js';
@@ -18,7 +18,6 @@ import { listTab } from './listTab.js';
 import { salesTab } from './salesTab.js';
 import { returnTab } from './returnTab.js';
 import { receiveTab } from './receiveTab.js';
-import { masterTab } from './masterTab.js';
 import { menuView, tabLabel } from './menu.js';
 import { transferTab } from './transferTab.js';
 import {
@@ -34,10 +33,6 @@ import { openMockCamera } from './camera.js';
 const $ = (s) => document.querySelector(s);
 const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' });
 const blankSell = () => ({ code: '', price: 0, shipping: 0, buyer: '' });
-const MASTER_TEXT = {
-  dupHonsha: '本社（高額品の保管先）は、すでに登録されています（1か所だけです）', noRule: '本社に納入するシールの色を、1つ以上選んでください', badColor: 'シールの色が正しくありません', noName: '名前を入力してください', noLocations: '保管場所（棚）を1つ以上入力してください', badOffice: '営業所の指定が正しくありません', badZip: '郵便番号は、123-4567 の形式で入力してください', dupName: '同じ名前の倉庫がすでにあります', notFound: '対象が見つかりません',
-  inUse: 'この倉庫には、保管中の商品（在庫・出品中・委託中・返品対応中）があるため、無効にできません', hasStaff: 'この倉庫には有効な倉庫担当がいるため、無効にできません（ユーザー管理で、倉庫担当を別の倉庫に移すか、無効にしてください）',
-};
 const REASON_TEXT = { notListable: '出品できない商品です（クーリングオフ期間中・返品対応中など）', badInput: '販売先と、1円以上の価格を入力してください', notListed: '出品中の商品ではありません', alreadySold: 'すでに売却済みです', notShipped: '返送済みにしてから完了してください' };
 
 let tab = 'stock';
@@ -45,9 +40,7 @@ let menuOpen = false; // 左側のメニューの開閉
 let staff = loadSession(); // ログイン中の倉庫担当（操作した人として記録する。所属する倉庫が、入庫先・表示の初期値になる）
 let loginError = '';
 const blankPk = () => ({ id: '', toId: '', q: '', last: null, tracking: '', bName: '', bZip: '', bAddress: '', bPhone: '' }); // 送るパックの作業（開いているパック）
-const blankWh = () => ({ id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false });
-const blankVendor = () => ({ id: '', name: '', zip: '', address: '', phone: '' });
-const ui = { mv: blankVendor(), rl: { code: '', newCode: '', color: '' }, hv: null, pk: blankPk(), tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rt: { q: '', filter: 'all', open: '', draft: {} } };
+const ui = { rl: { code: '', newCode: '', color: '' }, pk: blankPk(), tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rt: { q: '', filter: 'all', open: '', draft: {} } };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();
@@ -65,7 +58,6 @@ const tabBody = (full, now) => {
   if (tab === 'list') return ownNotice + listTab({ ...own, rows: buildRows(own, now) }, ui, now, { full, master, me: staff });
   if (tab === 'sales') return salesTab(full, master, ui, staff, now);
   if (tab === 'return') return `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">ここで扱えるのは、あなたの倉庫（${esc(myWarehouse().name)}）の商品の依頼だけです。依頼は、コールセンターの「クーリングオフ」タブで受電して作ります。</div>${returnTab(own, ui, now, { full, master })}`;
-  if (tab === 'master') return masterTab({ master, holding: holdingByWarehouse(full, master, now) }, ui, staff);
   return stockTab(data, ui);
 };
 
@@ -91,7 +83,7 @@ function render() {
   <header class="bg-sky-900 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${menuBadge ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
       <span class="font-bold text-xl">倉庫・物流</span><span class="text-slate-300">›</span><span class="font-bold">${esc(tabLabel(tab))}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${['stock', 'master'].includes(tab) ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter(isOpenReturn).length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
+    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${tab === 'stock' ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter(isOpenReturn).length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${tabBody(full, now)}</main>${menuOpen ? menuView({ tab, badges, staff, warehouseName: wh.name }) : ''}</div>`;
   const chat = $('#ret-chat');
@@ -301,7 +293,7 @@ function packPrint(kind) {
   const pack = packOf(state, ui.pk.id);
   if (kind === 'label') {
     const problems = addressProblems(pack, master);
-    if (problems.length) return alert(`発送伝票に必要な情報が足りません。\n・${problems.join('\n・')}\n「倉庫マスタ」で登録してください。`);
+    if (problems.length) return alert(`発送伝票に必要な情報が足りません。\n・${problems.join('\n・')}\n「マスタ管理」の倉庫で登録してください。`);
   }
   const html = kind === 'list' ? packingListHtml(pack, state.units, master) : shippingLabelHtml(pack, state.units, master);
   if (!openPrintWindow(html)) return alert('印刷用のウィンドウを開けませんでした（ポップアップがブロックされています）');
@@ -310,7 +302,7 @@ function packPrint(kind) {
 function packCsv(carrierKey, packs) {
   const state = loadState();
   const problems = packs.flatMap((p) => addressProblems(p, master));
-  if (problems.length) return alert(`CSVに必要な情報が足りません。\n・${[...new Set(problems)].join('\n・')}\n「倉庫マスタ」で登録してください。`);
+  if (problems.length) return alert(`CSVに必要な情報が足りません。\n・${[...new Set(problems)].join('\n・')}\n「マスタ管理」の倉庫で登録してください。`);
   downloadText(csvFileName(carrierKey), shippingCsv(carrierKey, packs, state.units, master));
   commit(packs.reduce((acc, p) => markPrinted(acc, p.id, 'label'), state)); // CSVを取り込んで、配送業者の送り状を出力する＝発送伝票の出力
 }
@@ -363,27 +355,6 @@ function cancelItems(id) {
   commit(r.state);
 }
 
-// ---- 倉庫マスタ -------------------------------------------------------------------
-function commitMaster(next) { if (!saveMaster(next)) alert('保存できませんでした（容量超過）'); }
-function saveWh() {
-  const r = saveWarehouse(master, { ...ui.mw, id: ui.mw.id || undefined });
-  if (!r.ok) return alert(MASTER_TEXT[r.reason]);
-  commitMaster(r.master);
-  ui.mw = blankWh();
-}
-function toggleWh(id) {
-  const w = warehouseById(master, id);
-  const holding = holdingByWarehouse(loadState(), master)[id]?.count ?? 0;
-  const r = setWarehouseActive(master, id, !w.active, { holding });
-  if (!r.ok) return alert(MASTER_TEXT[r.reason]);
-  commitMaster(r.master);
-}
-function saveVd() {
-  const r = saveVendor(master, { ...ui.mv, id: ui.mv.id || undefined });
-  if (!r.ok) return alert(MASTER_TEXT[r.reason]);
-  commitMaster(r.master);
-  ui.mv = blankVendor();
-}
 function doLogin() {
   const r = login($('[data-login-id]')?.value, $('[data-login-pw]')?.value, loadMaster());
   loginError = r.ok ? '' : r.error;
@@ -399,20 +370,6 @@ const ACTIONS = {
   page: (v) => { ui.page = Number(v); },
   camSearch: () => { openCamera('search'); return false; },
   camReceive: () => { openCamera('receive'); return false; },
-  mwSave: saveWh,
-  mwEdit: (v) => { const w = warehouseById(master, v); ui.mw = { id: w.id, name: w.name, zip: w.zip ?? '', address: w.address, phone: w.phone ?? '', officeId: w.officeId, locations: w.locations.join('\n'), highValue: Boolean(w.highValue) }; },
-  hvSave: () => {
-    const r = saveHighValueRule(master, { colors: ui.hv ?? master.highValue.colors });
-    if (!r.ok) return alert(MASTER_TEXT[r.reason]);
-    commitMaster(r.master);
-    ui.hv = null;
-  },
-  mwCancel: () => { ui.mw = blankWh(); },
-  mwToggle: toggleWh,
-  mvSave: saveVd,
-  mvEdit: (v) => { const x = vendorById(master, v); ui.mv = { id: x.id, name: x.name, zip: x.zip ?? '', address: x.address ?? '', phone: x.phone ?? '' }; },
-  mvCancel: () => { ui.mv = blankVendor(); },
-  mvToggle: (v) => { const x = vendorById(master, v); const r = setVendorActive(master, v, !x.active); if (r.ok) commitMaster(r.master); },
   trReceive: receiveItems,
   trCancel: cancelItems,
   salesScope: (v) => { ui.salesScope = v; },
@@ -494,7 +451,7 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = { mv: () => ui.mv, rl: () => ui.rl, pk: () => ui.pk, lf: () => ui.lf, sf: () => ui.sf, mw: () => ui.mw };
+const FORMS = { rl: () => ui.rl, pk: () => ui.pk, lf: () => ui.lf, sf: () => ui.sf };
 const MONEY = new Set(['lf.price', 'sf.price', 'sf.shipping']);
 function onField(e, isInput) {
   const f = e.target.dataset.f ?? '';
@@ -544,6 +501,35 @@ document.addEventListener('input', (e) => {
     return;
   }
   if (e.target.matches?.('[data-pk-tracking]')) { ui.pk = { ...ui.pk, tracking: e.target.value }; return; }
+  if (e.target.matches?.('[data-pk-price-input]')) return void formatMoneyInput(e.target);
+  if (e.target.matches?.('[data-pk-q]')) {
+    ui.pk = { ...ui.pk, q: e.target.value };
+    render();
+    const el = $('[data-pk-q]');
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    return;
+  }
+  if (e.target.matches('[data-reprice-input]')) return void formatMoneyInput(e.target);
+  if (e.target.matches('[data-q]')) {
+    ui.q = e.target.value;
+    ui.page = 1;
+    render();
+    const q = $('[data-q]');
+    q.focus();
+    q.setSelectionRange(q.value.length, q.value.length);
+    return;
+  }
+  onField(e, true);
+});
+document.addEventListener('change', (e) => {
+  if (e.target.matches?.('[data-photo-file]')) { // 商品の写真を撮影・選択して登録する
+    const file = e.target.files?.[0];
+    const code = e.target.dataset.photoFile;
+    if (file) shrinkImage(file).then((img) => registerPhoto(code, img)).catch(() => alert('画像を読み込めませんでした'));
+    return;
+  }
+  if (e.target.matches?.('[data-page-size]')) { ui.pageSize = Number(e.target.value); ui.page = 1; render(); return; }
   if (e.target.matches?.('[data-pk-price-input]')) return void formatMoneyInput(e.target);
   if (e.target.matches?.('[data-pk-q]')) {
     ui.pk = { ...ui.pk, q: e.target.value };

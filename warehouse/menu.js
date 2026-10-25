@@ -8,7 +8,6 @@ export const TABS = [
   { key: 'list', icon: '🛒', label: '販売（出品）', sub: '出品・委託・売却の登録' },
   { key: 'sales', icon: '💹', label: '売上管理', sub: '売上・利益（会社全体も）' },
   { key: 'return', icon: '↩', label: 'クーリングオフ返品', sub: '依頼の一覧・やり取り・回答・返送' },
-  { key: 'master', icon: '🏭', label: '倉庫マスタ', sub: '倉庫・倉庫担当・高額品の設定' },
 ];
 export const tabLabel = (key) => TABS.find((t) => t.key === key)?.label ?? '';
 
@@ -30,6 +29,9 @@ export function menuView({ tab, badges, staff, warehouseName }) {
           <span class="flex-1"><span class="block font-bold text-lg leading-tight">${t.label}</span><span class="text-xs text-slate-300">${t.sub}</span></span>
           ${badges[t.key] ? `<span class="text-xs font-bold rounded-full ${badge[t.key][0]} px-2 py-0.5 whitespace-nowrap">${badge[t.key][1]} ${badges[t.key]}</span>` : ''}
         </button>`).join('')}
+        <a class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] hover:bg-white/10 active:bg-white/20" href="/master/index.html" target="_blank" rel="noopener">
+          <span class="text-3xl">🗃</span><span class="flex-1"><span class="block font-bold text-lg leading-tight">マスタ管理</span><span class="text-xs text-slate-300">倉庫・委託先・営業所・ユーザー（別画面）</span></span>
+        </a>
       </div>
       <div class="px-5 py-3 border-t border-white/10 flex items-center justify-between gap-2"><span class="text-xs text-slate-400">${esc(staff.name)}（${esc(warehouseName)}）</span>
         <button class="rounded-lg border border-white/30 px-3 py-1.5 text-sm font-bold hover:bg-white/10" data-logout>ログアウト</button></div>
