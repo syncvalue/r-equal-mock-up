@@ -11,7 +11,7 @@ const PREFIX = 'RQ-WH';
 
 // 保管場所は、入庫した倉庫の棚から選ぶ
 // お客様ごとの入庫先の倉庫（大阪・関東・福岡に分かれる）
-const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
+const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '山口 拓海': 'W-KANTO', '西田 久美': 'W-FUKUOKA', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
 // 高額品（貴金属など）は納入のときから本社、それ以外はお客様ごとの倉庫
 const whOf = (customerName, item) => (item && isHighValue(item, MASTER) ? 'W-HONSHA' : WH_OF[customerName] ?? 'W-OSAKA');
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
@@ -64,10 +64,16 @@ export function buildSample(now = Date.now()) {
     ...purchase(1, 'u05', '吉田 浩', [['K18 ブレスレット', 'ジュエリー・貴金属', 'A', 38000], ['ダイヤ リング 0.5ct', 'ジュエリー・貴金属', 'A', 150000]], 'stored'), // 21・22（期間中）
     ...purchase(0, 'u11', '福田 美香', [['ルイ・ヴィトン ポシェット', 'ブランドバッグ', 'B', 32000], ['ハミルトン カーキ', '腕時計', 'C', 40000]], 'pending'), // 23・24（入庫待ち）
     ...purchase(11, 'u12', '松田 理恵', [['エルメス ケリー', 'ブランドバッグ', 'A', 280000], ['コーチ ショルダー', 'ブランドバッグ', 'B', 15000]]), // 25・26（倉庫間の移動の見本）
+    // 倉庫間の移動の見本（受け取り待ち・輸送中・履歴が、どの倉庫・本社でも見えるように）
+    ...purchase(15, 'u13', '西田 久美', [['グッチ マーモント', 'ブランドバッグ', 'A', 98000], ['ルイ・ヴィトン 長財布', '財布・小物', 'A', 45000], ['エルメス ツイリー', '財布・小物', 'S', 38000]]), // 27・28・29（福岡倉庫）
+    ...purchase(14, 'u14', '山口 拓海', [['キヤノン EOS R5 ボディ', 'カメラ・家電', 'A', 250000], ['オメガ スピードマスター', '腕時計', 'B', 280000], ['ニコン Z6III ボディ', 'カメラ・家電', 'A', 240000]]), // 30・31・32（関東倉庫）
+    ...purchase(13, 'u15', '村上 健', [['K18 ダイヤ ネックレス', 'ジュエリー・貴金属', 'A', 120000], ['ロレックス サブマリーナ', '腕時計', 'A', 650000], ['K18 ブレスレット', 'ジュエリー・貴金属', 'A', 90000]]), // 33・34・35（本社）
+    ...purchase(12, 'u16', '岩崎 真理', [['セリーヌ トリオンフ', 'ブランドバッグ', 'A', 88000], ['バーバリー マフラー', '財布・小物', 'B', 18000]]), // 36・37（大阪倉庫）
   ];
   units[22] = { ...units[22], status: 'missing', storedAt: null, location: null, by: null, check: null, warehouseId: undefined }; // 所在不明
 
   const code = (i) => units[i].code;
+  const R = (n) => `${PREFIX}R${String(n).padStart(3, '0')}`; // 色を貼り替えたあとの、新しいシールNo.
   const steps = [
     (s) => W.listItem(s, code(0), { channel: 'yahoo', price: 24000, at: at(38) }),
     (s) => W.sell(s, code(0), { price: 21000, shipping: 900, buyer: 'ヤフオク落札者', at: at(35) }), // 先月の売上
@@ -99,6 +105,25 @@ export function buildSample(now = Date.now()) {
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', codes: [code(25)], by: staffOfWh('W-OSAKA'), at: at(7) }),
     (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-KANTO', location: 'A棚（バッグ・小物）', by: staffOfWh('W-KANTO'), at: at(5) }),
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', codes: [code(26)], by: staffOfWh('W-OSAKA'), at: at(1) }),
+    (s) => W.relabelUnit(s, code(12), { newCode: R(1), color: 'red', by: staffOfWh('W-OSAKA'), at: at(8) }), // 赤のシールに貼り替え → 高額品なので本社へ
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-HONSHA', codes: [R(1)], by: staffOfWh('W-OSAKA'), at: at(7) }),
+    (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-HONSHA', location: '貴金属保管庫', by: staffOfWh('W-HONSHA'), at: at(6) }),
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-FUKUOKA', toId: 'W-OSAKA', codes: [code(29)], by: staffOfWh('W-FUKUOKA'), at: at(9) }),
+    (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-OSAKA', location: 'A棚（バッグ・小物）', by: staffOfWh('W-OSAKA'), at: at(8) }),
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-KANTO', toId: 'W-FUKUOKA', codes: [code(31)], by: staffOfWh('W-KANTO'), at: at(6) }),
+    (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-FUKUOKA', location: 'B棚', by: staffOfWh('W-FUKUOKA'), at: at(5) }),
+    (s) => W.relabelUnit(s, code(33), { newCode: R(2), color: 'other', by: staffOfWh('W-HONSHA'), at: at(6) }), // 赤を貼り間違えていた → 高額品ではないので倉庫へ
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-HONSHA', toId: 'W-KANTO', codes: [R(2)], by: staffOfWh('W-HONSHA'), at: at(5) }),
+    (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-KANTO', location: 'A棚（バッグ・小物）', by: staffOfWh('W-KANTO'), at: at(4) }),
+    // 輸送中（送った倉庫の「送った商品・輸送中」と、送り先の「受け取り待ち」に出る）
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-FUKUOKA', toId: 'W-OSAKA', codes: [code(27)], by: staffOfWh('W-FUKUOKA'), at: at(2) }),
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-KANTO', toId: 'W-OSAKA', codes: [code(30)], by: staffOfWh('W-KANTO'), at: at(1) }),
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-FUKUOKA', toId: 'W-KANTO', codes: [code(28)], by: staffOfWh('W-FUKUOKA'), at: at(2) }),
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-KANTO', toId: 'W-FUKUOKA', codes: [code(32)], by: staffOfWh('W-KANTO'), at: at(3) }),
+    (s) => W.relabelUnit(s, code(36), { newCode: R(3), color: 'red', by: staffOfWh('W-OSAKA'), at: at(2) }),
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-HONSHA', codes: [R(3)], by: staffOfWh('W-OSAKA'), at: at(1) }),
+    (s) => W.relabelUnit(s, code(35), { newCode: R(4), color: 'other', by: staffOfWh('W-HONSHA'), at: at(2) }),
+    (s) => T.sendTransfer(s, MASTER, { fromId: 'W-HONSHA', toId: 'W-FUKUOKA', codes: [R(4)], by: staffOfWh('W-HONSHA'), at: at(1) }),
     (s) => W.requestReturn(s, { master: MASTER, customerName: '松本 千春', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10) }),
   ];
   const state = steps.reduce((s, step) => {

@@ -78,3 +78,29 @@ test('サンプル: 倉庫間の移動に、受取済み（移動先の倉庫の
   const u = rows.find((r) => r.unit.code === done.codes[0]).unit;
   assert.equal(u.warehouseId, done.toId); assert.equal(u.location, done.location);
 });
+
+test('サンプル: どの倉庫（本社を含む）の担当者でログインしても、倉庫間移動の「受け取り待ち」「送った商品・輸送中」「移動の履歴」のダミーが見える', async () => {
+  const MM = await import('../src/warehouseMaster.js');
+  const M = MM.DEFAULT_MASTER;
+  const T = await import('../src/warehouseTransfer.js');
+  const state = W.loadState();
+  const rows = W.buildRows(state, NOW);
+  for (const w of M.warehouses) {
+    assert.ok(T.incoming(state, w.id).length >= 1, `${w.name}: 受け取り待ちがない`);
+    assert.ok(T.outgoing(state, w.id).length >= 1, `${w.name}: 送った商品・輸送中がない`);
+    assert.ok(state.transfers.some((t) => t.status === 'received' && (t.fromId === w.id || t.toId === w.id)), `${w.name}: 移動の履歴がない`);
+  }
+  // 輸送中の商品は、すべて在庫から送られたもの。移動の記録の商品は、実在する
+  const codes = new Set(state.units.map((u) => u.code));
+  for (const t of state.transfers) for (const c of t.codes) assert.ok(codes.has(c), `${c} が商品にない`);
+  assert.ok(rows.filter((r) => r.stage === 'transit').length >= 7);
+  // 規則どおり: 高額品（紫・赤）は本社へ、それ以外は本社以外の倉庫へだけ移動している（色の貼り替えのあとの移動を含む）
+  const byCode = new Map(state.units.map((u) => [u.code, u]));
+  for (const t of state.transfers) for (const c of t.codes) assert.equal(MM.destinationProblem(M, byCode.get(c), t.toId), '', `${c} → ${t.toName}`);
+});
+
+test('サンプル: 色の貼り間違いを直した商品（貼り替え）が、本社・倉庫の間を移動している', () => {
+  const moved = W.loadState().units.filter((u) => (u.relabels ?? []).length);
+  assert.ok(moved.length >= 3);
+  for (const u of moved) assert.ok(u.relabels[0].from !== u.code && u.relabels[0].fromColor !== u.relabels[0].toColor);
+});
