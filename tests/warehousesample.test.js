@@ -104,3 +104,18 @@ test('サンプル: 色の貼り間違いを直した商品（貼り替え）が
   assert.ok(moved.length >= 3);
   for (const u of moved) assert.ok(u.relabels[0].from !== u.code && u.relabels[0].fromColor !== u.relabels[0].toColor);
 });
+
+test('サンプル: 梱包中のパックのダミーが、どの倉庫（本社を含む）でも見える。発送済みのパックには、配送業者・追跡番号がある', async () => {
+  const { DEFAULT_MASTER: M } = await import('../src/warehouseMaster.js');
+  const T = await import('../src/warehouseTransfer.js');
+  const state = W.loadState();
+  for (const w of M.warehouses) assert.ok(T.drafts(state, w.id).length >= 1, `${w.name}: 梱包中のパックがない`);
+  assert.ok(T.drafts(state, M.warehouses[0].id).some((p) => p.codes.length >= 2 && p.carrier && p.size)); // 設定の済んだパック
+  assert.ok(state.transfers.some((p) => p.status === 'draft' && p.listPrintedAt && p.labelPrintedAt)); // 明細・伝票を出力済みのパック
+  assert.ok(state.transfers.some((p) => p.status === 'draft' && !p.listPrintedAt && !p.carrier)); // これから設定するパック
+  const sent = state.transfers.filter((t) => t.status === 'transit' || t.status === 'received');
+  assert.ok(sent.filter((t) => t.carrier).length >= 4 && sent.some((t) => t.tracking));
+  assert.deepEqual([...new Set(sent.map((t) => t.carrier).filter(Boolean))].sort(), ['jp', 'sagawa', 'yamato']); // 3社とも見える
+  const rows = W.buildRows(state, NOW);
+  assert.ok(rows.filter((r) => r.stage === 'packing').length >= 5);
+});

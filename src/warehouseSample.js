@@ -11,7 +11,7 @@ const PREFIX = 'RQ-WH';
 
 // 保管場所は、入庫した倉庫の棚から選ぶ
 // お客様ごとの入庫先の倉庫（大阪・関東・福岡に分かれる）
-const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '山口 拓海': 'W-KANTO', '西田 久美': 'W-FUKUOKA', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
+const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '山口 拓海': 'W-KANTO', '西田 久美': 'W-FUKUOKA', '石川 陽平': 'W-KANTO', '松井 恵': 'W-FUKUOKA', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
 // 高額品（貴金属など）は納入のときから本社、それ以外はお客様ごとの倉庫
 const whOf = (customerName, item) => (item && isHighValue(item, MASTER) ? 'W-HONSHA' : WH_OF[customerName] ?? 'W-OSAKA');
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
@@ -69,6 +69,11 @@ export function buildSample(now = Date.now()) {
     ...purchase(14, 'u14', '山口 拓海', [['キヤノン EOS R5 ボディ', 'カメラ・家電', 'A', 250000], ['オメガ スピードマスター', '腕時計', 'B', 280000], ['ニコン Z6III ボディ', 'カメラ・家電', 'A', 240000]]), // 30・31・32（関東倉庫）
     ...purchase(13, 'u15', '村上 健', [['K18 ダイヤ ネックレス', 'ジュエリー・貴金属', 'A', 120000], ['ロレックス サブマリーナ', '腕時計', 'A', 650000], ['K18 ブレスレット', 'ジュエリー・貴金属', 'A', 90000]]), // 33・34・35（本社）
     ...purchase(12, 'u16', '岩崎 真理', [['セリーヌ トリオンフ', 'ブランドバッグ', 'A', 88000], ['バーバリー マフラー', '財布・小物', 'B', 18000]]), // 36・37（大阪倉庫）
+    // 梱包中のパックの見本（これから送る商品）
+    ...purchase(16, 'u01', '前田 愛', [['プラダ ガレリア', 'ブランドバッグ', 'A', 180000], ['ブルガリ 長財布', '財布・小物', 'A', 62000], ['セイコー プレサージュ', '腕時計', 'B', 58000]]), // 38・39・40（大阪倉庫）
+    ...purchase(16, 'u02', '石川 陽平', [['ソニー α7C ボディ', 'カメラ・家電', 'A', 190000]]), // 41（関東倉庫）
+    ...purchase(16, 'u03', '松井 恵', [['ニコン Z fc ボディ', 'カメラ・家電', 'B', 98000], ['ミュウミュウ 長財布', '財布・小物', 'A', 55000]]), // 42・43（福岡倉庫）
+    ...purchase(16, 'u04', '森 達也', [['プラチナ ペンダント', 'ジュエリー・貴金属', 'A', 70000]]), // 44（本社）
   ];
   units[22] = { ...units[22], status: 'missing', storedAt: null, location: null, by: null, check: null, warehouseId: undefined }; // 所在不明
 
@@ -124,6 +129,26 @@ export function buildSample(now = Date.now()) {
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-HONSHA', codes: [R(3)], by: staffOfWh('W-OSAKA'), at: at(1) }),
     (s) => W.relabelUnit(s, code(35), { newCode: R(4), color: 'other', by: staffOfWh('W-HONSHA'), at: at(2) }),
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-HONSHA', toId: 'W-FUKUOKA', codes: [R(4)], by: staffOfWh('W-HONSHA'), at: at(1) }),
+    // 梱包中のパック（どの倉庫・本社でも、パックの作業の途中が見えるように）
+    (s) => T.createPack(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-FUKUOKA', by: staffOfWh('W-OSAKA'), at: at(0, 9) }),
+    (s) => T.addToPack(s, MASTER, s.transfers[0].id, code(38), { at: at(0, 9) }),
+    (s) => T.addToPack(s, MASTER, s.transfers[0].id, code(39), { at: at(0, 9) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'yamato', size: '80', note: '割れ物注意' }),
+    (s) => T.markPrinted(T.markPrinted(s, s.transfers[0].id, 'list', at(0, 10)), s.transfers[0].id, 'label', at(0, 10)), // 明細・発送伝票を出力済み（あとは発送するだけ）
+    (s) => T.createPack(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-KANTO', by: staffOfWh('W-OSAKA'), at: at(0, 11) }), // これから設定するパック
+    (s) => T.addToPack(s, MASTER, s.transfers[0].id, code(40), { at: at(0, 11) }),
+    (s) => T.createPack(s, MASTER, { fromId: 'W-KANTO', toId: 'W-OSAKA', by: staffOfWh('W-KANTO'), at: at(0, 9) }),
+    (s) => T.addToPack(s, MASTER, s.transfers[0].id, code(41), { at: at(0, 9) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'sagawa', size: '60' }),
+    (s) => T.markPrinted(s, s.transfers[0].id, 'list', at(0, 10)), // 明細だけ出力済み
+    (s) => T.createPack(s, MASTER, { fromId: 'W-FUKUOKA', toId: 'W-KANTO', by: staffOfWh('W-FUKUOKA'), at: at(0, 9) }),
+    (s) => T.addToPack(s, MASTER, s.transfers[0].id, code(42), { at: at(0, 9) }),
+    (s) => T.addToPack(s, MASTER, s.transfers[0].id, code(43), { at: at(0, 9) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'jp', size: '80', boxes: 2 }),
+    (s) => W.relabelUnit(s, code(44), { newCode: R(5), color: 'other', by: staffOfWh('W-HONSHA'), at: at(3) }), // 赤の貼り間違いを直した商品を、本社から倉庫へ
+    (s) => T.createPack(s, MASTER, { fromId: 'W-HONSHA', toId: 'W-OSAKA', by: staffOfWh('W-HONSHA'), at: at(0, 9) }),
+    (s) => T.addToPack(s, MASTER, s.transfers[0].id, R(5), { at: at(0, 9) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'jp', size: '60' }),
     (s) => W.requestReturn(s, { master: MASTER, customerName: '松本 千春', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10) }),
   ];
   const state = steps.reduce((s, step) => {
@@ -131,7 +156,17 @@ export function buildSample(now = Date.now()) {
     if (r?.ok === false) throw new Error(`サンプルの作成に失敗: ${r.reason ?? ""} ${step}`);
     return r?.state ?? r;
   }, { units, records: {}, returns: [], transfers: [] });
-  return state;
+  // 発送済みの移動に、配送業者（ヤマト・佐川・日本郵便）・サイズ・追跡番号を付ける（受け取り待ちの1件は、追跡番号なし）
+  const CARRIERS = ['yamato', 'sagawa', 'jp'];
+  const SIZES = ['80', '100', '60', '120'];
+  let n = 0;
+  const transfers = state.transfers.map((t) => {
+    if (t.status === 'draft') return t;
+    n += 1;
+    const carrier = CARRIERS[n % 3];
+    return { ...t, carrier, size: SIZES[n % 4], boxes: 1, note: '', tracking: n % 5 === 0 ? '' : `${carrier === 'yamato' ? '4321' : carrier === 'sagawa' ? '5012' : '8100'}-${String(2000 + n * 37).padStart(4, '0')}-${String(9000 + n * 11).padStart(4, '0')}` };
+  });
+  return { ...state, transfers };
 }
 
 // 見本を保存する。force でないときは、まだ入れたことがなく、記録が空のときだけ入れる。入れたら true。

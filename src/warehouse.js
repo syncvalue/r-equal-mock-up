@@ -34,7 +34,7 @@ export const RETURN_REASONS = [
 export const reasonOf = (key) => RETURN_REASONS.find((r) => r.key === key) ?? { key, label: key };
 
 export const STAGES = {
-  incoming: '入庫待ち', missing: '所在不明', stock: '在庫', listed: '出品中', transit: '輸送中', consigned: '委託中', sold: '売却済み', returning: '返品対応中', returned: '返品済み',
+  incoming: '入庫待ち', missing: '所在不明', stock: '在庫', listed: '出品中', packing: '梱包中', transit: '輸送中', consigned: '委託中', sold: '売却済み', returning: '返品対応中', returned: '返品済み',
 };
 
 // ---- 保存 -------------------------------------------------------------------
@@ -83,10 +83,11 @@ const returnStages = (returns) => {
 export function buildRows({ units, records, returns, transfers = [] }, now = Date.now()) {
   const rs = returnStages(returns);
   const inTransit = new Set(transfers.filter((t) => t.status === 'transit').flatMap((t) => t.codes));
+  const inPacking = new Set(transfers.filter((t) => t.status === 'draft').flatMap((t) => t.codes)); // 倉庫間移動の、梱包中のパック
   return units.map((unit) => {
     const rec = records[unit.code] ?? null;
     const stage = rs.get(unit.code)
-      ?? (inTransit.has(unit.code) ? 'transit' : rec ? rec.stage : unit.status === 'pending' ? 'incoming' : unit.status === 'missing' ? 'missing' : 'stock');
+      ?? (inTransit.has(unit.code) ? 'transit' : inPacking.has(unit.code) ? 'packing' : rec ? rec.stage : unit.status === 'pending' ? 'incoming' : unit.status === 'missing' ? 'missing' : 'stock');
     const cooling = inCoolingOff(unit, now);
     return { unit, rec, stage, cooling, coolEnd: coolingOffEnd(unit.date), canList: stage === 'stock' && !cooling };
   });
@@ -185,7 +186,7 @@ export function historyOf({ units, records, returns, transfers = [] }, code) {
     if (rec.stage === 'sold') events.push({ at: rec.soldAt, label: '売却', detail: `${yen(rec.soldPrice)}／手数料 ${yen(rec.fee)}・送料 ${yen(rec.shipping)}${rec.soldBy ? `／${rec.soldBy}` : ''}` });
   }
   (unit.relabels ?? []).forEach((r) => events.push({ at: r.at, label: 'シール貼り替え', detail: `${r.from}（${sealColorOf(r.fromColor)?.label ?? '未選択'}）→ ${r.to}（${sealColorOf(r.toColor)?.label ?? '未選択'}）${r.by ? `／${r.by}` : ''}` }));
-  transfers.filter((t) => t.codes.includes(code) && t.status !== 'cancelled').forEach((t) => {
+  transfers.filter((t) => t.codes.includes(code) && ['transit', 'received'].includes(t.status)).forEach((t) => { // 梱包中（まだ発送していない）は、履歴に出さない
     events.push({ at: t.sentAt, label: '移動（送付）', detail: `${t.fromName} → ${t.toName}／${t.sentBy}` });
     if (t.status === 'received') events.push({ at: t.receivedAt, label: '移動（受取）', detail: `${t.toName}／${t.location}／${t.receivedBy}` });
   });
@@ -201,7 +202,7 @@ export function stockSummary(rows) {
   const count = (stage) => rows.filter((r) => r.stage === stage).length;
   const held = rows.filter((r) => r.stage === 'stock' || r.stage === 'listed');
   return {
-    incoming: count('incoming'), missing: count('missing'), transit: count('transit'), stock: count('stock'), listed: count('listed'), consigned: count('consigned'), sold: count('sold'), returning: count('returning'), returned: count('returned'),
+    incoming: count('incoming'), missing: count('missing'), transit: count('transit'), packing: count('packing'), stock: count('stock'), listed: count('listed'), consigned: count('consigned'), sold: count('sold'), returning: count('returning'), returned: count('returned'),
     cooling: rows.filter((r) => r.stage === 'stock' && r.cooling).length,
     inventoryCost: held.reduce((n, r) => n + r.unit.price, 0), // 倉庫にある在庫の原価
     consignedCost: rows.filter((r) => r.stage === 'consigned').reduce((n, r) => n + r.unit.price, 0),
@@ -310,6 +311,7 @@ export function requestReturn(state, { customerName, codes, reason, memo = '', a
     const why = !row ? 'unknown'
       : row.unit.status !== 'stored' ? 'notStored'
         : row.stage === 'transit' ? 'inTransit'
+        : row.stage === 'packing' ? 'inPacking'
         : row.stage === 'returning' ? 'inProgress'
           : !row.cooling ? 'expired'
             : row.stage !== 'stock' ? 'notReturnable' : '';

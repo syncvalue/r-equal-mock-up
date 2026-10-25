@@ -20,7 +20,11 @@ import { receiveTab } from './receiveTab.js';
 import { masterTab } from './masterTab.js';
 import { menuView, tabLabel } from './menu.js';
 import { transferTab } from './transferTab.js';
-import { sendTransfer, receiveTransfer, cancelTransfer, incoming, sendableCheck } from '../src/warehouseTransfer.js';
+import {
+  receiveTransfer, cancelTransfer, incoming, sendableCheck, createPack, addToPack, removeFromPack, updatePack, markPrinted, shipPack, discardPack, drafts,
+} from '../src/warehouseTransfer.js';
+import { packingListHtml, shippingLabelHtml, shippingCsv, csvFileName, addressProblems, carrierOf } from '../src/shipping.js';
+import { openPrintWindow, downloadText } from './output.js';
 import { loginView } from './loginView.js';
 import { openMockCamera } from './camera.js';
 
@@ -29,7 +33,7 @@ const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' })
 const blankSell = () => ({ code: '', price: 0, shipping: 0, buyer: '' });
 const blankReturn = () => ({ visitId: '', codes: [], reason: 'family', memo: '' });
 const MASTER_TEXT = {
-  dupHonsha: '本社（高額品の保管先）は、すでに登録されています（1か所だけです）', noRule: '本社に納入するシールの色を、1つ以上選んでください', badColor: 'シールの色が正しくありません', noName: '名前を入力してください', noLocations: '保管場所（棚）を1つ以上入力してください', badOffice: '営業所の指定が正しくありません', dupName: '同じ名前の倉庫がすでにあります', notFound: '対象が見つかりません',
+  dupHonsha: '本社（高額品の保管先）は、すでに登録されています（1か所だけです）', noRule: '本社に納入するシールの色を、1つ以上選んでください', badColor: 'シールの色が正しくありません', noName: '名前を入力してください', noLocations: '保管場所（棚）を1つ以上入力してください', badOffice: '営業所の指定が正しくありません', badZip: '郵便番号は、123-4567 の形式で入力してください', dupName: '同じ名前の倉庫がすでにあります', notFound: '対象が見つかりません',
   badLoginId: 'ログインIDは、英数字・ハイフン・アンダースコアの3〜20文字にしてください', dupLoginId: '同じログインIDの担当者がすでにいます', noWarehouse: '所属する倉庫を選んでください',
   inUse: 'この倉庫には、保管中の商品（在庫・出品中・委託中・返品対応中）があるため、無効にできません', hasStaff: 'この倉庫には有効な担当者がいるため、無効にできません（担当者を別の倉庫に移すか、無効にしてください）',
 };
@@ -40,9 +44,10 @@ let tab = 'stock';
 let menuOpen = false; // 左側のメニューの開閉
 let staff = loadSession(); // ログイン中の担当者（操作した人として記録する。所属する倉庫が、入庫先・表示の初期値になる）
 let loginError = '';
-const blankWh = () => ({ id: '', name: '', address: '', officeId: '', locations: '', highValue: false });
+const blankPk = () => ({ id: '', toId: '', q: '', last: null, tracking: '' }); // 送るパックの作業（開いているパック）
+const blankWh = () => ({ id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false });
 const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
-const ui = { rl: { code: '', newCode: '', color: '' }, hv: null, tf: { toId: '', codes: [], last: null }, tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
+const ui = { rl: { code: '', newCode: '', color: '' }, hv: null, pk: blankPk(), tr: { checks: [], locs: {} }, salesScope: '', scope: staff?.warehouseId ?? 'all', mw: blankWh(), ms: blankStaff(), scan: { raw: '' }, rc: { location: '', last: null, checks: [] }, filter: 'all', view: 'list', page: 1, pageSize: 20, q: '', period: 'day', lf: blankList(), sf: blankSell(), rf: blankReturn() };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 let master = loadMaster();
@@ -176,13 +181,17 @@ function openCamera(mode) {
     });
     return;
   }
-  if (mode === 'transfer') {
+  if (mode === 'pack') {
     closeCamera = openMockCamera({
-      title: '読み取って、送る商品を選ぶ', subtitle: `送り元: ${myWarehouse().name}`, continuous: true,
-      // モック: 自分の倉庫の在庫から、まだ選んでいない商品を順に読み取る
-      pickNext: () => scopeState(loadState(), staff.warehouseId, master).units.map((u) => u.code).find((c) => !ui.tf.codes.includes(c) && sendableCheck(loadState(), master, { fromId: staff.warehouseId, toId: ui.tf.toId, code: c }).ok) ?? '',
-      onFound: (code) => { addScanned(code); render(); },
-      getMessage: () => ui.tf.last,
+      title: '読み取って、パックに入れる', subtitle: `送り元: ${myWarehouse().name}`, continuous: true,
+      // モック: 自分の倉庫の在庫から、まだパックに入れていない商品を順に読み取る
+      pickNext: () => {
+        const state = loadState();
+        const pack = packOf(state, ui.pk.id);
+        return state.units.map((u) => u.code).find((c) => !pack.codes.includes(c) && sendableCheck(state, master, { fromId: staff.warehouseId, toId: pack.toId, code: c }).ok) ?? '';
+      },
+      onFound: (code) => { packAdd(code); render(); },
+      getMessage: () => ui.pk.last,
     });
     return;
   }
@@ -221,28 +230,76 @@ const TRANSFER_TEXT = {
   notInTransit: 'すでに受け取り済み、または取り消し済みです', notDestination: 'あなたの倉庫あてではないため、受け取れません', badLocation: '保管場所を選んでください', notSender: '送った倉庫でなければ、取り消せません',
 };
 const SEND_REJECT = { unknown: '登録のない商品', notStock: '在庫ではない商品（出品中・委託中・返品対応中・輸送中など）', otherWarehouse: '他の倉庫の商品' };
-const SCAN_TEXT = {
-  unknown: '登録のないシールです', notStock: '在庫ではないため、送れません（入庫前・出品中・委託中・返品対応中・輸送中など）', otherWarehouse: '他の倉庫の商品です（あなたの倉庫の商品だけ送れます）',
-  wrongDestination: '送り先の規則に合いません（高額品は本社へ、それ以外は本社以外の倉庫へ）',
+const PACK_TEXT = {
+  notDraft: 'このパックは、すでに発送済み・破棄済みです', unknown: '登録のないシールです', notStock: '在庫ではないため、入れられません（入庫前・出品中・委託中・返品対応中・輸送中など）',
+  otherWarehouse: '他の倉庫の商品です（あなたの倉庫の商品だけ送れます）', inOtherPack: '別のパックに入っています', wrongDestination: '送り先の規則に合いません（高額品は本社へ、それ以外は本社以外の倉庫へ）',
+  noItems: '商品が入っていません', noCarrier: '配送業者を選んでください', sameWarehouse: '送り先は、別の倉庫を選んでください', badDestination: '送り先の倉庫が正しくありません',
 };
-// QRの読み取り（スキャナ・手入力・カメラ）で、送る商品を選ぶ
-function addScanned(raw) {
-  const r = sendableCheck(loadState(), master, { fromId: staff.warehouseId, toId: ui.tf.toId, code: raw });
-  if (!r.ok) {
-    ui.tf = { ...ui.tf, last: { ok: false, text: `${r.code || '（空）'}：${r.reason === 'replaced' ? `貼り替え済みの古いシールです。新しいシール（${r.newCode}）を読み取ってください` : SCAN_TEXT[r.reason]}` } };
-    return;
+const packOf = (state, id) => (state.transfers ?? []).find((t) => t.id === id && t.status === 'draft');
+const say = (ok, text) => { ui.pk = { ...ui.pk, last: { ok, text } }; };
+
+// ① 商品を探して、パックに入れる（検索の一覧・QR読取（スキャナ・手入力・カメラ））
+function packAdd(raw) {
+  const r = addToPack(loadState(), master, ui.pk.id, raw);
+  if (!r.ok) return say(false, `${r.code || '（空）'}：${r.reason === 'replaced' ? `貼り替え済みの古いシールです。新しいシール（${r.newCode}）を読み取ってください` : PACK_TEXT[r.reason]}`);
+  if (r.already) return say(true, `${r.code} は、すでにパックに入っています`);
+  commit(r.state);
+  const u = loadState().units.find((x) => x.code === r.code);
+  return say(true, `${u?.name ?? ''}（${r.code}）を、パックに入れました`);
+}
+// 同じ契約（同じ訪問）で買い取った商品を、まとめて入れる
+function packAddLot(visitId) {
+  const state = loadState();
+  const codes = state.units.filter((u) => u.visitId === visitId).map((u) => u.code);
+  const { state: next, added } = codes.reduce((acc, code) => {
+    const r = addToPack(acc.state, master, ui.pk.id, code);
+    return r.ok && !r.already ? { state: r.state, added: acc.added + 1 } : acc;
+  }, { state, added: 0 });
+  if (added) commit(next);
+  say(added > 0, added ? `同じ契約の ${added} 点を、パックに入れました` : '同じ契約で、入れられる商品はありません');
+}
+function packSet(patch) {
+  const state = loadState();
+  const next = updatePack(state, ui.pk.id, patch);
+  if (next === state) return alert('その値は設定できません（個口数は1以上の整数にしてください）');
+  commit(next);
+}
+// ③④ 明細・発送伝票・CSVを出力する（出力した日時を、パックに残す）
+function packPrint(kind) {
+  const state = loadState();
+  const pack = packOf(state, ui.pk.id);
+  if (kind === 'label') {
+    const problems = addressProblems(pack, master);
+    if (problems.length) return alert(`発送伝票に必要な情報が足りません。\n・${problems.join('\n・')}\n「倉庫マスタ」で登録してください。`);
   }
-  const already = ui.tf.codes.includes(r.code);
-  ui.tf = { ...ui.tf, codes: already ? ui.tf.codes : [...ui.tf.codes, r.code], last: { ok: true, text: already ? `${r.unit.name}（${r.code}）は、すでに選んでいます` : `${r.unit.name}（${r.code}）を、送る商品に選びました` } };
+  const html = kind === 'list' ? packingListHtml(pack, state.units, master) : shippingLabelHtml(pack, state.units, master);
+  if (!openPrintWindow(html)) return alert('印刷用のウィンドウを開けませんでした（ポップアップがブロックされています）');
+  commit(markPrinted(state, pack.id, kind));
+}
+function packCsv(carrierKey, packs) {
+  const state = loadState();
+  const problems = packs.flatMap((p) => addressProblems(p, master));
+  if (problems.length) return alert(`CSVに必要な情報が足りません。\n・${[...new Set(problems)].join('\n・')}\n「倉庫マスタ」で登録してください。`);
+  downloadText(csvFileName(carrierKey), shippingCsv(carrierKey, packs, state.units, master));
+  commit(packs.reduce((acc, p) => markPrinted(acc, p.id, 'label'), state)); // CSVを取り込んで、配送業者の送り状を出力する＝発送伝票の出力
+}
+function packShip() {
+  const state = loadState();
+  const pack = packOf(state, ui.pk.id);
+  if ((!pack.listPrintedAt || !pack.labelPrintedAt) && !confirm('明細または発送伝票が、まだ出力されていません。このまま発送しますか？')) return;
+  const r = shipPack(state, pack.id, { tracking: ui.pk.tracking, by: staff.name, master });
+  if (!r.ok) return alert(`${PACK_TEXT[r.reason]}${r.rejected?.length ? `\n${r.rejected.map((x) => `${x.code}: ${PACK_TEXT[x.reason]}`).join('\n')}` : ''}`);
+  commit(r.state);
+  ui.pk = blankPk();
+  alert(`発送しました。${pack.toName}で「受け取り待ち」になります。`);
+}
+function packNew() {
+  const r = createPack(loadState(), master, { fromId: staff.warehouseId, toId: ui.pk.toId, by: staff.name });
+  if (!r.ok) return alert(PACK_TEXT[r.reason]);
+  commit(r.state);
+  ui.pk = { ...blankPk(), id: r.pack.id, toId: ui.pk.toId };
 }
 
-function sendItems() {
-  const r = sendTransfer(loadState(), master, { fromId: staff.warehouseId, toId: ui.tf.toId, codes: ui.tf.codes, by: staff.name });
-  if (!r.ok) return alert(TRANSFER_TEXT[r.reason]);
-  commit(r.state);
-  if (r.rejected.length) alert(`送れなかった商品があります。\n${r.rejected.map((x) => `${x.code}: ${SEND_REJECT[x.reason]}`).join('\n')}`);
-  ui.tf = { toId: ui.tf.toId, codes: [], last: null };
-}
 function receiveItems(id) {
   const t = loadState().transfers.find((x) => x.id === id);
   const location = ui.tr.locs[id] ?? myWarehouse().locations[0];
@@ -310,7 +367,7 @@ const ACTIONS = {
   camSearch: () => { openCamera('search'); return false; },
   camReceive: () => { openCamera('receive'); return false; },
   mwSave: saveWh,
-  mwEdit: (v) => { const w = warehouseById(master, v); ui.mw = { id: w.id, name: w.name, address: w.address, officeId: w.officeId, locations: w.locations.join('\n'), highValue: Boolean(w.highValue) }; },
+  mwEdit: (v) => { const w = warehouseById(master, v); ui.mw = { id: w.id, name: w.name, zip: w.zip ?? '', address: w.address, phone: w.phone ?? '', officeId: w.officeId, locations: w.locations.join('\n'), highValue: Boolean(w.highValue) }; },
   hvSave: () => {
     const r = saveHighValueRule(master, { colors: ui.hv ?? master.highValue.colors });
     if (!r.ok) return alert(MASTER_TEXT[r.reason]);
@@ -323,7 +380,6 @@ const ACTIONS = {
   msEdit: (v) => { const st = master.staff.find((x) => x.id === v); ui.ms = { id: st.id, name: st.name, loginId: st.loginId, warehouseId: st.warehouseId }; },
   msCancel: () => { ui.ms = blankStaff(); },
   msToggle: toggleStaff,
-  tfSend: sendItems,
   trReceive: receiveItems,
   trCancel: cancelItems,
   salesScope: (v) => { ui.salesScope = v; },
@@ -331,9 +387,21 @@ const ACTIONS = {
   rlCancel: () => { ui.rl = { code: '', newCode: '', color: '' }; },
   rlColor: (v) => { ui.rl = { ...ui.rl, color: v }; },
   rlDo: doRelabel,
-  tfScan: () => addScanned($('[data-tf-scan-input]')?.value),
-  tfClear: () => { ui.tf = { ...ui.tf, codes: [], last: null }; },
-  camTransfer: () => { openCamera('transfer'); return false; },
+  pkNew: packNew,
+  pkOpen: (v) => { ui.pk = { ...blankPk(), id: v, toId: ui.pk.toId, tracking: packOf(loadState(), v)?.tracking ?? '' }; },
+  pkClose: () => { ui.pk = { ...blankPk(), toId: ui.pk.toId }; },
+  pkDiscard: (v) => { if (confirm('この梱包中のパックを破棄します（商品は在庫に戻ります）。よろしいですか？')) { const r = discardPack(loadState(), v); if (r.ok) commit(r.state); if (ui.pk.id === v) ui.pk = blankPk(); } },
+  pkScan: () => packAdd($('[data-pk-scan-input]')?.value),
+  pkAdd: packAdd,
+  pkAddLot: packAddLot,
+  pkRemove: (v) => commit(removeFromPack(loadState(), ui.pk.id, v)),
+  pkCarrier: (v) => packSet({ carrier: v }),
+  pkPrintList: () => packPrint('list'),
+  pkPrintLabel: () => packPrint('label'),
+  pkCsv: (v) => packCsv(v, [packOf(loadState(), ui.pk.id)]),
+  pkCsvAll: (v) => packCsv(v, drafts(loadState(), staff.warehouseId).filter((p) => p.carrier === v)),
+  pkShip: packShip,
+  camPack: () => { openCamera('pack'); return false; },
   qrClose: () => { ui.scan = { raw: '' }; },
   rcLoc: (v) => { ui.rc = { ...ui.rc, location: v }; },
   rcSubmit: () => storeCode($('[data-rc-code]')?.value),
@@ -387,7 +455,7 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = { rl: () => ui.rl, tf: () => ui.tf, lf: () => ui.lf, sf: () => ui.sf, rf: () => ui.rf, mw: () => ui.mw, ms: () => ui.ms };
+const FORMS = { rl: () => ui.rl, pk: () => ui.pk, lf: () => ui.lf, sf: () => ui.sf, rf: () => ui.rf, mw: () => ui.mw, ms: () => ui.ms };
 const MONEY = new Set(['lf.price', 'sf.price', 'sf.shipping']);
 function onField(e, isInput) {
   const f = e.target.dataset.f ?? '';
@@ -400,10 +468,10 @@ function onField(e, isInput) {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches?.('[data-login-id], [data-login-pw]')) { doLogin(); render(); return; }
-  if (e.key === 'Enter' && e.target.matches?.('[data-tf-scan-input]')) {
-    addScanned(e.target.value);
+  if (e.key === 'Enter' && e.target.matches?.('[data-pk-scan-input]')) {
+    packAdd(e.target.value);
     render();
-    $('[data-tf-scan-input]')?.focus(); // 続けて読み取れるように
+    $('[data-pk-scan-input]')?.focus(); // 続けて読み取れるように
     return;
   }
   // 検索欄でEnter: シールNo.（QR読取・手入力）なら、その商品の詳細を表示する。それ以外は、入力のまま一覧を絞り込む
@@ -421,6 +489,15 @@ document.addEventListener('keydown', (e) => {
   $('[data-rc-code]')?.focus(); // 続けて読み取れるように
 });
 document.addEventListener('input', (e) => {
+  if (e.target.matches?.('[data-pk-tracking]')) { ui.pk = { ...ui.pk, tracking: e.target.value }; return; }
+  if (e.target.matches?.('[data-pk-q]')) {
+    ui.pk = { ...ui.pk, q: e.target.value };
+    render();
+    const el = $('[data-pk-q]');
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    return;
+  }
   if (e.target.matches('[data-reprice-input]')) return void formatMoneyInput(e.target);
   if (e.target.matches('[data-q]')) {
     ui.q = e.target.value;
@@ -441,9 +518,9 @@ document.addEventListener('change', (e) => {
     ui.hv = e.target.checked ? [...new Set([...cur, c])] : cur.filter((x) => x !== c);
     return;
   }
-  if (e.target.matches?.('[data-tf-code]')) {
-    const code = e.target.dataset.tfCode;
-    ui.tf = { ...ui.tf, codes: e.target.checked ? [...ui.tf.codes, code] : ui.tf.codes.filter((c) => c !== code) };
+  if (e.target.matches?.('[data-pack-field]')) {
+    const field = e.target.dataset.packField;
+    packSet({ [field]: e.target.value });
     render();
     return;
   }
@@ -473,7 +550,7 @@ document.addEventListener('change', (e) => {
     const contract = returnableContracts(loadState()).find((c) => c.visitId === ui.rf.visitId);
     ui.rf = { ...ui.rf, codes: contract ? contract.units.map((u) => u.code) : [] };
   }
-  if (['lf.code', 'rf.visitId', 'tf.toId'].includes(e.target.dataset.f)) render(); // 金額・商品の一覧が変わるもの
+  if (['lf.code', 'rf.visitId', 'pk.toId'].includes(e.target.dataset.f)) render(); // 金額・商品の一覧が変わるもの
 });
 
 // 営業のタブレット（入庫）や、別タブでの更新を反映。入力中なら、入力欄から離れたときに反映する

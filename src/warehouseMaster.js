@@ -9,10 +9,10 @@ export const MASTER_KEY = 'rq-mock-warehouse-master';
 // 初期値（ダミー）。大阪・関東は営業所と一体、福岡は倉庫のみ。兵庫・京都、東海の営業所には倉庫がない（営業のみ）
 export const DEFAULT_MASTER = {
   warehouses: [
-    { id: 'W-OSAKA', name: '大阪倉庫', address: '大阪府大阪市', officeId: 'osaka', locations: LOCATIONS, active: true },
-    { id: 'W-KANTO', name: '関東倉庫', address: '埼玉県さいたま市', officeId: 'kanto', locations: ['A棚（バッグ・小物）', 'B棚（時計・ジュエリー）', '金庫室（高額品）', '要確認エリア'], active: true },
-    { id: 'W-FUKUOKA', name: '福岡倉庫', address: '福岡県福岡市', officeId: '', locations: ['A棚', 'B棚', '金庫室（高額品）'], active: true },
-    { id: 'W-HONSHA', name: '本社', address: '大阪府大阪市（本社）', officeId: '', locations: ['金庫室（高額品）', '貴金属保管庫'], highValue: true, active: true },
+    { id: 'W-OSAKA', name: '大阪倉庫', zip: '559-0034', address: '大阪府大阪市住之江区南港北1-1-1', phone: '06-0000-0001', officeId: 'osaka', locations: LOCATIONS, active: true },
+    { id: 'W-KANTO', name: '関東倉庫', zip: '330-0854', address: '埼玉県さいたま市大宮区桜木町1-1-1', phone: '048-000-0002', officeId: 'kanto', locations: ['A棚（バッグ・小物）', 'B棚（時計・ジュエリー）', '金庫室（高額品）', '要確認エリア'], active: true },
+    { id: 'W-FUKUOKA', name: '福岡倉庫', zip: '812-0011', address: '福岡県福岡市博多区博多駅前1-1-1', phone: '092-000-0003', officeId: '', locations: ['A棚', 'B棚', '金庫室（高額品）'], active: true },
+    { id: 'W-HONSHA', name: '本社', zip: '541-0041', address: '大阪府大阪市中央区北浜1-1-1', phone: '06-0000-0004', officeId: '', locations: ['金庫室（高額品）', '貴金属保管庫'], highValue: true, active: true },
   ],
   staff: [
     { id: 'wh01', loginId: 'wh01', name: '小川 直樹', warehouseId: 'W-OSAKA', active: true },
@@ -84,8 +84,8 @@ const toList = (v) => [...new Set((Array.isArray(v) ? v : String(v ?? '').split(
 const fail = (master, reason) => ({ ok: false, master, reason });
 const replaceAt = (list, id, item) => list.map((x) => (x.id === id ? item : x));
 
-// 倉庫の登録・更新（id があれば更新）。reason: noName／noLocations／badOffice／dupName／notFound
-export function saveWarehouse(master, { id, name, address = '', officeId = '', locations, active, highValue }) {
+// 倉庫の登録・更新（id があれば更新）。zip・phone は、発送伝票・CSVの住所に使う。reason: noName／noLocations／badOffice／badZip／dupName／dupHonsha／notFound
+export function saveWarehouse(master, { id, name, address = '', zip, phone, officeId = '', locations, active, highValue }) {
   const n = String(name ?? '').trim();
   const locs = toList(locations);
   const old = id ? warehouseById(master, id) : null;
@@ -93,10 +93,12 @@ export function saveWarehouse(master, { id, name, address = '', officeId = '', l
   if (!n) return fail(master, 'noName');
   if (!locs.length) return fail(master, 'noLocations');
   if (officeId && !AREAS.some((a) => a.id === officeId)) return fail(master, 'badOffice');
+  const z = zip === undefined ? old?.zip ?? '' : String(zip).trim().replace(/^(\d{3})(\d{4})$/, '$1-$2');
+  if (z && !/^\d{3}-\d{4}$/.test(z)) return fail(master, 'badZip');
   if (master.warehouses.some((w) => w.name === n && w.id !== id)) return fail(master, 'dupName');
   const hv = Boolean(highValue ?? old?.highValue);
   if (hv && master.warehouses.some((w) => w.highValue && w.id !== id)) return fail(master, 'dupHonsha');
-  const item = { id: id ?? newId('W'), name: n, address: String(address).trim(), officeId, locations: locs, active: active ?? old?.active ?? true, ...(hv ? { highValue: true } : {}) };
+  const item = { id: id ?? newId('W'), name: n, zip: z, address: String(address).trim(), phone: phone === undefined ? old?.phone ?? '' : String(phone).trim(), officeId, locations: locs, active: active ?? old?.active ?? true, ...(hv ? { highValue: true } : {}) };
   return { ok: true, master: { ...master, warehouses: old ? replaceAt(master.warehouses, id, item) : [...master.warehouses, item] } };
 }
 

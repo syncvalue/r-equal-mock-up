@@ -170,3 +170,19 @@ test('古い保存データ: 高額品の設定がない、または古い形式
   mem.set('rq-mock-warehouse-master', JSON.stringify({ warehouses: HM.warehouses, staff: HM.staff, highValue: { categories: ['x'], minPrice: 1 } }));
   assert.deepEqual(M.loadMaster().highValue, { colors: ['purple', 'red'] });
 });
+
+test('送り状に必要な情報: 倉庫（本社を含む）に、郵便番号・住所・電話番号がある。登録・更新できる。郵便番号は形式を確かめる', () => {
+  for (const w of HM.warehouses) {
+    assert.match(w.zip, /^\d{3}-\d{4}$/, w.name);
+    assert.ok(w.address && w.phone, w.name);
+  }
+  const ok = M.saveWarehouse(HM, { name: '札幌倉庫', address: '北海道札幌市中央区1-1', zip: '060-0001', phone: '011-000-0000', locations: 'A棚' });
+  assert.equal(ok.ok, true);
+  const w = ok.master.warehouses.at(-1);
+  assert.deepEqual({ zip: w.zip, phone: w.phone }, { zip: '060-0001', phone: '011-000-0000' });
+  assert.equal(M.saveWarehouse(HM, { name: 'x', zip: '1234567', locations: 'A' }).master.warehouses.at(-1).zip, '123-4567'); // ハイフンなしは、整える
+  assert.equal(M.saveWarehouse(HM, { name: 'x', zip: '12-34', locations: 'A' }).reason, 'badZip');
+  assert.equal(M.saveWarehouse(HM, { name: 'y', locations: 'A' }).ok, true); // 郵便番号は、空でもよい（伝票の出力のときに確認する）
+  const upd = M.saveWarehouse(HM, { id: HM.warehouses[0].id, name: HM.warehouses[0].name, address: HM.warehouses[0].address, officeId: HM.warehouses[0].officeId, locations: HM.warehouses[0].locations });
+  assert.equal(upd.master.warehouses[0].zip, HM.warehouses[0].zip); // 更新で指定しなければ、いまの値を保つ
+});

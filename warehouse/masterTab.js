@@ -9,11 +9,11 @@ const ON = badge('bg-emerald-100 text-emerald-800', '有効');
 const OFF = badge('bg-slate-200 text-slate-600', '無効');
 
 function warehouseTable({ master, holding }, me) {
-  return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>倉庫</th><th>所在地</th><th>営業所との関係</th><th>保管場所（棚）</th><th>担当者</th><th class="text-right">保管中</th><th>状態</th><th>操作</th></tr></thead><tbody>
+  return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>倉庫</th><th>郵便番号・住所・電話</th><th>営業所との関係</th><th>保管場所（棚）</th><th>担当者</th><th class="text-right">保管中</th><th>状態</th><th>操作</th></tr></thead><tbody>
     ${master.warehouses.map((w) => {
       const h = holding[w.id] ?? { count: 0, cost: 0 };
       const staff = staffOf(master, w.id).filter((s) => s.active);
-      return `<tr class="border-b ${w.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(w.name)}${w.highValue ? ' <span class="text-xs font-normal text-violet-700">（高額品の保管先）</span>' : ''}${me.warehouseId === w.id ? ' <span class="text-xs font-normal text-sky-700">（あなたの倉庫）</span>' : ''}</td><td>${esc(w.address)}</td>
+      return `<tr class="border-b ${w.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(w.name)}${w.highValue ? ' <span class="text-xs font-normal text-violet-700">（高額品の保管先）</span>' : ''}${me.warehouseId === w.id ? ' <span class="text-xs font-normal text-sky-700">（あなたの倉庫）</span>' : ''}</td><td class="!whitespace-normal text-xs">${w.zip ? `〒${esc(w.zip)}` : '<span class="text-rose-600">郵便番号なし</span>'} ${esc(w.address)}<div>${esc(w.phone || '電話番号なし')}</div></td>
         <td>${w.highValue ? '本社' : w.officeId ? `${esc(officeName(w.officeId))}営業所と一体` : '倉庫のみ'}</td><td class="!whitespace-normal text-xs">${w.locations.map(esc).join('／')}</td>
         <td class="!whitespace-normal text-xs">${staff.map((s) => esc(s.name)).join('、') || '-'}</td><td class="text-right">${h.count}点<div class="text-xs text-slate-500">${yen(h.cost)}</div></td><td>${w.active ? ON : OFF}</td>
         <td><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mw-edit="${esc(w.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mw-toggle="${esc(w.id)}">${w.active ? '無効にする' : '有効にする'}</button></td></tr>`;
@@ -26,7 +26,9 @@ function warehouseForm(mw) {
     <h3 class="font-bold">${mw.id ? '倉庫の編集' : '倉庫の新規登録'}</h3>
     <div class="grid sm:grid-cols-2 gap-3">
       <label class="text-sm font-bold">倉庫名<input class="inp mt-1 font-normal" data-f="mw.name" value="${esc(mw.name)}" placeholder="例: 札幌倉庫" /></label>
-      <label class="text-sm font-bold">所在地<input class="inp mt-1 font-normal" data-f="mw.address" value="${esc(mw.address)}" placeholder="例: 北海道札幌市" /></label>
+      <label class="text-sm font-bold">郵便番号<input class="inp mt-1 font-normal font-mono" data-f="mw.zip" value="${esc(mw.zip)}" placeholder="例: 060-0001" /></label>
+      <label class="text-sm font-bold">住所（発送伝票・CSVに使います）<input class="inp mt-1 font-normal" data-f="mw.address" value="${esc(mw.address)}" placeholder="例: 北海道札幌市中央区1-1-1" /></label>
+      <label class="text-sm font-bold">電話番号<input class="inp mt-1 font-normal" data-f="mw.phone" value="${esc(mw.phone)}" placeholder="例: 011-000-0000" /></label>
       <label class="text-sm font-bold">営業所との関係<select class="inp mt-1 font-normal" data-f="mw.officeId"><option value="">倉庫のみ（営業所と別の施設）</option>
         ${AREAS.map((a) => `<option value="${a.id}" ${mw.officeId === a.id ? 'selected' : ''}>${esc(officeName(a.id))}営業所と一体</option>`).join('')}</select></label>
       <label class="text-sm font-bold">保管場所（棚）<span class="font-normal text-xs text-slate-500">カンマ・改行で区切る</span><textarea class="inp mt-1 font-normal" rows="2" data-f="mw.locations" placeholder="A棚, B棚, 金庫室（高額品）">${esc(mw.locations)}</textarea></label>
