@@ -88,5 +88,6 @@ export function listTab({ rows }, { lf, sf, pk }, now = Date.now(), ctx = null) 
   if (!ctx) return flea;
   const consign = `<div class="grid xl:grid-cols-[minmax(32rem,40rem)_1fr] gap-4 items-start">${openPackOf(ctx.full, pk, 'consign') ? packWork(ctx.full, ctx.master, ctx.me, pk, now, 'consign') : packList(ctx.full, ctx.master, ctx.me, pk, 'consign')}
     ${consignedTable(rows.filter((r) => r.stage === 'consigned'), sf, now, packs)}</div>`;
-  return `${flea}${consign}`;
+  const sale = `<div class="grid xl:grid-cols-[minmax(32rem,40rem)_1fr] gap-4 items-start">${openPackOf(ctx.full, pk, 'sale') ? packWork(ctx.full, ctx.master, ctx.me, pk, now, 'sale') : packList(ctx.full, ctx.master, ctx.me, pk, 'sale')}</div>`;
+  return `${flea}${consign}${sale}`;
 }

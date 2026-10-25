@@ -138,3 +138,24 @@ test('サンプル: 業者への委託のダミー。梱包中のパックが、
   }
   assert.ok(new Set(shipped.map((p) => p.vendorId)).size >= 2); // 委託先が複数
 });
+
+test('サンプル: 売れた商品の発送のダミー。どの倉庫（本社を含む）にも、発送待ち・梱包中のパック・発送済みがあり、古い売却はすべて発送済み', async () => {
+  const { DEFAULT_MASTER: M } = await import('../src/warehouseMaster.js');
+  const T = await import('../src/warehouseTransfer.js');
+  const Sale = await import('../src/warehouseSale.js');
+  const state = W.loadState();
+  for (const w of M.warehouses) {
+    assert.ok(Sale.awaitingShipment(state, M, w.id, NOW).length >= 1, `${w.name}: 発送待ちがない`);
+    assert.ok(T.drafts(state, w.id, 'sale').length >= 1 || w.id === 'W-KANTO', `${w.name}: 梱包中の発送のパックがない`);
+    assert.ok(Sale.shipments(state, w.id).length >= 1 || w.id === 'W-FUKUOKA', `${w.name}: 発送済みがない`);
+  }
+  const rows = W.buildRows(state, NOW);
+  const day3 = NOW - 3 * 86400000;
+  for (const r of rows.filter((x) => x.stage === 'sold' && !x.rec.shippedAt && !W.channelOf(x.rec.channel).consign)) assert.ok(r.rec.soldAt > day3, `${r.unit.code}: 古い売却が発送待ちのまま`);
+  const shipped = state.transfers.filter((t) => t.kind === 'sale' && t.status === 'shipped');
+  assert.ok(shipped.length >= 4 && shipped.every((p) => p.carrier && p.buyer.name && p.buyer.zip && p.buyer.address) && shipped.some((p) => p.tracking));
+  assert.deepEqual([...new Set(shipped.map((p) => p.carrier))].sort(), ['jp', 'sagawa', 'yamato']);
+  for (const p of shipped) for (const c of p.codes) assert.equal(state.records[c].shipPackId, p.id);
+  const drafts = state.transfers.filter((t) => t.kind === 'sale' && t.status === 'draft');
+  assert.ok(drafts.some((p) => p.carrier && p.listPrintedAt) && drafts.every((p) => p.codes.every((c) => p.prices[c] > 0)));
+});

@@ -128,3 +128,32 @@ test('委託の確認: 委託先の郵便番号・住所・電話番号がなけ
   const bare = { ...M, vendors: M.vendors.map((v) => (v.id === V1.id ? { ...v, phone: '' } : v)) };
   assert.deepEqual(S.addressProblems(consign(), bare), [`送り先（${V1.name}）の電話番号`]);
 });
+
+const sale = (over = {}) => ({
+  id: 'SL-TEST1', kind: 'sale', codes: ['RQ-AAA1', 'RQ-BBB2'], prices: { 'RQ-AAA1': 128000, 'RQ-BBB2': 9000 }, fromId: OSAKA.id, fromName: OSAKA.name, status: 'draft',
+  buyer: { name: '佐藤 一郎', zip: '150-0001', address: '東京都渋谷区神宮前1-1-1', phone: '03-0000-0000' }, carrier: 'yamato', size: '60', boxes: 1, note: '', tracking: '', createdAt: new Date(2026, 9, 25, 9).getTime(), ...over,
+});
+
+test('販売の発送のパック: 送り先は購入者。CSV・伝票のお届け先が購入者になり、敬称は「様」', () => {
+  assert.deepEqual(S.packSummary(sale(), units), { count: 2, total: 103000, ask: 137000 });
+  for (const key of ['yamato', 'sagawa', 'jp', 'other']) {
+    const row = S.shippingCsv(key, [sale()], units, M, { now: NOW }).slice(1).split('\r\n')[1];
+    for (const must of ['佐藤 一郎', '150-0001', '東京都渋谷区神宮前1-1-1', '03-0000-0000', OSAKA.address]) assert.ok(row.includes(must), `${key}: ${must}`);
+  }
+  assert.ok(S.shippingCsv('yamato', [sale()], units, M, { now: NOW }).includes('様'));
+  const label = S.shippingLabelHtml(sale(), units, M, { now: NOW });
+  assert.ok(label.includes('佐藤 一郎 様') && !label.includes('佐藤 一郎 御中'));
+  assert.ok(S.shippingLabelHtml(pack(), units, M, { now: NOW }).includes('御中')); // 倉庫・委託先は、御中
+});
+
+test('納品書（印刷用）: 購入者に同梱する。商品名・金額（売価）だけで、原価・お客様の情報・色は載せない', () => {
+  const html = S.packingListHtml(sale(), units, M, { now: NOW });
+  for (const must of ['納品書', '佐藤 一郎', '¥128,000', '¥9,000', '¥137,000', 'ルイ・ヴィトン ネヴァーフル']) assert.ok(html.includes(must), must);
+  assert.ok(!html.includes('¥98,000') && !html.includes('買取額') && !html.includes('山田 花子') && !html.includes('シールの色')); // 原価・買い取ったお客様は載せない
+  assert.ok(!html.includes('<script>alert(1)</script>'));
+});
+
+test('販売の発送の確認: 購入者の郵便番号・住所・電話番号がなければ、足りない項目を返す', () => {
+  assert.deepEqual(S.addressProblems(sale(), M), []);
+  assert.deepEqual(S.addressProblems(sale({ buyer: { name: '田中', zip: '', address: '', phone: '' } }), M), ['送り先（田中）の郵便番号', '送り先（田中）の住所', '送り先（田中）の電話番号']);
+});

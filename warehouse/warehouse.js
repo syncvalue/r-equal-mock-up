@@ -24,6 +24,7 @@ import {
   receiveTransfer, cancelTransfer, incoming, sendableCheck, createPack, addToPack, removeFromPack, updatePack, markPrinted, shipPack, discardPack, drafts,
 } from '../src/warehouseTransfer.js';
 import { addToConsignPack, createConsignPack, setPackPrice, shipConsignPack } from '../src/warehouseConsign.js';
+import { addToSalePack, createSalePack, shipSalePack, setBuyer, awaitingShipment } from '../src/warehouseSale.js';
 import { packingListHtml, shippingLabelHtml, shippingCsv, csvFileName, addressProblems, carrierOf } from '../src/shipping.js';
 import { openPrintWindow, downloadText } from './output.js';
 import { loginView } from './loginView.js';
@@ -45,7 +46,7 @@ let tab = 'stock';
 let menuOpen = false; // 左側のメニューの開閉
 let staff = loadSession(); // ログイン中の担当者（操作した人として記録する。所属する倉庫が、入庫先・表示の初期値になる）
 let loginError = '';
-const blankPk = () => ({ id: '', toId: '', q: '', last: null, tracking: '' }); // 送るパックの作業（開いているパック）
+const blankPk = () => ({ id: '', toId: '', q: '', last: null, tracking: '', bName: '', bZip: '', bAddress: '', bPhone: '' }); // 送るパックの作業（開いているパック）
 const blankWh = () => ({ id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false });
 const blankVendor = () => ({ id: '', name: '', zip: '', address: '', phone: '' });
 const blankStaff = () => ({ id: '', name: '', loginId: '', warehouseId: '' });
@@ -190,6 +191,7 @@ function openCamera(mode) {
       pickNext: () => {
         const state = loadState();
         const pack = packOf(state, ui.pk.id);
+        if (pack.kind === 'sale') return awaitingShipment(state, master, staff.warehouseId).map((r) => r.unit.code).find((c) => !pack.codes.includes(c)) ?? ''; // 発送待ちの商品を順に
         return state.units.map((u) => u.code).find((c) => !pack.codes.includes(c) && sendableCheck(state, master, { fromId: staff.warehouseId, toId: pack.toId, code: c }).ok) ?? '';
       },
       onFound: (code) => { packAdd(code); render(); },
@@ -235,15 +237,18 @@ const SEND_REJECT = { unknown: '登録のない商品', notStock: '在庫では�
 const PACK_TEXT = {
   notDraft: 'このパックは、すでに発送済み・破棄済みです', unknown: '登録のないシールです', notStock: '在庫ではないため、入れられません（入庫前・出品中・委託中・返品対応中・輸送中など）',
   otherWarehouse: '他の倉庫の商品です（あなたの倉庫の商品だけ送れます）', inOtherPack: '別のパックに入っています', wrongDestination: '送り先の規則に合いません（高額品は本社へ、それ以外は本社以外の倉庫へ）',
+  noBuyer: '購入者名を入力してください', badZip: '郵便番号は、123-4567 の形式で入力してください', notSold: '売れた商品ではありません（在庫・委託中など）', alreadyShipped: 'すでに発送済みです',
   noPrice: '希望価格が未設定の商品があります', badVendor: '委託先（業者）が正しくありません（無効になっているか、登録がありません）', badWarehouse: '送り元の倉庫が正しくありません', wrongKind: 'このパックは、ここでは発送できません',
   noItems: '商品が入っていません', noCarrier: '配送業者を選んでください', sameWarehouse: '送り先は、別の倉庫を選んでください', badDestination: '送り先の倉庫が正しくありません',
 };
 const packOf = (state, id) => (state.transfers ?? []).find((t) => t.id === id && t.status === 'draft');
+// パックの種類ごとの、商品の入れ方（委託は希望価格の目安が入り、販売は売れた商品の売価が入る）
+const adderOf = (pack) => (pack?.kind === 'consign' ? addToConsignPack : pack?.kind === 'sale' ? addToSalePack : addToPack);
 const say = (ok, text) => { ui.pk = { ...ui.pk, last: { ok, text } }; };
 
 // ① 商品を探して、パックに入れる（検索の一覧・QR読取（スキャナ・手入力・カメラ））
 function packAdd(raw) {
-  const adder = packOf(loadState(), ui.pk.id)?.kind === 'consign' ? addToConsignPack : addToPack; // 委託のパックは、希望価格の目安も入る
+  const adder = adderOf(packOf(loadState(), ui.pk.id));
   const r = adder(loadState(), master, ui.pk.id, raw);
   if (!r.ok) return say(false, `${r.code || '（空）'}：${r.reason === 'replaced' ? `貼り替え済みの古いシールです。新しいシール（${r.newCode}）を読み取ってください` : PACK_TEXT[r.reason]}`);
   if (r.already) return say(true, `${r.code} は、すでにパックに入っています`);
@@ -256,8 +261,7 @@ function packAddLot(visitId) {
   const state = loadState();
   const codes = state.units.filter((u) => u.visitId === visitId).map((u) => u.code);
   const { state: next, added } = codes.reduce((acc, code) => {
-    const adder = packOf(acc.state, ui.pk.id)?.kind === 'consign' ? addToConsignPack : addToPack;
-    const r = adder(acc.state, master, ui.pk.id, code);
+    const r = adderOf(packOf(acc.state, ui.pk.id))(acc.state, master, ui.pk.id, code);
     return r.ok && !r.already ? { state: r.state, added: acc.added + 1 } : acc;
   }, { state, added: 0 });
   if (added) commit(next);
@@ -293,19 +297,32 @@ function packShip() {
   const pack = packOf(state, ui.pk.id);
   if ((!pack.listPrintedAt || !pack.labelPrintedAt) && !confirm('明細または発送伝票が、まだ出力されていません。このまま発送しますか？')) return;
   const consign = pack.kind === 'consign';
-  const r = consign ? shipConsignPack(state, master, pack.id, { tracking: ui.pk.tracking, by: staff.name }) : shipPack(state, pack.id, { tracking: ui.pk.tracking, by: staff.name, master });
+  const r = consign ? shipConsignPack(state, master, pack.id, { tracking: ui.pk.tracking, by: staff.name })
+    : pack.kind === 'sale' ? shipSalePack(state, pack.id, { tracking: ui.pk.tracking, by: staff.name })
+      : shipPack(state, pack.id, { tracking: ui.pk.tracking, by: staff.name, master });
   if (!r.ok) return alert(`${PACK_TEXT[r.reason]}${r.rejected?.length ? `\n${r.rejected.map((x) => `${x.code}: ${PACK_TEXT[x.reason]}`).join('\n')}` : ''}`);
   commit(r.state);
   ui.pk = blankPk();
-  alert(consign ? `委託しました。${pack.vendorName}に委託中の商品として、「委託中」に載ります。` : `発送しました。${pack.toName}で「受け取り待ち」になります。`);
+  alert(consign ? `委託しました。${pack.vendorName}に委託中の商品として、「委託中」に載ります。`
+    : pack.kind === 'sale' ? `発送しました。${pack.buyer.name} 様へ。発送待ちから、発送済みになります。` : `発送しました。${pack.toName}で「受け取り待ち」になります。`);
 }
-function packNew(kind) {
-  const r = kind === 'consign'
+function packNew(kind, firstCode = '') {
+  const buyer = { name: ui.pk.bName, zip: ui.pk.bZip, address: ui.pk.bAddress, phone: ui.pk.bPhone };
+  const r = kind === 'sale'
+    ? createSalePack(loadState(), master, { fromId: staff.warehouseId, buyer, by: staff.name })
+    : kind === 'consign'
     ? createConsignPack(loadState(), master, { fromId: staff.warehouseId, vendorId: ui.pk.toId, by: staff.name })
     : createPack(loadState(), master, { fromId: staff.warehouseId, toId: ui.pk.toId, by: staff.name });
   if (!r.ok) return alert(PACK_TEXT[r.reason]);
   commit(r.state);
-  ui.pk = { ...blankPk(), id: r.pack.id, toId: ui.pk.toId };
+  ui.pk = { ...ui.pk, id: r.pack.id, q: '', last: null, tracking: '' };
+  if (firstCode) packAdd(firstCode); // 発送待ちの商品から、そのまま入れる
+}
+// 発送待ちの商品から、発送のパックを作る（購入者の欄が空なら、売却のときの購入者名を使う）
+function packNewForSale(code) {
+  const rec = loadState().records[code];
+  if (!ui.pk.bName.trim() && rec?.buyer) ui.pk = { ...ui.pk, bName: rec.buyer };
+  packNew('sale', code);
 }
 
 function receiveItems(id) {
@@ -405,7 +422,8 @@ const ACTIONS = {
   rlCancel: () => { ui.rl = { code: '', newCode: '', color: '' }; },
   rlColor: (v) => { ui.rl = { ...ui.rl, color: v }; },
   rlDo: doRelabel,
-  pkNew: packNew,
+  pkNew: (v) => packNew(v),
+  pkNewSale: packNewForSale,
   pkOpen: (v) => { ui.pk = { ...blankPk(), id: v, toId: ui.pk.toId, tracking: packOf(loadState(), v)?.tracking ?? '' }; },
   pkClose: () => { ui.pk = { ...blankPk(), toId: ui.pk.toId }; },
   pkDiscard: (v) => { if (confirm('この梱包中のパックを破棄します（商品は在庫に戻ります）。よろしいですか？')) { const r = discardPack(loadState(), v); if (r.ok) commit(r.state); if (ui.pk.id === v) ui.pk = blankPk(); } },
@@ -541,6 +559,14 @@ document.addEventListener('change', (e) => {
     const state = loadState();
     const next = setPackPrice(state, ui.pk.id, e.target.dataset.pkPriceInput, e.target.value);
     if (next === state) alert('希望価格は、1円以上の数字で入力してください');
+    else commit(next);
+    render();
+    return;
+  }
+  if (e.target.matches?.('[data-pack-buyer]')) { // 梱包中のパックの、購入者の情報
+    const state = loadState();
+    const next = setBuyer(state, ui.pk.id, { [e.target.dataset.packBuyer]: e.target.value });
+    if (next === state && e.target.dataset.packBuyer !== 'phone' && e.target.dataset.packBuyer !== 'address') alert('購入者名は空にできません。郵便番号は 123-4567 の形式で入力してください');
     else commit(next);
     render();
     return;

@@ -84,7 +84,7 @@ const returnStages = (returns) => {
 export function buildRows({ units, records, returns, transfers = [] }, now = Date.now()) {
   const rs = returnStages(returns);
   const inTransit = new Set(transfers.filter((t) => t.status === 'transit').flatMap((t) => t.codes));
-  const inPacking = new Set(transfers.filter((t) => t.status === 'draft').flatMap((t) => t.codes)); // 倉庫間移動の、梱包中のパック
+  const inPacking = new Set(transfers.filter((t) => t.status === 'draft' && (t.kind ?? 'transfer') !== 'sale').flatMap((t) => t.codes)); // 倉庫間移動・委託の、梱包中のパック（売れた商品の発送は、売却済みのまま）
   return units.map((unit) => {
     const rec = records[unit.code] ?? null;
     const stage = rs.get(unit.code)
@@ -187,6 +187,10 @@ export function historyOf({ units, records, returns, transfers = [] }, code) {
     const ship = pack ? `／配送: ${carrierOf(pack.carrier)?.label ?? ''}${pack.tracking ? ` 追跡番号 ${pack.tracking}` : ''}` : '';
     events.push({ at: rec.listedAt, label: ch?.consign ? '委託' : '出品', detail: `${target}／${yen(rec.listPrice)}${rec.listedBy ? `／${rec.listedBy}` : ''}${ship}` });
     if (rec.stage === 'sold') events.push({ at: rec.soldAt, label: '売却', detail: `${yen(rec.soldPrice)}／手数料 ${yen(rec.fee)}・送料 ${yen(rec.shipping)}${rec.soldBy ? `／${rec.soldBy}` : ''}` });
+    if (rec.shippedAt) { // 購入者への発送
+      const sp = transfers.find((t) => t.id === rec.shipPackId);
+      events.push({ at: rec.shippedAt, label: '購入者へ発送', detail: `${sp?.buyer?.name ?? rec.buyer ?? ''} 様／${carrierOf(sp?.carrier)?.label ?? ''}${rec.tracking ? ` 追跡番号 ${rec.tracking}` : ''}${rec.shippedBy ? `／${rec.shippedBy}` : ''}` });
+    }
   }
   (unit.relabels ?? []).forEach((r) => events.push({ at: r.at, label: 'シール貼り替え', detail: `${r.from}（${sealColorOf(r.fromColor)?.label ?? '未選択'}）→ ${r.to}（${sealColorOf(r.toColor)?.label ?? '未選択'}）${r.by ? `／${r.by}` : ''}` }));
   transfers.filter((t) => t.codes.includes(code) && ['transit', 'received'].includes(t.status)).forEach((t) => { // 梱包中（まだ発送していない）は、履歴に出さない

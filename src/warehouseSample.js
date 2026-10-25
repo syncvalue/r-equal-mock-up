@@ -5,6 +5,7 @@ import { loadUnits, addUnits } from './stock.js';
 import * as W from './warehouse.js';
 import * as T from './warehouseTransfer.js';
 import * as C from './warehouseConsign.js';
+import * as Sale from './warehouseSale.js';
 import { DEFAULT_MASTER as MASTER, isHighValue } from './warehouseMaster.js';
 
 export const WH_SAMPLE_KEY = 'rq-mock-warehouse-sample'; // 初期化で消えない目印（初期化後に、自動で復活させない）
@@ -12,7 +13,7 @@ const PREFIX = 'RQ-WH';
 
 // 保管場所は、入庫した倉庫の棚から選ぶ
 // お客様ごとの入庫先の倉庫（大阪・関東・福岡に分かれる）
-const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '山口 拓海': 'W-KANTO', '西田 久美': 'W-FUKUOKA', '石川 陽平': 'W-KANTO', '松井 恵': 'W-FUKUOKA', '三浦 香織': 'W-KANTO', '宮本 諒': 'W-FUKUOKA', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
+const WH_OF = { '中村 正': 'W-KANTO', '井上 和夫': 'W-KANTO', '吉田 浩': 'W-KANTO', '斎藤 清': 'W-KANTO', '山口 拓海': 'W-KANTO', '西田 久美': 'W-FUKUOKA', '石川 陽平': 'W-KANTO', '松井 恵': 'W-FUKUOKA', '三浦 香織': 'W-KANTO', '宮本 諒': 'W-FUKUOKA', '平田 美咲': 'W-FUKUOKA', '岡本 優': 'W-FUKUOKA', '森田 誠': 'W-FUKUOKA', '加藤 彩': 'W-FUKUOKA' };
 // 高額品（貴金属など）は納入のときから本社、それ以外はお客様ごとの倉庫
 const whOf = (customerName, item) => (item && isHighValue(item, MASTER) ? 'W-HONSHA' : WH_OF[customerName] ?? 'W-OSAKA');
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
@@ -80,11 +81,23 @@ export function buildSample(now = Date.now()) {
     ...purchase(17, 'u06', '三浦 香織', [['ロエベ ハンモック', 'ブランドバッグ', 'A', 160000], ['アニエスb 長財布', '財布・小物', 'B', 22000]]), // 49・50（関東倉庫）
     ...purchase(17, 'u07', '宮本 諒', [['キヤノン RF50mm F1.8', 'カメラ・家電', 'A', 68000]]), // 51（福岡倉庫）
     ...purchase(17, 'u08', '清水 玲子', [['K18 リング', 'ジュエリー・貴金属', 'A', 80000], ['プラチナ ネックレス', 'ジュエリー・貴金属', 'A', 110000], ['カルティエ ラブブレス', 'ジュエリー・貴金属', 'S', 580000]]), // 52〜54（本社）
+    // 売れた商品の購入者への発送の見本（発送待ち・梱包中のパック）
+    ...purchase(18, 'u09', '大野 光', [['フェンディ ピーカブー', 'ブランドバッグ', 'A', 120000], ['マルジェラ 長財布', '財布・小物', 'A', 32000], ['ラルフローレン バッグ', 'ブランドバッグ', 'B', 26000]]), // 55〜57（大阪倉庫）
+    ...purchase(18, 'u10', '平田 美咲', [['ニコン NIKKOR Z 24-70mm', 'カメラ・家電', 'A', 90000], ['ソニー ヘッドホン WH-1000XM5', 'カメラ・家電', 'B', 25000]]), // 58・59（福岡倉庫）
+    ...purchase(18, 'u11', '高田 誠', [['K18 ピアス', 'ジュエリー・貴金属', 'A', 60000], ['ダイヤ ブレスレット', 'ジュエリー・貴金属', 'A', 200000]]), // 60・61（本社）
   ];
   units[22] = { ...units[22], status: 'missing', storedAt: null, location: null, by: null, check: null, warehouseId: undefined }; // 所在不明
 
   const code = (i) => units[i].code;
   const R = (n) => `${PREFIX}R${String(n).padStart(3, '0')}`; // 色を貼り替えたあとの、新しいシールNo.
+  // 売れた商品を、購入者へ発送する一連の操作（パックを作る → 入れる → 配送業者・サイズ → 納品書・伝票を出力 → 発送）
+  const saleShip = ({ code: c, fromId, buyer, carrier, size, tracking, sentAt }) => [
+    (s) => Sale.createSalePack(s, MASTER, { fromId, buyer, by: staffOfWh(fromId), at: sentAt }),
+    (s) => Sale.addToSalePack(s, MASTER, s.transfers[0].id, c, { at: sentAt }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier, size }),
+    (s) => T.markPrinted(T.markPrinted(s, s.transfers[0].id, 'list', sentAt), s.transfers[0].id, 'label', sentAt),
+    (s) => Sale.shipSalePack(s, s.transfers[0].id, { tracking, by: staffOfWh(fromId), at: sentAt }),
+  ];
   const steps = [
     (s) => W.listItem(s, code(0), { channel: 'yahoo', price: 24000, at: at(38) }),
     (s) => W.sell(s, code(0), { price: 21000, shipping: 900, buyer: 'ヤフオク落札者', at: at(35) }), // 先月の売上
@@ -183,6 +196,40 @@ export function buildSample(now = Date.now()) {
     (s) => T.markPrinted(s, s.transfers[0].id, 'list', at(0, 13)), // 明細だけ出力済み
     (s) => C.createConsignPack(s, MASTER, { fromId: 'W-HONSHA', vendorId: 'V-KANSAI-JEWEL', by: staffOfWh('W-HONSHA'), at: at(0, 12) }),
     (s) => C.addToConsignPack(s, MASTER, s.transfers[0].id, code(54), { at: at(0, 12) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'yamato', size: '80' }),
+    // 売れた商品の購入者への発送（発送済み。古い売却は、発送済み）
+    ...saleShip({ code: code(0), fromId: 'W-OSAKA', buyer: { name: '森下 茂', zip: '6500001', address: '兵庫県神戸市中央区加納町1-1', phone: '078-000-0001' }, carrier: 'yamato', size: '80', tracking: '4321-0101-0001', sentAt: at(34) }),
+    ...saleShip({ code: code(1), fromId: 'W-OSAKA', buyer: { name: '上田 美里', zip: '5300001', address: '大阪府大阪市北区梅田1-1', phone: '06-0000-0101' }, carrier: 'jp', size: '60', tracking: '8100-0101-0002', sentAt: at(32) }),
+    ...saleShip({ code: code(2), fromId: 'W-OSAKA', buyer: { name: '大林 真', zip: '4600002', address: '愛知県名古屋市中区丸の内1-1', phone: '052-000-0102' }, carrier: 'sagawa', size: '100', tracking: '5012-0101-0003', sentAt: at(9) }),
+    ...saleShip({ code: code(3), fromId: 'W-OSAKA', buyer: { name: '三木 優子', zip: '6000001', address: '京都府京都市下京区四条通1-1', phone: '075-000-0103' }, carrier: 'yamato', size: '60', tracking: '', sentAt: at(7) }),
+    ...saleShip({ code: code(6), fromId: 'W-HONSHA', buyer: { name: '△△貴金属 買取係', zip: '1100016', address: '東京都台東区台東4-1-1', phone: '03-0000-0104' }, carrier: 'jp', size: '60', tracking: '8100-0202-0004', sentAt: at(7) }),
+    ...saleShip({ code: code(8), fromId: 'W-KANTO', buyer: { name: '中山 隆', zip: '2310001', address: '神奈川県横浜市中区港町1-1', phone: '045-000-0105' }, carrier: 'sagawa', size: '80', tracking: '5012-0303-0005', sentAt: at(3) }),
+    // 今日売れた商品（発送待ち・梱包中）
+    (s) => W.listItem(s, code(55), { channel: 'yahoo', price: 150000, at: at(2) }),
+    (s) => W.sell(s, code(55), { price: 142000, buyer: '田中 拓（ヤフオク）', at: at(0, 9) }),
+    (s) => W.listItem(s, code(56), { channel: 'mercari', price: 40000, at: at(2) }),
+    (s) => W.sell(s, code(56), { price: 36000, shipping: 800, buyer: '佐々木 恵（メルカリ）', at: at(0, 10) }),
+    (s) => W.listItem(s, code(57), { channel: 'mercari', price: 30000, at: at(2) }),
+    (s) => W.sell(s, code(57), { price: 28000, shipping: 700, buyer: '高橋 翼（メルカリ）', at: at(0, 11) }),
+    (s) => W.listItem(s, code(58), { channel: 'yahoo', price: 110000, at: at(2) }),
+    (s) => W.sell(s, code(58), { price: 104000, buyer: '山田 優（ヤフオク）', at: at(0, 10) }),
+    (s) => W.listItem(s, code(59), { channel: 'rakuma', price: 32000, at: at(2) }),
+    (s) => W.sell(s, code(59), { price: 30000, shipping: 600, buyer: '小林 舞（ラクマ）', at: at(0, 11) }),
+    (s) => W.listItem(s, code(60), { channel: 'direct', price: 80000, at: at(2) }),
+    (s) => W.sell(s, code(60), { price: 76000, buyer: '△△貴金属', at: at(0, 10) }),
+    (s) => W.listItem(s, code(61), { channel: 'direct', price: 260000, at: at(2) }),
+    (s) => W.sell(s, code(61), { price: 250000, buyer: '○○ジュエリー', at: at(0, 11) }),
+    // 梱包中の発送のパック（購入者あて）
+    (s) => Sale.createSalePack(s, MASTER, { fromId: 'W-OSAKA', buyer: { name: '田中 拓', zip: '1000001', address: '東京都千代田区千代田1-1', phone: '03-1234-0001' }, by: staffOfWh('W-OSAKA'), at: at(0, 12) }),
+    (s) => Sale.addToSalePack(s, MASTER, s.transfers[0].id, code(55), { at: at(0, 12) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'yamato', size: '80' }),
+    (s) => T.markPrinted(s, s.transfers[0].id, 'list', at(0, 13)), // 納品書だけ出力済み
+    (s) => Sale.createSalePack(s, MASTER, { fromId: 'W-FUKUOKA', buyer: { name: '小林 舞', zip: '8100001', address: '福岡県福岡市中央区天神1-1', phone: '092-000-0005' }, by: staffOfWh('W-FUKUOKA'), at: at(0, 12) }),
+    (s) => Sale.addToSalePack(s, MASTER, s.transfers[0].id, code(59), { at: at(0, 12) }),
+    (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'jp', size: '60' }),
+    (s) => T.markPrinted(T.markPrinted(s, s.transfers[0].id, 'list', at(0, 13)), s.transfers[0].id, 'label', at(0, 13)), // 納品書・伝票を出力済み（あとは発送するだけ）
+    (s) => Sale.createSalePack(s, MASTER, { fromId: 'W-HONSHA', buyer: { name: '○○ジュエリー（担当 山下）', zip: '5410044', address: '大阪府大阪市中央区伏見町1-1', phone: '06-0000-0106' }, by: staffOfWh('W-HONSHA'), at: at(0, 12) }),
+    (s) => Sale.addToSalePack(s, MASTER, s.transfers[0].id, code(61), { at: at(0, 12) }),
     (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'yamato', size: '80' }),
     (s) => W.requestReturn(s, { master: MASTER, customerName: '松本 千春', codes: [code(18), code(19)], reason: 'family', memo: '夫に反対された。2点とも返品希望', at: at(0, 10) }),
   ];

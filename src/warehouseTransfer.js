@@ -124,7 +124,7 @@ export function markPrinted(state, packId, kind, at = Date.now()) {
 export function shipPack(state, packId, { tracking = '', by, at = Date.now(), master = null }) {
   const pack = draftOf(state, packId);
   if (!pack) return fail(state, 'notDraft');
-  if (pack.kind === 'consign') return fail(state, 'wrongKind'); // 委託のパックは、委託する（warehouseConsign.js）で発送する
+  if ((pack.kind ?? 'transfer') !== 'transfer') return fail(state, 'wrongKind'); // 委託・販売のパックは、それぞれの発送（warehouseConsign.js／warehouseSale.js）で行う
   if (!pack.codes.length) return fail(state, 'noItems');
   if (!pack.carrier) return fail(state, 'noCarrier');
   const rejected = pack.codes.flatMap((code) => {
