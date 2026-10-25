@@ -9,17 +9,17 @@ globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {}
 globalThis.document = { documentElement: { classList: { toggle() {}, contains: () => false }, style: {} }, querySelector: () => root, querySelectorAll: () => [], addEventListener() {}, activeElement: null, head: { appendChild() {} }, createElement: () => ({}) };
 globalThis.setInterval = () => {};
 
-test('本社 査定部の画面は、描画できる。入金・日報のボタンはない', async () => {
+test('査定部の画面は、描画できる。入金・日報のボタンはない', async () => {
   await import('../honsha/honsha.js');
-  assert.ok(root.innerHTML.includes('本社 査定部'));
+  assert.ok(root.innerHTML.includes('査定部'));
   assert.ok(root.innerHTML.includes('お知らせ送信'));
   assert.ok(!root.innerHTML.includes('入金') && !root.innerHTML.includes('日報'));
 });
 
-test('本社 経理部の画面は、描画できる（サンプルデータ入り）', async () => {
+test('経理部の画面は、描画できる（サンプルデータ入り）', async () => {
   root.innerHTML = '';
   await import('../accounting/accounting.js');
-  assert.ok(root.innerHTML.includes('本社 経理部') && root.innerHTML.includes('所持金の確認') && root.innerHTML.includes('鈴木 一郎'));
+  assert.ok(root.innerHTML.includes('経理部') && root.innerHTML.includes('所持金の確認') && root.innerHTML.includes('鈴木 一郎'));
 });
 
 test('マスタ管理の画面は、描画できる。社員・営業所・倉庫・委託先の各マスタを切り替えて表示できる', async () => {

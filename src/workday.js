@@ -83,7 +83,7 @@ export const addDeposit = (d) => localStorage.setItem(DEPOSIT_KEY, JSON.stringif
 export function depositsOf(userId, date = dateKey()) {
   const stored = loadStoredDeposits().filter((d) => d.userId === userId && dateKey(new Date(d.at)) === date);
   const seed = date === dateKey()
-    ? [{ id: `seed-${userId}-${date}`, userId, amount: SEED_DEPOSIT, memo: '定例入金', by: '本社 経理部', at: new Date(`${date}T09:00:00`).getTime() }]
+    ? [{ id: `seed-${userId}-${date}`, userId, amount: SEED_DEPOSIT, memo: '定例入金', by: '経理部', at: new Date(`${date}T09:00:00`).getTime() }]
     : [];
   return [...seed, ...stored].sort((a, b) => a.at - b.at);
 }

@@ -12,8 +12,8 @@ export const ROLES = [
   { key: 'sales', label: '営業', where: '営業タブレット' },
   { key: 'operator', label: 'オペレーター', where: 'コールセンター' },
   { key: 'dispatcher', label: '配車係', where: 'コールセンター（配車確定）' },
-  { key: 'appraiser', label: '査定員', where: '本社 査定部' },
-  { key: 'accountant', label: '経理担当', where: '本社 経理部' },
+  { key: 'appraiser', label: '査定員', where: '査定部' },
+  { key: 'accountant', label: '経理担当', where: '経理部' },
   { key: 'warehouse', label: '倉庫担当', where: '倉庫・物流' },
   { key: 'store', label: '店舗スタッフ', where: '店舗' },
 ];

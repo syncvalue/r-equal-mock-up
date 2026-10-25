@@ -794,7 +794,7 @@ const TAG_CLS = { 差戻し: 'bg-rose-600 text-white', 安すぎる: 'bg-sky-100
 function commentsModalView(s) {
   const list = [...s.comments].sort((a, b) => b.createdAt - a.createdAt);
   return modalShell(
-    '💬 本社査定部からのコメント',
+    '💬 査定部からのコメント',
     `${list.length ? '' : '<p class="text-slate-400 text-center py-8">コメントはありません</p>'}
     ${list.map((c) => {
       const item = s.items.find((i) => i.id === c.itemId);
@@ -861,7 +861,7 @@ function appraisalComposeView(s, m) {
   return modalShell(
     ai ? '🤖 AI査定' : '📨 本社に査定依頼',
     `<p class="font-bold text-lg">${esc(d.name)}${helpIcon(ai ? '画像からAIが買取額とランクを推定します。' : '写真を本社に送り、査定を依頼します。')}</p>
-    <div class="flex gap-2">${tab('hq', '👤 本社査定部に依頼')}${tab('ai', '🤖 AI査定')}</div>
+    <div class="flex gap-2">${tab('hq', '👤 査定部に依頼')}${tab('ai', '🤖 AI査定')}</div>
     <label class="block"><span class="font-bold">状態・補足</span>
       <textarea class="field mt-1" rows="2" data-draft="note" placeholder="傷、付属品、お客様の希望額など">${esc(d.note)}</textarea></label>
     <div><div class="font-bold mb-1">写真（${d.photos.length}枚）</div>

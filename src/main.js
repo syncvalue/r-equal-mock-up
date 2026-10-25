@@ -158,7 +158,7 @@ const STEP_VIEWS = [
   V.endView,
 ];
 
-// 本社査定部のリアルタイム画面へ、現在の訪問状況を共有
+// 査定部のリアルタイム画面へ、現在の訪問状況を共有
 function publish() {
   if (!state.visitStartedAt) return;
   publishLive({
@@ -517,7 +517,7 @@ const actions = {
       status: '依頼中', reply: null, adopted: false,
     });
     set({ modal: { type: 'appraisal', itemId: state.modal.itemId }, draft: { ...d, note: '', photos: [] } });
-    showToast('本社査定部に送信しました');
+    showToast('査定部に送信しました');
   },
   'adopt-comment': (el) => {
     const c = loadComments().find((x) => x.id === el.dataset.id);
@@ -842,7 +842,7 @@ window.addEventListener('storage', (e) => {
   }
   if (e.key === COMMENT_KEY) {
     const mine = (list) => list.filter((c) => c.visitId === state.visitId).length;
-    if (mine(loadComments()) > state.comments.length) showToast('❗ 本社査定部からコメントが届きました');
+    if (mine(loadComments()) > state.comments.length) showToast('❗ 査定部からコメントが届きました');
     rerenderKeepScroll();
     return;
   }

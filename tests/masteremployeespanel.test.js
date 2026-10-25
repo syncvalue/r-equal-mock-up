@@ -96,5 +96,5 @@ test('エラーの文言: 保存・無効化で返る理由すべてに、利用
 
 test('パネル: 描画できる。役割ごとの使う画面の説明がある', () => {
   const t = text(usersHtml(base));
-  assert.ok(t.includes('社員') && t.includes('営業タブレット') && t.includes('本社 査定部') && t.includes('倉庫・物流'));
+  assert.ok(t.includes('社員') && t.includes('営業タブレット') && t.includes('査定部') && t.includes('倉庫・物流'));
 });

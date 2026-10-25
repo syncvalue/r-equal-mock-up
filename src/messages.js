@@ -12,7 +12,7 @@ const SEED = () => [
   { id: 'seed-2', important: true, sender: '本社 コンプライアンス室', target: 'all', sentAt: ago(26),
     title: 'クーリング・オフの説明を徹底してください',
     body: '訪問時は、クーリング・オフの内容と満了日を、必ずお客様に口頭でお伝えし、契約書のチェック項目に記入いただいてください。説明漏れのご報告が増えています。' },
-  { id: 'seed-3', important: false, sender: '本社 査定部', target: 'all', sentAt: ago(50),
+  { id: 'seed-3', important: false, sender: '査定部', target: 'all', sentAt: ago(50),
     title: '今月の買取強化商材',
     body: 'ロレックス（デイトジャスト・サブマリーナ）、ルイ・ヴィトン（ネヴァーフル・スピーディ）の買取を強化しています。状態の良いものは、査定部へ写真を送ってご相談ください。' },
   { id: 'seed-4', important: false, sender: '本社 システム管理', target: 'all', sentAt: ago(96),

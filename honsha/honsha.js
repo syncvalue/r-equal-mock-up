@@ -1,4 +1,4 @@
-// 本社 査定部デスク画面（ダミー・PC想定）。営業の買取明細をリアルタイムで見て、依頼への回答や提案を行う。
+// 査定部デスク画面（ダミー・PC想定）。営業の買取明細をリアルタイムで見て、依頼への回答や提案を行う。
 import {
   AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, COMMENT_TAGS, LIVE_KEY, loadAppraisals, loadComments, loadLive, newAppraisalId,
   newCommentId, upsertAppraisal, upsertComment,
@@ -167,7 +167,7 @@ function thread(cs, itemId) {
   if (!list.length) return '';
   return `<div class="space-y-2">${list.map((c) => `
     <div class="text-sm rounded-lg p-2 ${c.ack ? 'bg-white border' : 'bg-rose-50 border border-rose-200'}">
-      <div class="flex justify-between"><b>${c.tag ? esc(c.tag) : '本社査定部'}</b><span class="text-xs text-slate-500">${fmtTime(c.createdAt)}</span></div>
+      <div class="flex justify-between"><b>${c.tag ? esc(c.tag) : '査定部'}</b><span class="text-xs text-slate-500">${fmtTime(c.createdAt)}</span></div>
       <div class="whitespace-pre-wrap">${esc(c.text)}</div>
       ${c.price ? `<div class="mt-1 font-bold text-indigo-800">提案査定額 ${yen(c.price)}（ランク${c.rank}）${c.adopted ? '<span class="text-emerald-700">／ 営業が買取金額に反映済み</span>' : ''}</div>` : ''}
       <div class="text-xs mt-1 font-bold ${c.ack ? 'text-emerald-700' : 'text-rose-600'}">${c.ack ? `✓ 営業が確認済み（${fmtTime(c.ackAt)}）` : '⏳ 営業は未確認'}</div>
@@ -265,7 +265,7 @@ function render() {
   const totalPending = aps.filter((a) => a.status === '依頼中').length;
   $('#root').innerHTML = `
   <header class="bg-indigo-800 text-white px-6 py-3 flex justify-between items-center">
-    <div class="font-bold text-xl">本社 査定部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
+    <div class="font-bold text-xl">査定部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
     <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <label class="ml-3 text-xs text-white/80">査定員 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${appraisers().map((a) => `<option class="text-slate-800" value="${esc(a.id)}" ${a.id === appraiser().id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
   <div class="grid grid-cols-[19rem_1fr_26rem] h-[calc(100vh-52px)]">
@@ -307,7 +307,7 @@ function decideItem(itemId, ok) {
   if (!ok) {
     upsertComment({
       id: newCommentId(), visitId, itemId, tag: '差戻し', text: draft.reason.trim(),
-      price: null, rank: null, from: '本社査定部', createdAt: now, ack: false, ackAt: null,
+      price: null, rank: null, from: '査定部', createdAt: now, ack: false, ackAt: null,
     });
   }
   draft = { ...draft, reason: '' };
@@ -323,7 +323,7 @@ function send(itemId) {
   const rank = draft.rank ?? item?.rank ?? 'A';
   upsertComment({
     id: newCommentId(), visitId, itemId: itemId || null, tag: draft.tag, text: text || '（査定額の提案）',
-    price: price || null, rank: price ? rank : null, from: '本社査定部', createdAt: Date.now(), ack: false, ackAt: null,
+    price: price || null, rank: price ? rank : null, from: '査定部', createdAt: Date.now(), ack: false, ackAt: null,
   });
   // 営業からの査定依頼が未回答なら、この送信で回答済みにする
   loadAppraisals()
@@ -340,7 +340,7 @@ document.addEventListener('click', (e) => {
   if ('composeClose' in t.dataset) { compose = null; render(); return; }
   if ('composeSend' in t.dataset) {
     if (!compose.title.trim() || !compose.body.trim()) return alert('タイトルと本文を入力してください');
-    sendMessage({ id: `msg-${Date.now().toString(36)}`, title: compose.title.trim(), body: compose.body.trim(), important: compose.important, target: compose.target, sender: '本社 査定部', sentAt: Date.now() });
+    sendMessage({ id: `msg-${Date.now().toString(36)}`, title: compose.title.trim(), body: compose.body.trim(), important: compose.important, target: compose.target, sender: '査定部', sentAt: Date.now() });
     compose = null; render(); return;
   }
   if (t.dataset.visit) { visitId = t.dataset.visit; sel = null; draft = emptyDraft(); }

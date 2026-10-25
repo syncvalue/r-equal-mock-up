@@ -26,7 +26,7 @@ export const newContractId = () => {
 
 export const GMO_URL = '/gmosign/index.html';
 
-// 本社査定依頼（営業 → 本社査定部 → 回答）
+// 本社査定依頼（営業 → 査定部 → 回答）
 const AP_KEY = 'rq-mock-appraisals';
 export const AP_STORAGE_KEY = AP_KEY;
 
@@ -48,7 +48,7 @@ export const newAppraisalId = () => `AP-${Date.now().toString(36).toUpperCase()}
 
 export const HQ_URL = '/honsha/index.html';
 
-// 訪問ごとの進行状況（本社査定部のリアルタイム画面用）。訪問ID → スナップショット
+// 訪問ごとの進行状況（査定部のリアルタイム画面用）。訪問ID → スナップショット
 export const LIVE_KEY = 'rq-mock-live';
 
 export const loadLive = () => {
@@ -72,7 +72,7 @@ export const clearEndedLive = () => {
   localStorage.setItem(LIVE_KEY, JSON.stringify(next));
 };
 
-// 本社査定部 → 営業へのコメント（査定額への意見など）。営業側で確認チェックができる
+// 査定部 → 営業へのコメント（査定額への意見など）。営業側で確認チェックができる
 export const COMMENT_KEY = 'rq-mock-comments';
 
 export const loadComments = () => {
@@ -128,7 +128,7 @@ export const clearTransactions = () => {
 
 export const RESET_CONFIRM = '契約・査定依頼・コメント・訪問状況・始業終業・経費・持ち帰り・コールセンターの受付・店舗の来店のデータをすべて初期化します。よろしいですか？（商品マスタは消えません）';
 
-// 買取承認（本社査定部が、商品が登録された時点から随時 承認／差戻し）。承認時点の金額・ランク・数量のスナップショットを持つ
+// 買取承認（査定部が、商品が登録された時点から随時 承認／差戻し）。承認時点の金額・ランク・数量のスナップショットを持つ
 export const APPROVAL_KEY = 'rq-mock-approvals';
 
 export const loadApprovals = () => {

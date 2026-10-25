@@ -7,7 +7,7 @@ const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
 
 test('画面一覧（トップ）: ボタンは10個。画面のないデータ分析は、リンクなしで「準備中」。リンクはすべて、実在する画面を指す', () => {
   const cards = [...html.matchAll(/<(a|div) class="card[^"]*"[^>]*>/g)];
-  assert.equal(cards.length, 10); // オペレーター・配車係・営業タブレット・店舗・本社査定部・経理部・倉庫・物流・マスタ管理・データ分析・GMOサイン
+  assert.equal(cards.length, 10); // オペレーター・配車係・営業タブレット・店舗・査定部・経理部・倉庫・物流・マスタ管理・データ分析・GMOサイン
   assert.equal(hrefs.length, 9);
   const config = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8');
   for (const h of hrefs) {
@@ -21,7 +21,7 @@ test('画面一覧（トップ）: ボタンは10個。画面のないデータ�
 
 test('画面一覧（トップ）: 利用者ごとの入口と、公開環境の設定', () => {
   assert.deepEqual(hrefs, ['/callcenter/?tab=new', '/callcenter/?tab=dispatch', '/tablet/', '/store/', '/honsha/', '/accounting/', '/warehouse/', '/master/', '/gmosign/']);
-  for (const k of ['コールセンター（オペレーター）', 'コールセンター（配車係）', '営業タブレット', '店舗（店頭買取）', '本社 査定部', '経理部', '倉庫・物流', 'マスタ管理', 'データ分析', 'GMOサイン']) assert.ok(html.includes(k), k);
+  for (const k of ['コールセンター（オペレーター）', 'コールセンター（配車係）', '営業タブレット', '店舗（店頭買取）', '査定部', '経理部', '倉庫・物流', 'マスタ管理', 'データ分析', 'GMOサイン']) assert.ok(html.includes(k), k);
   const vercel = JSON.parse(fs.readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   for (const s of ['/tablet', '/callcenter', '/store', '/honsha', '/accounting', '/warehouse', '/master', '/gmosign']) assert.ok(vercel.rewrites.some((r) => r.source === s), s); // 末尾の / がなくても開ける
   assert.ok(vercel.redirects.some((r) => r.source === '/menu' && r.destination === '/')); // 以前の /menu は、トップへ

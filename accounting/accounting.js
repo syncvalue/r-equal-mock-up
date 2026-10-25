@@ -1,4 +1,4 @@
-// 本社 経理部デスク画面（ダミー・PC想定）。営業の手持ち現金の確認、入金（営業・お客様）、経費の入力代行、経費の全体状況。
+// 経理部デスク画面（ダミー・PC想定）。営業の手持ち現金の確認、入金（営業・お客様）、経費の入力代行、経費の全体状況。
 import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY } from '../src/store.js';
 import { USERS, userById } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser } from '../src/dispatch.js';
@@ -14,7 +14,7 @@ import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
 import { yen, fmtTime, esc } from '../src/format.js';
 
 const $ = (s) => document.querySelector(s);
-const BY = '本社 経理部';
+const BY = '経理部';
 const PHASE = { before: ['未始業', 'bg-slate-200 text-slate-600'], open: ['業務中', 'bg-emerald-100 text-emerald-800'], closed: ['終業済み', 'bg-indigo-100 text-indigo-800'] };
 const LEVEL = { danger: 'bg-rose-100 text-rose-700', warn: 'bg-amber-100 text-amber-800', info: 'bg-slate-100 text-slate-600' };
 const blankDeposit = () => ({ userId: scoped()[0]?.id ?? '', amount: 0, memo: '' });
@@ -183,7 +183,7 @@ function render() {
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
   <header class="bg-teal-800 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${alerts || pending ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
-      <span class="font-bold text-xl">本社 経理部</span><span class="text-teal-200">›</span><span class="font-bold">${tabLabel(tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
+      <span class="font-bold text-xl">経理部</span><span class="text-teal-200">›</span><span class="font-bold">${tabLabel(tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1"><label class="text-xs font-bold">営業所 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-office><option class="text-slate-800" value="">全営業所（${USERS.length}人）</option>${AREAS.map((a) => `<option class="text-slate-800" value="${a.id}" ${office === a.id ? 'selected' : ''}>${esc(a.name.replace('エリア', ''))}（${officeUsers(USERS, a.id, areaOfUser).length}人）</option>`).join('')}</select></label>
       <span>確認が必要な営業 <b class="text-lg">${alerts}</b>人 ／ 振込待ち <b class="text-lg">${pending}</b>件</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
