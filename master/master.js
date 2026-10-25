@@ -2,6 +2,9 @@
 import { EMPLOYEES_KEY, DEFAULT_EMPLOYEES, loadEmployees, saveEmployees, saveEmployee, setEmployeeActive, isReadOnlyRole } from '../src/employees.js';
 import { DEPARTMENTS_KEY, DEFAULT_DEPARTMENTS, loadDepartments, saveDepartments, saveDepartment, setDepartmentActive, activeDepartments, defaultDepartmentOf } from '../src/departments.js';
 import { OFFICES_KEY, DEFAULT_OFFICES, loadOffices, saveOffices, saveOffice, setOfficeActive } from '../src/offices.js';
+import { loadCurrentTrips, saveTrips, saveTrip, setTripActive } from '../src/trips.js';
+import { USERS } from '../src/dashboard.js';
+import { ymdOf } from '../src/reservations.js';
 import { MASTER_KEY, loadMaster, saveMaster, saveWarehouse, saveVendor, setVendorActive, saveHighValueRule, setWarehouseActive, warehouseById, vendorById, activeWarehouses, DEFAULT_MASTER } from '../src/warehouseMaster.js';
 import { loadState, holdingByWarehouse } from '../src/warehouse.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -9,6 +12,7 @@ import { masterHtml, REASON_TEXT } from './view.js';
 import { listHtml, blankForm, formFromEmployee } from './employeesPanel.js';
 import { blankDepartment, formFromDepartment } from './departmentsPanel.js';
 import { blankOffice, formFromOffice } from './officesPanel.js';
+import { blankTrip, formFromTrip } from './tripsPanel.js';
 
 const $ = (s) => document.querySelector(s);
 const blankWh = () => ({ id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false });
@@ -18,14 +22,16 @@ const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { re
 let employees = loadEmployees();
 let departments = loadDepartments();
 let offices = loadOffices();
+const salesIds = USERS.map((u) => u.id);
+let trips = loadCurrentTrips();
 let menuOpen = false; // 左側のメニューの開閉
-let tab = ['employees', 'departments', 'offices', 'warehouses', 'vendors'].includes(pref('rq-mock-master-tab', '')) ? pref('rq-mock-master-tab', '') : 'employees';
-let ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
+let tab = ['employees', 'departments', 'offices', 'trips', 'warehouses', 'vendors'].includes(pref('rq-mock-master-tab', '')) ? pref('rq-mock-master-tab', '') : 'employees';
+let ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, trips: { mt: blankTrip() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
 const setUi = (name, patch) => { ui = { ...ui, [name]: { ...ui[name], ...patch } }; };
 
 const ctx = () => {
   const wmaster = loadMaster();
-  return { tab, menuOpen, employees, departments, offices, wmaster, holding: holdingByWarehouse(loadState(), wmaster), ui, themeHtml: themeToggleHtml() };
+  return { tab, menuOpen, employees, departments, offices, trips, salesUsers: USERS.map(({ id, name }) => ({ id, name })), today: ymdOf(new Date()), wmaster, holding: holdingByWarehouse(loadState(), wmaster), ui, themeHtml: themeToggleHtml() };
 };
 const render = () => { $('#root').innerHTML = masterHtml(ctx()); };
 const renderList = () => { const el = $('[data-list]'); if (el) el.innerHTML = listHtml({ employees, departments, warehouses: loadMaster().warehouses, ui: ui.employees }); };
@@ -84,6 +90,20 @@ function toggleOffice(id) {
   if (saveOffices(r.offices)) offices = r.offices;
 }
 
+// ---- 出張 -------------------------------------------------------------------------
+function saveTripForm() {
+  const f = ui.trips.mt;
+  const r = saveTrip(trips, { ...f, id: f.id || undefined }, { userIds: salesIds });
+  if (!r.ok) return warn(r.reason);
+  if (!saveTrips(r.trips)) return alert('保存できませんでした（容量超過）');
+  trips = r.trips;
+  setUi('trips', { mt: blankTrip() });
+}
+function toggleTrip(id) {
+  const r = setTripActive(trips, id, !trips.find((t) => t.id === id).active);
+  if (r.ok && saveTrips(r.trips)) trips = r.trips;
+}
+
 // ---- 倉庫・高額品・委託先 -------------------------------------------------------------
 function saveWarehouseForm() {
   const f = ui.warehouses.mw;
@@ -139,6 +159,10 @@ const CLICK = {
   moEdit: (v) => setUi('offices', { mo: formFromOffice(offices.find((o) => o.id === v)) }),
   moCancel: () => setUi('offices', { mo: blankOffice() }),
   moToggle: toggleOffice,
+  mtSave: saveTripForm,
+  mtEdit: (v) => setUi('trips', { mt: formFromTrip(trips.find((t) => t.id === v)) }),
+  mtCancel: () => setUi('trips', { mt: blankTrip() }),
+  mtToggle: toggleTrip,
   mwSave: saveWarehouseForm,
   mwEdit: (v) => { const w = warehouseById(loadMaster(), v); setUi('warehouses', { mw: { id: w.id, name: w.name, zip: w.zip ?? '', address: w.address, phone: w.phone ?? '', officeId: w.officeId, locations: w.locations.join('\n'), highValue: Boolean(w.highValue) } }); },
   mwCancel: () => setUi('warehouses', { mw: blankWh() }),
@@ -149,12 +173,14 @@ const CLICK = {
   mvCancel: () => setUi('vendors', { mv: blankVendor() }),
   mvToggle: toggleVendor,
   reset: () => {
-    if (!confirm('社員・営業所・倉庫・委託先を、すべて初期値（見本のデータ）に戻します。登録・変更した内容は消えます。よろしいですか？')) return false;
+    if (!confirm('社員・部署・営業所・出張・倉庫・委託先を、すべて初期値（見本のデータ）に戻します。登録・変更した内容は消えます。よろしいですか？')) return false;
     commitUsers(DEFAULT_EMPLOYEES);
     saveDepartments(DEFAULT_DEPARTMENTS); departments = DEFAULT_DEPARTMENTS;
     saveOffices(DEFAULT_OFFICES); offices = DEFAULT_OFFICES;
+    try { localStorage.removeItem('rq-mock-trips'); } catch { /* 消せなくても動作は継続（モック） */ }
+    trips = loadCurrentTrips();
     commitWh({ ...DEFAULT_MASTER, staff: undefined });
-    ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
+    ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, trips: { mt: blankTrip() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
   },
 };
 const SELECTOR = Object.keys(CLICK).map((k) => `[data-${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}]`).join(',');
@@ -167,7 +193,7 @@ document.addEventListener('click', (e) => {
 });
 
 // 入力欄: 「社員」は data-f="name"、ほかは data-f="mw.name" のように、フォームの名前つき。入力中は再描画しない（検索は一覧だけ更新）
-const FORMS = { md: ['departments', 'md'], mo: ['offices', 'mo'], mw: ['warehouses', 'mw'], mv: ['vendors', 'mv'] };
+const FORMS = { md: ['departments', 'md'], mo: ['offices', 'mo'], mt: ['trips', 'mt'], mw: ['warehouses', 'mw'], mv: ['vendors', 'mv'] };
 function onField(e) {
   const [form, key] = (e.target.dataset.f ?? '').split('.');
   const target = FORMS[form];
@@ -185,6 +211,12 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', (e) => {
   if (e.target.matches('[data-dept]')) { setUi('employees', { departmentId: e.target.value }); renderList(); return; }
   if (e.target.matches('[data-status]')) { setUi('employees', { status: e.target.value }); renderList(); return; }
+  if (e.target.dataset.tripMember) { // 出張メンバー
+    const id = e.target.dataset.tripMember;
+    const cur = ui.trips.mt.memberIds;
+    setUi('trips', { mt: { ...ui.trips.mt, memberIds: e.target.checked ? [...new Set([...cur, id])] : cur.filter((x) => x !== id) } });
+    return;
+  }
   if (e.target.dataset.hvColor) { // 高額品にするシールの色
     const cur = ui.warehouses.hv ?? loadMaster().highValue.colors;
     const c = e.target.dataset.hvColor;

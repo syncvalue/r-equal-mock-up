@@ -17,16 +17,16 @@ const blankWh = { id: '', name: '', zip: '', address: '', phone: '', officeId: '
 const blankVd = { id: '', name: '', zip: '', address: '', phone: '' };
 const ctx = (tab, over = {}) => ({
   tab, employees: DEFAULT_EMPLOYEES, departments: DEFAULT_DEPARTMENTS, offices: DEFAULT_OFFICES, wmaster: DEFAULT_MASTER, holding: { 'W-OSAKA': { count: 3, cost: 120000 } },
-  ui: { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: { id: '', name: '' } }, offices: { mo: blankOffice() }, warehouses: { mw: blankWh, hv: null }, vendors: { mv: blankVd } }, ...over,
+  ui: { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: { id: '', name: '' } }, offices: { mo: blankOffice() }, trips: { mt: { id: '', name: '', prefs: '', start: '', end: '', memberIds: [] } }, warehouses: { mw: blankWh, hv: null }, vendors: { mv: blankVd } }, ...over,
 });
 
-test('マスタの切り替え: 左側の開閉式メニュー。初めは閉じていて、☰で開く。社員・部署・営業所・倉庫・委託先の5つで、選んだものが強調される', () => {
-  assert.deepEqual(MASTERS.map((m) => m.key), ['employees', 'departments', 'offices', 'warehouses', 'vendors']);
+test('マスタの切り替え: 左側の開閉式メニュー。初めは閉じていて、☰で開く。社員・部署・営業所・出張・倉庫・委託先の6つで、選んだものが強調される', () => {
+  assert.deepEqual(MASTERS.map((m) => m.key), ['employees', 'departments', 'offices', 'trips', 'warehouses', 'vendors']);
   const closed = masterHtml(ctx('offices'));
   assert.ok(closed.includes('data-menu-open') && !closed.includes('data-master=') && !closed.includes('メインメニュー'));
   assert.ok(/マスタ管理 › 営業所|マスタ管理\s*<\/span><span[^>]*>›<\/span><span[^>]*>営業所/.test(closed)); // いま開いているマスタが、見出しに出る
   const html = masterHtml(ctx('offices', { menuOpen: true }));
-  assert.equal((html.match(/data-master="/g) || []).length, 5);
+  assert.equal((html.match(/data-master="/g) || []).length, 6);
   assert.match(html, /bg-teal-700[^"]*"[^>]*data-master="offices"/);
   assert.ok(html.includes('メインメニュー') && html.includes('data-menu-close'));
 });

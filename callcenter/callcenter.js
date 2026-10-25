@@ -24,6 +24,7 @@ import { cooloffPage, filtersHtml, resultsHtml, formHtml as cooloffFormHtml, pro
 import { RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY } from '../src/store.js';
 import { loadState as loadWarehouse, saveState as saveWarehouse, requestReturn, addReturnMessage, cooloffContracts, purchaseDays } from '../src/warehouse.js';
 import { loadMaster } from '../src/warehouseMaster.js';
+import { loadCurrentTrips, tripAreas } from '../src/trips.js';
 import { seedSample as seedWarehouseSample } from '../src/warehouseSample.js';
 
 const $ = (s) => document.querySelector(s);
@@ -94,11 +95,12 @@ function findPast(f) {
 function compute() {
   const reservations = loadReservations().filter((r) => r.id !== editId); // 変更中の予約は、自分の枠を空けて考える
   // 住所からの判定は提案。オペレーターがGoogleマップで確認して選んだエリア（confirmed）が、その住所のものであれば、それを使う
-  const proposal = areaOfAddress(form.address);
-  const confirmed = form.areaId && form.areaAddr === form.address.trim() ? areaById(form.areaId) : null;
+  const extraAreas = tripAreas(loadCurrentTrips(), form.date); // 希望日に出張がある都道府県は、出張エリアになる
+  const proposal = areaOfAddress(form.address, extraAreas);
+  const confirmed = form.areaId && form.areaAddr === form.address.trim() ? areaById(form.areaId, extraAreas) : null;
   const area = confirmed ?? proposal;
   const here = area?.lat != null ? locateAddress(form.address, area) : null; // 今回のお客様の住所の位置（概算）。前の訪問からの距離に使う
-  const full = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here });
+  const full = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here, extraAreas });
   // 営業の絞り込み。絞ったときは、表示している営業の中で、おすすめ（担当が最も少ない人）を決め直す
   const staffSel = calStaff.filter((id) => full.inArea.some((c) => c.user.id === id));
   const shownIn = full.inArea.filter((c) => !staffSel.length || staffSel.includes(c.user.id)).map((c) => ({ ...c, recommended: false }));
@@ -117,7 +119,7 @@ function compute() {
     detail: calMode === 'day' && selected ? salesDetail({ userId: selected.user.id, date: form.date, start: form.start, dur: form.dur, reservations, here }) : null,
     editing: editId ? loadReservations().find((r) => r.id === editId) ?? null : null, editBy,
     staff: [...full.inArea].sort((a, b) => a.user.id.localeCompare(b.user.id)), staffSel, staffOpen,
-    area, proposal, confirmed, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
+    area, proposal, confirmed, extraAreas, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
     unasked: hearingChecklist(form).filter((x) => !x.asked && !REQUIRED_CHECKS.has(x.key)).map((x) => x.label),
   };

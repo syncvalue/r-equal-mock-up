@@ -7,8 +7,9 @@ import { isTentative, isCancelled, isReverted, needsReview, reviewDiffs } from '
 import { customerProfile, customerDossier, visitLines, lineTotal } from '../src/customerHistory.js';
 import { callHistory } from '../src/callHistory.js';
 import { assignAdvice, declinedCardHtml } from '../src/customerProfileView.js';
-import { customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, attShade, isTentativeBlock, blockMark } from './view.js';
+import { customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, tripTag, attShade, isTentativeBlock, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
+import { loadCurrentTrips, tripAreas, tripsOfUser } from '../src/trips.js';
 
 // 変更の内容（項目名 変更前→変更後）
 const diffText = (r) => reviewDiffs(r).map((d) => `${esc(d.label)}：${esc(trunc(d.from, 24))} → <b>${esc(trunc(d.to, 24))}</b>`).join('　／　');
@@ -33,7 +34,7 @@ export function staffModalHtml({ userId, date, reservations, now }) {
       <div class="flex items-start justify-between gap-3">
         <div class="flex items-center gap-3">${avatarHtml(user, 72)}<div class="space-y-0.5">
           <div class="text-lg font-bold">${esc(user.name)} ${rankBadge(d.rank)}${isLeader(user) ? '<span class="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[11px]">リーダー</span>' : ''}</div>
-          <div class="text-sm text-slate-600">グループ${esc(user.group)}・${esc(area?.name ?? '')}</div>
+          <div class="text-sm text-slate-600">グループ${esc(user.group)}・${esc(area?.name ?? '')}${tripTag(tripsOfUser(loadCurrentTrips(), userId, date)) ? ` ${tripTag(tripsOfUser(loadCurrentTrips(), userId, date))}` : ''}</div>
           <div class="text-xs">${dateLabel(date)}：<b>${esc(d.att.label)}</b>${d.att.kind === 'pm' || d.att.kind === 'am' ? `（${hhmm(d.att.from)}〜${hhmm(d.att.to)}）` : ''}</div></div></div>
         <button class="b b-sec !min-h-0 !py-1" data-staffclose title="閉じる（Esc）">✕ 閉じる</button></div>
       ${box('得意分野', `<div class="flex flex-wrap gap-1">${specTags(user.id, {})}</div>`)}
@@ -133,9 +134,10 @@ const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m %
 const minOf = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
 function boardColumns(date, reservations, now, areaId) {
+  const trips = loadCurrentTrips();
   const live = reservations.filter((r) => !isCancelled(r));
   return USERS.filter((u) => areaId === 'all' || areaOfUser(u.id) === areaId).sort((a, b) => a.id.localeCompare(b.id)).map((user) => ({
-    user, att: attendanceOf(user.id, date, now), absent: attendanceOf(user.id, date, now).kind === 'absent', blocks: busyBlocks(user.id, date, live, now),
+    user, trips: tripsOfUser(trips, user.id, date), att: attendanceOf(user.id, date, now), absent: attendanceOf(user.id, date, now).kind === 'absent', blocks: busyBlocks(user.id, date, live, now),
     mine: live.filter((r) => r.userId === user.id && r.date === date),
   })).map((c) => ({ ...c, travel: dayTravel(c.blocks) }));
 }
@@ -175,7 +177,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const head = cols.map((c) => {
     const t = c.mine.filter(isTentative).length;
     return `<div class="border-b bg-slate-50 px-1 py-0.5 text-center"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id))}
-      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-600' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div>${c.travel.legs.length ? `<div class="text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-700' : 'text-slate-600'}" title="その日の訪問から訪問への移動の合計（概算）">🚗 計${c.travel.km}km・約${c.travel.min}分</div>` : ''}</div>`;
+      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-600' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div>${c.travel.legs.length ? `<div class="text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-700' : 'text-slate-600'}" title="その日の訪問から訪問への移動の合計（概算）">🚗 計${c.travel.km}km・約${c.travel.min}分</div>` : ''}</div>`;
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => `<div class="relative border-l" data-bcol="${c.user.id}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW}px)`}">
@@ -200,7 +202,7 @@ function revertedHtml(r) {
 function boardDetailHtml(r, reservations, now) {
   if (!r) return '<p class="px-3 py-2 text-xs text-slate-500">予約の帯を押すと、詳細が出ます。ドラッグして、別の営業・時間に動かせます（30分刻み）。帯の「確定」ボタンで、その予約を確定します。</p>';
   const user = USERS.find((u) => u.id === r.userId);
-  const area = areaById(r.areaId);
+  const area = areaById(r.areaId, tripAreas(loadCurrentTrips())); // 出張エリアを含む
   const others = reservations.filter((x) => x.id !== r.id && !isCancelled(x));
   const travel = area ? travelAround(busyBlocks(r.userId, r.date, others, now), minOf(r.start), minOf(r.end), locateAddress(r.customer.address, area)) : null;
   return `<div class="grid grid-cols-[1fr_auto] gap-3 px-3 py-2 text-sm">

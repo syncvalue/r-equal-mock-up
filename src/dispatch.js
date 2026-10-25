@@ -12,7 +12,8 @@ export const AREAS = [
   { id: 'kanto', name: '関東エリア', prefs: ['東京都', '神奈川県', '埼玉県', '千葉県', '茨城県', '栃木県', '群馬県'], lat: 35.6812, lng: 139.7671 },
   { id: 'tokai', name: '東海エリア', prefs: ['愛知県', '岐阜県', '三重県', '静岡県'], lat: 35.1815, lng: 136.9066 },
 ];
-export const areaById = (id) => AREAS.find((a) => a.id === id) ?? null;
+// extraAreas: 出張エリア（src/trips.js の tripAreas）。営業所のエリア（AREAS）と同じ形で、memberIds（出張メンバー）を持つ
+export const areaById = (id, extraAreas = []) => AREAS.find((a) => a.id === id) ?? extraAreas.find((a) => a.id === id) ?? null;
 
 // 営業の担当エリア（ダミー）
 const USER_AREA = { u01: 'osaka', u02: 'osaka', u03: 'osaka', u06: 'hyogo', u07: 'hyogo', u04: 'kanto', u05: 'kanto', u08: 'tokai', u09: 'osaka', u10: 'tokai', u11: 'osaka', u12: 'osaka', u13: 'osaka', u14: 'osaka', u15: 'osaka', u16: 'osaka' };
@@ -25,10 +26,10 @@ export const PREFS = [
 ];
 
 // 住所の都道府県から判定。判定できなければ null、担当のない都道府県なら { id: null, outside: true }
-export function areaOfAddress(address) {
+export function areaOfAddress(address, extraAreas = []) {
   const pref = PREFS.find((p) => String(address ?? '').includes(p));
   if (!pref) return null;
-  const area = AREAS.find((a) => a.prefs.includes(pref));
+  const area = [...AREAS, ...extraAreas].find((a) => a.prefs.includes(pref));
   return area ? { ...area, pref } : { id: null, outside: true, pref };
 }
 
@@ -240,7 +241,8 @@ const byFairness = (gender) => (a, b) => {
   return a.stats.total - b.stats.total || b.stats.femaleShare - a.stats.femaleShare || a.user.id.localeCompare(b.user.id);
 };
 
-export function rankCandidates({ gender, areaId, date, start, dur, reservations, here = null, now = new Date() }) {
+// extraAreas: その日の出張エリア。出張メンバーは、出張エリアの候補になり、本来の営業所のエリアにも残る（trips に、出張中の印として出張を入れる）
+export function rankCandidates({ gender, areaId, date, start, dur, reservations, here = null, now = new Date(), extraAreas = [] }) {
   const stats = fairnessStats(reservations, now);
   const end = start + dur;
   const all = USERS.map((user) => {
@@ -248,9 +250,11 @@ export function rankCandidates({ gender, areaId, date, start, dur, reservations,
     const att = attendanceOf(user.id, date, now);
     const absent = att.kind === 'absent';
     const conflict = conflictOf(blocks, start, end, att);
-    return { user, areaId: areaOfUser(user.id), rank: rankOfUser(user.id), blocks, att, absent, free: !conflict, conflict, travel: travelAround(blocks, start, end, here), stats: stats[user.id], recommended: false };
+    const trips = extraAreas.filter((a) => a.memberIds?.includes(user.id)).map((a) => ({ id: a.id, name: a.name, start: a.start, end: a.end }));
+    return { user, areaId: areaOfUser(user.id), trips, rank: rankOfUser(user.id), blocks, att, absent, free: !conflict, conflict, travel: travelAround(blocks, start, end, here), stats: stats[user.id], recommended: false };
   });
-  const inArea = all.filter((c) => areaId && c.areaId === areaId).sort(byFairness(gender));
+  const tripArea = extraAreas.find((a) => a.id === areaId);
+  const inArea = all.filter((c) => areaId && (tripArea ? tripArea.memberIds.includes(c.user.id) : c.areaId === areaId)).sort(byFairness(gender));
   const others = all.filter((c) => !inArea.includes(c)).sort(byFairness(gender));
   const first = inArea[0];
   if (first?.free) first.recommended = true;
