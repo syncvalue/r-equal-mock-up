@@ -110,17 +110,23 @@ export const RETURN_KEY = 'rq-mock-returns';
 // 倉庫間の商品の移動（送付 → 輸送中 → 受取）
 export const TRANSFER_KEY = 'rq-mock-transfers';
 
+// 店舗: 来店の記録、買取の作業中の内容（途中で閉じても続けられる）、店舗スタッフのログイン状態
+export const STORE_VISITS_KEY = 'rq-mock-store-visits';
+export const STORE_DRAFT_KEY = 'rq-mock-store-drafts';
+export const STORE_SESSION_KEY = 'rq-mock-store-session';
+
 export { RESERVATION_KEY };
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY, STORE_VISITS_KEY, STORE_DRAFT_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
   sessionStorage.removeItem('rq-mock-wh-session'); // 倉庫担当のログイン状態も
+  sessionStorage.removeItem(STORE_SESSION_KEY); // 店舗スタッフのログイン状態も
 };
 
-export const RESET_CONFIRM = '契約・査定依頼・コメント・訪問状況・始業終業・経費・持ち帰り・コールセンターの受付のデータをすべて初期化します。よろしいですか？（商品マスタは消えません）';
+export const RESET_CONFIRM = '契約・査定依頼・コメント・訪問状況・始業終業・経費・持ち帰り・コールセンターの受付・店舗の来店のデータをすべて初期化します。よろしいですか？（商品マスタは消えません）';
 
 // 買取承認（本社査定部が、商品が登録された時点から随時 承認／差戻し）。承認時点の金額・ランク・数量のスナップショットを持つ
 export const APPROVAL_KEY = 'rq-mock-approvals';

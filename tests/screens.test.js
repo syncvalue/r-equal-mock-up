@@ -39,3 +39,15 @@ test('倉庫・物流の画面は、描画できる（サンプルデータ入�
   for (const label of ['商品管理', '入庫', '倉庫間移動', '販売（出品）', '売上管理', 'クーリングオフ返品']) assert.ok(TABS.some((t) => t.label === label) && menu.includes(label), label);
   assert.ok(!root.innerHTML.includes('メインメニュー')); // 初めは、メニューは閉じている
 });
+
+test('店舗の画面は、描画できる。ログイン前はログイン画面、店舗スタッフとしてログイン済みなら、来店の一覧（サンプル入り）', async () => {
+  globalThis.sessionStorage = { getItem: () => null, setItem() {}, removeItem() {} };
+  root.innerHTML = '';
+  await import('../store/store.js?login');
+  assert.ok(root.innerHTML.includes('ログインID') && root.innerHTML.includes('st01'));
+  globalThis.sessionStorage = { getItem: (k) => (k === 'rq-mock-store-session' ? 'st01' : null), setItem() {}, removeItem() {} };
+  root.innerHTML = '';
+  await import('../store/store.js?board');
+  assert.ok(root.innerHTML.includes('なんば店') && root.innerHTML.includes('飛び込みの受付') && root.innerHTML.includes('山田 花子') && root.innerHTML.includes('田中 美咲'));
+  assert.ok(JSON.parse(mem.get('rq-mock-store-visits')).length >= 8); // サンプルの来店が入る
+});

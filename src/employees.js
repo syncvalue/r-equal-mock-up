@@ -15,6 +15,7 @@ export const ROLES = [
   { key: 'appraiser', label: '査定員', where: '本社 査定部' },
   { key: 'accountant', label: '経理担当', where: '本社 経理部' },
   { key: 'warehouse', label: '倉庫担当', where: '倉庫・物流' },
+  { key: 'store', label: '店舗スタッフ', where: '店舗' },
 ];
 export const roleLabel = (role) => ROLES.find((r) => r.key === role)?.label ?? '';
 
@@ -36,7 +37,13 @@ export const DEFAULT_EMPLOYEES = [
   { id: 'wh03', loginId: 'wh03', name: '山本 大地', role: 'warehouse', active: true, warehouseId: 'W-KANTO' },
   { id: 'wh04', loginId: 'wh04', name: '藤田 結衣', role: 'warehouse', active: true, warehouseId: 'W-FUKUOKA' },
   { id: 'wh05', loginId: 'wh05', name: '岡田 剛', role: 'warehouse', active: true, warehouseId: 'W-HONSHA' },
+  { id: 'st01', loginId: 'st01', name: '田中 美咲', role: 'store', active: true, storeId: 'S-NAMBA' },
+  { id: 'st02', loginId: 'st02', name: '石田 翔', role: 'store', active: true, storeId: 'S-NAMBA' },
+  { id: 'st03', loginId: 'st03', name: '松井 彩花', role: 'store', active: true, storeId: 'S-SHINJUKU' },
 ].map(withDept);
+
+// 店舗スタッフがいない古い保存は、見本の店舗スタッフを足す（店舗の画面にログインできる人がいなくならないように）
+const withStoreStaff = (list) => (list.some((u) => u.role === 'store') ? list : [...list, ...DEFAULT_EMPLOYEES.filter((u) => u.role === 'store')]);
 
 const validList = (v) => Array.isArray(v) && v.length > 0 && v.every((u) => u && u.id && u.loginId && u.name && ROLES.some((r) => r.key === u.role));
 const readJson = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
@@ -44,10 +51,10 @@ const readJson = (key) => { try { return JSON.parse(localStorage.getItem(key)); 
 // 保存がなければ初期値。以前の保存（「社員」の保存・倉庫マスタの中の倉庫担当）があれば、社員として引き継ぎ、保存する
 export function loadEmployees() {
   const saved = readJson(EMPLOYEES_KEY);
-  if (validList(saved)) return saved.map(withDept);
+  if (validList(saved)) return withStoreStaff(saved.map(withDept));
   const oldUsers = readJson(LEGACY_USERS_KEY);
   if (validList(oldUsers)) {
-    const list = oldUsers.map(withDept);
+    const list = withStoreStaff(oldUsers.map(withDept));
     saveEmployees(list);
     return list;
   }
@@ -73,8 +80,8 @@ const fail = (employees, reason) => ({ ok: false, employees, reason });
 const replaceAt = (list, id, item) => list.map((x) => (x.id === id ? item : x));
 
 // 登録・更新（id があれば更新）。役割は、登録のときに決め、あとから変えられない。
-// departmentIds: 選べる部署のID。reason: badRole／readOnly／notFound／roleLocked／noName／badLoginId／dupLoginId／noWarehouse／noGroup／noDepartment
-export function saveEmployee(employees, { id, loginId, name, role, departmentId, warehouseId, groups, active }, { warehouseIds = [], departmentIds = [] } = {}) {
+// departmentIds: 選べる部署のID。reason: badRole／readOnly／notFound／roleLocked／noName／badLoginId／dupLoginId／noWarehouse／noStore／noGroup／noDepartment
+export function saveEmployee(employees, { id, loginId, name, role, departmentId, warehouseId, storeId, groups, active }, { warehouseIds = [], storeIds = [], departmentIds = [] } = {}) {
   if (!ROLES.some((r) => r.key === role)) return fail(employees, 'badRole');
   if (isReadOnlyRole(role)) return fail(employees, 'readOnly');
   const old = id ? employees.find((u) => u.id === id) : null;
@@ -89,6 +96,10 @@ export function saveEmployee(employees, { id, loginId, name, role, departmentId,
   if (role === 'warehouse') {
     if (!warehouseId || !warehouseIds.includes(warehouseId)) return fail(employees, 'noWarehouse');
     extra.warehouseId = warehouseId;
+  }
+  if (role === 'store') {
+    if (!storeId || !storeIds.includes(storeId)) return fail(employees, 'noStore');
+    extra.storeId = storeId;
   }
   if (role === 'appraiser') {
     const g = [...new Set(groups ?? [])];
@@ -112,6 +123,8 @@ export function setEmployeeActive(employees, id, active) {
 // ---- 各画面が名簿から受け取る形 -----------------------------------------------------
 // 倉庫マスタと同じ形（無効の判定は倉庫側で行うため、無効な倉庫担当も含める）
 export const warehouseStaffOf = (employees) => employees.filter((u) => u.role === 'warehouse').map((u) => ({ id: u.id, loginId: u.loginId, name: u.name, warehouseId: u.warehouseId, active: u.active }));
+// 店舗の画面のログインに使う、有効な店舗スタッフ
+export const storeStaffOf = (employees) => employees.filter((u) => u.role === 'store' && u.active).map((u) => ({ id: u.id, loginId: u.loginId, name: u.name, storeId: u.storeId }));
 export const operatorNames = (employees) => employees.filter((u) => u.role === 'operator' && u.active).map((u) => u.name);
 export const appraisersOf = (employees) => employees.filter((u) => u.role === 'appraiser' && u.active).map((u) => ({ id: u.id, name: u.name, groups: u.groups ?? [] }));
 

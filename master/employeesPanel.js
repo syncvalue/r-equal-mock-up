@@ -5,50 +5,54 @@ import { GROUPS } from '../src/dashboard.js';
 import { areaById, areaOfUser } from '../src/dispatch.js';
 import { esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
+import { storeLabel, storeNameOf } from '../src/stores.js';
 
 export const EMPLOYEE_REASON_TEXT = {
   badRole: '役割を選んでください', readOnly: '営業は、ここでは登録・変更できません（参照のみです）', notFound: '対象の社員が見つかりません', roleLocked: '役割は、登録したあとは変えられません（別の役割にするときは、新しく登録してください）',
   noName: '氏名を入力してください', badLoginId: 'ログインIDは、英数字・ハイフン・アンダースコアの3〜20文字にしてください', dupLoginId: '同じログインIDの社員がすでにいます',
-  noWarehouse: '所属する倉庫を選んでください', noDepartment: '部署を選んでください', noGroup: '担当するグループを、1つ以上選んでください', lastActive: 'この役割で有効な社員が、いなくなってしまうため、無効にできません（先に、別の社員を登録してください）',
+  noWarehouse: '所属する倉庫を選んでください', noStore: '所属する店舗を選んでください', noDepartment: '部署を選んでください', noGroup: '担当するグループを、1つ以上選んでください', lastActive: 'この役割で有効な社員が、いなくなってしまうため、無効にできません（先に、別の社員を登録してください）',
 };
 
-export const blankForm = (role = 'operator') => ({ id: '', role, name: '', loginId: '', departmentId: defaultDepartmentOf(role), warehouseId: '', groups: [] });
-export const formFromEmployee = (u) => ({ id: u.id, role: u.role, name: u.name, loginId: u.loginId, departmentId: u.departmentId ?? '', warehouseId: u.warehouseId ?? '', groups: u.groups ?? [] });
+export const blankForm = (role = 'operator') => ({ id: '', role, name: '', loginId: '', departmentId: defaultDepartmentOf(role), warehouseId: '', storeId: '', groups: [] });
+export const formFromEmployee = (u) => ({ id: u.id, role: u.role, name: u.name, loginId: u.loginId, departmentId: u.departmentId ?? '', warehouseId: u.warehouseId ?? '', storeId: u.storeId ?? '', groups: u.groups ?? [] });
 
 const groupName = (id) => GROUPS.find((g) => g.id === id)?.name ?? id;
 const officeShort = (userId) => areaById(areaOfUser(userId))?.name.replace('エリア', '') ?? '所属不明';
 const badge = (cls, label) => `<span class="rounded-full px-2 py-0.5 text-xs font-bold ${cls}">${esc(label)}</span>`;
 
 // 役割ごとの、所属・担当の表示
-function belongs(u, warehouses) {
+function belongs(u, warehouses, stores) {
   if (u.role === 'sales') return `${esc(groupName(u.groups?.[0]))} ／ ${esc(officeShort(u.id))}営業所${u.leader ? ` ${badge('bg-sky-100 text-sky-800', 'グループリーダー')}` : ''}`;
   if (u.role === 'warehouse') return esc(warehouses.find((w) => w.id === u.warehouseId)?.name ?? '（所属不明）');
+  if (u.role === 'store') return esc(storeNameOf(u.storeId, stores) || '（所属不明）');
   if (u.role === 'appraiser') return `担当 ${(u.groups ?? []).map((g) => esc(groupName(g))).join('・')}`;
   return `<span class="text-slate-400">-</span>`;
 }
 
-function row(u, warehouses, departments) {
+function row(u, warehouses, departments, stores) {
   const readOnly = isReadOnlyRole(u.role);
   const ops = readOnly
     ? '<span class="text-xs text-slate-400">参照のみ</span>'
     : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-edit="${esc(u.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-toggle="${esc(u.id)}">${u.active ? '無効にする' : '有効にする'}</button>`;
   return `<tr class="border-b ${u.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(u.name)}</td><td class="font-mono text-xs">${esc(u.loginId)}</td><td>${esc(departmentName(u.departmentId, departments))}</td><td>${esc(roleLabel(u.role))}</td>
-    <td class="!whitespace-normal text-xs">${belongs(u, warehouses)}</td><td>${u.active ? badge('bg-emerald-100 text-emerald-800', '有効') : badge('bg-slate-200 text-slate-600', '無効')}</td><td>${ops}</td></tr>`;
+    <td class="!whitespace-normal text-xs">${belongs(u, warehouses, stores)}</td><td>${u.active ? badge('bg-emerald-100 text-emerald-800', '有効') : badge('bg-slate-200 text-slate-600', '無効')}</td><td>${ops}</td></tr>`;
 }
 
-export function listHtml({ employees, warehouses, departments, ui }) {
+export function listHtml({ employees, warehouses, departments, stores = [], ui }) {
   const rows = filterEmployees(employees, ui);
   if (!rows.length) return '<p class="text-sm text-slate-500 py-6 text-center">該当する社員はいません</p>';
-  return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>氏名</th><th>ログインID</th><th>部署</th><th>役割</th><th>所属・担当</th><th>状態</th><th>操作</th></tr></thead><tbody>${rows.map((u) => row(u, warehouses, departments)).join('')}</tbody></table>`;
+  return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>氏名</th><th>ログインID</th><th>部署</th><th>役割</th><th>所属・担当</th><th>状態</th><th>操作</th></tr></thead><tbody>${rows.map((u) => row(u, warehouses, departments, stores)).join('')}</tbody></table>`;
 }
 
-function formHtml({ warehouses, departments, ui }) {
+function formHtml({ warehouses, departments, stores = [], ui }) {
   const f = ui.form;
   if (!f) return '';
   const editing = Boolean(f.id);
   const roleOptions = ROLES.filter((r) => !isReadOnlyRole(r.key) || r.key === f.role).map((r) => `<option value="${r.key}" ${r.key === f.role ? 'selected' : ''}>${esc(r.label)}</option>`).join('');
   const extra = f.role === 'warehouse'
     ? `<label class="text-sm font-bold">所属倉庫<select class="inp mt-1 font-normal" data-f="warehouseId"><option value="">選んでください</option>${warehouses.filter((w) => w.active || w.id === f.warehouseId).map((w) => `<option value="${esc(w.id)}" ${w.id === f.warehouseId ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label>`
+    : f.role === 'store'
+      ? `<label class="text-sm font-bold">所属店舗<select class="inp mt-1 font-normal" data-f="storeId"><option value="">選んでください</option>${stores.filter((x) => x.active || x.id === f.storeId).map((x) => `<option value="${esc(x.id)}" ${x.id === f.storeId ? 'selected' : ''}>${esc(storeLabel(x))}</option>`).join('')}</select></label>`
     : f.role === 'appraiser'
       ? `<fieldset class="text-sm font-bold">担当グループ<div class="mt-2 flex gap-4 font-normal">${GROUPS.map((g) => `<label class="flex items-center gap-1"><input type="checkbox" class="w-5 h-5" data-group="${g.id}" ${f.groups.includes(g.id) ? 'checked' : ''} />${esc(g.name)}</label>`).join('')}</div></fieldset>`
       : '';

@@ -11,13 +11,20 @@ test('会社は1社だけ（クライアントのREqual）。部署はすべて�
   assert.ok(D.DEFAULT_DEPARTMENTS.every((d) => d.companyId === D.COMPANY.id));
 });
 
-test('初期の部署: 営業部・コールセンター・査定部・経理部・物流部。役割ごとの、初期の所属部署が決まっている', () => {
-  assert.deepEqual(D.DEFAULT_DEPARTMENTS.map((d) => d.name), ['営業部', 'コールセンター', '査定部', '経理部', '物流部']);
+test('初期の部署: 営業部・コールセンター・査定部・経理部・物流部・店舗部。役割ごとの、初期の所属部署が決まっている', () => {
+  assert.deepEqual(D.DEFAULT_DEPARTMENTS.map((d) => d.name), ['営業部', 'コールセンター', '査定部', '経理部', '物流部', '店舗部']);
   assert.ok(D.DEFAULT_DEPARTMENTS.every((d) => d.active && d.id));
   const ids = new Set(D.DEFAULT_DEPARTMENTS.map((d) => d.id));
-  for (const role of ['sales', 'operator', 'dispatcher', 'appraiser', 'accountant', 'warehouse']) assert.ok(ids.has(D.defaultDepartmentOf(role)), role);
+  for (const role of ['sales', 'operator', 'dispatcher', 'appraiser', 'accountant', 'warehouse', 'store']) assert.ok(ids.has(D.defaultDepartmentOf(role)), role);
   assert.equal(D.defaultDepartmentOf('operator'), D.defaultDepartmentOf('dispatcher')); // コールセンター
   assert.equal(D.defaultDepartmentOf('nope'), '');
+});
+
+test('古い保存データ: 店舗部がない保存は、店舗部を足して読み込む（店舗スタッフの所属先がなくならないように）', () => {
+  mem.clear();
+  mem.set(D.DEPARTMENTS_KEY, JSON.stringify(D.DEFAULT_DEPARTMENTS.filter((d) => d.id !== 'D-STORE')));
+  assert.ok(D.loadDepartments().some((d) => d.id === 'D-STORE' && d.name === '店舗部' && d.active));
+  mem.clear();
 });
 
 test('保存と読み込み: 保存した部署を読み戻せる。保存がない・壊れている・空なら初期値', () => {

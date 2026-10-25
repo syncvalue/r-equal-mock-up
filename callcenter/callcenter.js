@@ -22,7 +22,8 @@ import { reservationFromBlock } from './adopt.js';
 import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 import { cooloffPage, filtersHtml, resultsHtml, formHtml as cooloffFormHtml, progressHtml, zoomHtml, REJECT_TEXT } from './cooloffView.js';
-import { RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY } from '../src/store.js';
+import { RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY, STORE_VISITS_KEY } from '../src/store.js';
+import { createStoreTab } from './storeTab.js';
 import { loadState as loadWarehouse, saveState as saveWarehouse, requestReturn, addReturnMessage, cooloffContracts, purchaseDays } from '../src/warehouse.js';
 import { loadMaster } from '../src/warehouseMaster.js';
 import { loadCurrentTrips, tripAreas } from '../src/trips.js';
@@ -327,6 +328,7 @@ function render() {
       <button class="rounded px-4 py-1.5 font-bold ${tab === 'new' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="new">新規受付</button>
       <button class="rounded px-4 py-1.5 font-bold ${tab === 'dispatch' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="dispatch">配車確定（配車係）${tentativeBadge()}</button>
       <button class="rounded px-4 py-1.5 font-bold ${tab === 'cooloff' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="cooloff">クーリングオフ${cooloffBadge()}</button>
+      <button class="rounded px-4 py-1.5 font-bold ${tab === 'store' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="store">来店予約（店舗）</button>
     </nav>
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">オペレーター <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${ops.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
@@ -334,7 +336,7 @@ function render() {
       <a class="underline text-white/80 text-xs" href="/tablet/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
-  ${tab === 'new' ? renderNew() : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
+  ${tab === 'new' ? renderNew() : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
   ${custInfoRid && tab === 'dispatch' ? customerModalHtml({ rid: custInfoRid, reservations: loadReservations(), now: new Date() }) : ''}
   ${staffInfoId && tab === 'dispatch' ? staffModalHtml({ userId: staffInfoId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
@@ -389,6 +391,7 @@ function createCooloff() {
 }
 
 const flash = (msg) => { toast = msg; render(); setTimeout(() => { toast = ''; render(); }, 2500); };
+const storeTab = createStoreTab({ operator: () => operator, rerender: render, flash }); // 店舗への来店予約（訪問買取の仮確定・配車とは別の流れ）
 
 // ---- イベント ------------------------------------------------------------------------
 const LIVE = new Set(['address', 'date', 'start', 'dur', 'phone', 'phone2', 'wants']);
@@ -408,12 +411,14 @@ function onField(e) {
   if (LIVE.has(k)) renderDispatch(); else updateChecklist();
 }
 document.addEventListener('input', (e) => {
+  if (storeTab.input(e)) return;
   if (e.target.matches('[data-co-msg]')) { coDraft = { ...coDraft, [e.target.dataset.coMsg]: e.target.value }; return; }
   if (e.target.matches('[data-co-q]')) { coQ = e.target.value; renderCooloffParts(); return; } // 検索欄は作り直さない（入力中の文字を壊さない）
   if (e.target.matches('[data-co-field]')) { coForm = { ...coForm, [e.target.dataset.coField]: e.target.value }; return; }
   onField(e);
 });
 document.addEventListener('change', (e) => {
+  if (storeTab.input(e)) return;
   if (e.target.matches('[data-co-code]')) { // 別の契約の商品を選んだら、選び直す
     const { coCode: code, coVisit: visitId } = e.target.dataset;
     const base = coSel.visitId === visitId ? coSel.codes : [];
@@ -487,6 +492,7 @@ document.addEventListener('click', (e) => {
   const d = t.dataset;
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
   if (d.tab) { stopDemo(); tab = d.tab; render(); }
+  else if (storeTab.click(d, t)) { /* 来店予約（店舗） */ }
   else if ('coCreate' in d) createCooloff();
   else if (d.coChat) { coChatOpen = coChatOpen.includes(d.coChat) ? coChatOpen.filter((x) => x !== d.coChat) : [...coChatOpen, d.coChat]; renderCooloffParts(); }
   else if (d.coSend) sendCooloffMessage(d.coSend);
@@ -677,6 +683,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComp
 // 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
 window.addEventListener('storage', (e) => {
   if ([RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY].includes(e.key)) { if (tab === 'cooloff' && !document.activeElement?.matches?.('[data-co-msg]')) renderCooloffParts(); return; } // 倉庫の回答・返送を反映
+  if (e.key === STORE_VISITS_KEY) { if (tab === 'store' && !document.activeElement?.matches?.('input,select')) render(); return; } // 店舗での来店・取消を反映
   if (e.key !== RESERVATION_KEY) return;
   if (tab === 'new') renderDispatch(); else render();
 });
@@ -690,11 +697,11 @@ function seedSamples() {
   sampleReservations().forEach(addReservation);
 }
 
-// 画面一覧（トップ /）から、その画面を直接開くためのリンク: ?tab=new|dispatch|cooloff ／ ?demo=1（音声入力デモ）／ ?area=osaka|hyogo|kanto|tokai|all ／ ?day=0〜4（配車確定の日。今日からの日数）
+// 画面一覧（トップ /）から、その画面を直接開くためのリンク: ?tab=new|dispatch|cooloff|store ／ ?demo=1（音声入力デモ）／ ?area=osaka|hyogo|kanto|tokai|all ／ ?day=0〜4（配車確定の日。今日からの日数）
 function applyDeepLink() {
   try {
     const q = new URLSearchParams(location.search);
-    if (['dispatch', 'cooloff'].includes(q.get('tab'))) tab = q.get('tab');
+    if (['dispatch', 'cooloff', 'store'].includes(q.get('tab'))) tab = q.get('tab');
     if (q.get('demo') === '1' && tab === 'new') demoOpen = true;
     if (['all', ...AREAS.map((a) => a.id)].includes(q.get('area'))) boardArea = q.get('area');
     const day = Number(q.get('day'));

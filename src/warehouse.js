@@ -72,7 +72,9 @@ export function coolingOffEnd(date) {
   const [y, m, d] = date.split('-').map(Number);
   return dateKey(new Date(y, m - 1, d + COOLING_OFF_DAYS - 1));
 }
-export const inCoolingOff = (unit, now = Date.now()) => dateOf(now) <= coolingOffEnd(unit.date);
+// 店頭買取（お客様が店舗に持ち込んだ商品）は、クーリングオフの対象外なので、保管期間がない
+export const isStorePurchase = (unit) => unit.channel === 'store';
+export const inCoolingOff = (unit, now = Date.now()) => !isStorePurchase(unit) && dateOf(now) <= coolingOffEnd(unit.date);
 
 // ---- 一覧用の行 ---------------------------------------------------------------
 // 返品の依頼がある商品の状態。問い合わせ中（inquiring）は、倉庫が回答するまで商品の状態を変えない（在庫だけ、出品できないよう止める）。対応不可（unavailable）は、状態に影響しない
@@ -154,7 +156,7 @@ export function lotsOf(rows) {
   [...rows].sort((a, b) => b.unit.date.localeCompare(a.unit.date) || a.unit.at - b.unit.at).forEach((r) => {
     const lot = lots.find((l) => l.visitId === r.unit.visitId && l.date === r.unit.date);
     if (lot) lot.rows.push(r);
-    else lots.push({ date: r.unit.date, visitId: r.unit.visitId, customerName: r.unit.customerName, userId: r.unit.userId, rows: [r] });
+    else lots.push({ date: r.unit.date, visitId: r.unit.visitId, customerName: r.unit.customerName, userId: r.unit.userId, channel: r.unit.channel, storeId: r.unit.storeId, rows: [r] });
   });
   return lots.map((l) => ({ ...l, total: sumBy(l.rows, (r) => r.unit.price) }));
 }
@@ -305,6 +307,7 @@ export const isOpenReturn = (r) => ['inquiring', 'requested', 'shipped'].include
 // 商品を、受け付けられるかの目安に分ける。ok: 在庫・期間内／expired: 期間超過（倉庫が個別に判断）／ask: 出品中・入庫前などで、倉庫に確認／
 // sold: 売却済み（対応不可）／busy: すでに依頼中／returned: 返品済み／wait: 輸送中・梱包中（届く・発送が済むまで依頼できない）
 export function cooloffCheck(row, busy = false) {
+  if (isStorePurchase(row.unit)) return { kind: 'store', label: '店頭買取（クーリング・オフの対象外）' };
   if (busy) return { kind: 'busy', label: 'すでに依頼中' };
   if (row.stage === 'returned') return { kind: 'returned', label: '返品済み' };
   if (row.stage === 'sold') return { kind: 'sold', label: '売却済み（対応不可）' };
@@ -333,7 +336,7 @@ export function cooloffContracts(state, criteria, now = Date.now()) {
   return [...hit].map((visitId) => {
     const list = rows.filter((r) => r.unit.visitId === visitId);
     const { customerName, date } = list[0].unit;
-    return { visitId, customerName, date, phones: [...new Set(list.flatMap((r) => r.unit.phones ?? []))], coolEnd: coolingOffEnd(date), rows: list, total: sumBy(list, (r) => r.unit.price) };
+    return { visitId, customerName, date, phones: [...new Set(list.flatMap((r) => r.unit.phones ?? []))], coolEnd: coolingOffEnd(date), store: list.every((r) => isStorePurchase(r.unit)), rows: list, total: sumBy(list, (r) => r.unit.price) };
   }).sort((a, b) => b.date.localeCompare(a.date) || a.customerName.localeCompare(b.customerName));
 }
 

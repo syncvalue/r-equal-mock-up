@@ -1,7 +1,7 @@
 // 📦 商品管理: 買い取った商品の在庫を、状態・キーワードで絞り込んで確認する。
 import { STAGES, channelOf, stockSummary, dateOf, findByCode, historyOf, lotsOf, siblingsOf } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
-import { userById } from '../src/dashboard.js';
+import { handlerLabel } from '../src/unitHandler.js';
 import { warehouseIdOf } from '../src/warehouseMaster.js';
 import { relabelForm } from './relabelForm.js';
 import { helpIcon } from '../src/help.js';
@@ -55,7 +55,7 @@ function scanResult(data, scan, rl) {
       <span class="ml-auto">${action(r, data)}</span><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1 text-sm">
       <div><span class="text-slate-500">カテゴリ・ランク・シールの色</span><br>${esc(unit.category)}／ランク${esc(unit.rank)} ${sealBadge(unit)}</div>
-      <div><span class="text-slate-500">買取先</span><br>${esc(unit.customerName)} 様（${md(unit.date)}・担当営業 ${esc(userById(unit.userId)?.name ?? unit.userId)}）</div>
+      <div><span class="text-slate-500">買取先</span><br>${esc(unit.customerName)} 様（${md(unit.date)}・${esc(handlerLabel(unit))}）</div>
       <div><span class="text-slate-500">原価（買取額）</span><br>${yen(unit.price)}</div>
       <div><span class="text-slate-500">倉庫・保管場所</span><br>${r.stage === 'consigned' ? `倉庫の外（委託中）／元の倉庫 ${esc(whName(unit, data.master))}` : unit.status === 'stored' ? `${esc(whName(unit, data.master))}／${esc(unit.location)}` : '入庫前'}</div>
     </div>
@@ -89,7 +89,7 @@ function lotView(lots, data) {
   const days = [...new Set(lots.map((l) => l.date))];
   return days.map((d) => `<section class="space-y-2"><h3 class="font-bold text-slate-700 border-b pb-0.5">${md(d)} 買取${d === dateOf(Date.now()) ? '（今日）' : ''}</h3>
     ${lots.filter((l) => l.date === d).map((l) => `<div class="rounded-xl border bg-white p-3 space-y-1">
-      <div class="flex flex-wrap items-center gap-2 text-sm"><b class="text-base">${esc(l.customerName)} 様</b><span class="text-xs text-slate-500">担当営業 ${esc(userById(l.userId)?.name ?? l.userId)}／${l.rows.length}点 ${yen(l.total)}</span></div>
+      <div class="flex flex-wrap items-center gap-2 text-sm"><b class="text-base">${esc(l.customerName)} 様</b><span class="text-xs text-slate-500">${esc(handlerLabel(l))}／${l.rows.length}点 ${yen(l.total)}</span></div>
       <table class="w-full text-sm"><tbody>${l.rows.map((r) => `<tr class="border-t">
         <td class="font-mono text-xs">${esc(r.unit.code)}</td><td class="font-bold"><div class="flex items-center gap-2">${photoSlot(r.unit)}<div>${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500">${esc(r.unit.category)}／ランク${esc(r.unit.rank)} ${sealBadge(r.unit)}</div></div></div></td><td class="text-right">${yen(r.unit.price)}</td>
         <td class="text-xs">${where(r, data)}</td><td>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}</td><td>${action(r, data)}</td></tr>`).join('')}</tbody></table></div>`).join('')}</section>`).join('');

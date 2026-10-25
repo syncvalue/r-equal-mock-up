@@ -1,7 +1,7 @@
 // 📥 入庫: 倉庫担当が、営業から渡された買取商品を入庫する。QRシール（シールNo.）を読み取るか、契約書（明細）と実物を見比べて☑を付けた商品を入庫する。
 // ☑（照合）は、誰がいつ付けたかが、入庫した商品に記録される。
 // 営業のタブレットでも入庫できる。倉庫では、誰が買い取った商品でも入庫できる。
-import { userById } from '../src/dashboard.js';
+import { handlerLabel } from '../src/unitHandler.js';
 import { destinationProblem } from '../src/warehouseMaster.js';
 import { yen, esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
@@ -9,7 +9,6 @@ import { badge, md, mdTime, sealBadge, photoSlot } from './ui.js';
 import { relabelForm } from './relabelForm.js';
 
 const TAG = { pending: badge('bg-amber-100 text-amber-800', '入庫待ち'), missing: badge('bg-rose-100 text-rose-700', '所在不明'), stored: badge('bg-emerald-100 text-emerald-800', '入庫済み') };
-const salesName = (id) => userById(id)?.name ?? id;
 
 function scanPanel(rc, todo, warehouse) {
   return `
@@ -39,7 +38,7 @@ function contractCard(units, rc, rl, warehouse, master) {
   const checked = actionable.filter((u) => rc.checks.includes(u.code));
   return `<div class="rounded-lg border p-3 space-y-2">
     <div class="flex flex-wrap items-center gap-2">
-      <b class="text-base">${esc(first.customerName)} 様</b><span class="text-xs text-slate-500">${md(first.date)} 買取／担当営業 ${esc(salesName(first.userId))}／${units.length}点 ${yen(units.reduce((n, u) => n + u.price, 0))}</span>
+      <b class="text-base">${esc(first.customerName)} 様</b><span class="text-xs text-slate-500">${md(first.date)} 買取／${esc(handlerLabel(first))}／${units.length}点 ${yen(units.reduce((n, u) => n + u.price, 0))}</span>
       <span class="ml-auto text-sm">${units.length - todo.length} / ${units.length} 点 入庫</span>
     </div>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500"><th>☑ 明細と一致</th><th>シールNo.</th><th>商品</th><th>ランク</th><th class="text-right">買取額</th><th>状態</th><th>照合・保管場所</th></tr></thead><tbody>${units.map((u) => `<tr class="border-t ${u.status === 'stored' ? 'text-slate-400' : ''}">

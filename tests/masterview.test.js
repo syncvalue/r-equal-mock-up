@@ -11,22 +11,24 @@ const { DEFAULT_DEPARTMENTS } = await import('../src/departments.js');
 const { DEFAULT_MASTER } = await import('../src/warehouseMaster.js');
 const { blankForm } = await import('../master/employeesPanel.js');
 const { blankOffice, formFromOffice } = await import('../master/officesPanel.js');
+const { blankStore, formFromStore } = await import('../master/storesPanel.js');
+const { DEFAULT_STORES } = await import('../src/stores.js');
 
 const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const blankWh = { id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false };
 const blankVd = { id: '', name: '', zip: '', address: '', phone: '' };
 const ctx = (tab, over = {}) => ({
   tab, employees: DEFAULT_EMPLOYEES, departments: DEFAULT_DEPARTMENTS, offices: DEFAULT_OFFICES, wmaster: DEFAULT_MASTER, holding: { 'W-OSAKA': { count: 3, cost: 120000 } },
-  ui: { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: { id: '', name: '' } }, offices: { mo: blankOffice() }, trips: { mt: { id: '', name: '', prefs: '', start: '', end: '', memberIds: [] } }, warehouses: { mw: blankWh, hv: null }, vendors: { mv: blankVd } }, ...over,
+  ui: { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: { id: '', name: '' } }, offices: { mo: blankOffice() }, trips: { mt: { id: '', name: '', prefs: '', start: '', end: '', memberIds: [] } }, stores: { ms: blankStore() }, warehouses: { mw: blankWh, hv: null }, vendors: { mv: blankVd } }, stores: DEFAULT_STORES, storeStaffCount: { 'S-NAMBA': 2, 'S-SHINJUKU': 1 }, ...over,
 });
 
-test('マスタの切り替え: 左側の開閉式メニュー。初めは閉じていて、☰で開く。社員・部署・営業所・出張・倉庫・委託先の6つで、選んだものが強調される', () => {
-  assert.deepEqual(MASTERS.map((m) => m.key), ['employees', 'departments', 'offices', 'trips', 'warehouses', 'vendors']);
+test('マスタの切り替え: 左側の開閉式メニュー。初めは閉じていて、☰で開く。社員・部署・営業所・出張・店舗・倉庫・委託先の7つで、選んだものが強調される', () => {
+  assert.deepEqual(MASTERS.map((m) => m.key), ['employees', 'departments', 'offices', 'trips', 'stores', 'warehouses', 'vendors']);
   const closed = masterHtml(ctx('offices'));
   assert.ok(closed.includes('data-menu-open') && !closed.includes('data-master=') && !closed.includes('メインメニュー'));
   assert.ok(/マスタ管理 › 営業所|マスタ管理\s*<\/span><span[^>]*>›<\/span><span[^>]*>営業所/.test(closed)); // いま開いているマスタが、見出しに出る
   const html = masterHtml(ctx('offices', { menuOpen: true }));
-  assert.equal((html.match(/data-master="/g) || []).length, 6);
+  assert.equal((html.match(/data-master="/g) || []).length, 7);
   assert.match(html, /bg-teal-700[^"]*"[^>]*data-master="offices"/);
   assert.ok(html.includes('メインメニュー') && html.includes('data-menu-close'));
 });
@@ -102,4 +104,23 @@ test('社員の一覧とフォーム: 部署の列・部署の絞り込み・部
   const off = DEFAULT_DEPARTMENTS.map((d) => (d.id === 'D-APPRAISAL' ? { ...d, active: false } : d));
   const sel2 = masterHtml(ctx('employees', { departments: off, ui: { ...ctx('employees').ui, employees: { ...ctx('employees').ui.employees, form } } })).match(/data-f="departmentId"[\s\S]*?<\/select>/)[0];
   assert.ok(!sel2.includes('査定部')); // 無効な部署は選べない
+});
+
+test('店舗: 一覧に、住所・営業時間・古物商許可番号・納入先の倉庫・店舗スタッフの人数・状態が出る。登録・編集の欄がある', () => {
+  const t = text(masterHtml(ctx('stores')));
+  assert.ok(/なんば店/.test(t) && /新宿店/.test(t) && /第000000001号/.test(t) && /大阪倉庫/.test(t) && /関東倉庫/.test(t) && /2名/.test(t) && /有効/.test(t), t);
+  const html = masterHtml(ctx('stores'));
+  assert.ok(html.includes('data-ms-edit="S-NAMBA"') && html.includes('data-ms-toggle="S-NAMBA"') && html.includes('data-ms-save') && html.includes('data-f="ms.licenseNo"') && html.includes('data-f="ms.warehouseId"'));
+  assert.ok(text(html).includes('店舗の新規登録'));
+  const edit = text(masterHtml(ctx('stores', { ui: { ...ctx('stores').ui, stores: { ms: formFromStore(DEFAULT_STORES[0]) } } })));
+  assert.ok(edit.includes('店舗の編集'));
+  assert.ok(!html.includes('本社</option>')); // 納入先に、本社（高額品の保管先）は選べない
+});
+
+test('社員の登録: 役割が店舗スタッフのときは、所属店舗を選ぶ。一覧には所属の店舗名が出る', () => {
+  const form = { ...blankForm('store') };
+  assert.equal(form.departmentId, 'D-STORE');
+  const html = masterHtml(ctx('employees', { ui: { ...ctx('employees').ui, employees: { role: '', q: '', status: '', departmentId: '', form } } }));
+  assert.ok(html.includes('data-f="storeId"') && text(html).includes('なんば店'));
+  assert.match(text(masterHtml(ctx('employees'))), /田中 美咲 st01 店舗部 店舗スタッフ なんば店/);
 });

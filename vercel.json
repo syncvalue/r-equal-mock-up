@@ -17,6 +17,10 @@
       "destination": "/master/index.html"
     },
     {
+      "source": "/store",
+      "destination": "/store/index.html"
+    },
+    {
       "source": "/gmosign",
       "destination": "/gmosign/index.html"
     },

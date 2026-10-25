@@ -2,6 +2,7 @@
 import { EMPLOYEES_KEY, DEFAULT_EMPLOYEES, loadEmployees, saveEmployees, saveEmployee, setEmployeeActive, isReadOnlyRole } from '../src/employees.js';
 import { DEPARTMENTS_KEY, DEFAULT_DEPARTMENTS, loadDepartments, saveDepartments, saveDepartment, setDepartmentActive, activeDepartments, defaultDepartmentOf } from '../src/departments.js';
 import { OFFICES_KEY, DEFAULT_OFFICES, loadOffices, saveOffices, saveOffice, setOfficeActive } from '../src/offices.js';
+import { STORES_KEY, DEFAULT_STORES, loadStores, saveStores, saveStore, setStoreActive, activeStores } from '../src/stores.js';
 import { loadCurrentTrips, saveTrips, saveTrip, setTripActive } from '../src/trips.js';
 import { USERS } from '../src/dashboard.js';
 import { ymdOf } from '../src/reservations.js';
@@ -14,6 +15,7 @@ import { listHtml, blankForm, formFromEmployee } from './employeesPanel.js';
 import { blankDepartment, formFromDepartment } from './departmentsPanel.js';
 import { blankOffice, formFromOffice } from './officesPanel.js';
 import { blankTrip, formFromTrip } from './tripsPanel.js';
+import { blankStore, formFromStore } from './storesPanel.js';
 
 const $ = (s) => document.querySelector(s);
 const blankWh = () => ({ id: '', name: '', zip: '', address: '', phone: '', officeId: '', locations: '', highValue: false });
@@ -23,19 +25,23 @@ const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { re
 let employees = loadEmployees();
 let departments = loadDepartments();
 let offices = loadOffices();
+let stores = loadStores();
 const salesIds = USERS.map((u) => u.id);
 let trips = loadCurrentTrips();
 let menuOpen = false; // 左側のメニューの開閉
-let tab = ['employees', 'departments', 'offices', 'trips', 'warehouses', 'vendors'].includes(pref('rq-mock-master-tab', '')) ? pref('rq-mock-master-tab', '') : 'employees';
-let ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, trips: { mt: blankTrip() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
+let tab = ['employees', 'departments', 'offices', 'trips', 'stores', 'warehouses', 'vendors'].includes(pref('rq-mock-master-tab', '')) ? pref('rq-mock-master-tab', '') : 'employees';
+let ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, trips: { mt: blankTrip() }, stores: { ms: blankStore() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
 const setUi = (name, patch) => { ui = { ...ui, [name]: { ...ui[name], ...patch } }; };
+
+// 店舗ごとの、有効な店舗スタッフの人数
+const storeStaffCount = () => employees.filter((u) => u.role === 'store' && u.active).reduce((n, u) => ({ ...n, [u.storeId]: (n[u.storeId] ?? 0) + 1 }), {});
 
 const ctx = () => {
   const wmaster = loadMaster();
-  return { tab, menuOpen, employees, departments, offices, trips, salesUsers: USERS.map(({ id, name }) => ({ id, name })), today: ymdOf(new Date()), wmaster, holding: holdingByWarehouse(loadState(), wmaster), ui, themeHtml: themeToggleHtml() };
+  return { tab, menuOpen, employees, departments, offices, trips, stores, storeStaffCount: storeStaffCount(), salesUsers: USERS.map(({ id, name }) => ({ id, name })), today: ymdOf(new Date()), wmaster, holding: holdingByWarehouse(loadState(), wmaster), ui, themeHtml: themeToggleHtml() };
 };
 const render = () => { $('#root').innerHTML = masterHtml(ctx()); };
-const renderList = () => { const el = $('[data-list]'); if (el) el.innerHTML = listHtml({ employees, departments, warehouses: loadMaster().warehouses, ui: ui.employees }); };
+const renderList = () => { const el = $('[data-list]'); if (el) el.innerHTML = listHtml({ employees, departments, warehouses: loadMaster().warehouses, stores, ui: ui.employees }); };
 const warn = (reason) => alert(REASON_TEXT[reason] ?? '保存できませんでした');
 const commitWh = (next) => { if (!saveMaster(next)) alert('保存できませんでした（容量超過）'); };
 
@@ -48,9 +54,11 @@ function saveUserForm() {
   const f = ui.employees.form;
   const current = employees.find((u) => u.id === f.id)?.warehouseId; // いま所属している倉庫は、無効でも保てる
   const warehouseIds = [...activeWarehouses(loadMaster()).map((w) => w.id), ...(current ? [current] : [])];
+  const currentStore = employees.find((u) => u.id === f.id)?.storeId; // いま所属している店舗は、無効でも保てる
+  const storeIds = [...activeStores(stores).map((x) => x.id), ...(currentStore ? [currentStore] : [])];
   const currentDept = employees.find((u) => u.id === f.id)?.departmentId; // いま所属している部署は、無効でも保てる
   const departmentIds = [...activeDepartments(departments).map((d) => d.id), ...(currentDept ? [currentDept] : [])];
-  const r = saveEmployee(employees, { ...f, id: f.id || undefined }, { warehouseIds, departmentIds });
+  const r = saveEmployee(employees, { ...f, id: f.id || undefined }, { warehouseIds, storeIds, departmentIds });
   if (!r.ok) return warn(r.reason);
   commitUsers(r.employees);
   setUi('employees', { form: null });
@@ -89,6 +97,23 @@ function toggleOffice(id) {
   const r = setOfficeActive(offices, id, !offices.find((o) => o.id === id).active);
   if (!r.ok) return warn(r.reason);
   if (saveOffices(r.offices)) offices = r.offices;
+}
+
+// ---- 店舗 -------------------------------------------------------------------------
+function saveStoreForm() {
+  const f = ui.stores.ms;
+  const current = stores.find((x) => x.id === f.id)?.warehouseId; // いま納入先の倉庫は、無効でも保てる
+  const warehouseIds = [...activeWarehouses(loadMaster()).filter((w) => !w.highValue).map((w) => w.id), ...(current ? [current] : [])];
+  const r = saveStore(stores, { ...f, id: f.id || undefined }, { warehouseIds });
+  if (!r.ok) return warn(r.reason);
+  if (!saveStores(r.stores)) return alert('保存できませんでした（容量超過）');
+  stores = r.stores;
+  setUi('stores', { ms: blankStore() });
+}
+function toggleStore(id) {
+  const r = setStoreActive(stores, id, !stores.find((x) => x.id === id).active, { staffCount: storeStaffCount()[id] ?? 0 });
+  if (!r.ok) return warn(r.reason);
+  if (saveStores(r.stores)) stores = r.stores;
 }
 
 // ---- 出張 -------------------------------------------------------------------------
@@ -160,6 +185,10 @@ const CLICK = {
   moEdit: (v) => setUi('offices', { mo: formFromOffice(offices.find((o) => o.id === v)) }),
   moCancel: () => setUi('offices', { mo: blankOffice() }),
   moToggle: toggleOffice,
+  msSave: saveStoreForm,
+  msEdit: (v) => setUi('stores', { ms: formFromStore(stores.find((x) => x.id === v)) }),
+  msCancel: () => setUi('stores', { ms: blankStore() }),
+  msToggle: toggleStore,
   mtSave: saveTripForm,
   mtEdit: (v) => setUi('trips', { mt: formFromTrip(trips.find((t) => t.id === v)) }),
   mtCancel: () => setUi('trips', { mt: blankTrip() }),
@@ -174,14 +203,15 @@ const CLICK = {
   mvCancel: () => setUi('vendors', { mv: blankVendor() }),
   mvToggle: toggleVendor,
   reset: () => {
-    if (!confirm('社員・部署・営業所・出張・倉庫・委託先を、すべて初期値（見本のデータ）に戻します。登録・変更した内容は消えます。よろしいですか？')) return false;
+    if (!confirm('社員・部署・営業所・出張・店舗・倉庫・委託先を、すべて初期値（見本のデータ）に戻します。登録・変更した内容は消えます。よろしいですか？')) return false;
     commitUsers(DEFAULT_EMPLOYEES);
     saveDepartments(DEFAULT_DEPARTMENTS); departments = DEFAULT_DEPARTMENTS;
     saveOffices(DEFAULT_OFFICES); offices = DEFAULT_OFFICES;
+    saveStores(DEFAULT_STORES); stores = DEFAULT_STORES;
     try { localStorage.removeItem('rq-mock-trips'); } catch { /* 消せなくても動作は継続（モック） */ }
     trips = loadCurrentTrips();
     commitWh({ ...DEFAULT_MASTER, staff: undefined });
-    ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, trips: { mt: blankTrip() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
+    ui = { employees: { role: '', q: '', status: '', departmentId: '', form: null }, departments: { md: blankDepartment() }, offices: { mo: blankOffice() }, trips: { mt: blankTrip() }, stores: { ms: blankStore() }, warehouses: { mw: blankWh(), hv: null }, vendors: { mv: blankVendor() } };
   },
 };
 const SELECTOR = Object.keys(CLICK).map((k) => `[data-${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}]`).join(',');
@@ -194,7 +224,7 @@ document.addEventListener('click', (e) => {
 });
 
 // 入力欄: 「社員」は data-f="name"、ほかは data-f="mw.name" のように、フォームの名前つき。入力中は再描画しない（検索は一覧だけ更新）
-const FORMS = { md: ['departments', 'md'], mo: ['offices', 'mo'], mt: ['trips', 'mt'], mw: ['warehouses', 'mw'], mv: ['vendors', 'mv'] };
+const FORMS = { md: ['departments', 'md'], mo: ['offices', 'mo'], mt: ['trips', 'mt'], ms: ['stores', 'ms'], mw: ['warehouses', 'mw'], mv: ['vendors', 'mv'] };
 function onField(e) {
   const [form, key] = (e.target.dataset.f ?? '').split('.');
   const target = FORMS[form];
@@ -232,7 +262,7 @@ document.addEventListener('change', (e) => {
   }
   if (e.target.dataset.f === 'role') { setUi('employees', { form: { ...blankForm(e.target.value), name: ui.employees.form.name, loginId: ui.employees.form.loginId, departmentId: ui.employees.form.departmentId === defaultDepartmentOf(ui.employees.form.role) ? defaultDepartmentOf(e.target.value) : ui.employees.form.departmentId } }); render(); return; } // 役割で、入力欄が変わる
   if (onField(e)) return;
-  if (['warehouseId', 'departmentId'].includes(e.target.dataset.f)) setUi('employees', { form: { ...ui.employees.form, [e.target.dataset.f]: e.target.value } });
+  if (['warehouseId', 'storeId', 'departmentId'].includes(e.target.dataset.f)) setUi('employees', { form: { ...ui.employees.form, [e.target.dataset.f]: e.target.value } });
 });
 
 // 別のタブで、マスタが変わったときに追従する（入力中の欄を壊さないよう、社員の一覧だけ）
@@ -240,6 +270,7 @@ window.addEventListener('storage', (e) => {
   if (e.key === EMPLOYEES_KEY) { employees = loadEmployees(); renderList(); }
   if (e.key === DEPARTMENTS_KEY) { departments = loadDepartments(); renderList(); }
   if (e.key === OFFICES_KEY) offices = loadOffices();
+  if (e.key === STORES_KEY) stores = loadStores();
   if (e.key === MASTER_KEY) renderList();
 });
 

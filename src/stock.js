@@ -37,7 +37,8 @@ export function saveUnits(list) {
 // 訪問の買取商品（シール枠ごと）から、入庫待ちの実物リストを作る。シール未紐づけの枠は対象外
 // photos: 商品ID → 買取のときに撮影した写真（査定依頼の写真）。ない商品には付けない
 // phones: 訪問のお客様の電話番号（受付でヒアリングした1・2）。商品に控えて、クーリングオフの電話で探せるようにする
-export function unitsFromVisit({ visitId, userId, customerName, slots, labels, colors = {}, photos = {}, phones = [], at = Date.now() }) {
+// channel／storeId: 店頭買取のとき（'store'・店舗のID）。訪問買取は付けない。店頭買取の商品は、クーリングオフの保管期間がない
+export function unitsFromVisit({ visitId, userId, customerName, slots, labels, colors = {}, photos = {}, phones = [], at = Date.now(), channel = null, storeId = null }) {
   return slots
     .filter((x) => labels[x.key])
     .map((x) => ({
@@ -46,6 +47,7 @@ export function unitsFromVisit({ visitId, userId, customerName, slots, labels, c
       n: x.n, qty: x.item.qty, price: x.item.qty ? Math.round(x.item.price / x.item.qty) : x.item.price,
       sealColor: colors[x.key] ?? null, // シールの色（紫・赤は本社管理の高額品）
       phones: phones.map((p) => String(p ?? '').trim()).filter(Boolean),
+      ...(channel ? { channel, storeId } : {}),
       ...(photos[x.item.id] ? { photo: photos[x.item.id] } : {}),
       status: 'pending', storedAt: null, location: null, by: null,
     }));

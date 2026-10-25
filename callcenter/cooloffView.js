@@ -10,7 +10,7 @@ import { bubblesHtml, messageBoxHtml } from '../warehouse/returnChat.js';
 // 依頼を作れなかった商品の理由
 export const REJECT_TEXT = { unknown: '登録のない商品', inProgress: 'すでに依頼中の商品', returned: 'すでに返品済みの商品', inTransit: '倉庫間を輸送中の商品（届いてから依頼してください）', inPacking: '梱包中の商品（発送が済んでから依頼してください）' };
 
-const KIND_CLS = { ok: 'bg-emerald-100 text-emerald-800', expired: 'bg-rose-100 text-rose-700', ask: 'bg-amber-100 text-amber-800', sold: 'bg-slate-200 text-slate-700', busy: 'bg-sky-100 text-sky-800', returned: 'bg-slate-100 text-slate-600', wait: 'bg-slate-200 text-slate-700' };
+const KIND_CLS = { ok: 'bg-emerald-100 text-emerald-800', expired: 'bg-rose-100 text-rose-700', ask: 'bg-amber-100 text-amber-800', sold: 'bg-slate-200 text-slate-700', busy: 'bg-sky-100 text-sky-800', returned: 'bg-slate-100 text-slate-600', wait: 'bg-slate-200 text-slate-700', store: 'bg-indigo-100 text-indigo-800' };
 const SELECTABLE = new Set(['ok', 'expired', 'ask', 'sold']); // 依頼にできる商品（売却済みは、対応不可として記録する）
 
 const thumb = (u, cls) => `<img src="${photoOf(u)}" alt="${esc(u.name)}" class="${cls} object-cover rounded border bg-slate-100 shrink-0" />`;
@@ -32,7 +32,7 @@ function productCard(c, r, sel) {
 
 function contractCard(c, sel) {
   return `<section class="space-y-1.5">
-    <div class="flex flex-wrap items-baseline gap-2 border-b pb-0.5"><b>${esc(c.customerName)} 様</b><span class="text-sm font-bold text-teal-800">${mdw(c.date)}買取</span><span class="text-xs text-slate-500">期間 ${md(c.coolEnd)}まで・${c.rows.length}点 ${yen(c.total)}</span>${c.phones?.length ? `<span class="text-xs text-slate-600">📞 ${c.phones.map(esc).join(' ／ ')}</span>` : ''}</div>
+    <div class="flex flex-wrap items-baseline gap-2 border-b pb-0.5"><b>${esc(c.customerName)} 様</b><span class="text-sm font-bold text-teal-800">${mdw(c.date)}買取</span><span class="text-xs text-slate-500">${c.store ? '店頭買取' : `期間 ${md(c.coolEnd)}まで`}・${c.rows.length}点 ${yen(c.total)}</span>${c.phones?.length ? `<span class="text-xs text-slate-600">📞 ${c.phones.map(esc).join(' ／ ')}</span>` : ''}</div>
     <div class="space-y-1.5">${c.rows.map((r) => productCard(c, r, sel)).join('')}</div>
   </section>`;
 }

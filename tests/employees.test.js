@@ -10,13 +10,14 @@ const { USERS: SALES } = await import('../src/dashboard.js');
 const { DEFAULT_DEPARTMENTS: DEPTS, defaultDepartmentOf } = await import('../src/departments.js');
 
 const WH = ['W-OSAKA', 'W-KANTO'];
-const opts = { warehouseIds: WH, departmentIds: DEPTS.map((d) => d.id) };
+const ST = ['S-NAMBA', 'S-SHINJUKU'];
+const opts = { warehouseIds: WH, storeIds: ST, departmentIds: DEPTS.map((d) => d.id) };
 // 部署を指定しない入力には、役割ごとの初期の部署を入れる
 const save = (list, input, o = opts) => U.saveEmployee(list, { departmentId: defaultDepartmentOf(input.role), ...input }, o);
 const roleCount = (list, role) => list.filter((u) => u.role === role).length;
 
-test('役割: 営業・オペレーター・配車係・査定員・経理担当・倉庫担当の6つ。表示名は用語集のとおり', () => {
-  assert.deepEqual(U.ROLES.map((r) => r.label), ['営業', 'オペレーター', '配車係', '査定員', '経理担当', '倉庫担当']);
+test('役割: 営業・オペレーター・配車係・査定員・経理担当・倉庫担当・店舗スタッフの7つ。表示名は用語集のとおり', () => {
+  assert.deepEqual(U.ROLES.map((r) => r.label), ['営業', 'オペレーター', '配車係', '査定員', '経理担当', '倉庫担当', '店舗スタッフ']);
   assert.equal(U.roleLabel('appraiser'), '査定員');
   assert.equal(U.roleLabel('nope'), '');
 });
@@ -140,6 +141,25 @@ test('古い保存データの引き継ぎ: 社員の保存がなく、倉庫マ
   assert.deepEqual(whs.map((u) => [u.id, u.name, u.warehouseId, u.active]), [['wh01', '旧 担当', 'W-KANTO', true], ['ST-X', '追加 済み', 'W-OSAKA', false]]);
   assert.equal(roleCount(list, 'sales'), 16); // 他の役割は初期値
   assert.ok(mem.has(U.EMPLOYEES_KEY)); // 引き継いだ内容は保存する（倉庫マスタの保存で消えても失われない）
+  mem.clear();
+});
+
+test('店舗スタッフ: 所属店舗が必要（有効な店舗から選ぶ）。初期の部署は店舗部。店舗スタッフの一覧が取れる', () => {
+  const base = U.DEFAULT_EMPLOYEES;
+  assert.equal(save(base, { loginId: 'st09', name: 'x', role: 'store' }, opts).reason, 'noStore');
+  assert.equal(save(base, { loginId: 'st09', name: 'x', role: 'store', storeId: 'nope' }, opts).reason, 'noStore');
+  const ok = save(base, { loginId: 'st09', name: '新人', role: 'store', storeId: 'S-SHINJUKU' }, opts);
+  assert.deepEqual([ok.employees.at(-1).storeId, ok.employees.at(-1).departmentId], ['S-SHINJUKU', 'D-STORE']);
+  assert.deepEqual(base.filter((u) => u.role === 'store').map((u) => [u.id, u.storeId]), [['st01', 'S-NAMBA'], ['st02', 'S-NAMBA'], ['st03', 'S-SHINJUKU']]);
+  assert.deepEqual(U.storeStaffOf(base).map((u) => u.id), ['st01', 'st02', 'st03']);
+  assert.deepEqual(U.storeStaffOf(U.setEmployeeActive(base, 'st02', false).employees).map((u) => u.id), ['st01', 'st03']); // 無効は出さない
+  assert.equal(U.setEmployeeActive(U.setEmployeeActive(base, 'st03', false).employees, 'st01', false).ok, true);
+});
+
+test('古い保存データ: 店舗スタッフがいない保存は、見本の店舗スタッフを足して読み込む', () => {
+  mem.clear();
+  mem.set(U.EMPLOYEES_KEY, JSON.stringify(U.DEFAULT_EMPLOYEES.filter((u) => u.role !== 'store')));
+  assert.equal(U.loadEmployees().filter((u) => u.role === 'store').length, 3);
   mem.clear();
 });
 
