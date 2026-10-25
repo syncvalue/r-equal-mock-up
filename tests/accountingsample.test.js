@@ -8,7 +8,7 @@ const { buildSample, seedSample, SAMPLE_SEEDED_KEY } = await import('../src/acco
 const { flagsOf, expenseStats, loadCustomerPayments } = await import('../src/accounting.js');
 const { todayRows, loadDays, dateKey } = await import('../src/workday.js');
 
-const NOW = new Date(2026, 9, 24, 15, 0).getTime();
+const NOW = Date.now(); // 画面（todayRows）は実際の今日を使うため、固定の日付にしない
 
 test('サンプル: 今日の営業に、問題なし・差異・高額・マイナス等の見本が揃い、未始業も残る', () => {
   seedSample(NOW, true);
