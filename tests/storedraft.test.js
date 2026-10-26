@@ -133,3 +133,12 @@ test('契約を送ったあとは、確認・支払いより前の手順には�
   assert.equal(D.goStep(d, 2).step, 4);
   assert.equal(D.goStep({ ...d, contractId: null }, 2).step, 2);
 });
+
+test('シールの紐づけ: QRから分かる色は、自動で選ばれる。分からない（古い・手入力）ときは、選んだままか未選択', () => {
+  let d = D.addProduct(D.blankDraft({ id: 'v1' }), { id: 'p1', name: 'x', category: '腕時計' });
+  d = D.assignLabel(d, 'p1-1', 'rq-gabcdefg').draft;
+  assert.equal(d.colors['p1-1'], 'green');
+  d = D.assignLabel(D.setColor(D.clearLabel(d, 'p1-1'), 'p1-1', 'red'), 'p1-1', 'RQ-XXXXXXXX').draft;
+  assert.equal(d.colors['p1-1'], 'red'); // 分からないときは、手で選んだ色を残す
+  assert.equal(D.assignLabel(D.blankDraft({ id: 'v1' }), 'k', 'RQ-ZZZZ').draft.colors.k, undefined);
+});

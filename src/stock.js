@@ -14,6 +14,13 @@ export const SEAL_COLORS = [
 ];
 // 色を分ける前の記録（「黄・緑・青」をまとめた other）。選択肢には出さないが、読み込みと判定には使える
 const LEGACY_SEAL_COLORS = [{ key: 'other', label: '黄・緑・青', note: 'その他', dot: '🟡' }];
+// シールのQR（シールNo.）は、「RQ-」のすぐ後ろの1文字が色を表す（P紫・R赤・Y黄・G緑・B青）。読み取ると、色が自動で分かる
+const SEAL_LETTERS = { purple: 'P', red: 'R', yellow: 'Y', green: 'G', blue: 'B' };
+export const sealColorOfCode = (code) => Object.entries(SEAL_LETTERS).find(([, l]) => l === /^RQ-(.)/i.exec(String(code ?? ''))?.[1]?.toUpperCase())?.[0] ?? null;
+// 読み取り（モック）で出す新しいシールNo.。色の指定がなければ、ランダムな色（高額品の紫・赤は少なめ）
+const RANDOM_COLORS = ['purple', 'red', 'yellow', 'yellow', 'green', 'green', 'blue', 'blue'];
+export const newSealNo = (color = RANDOM_COLORS[Math.floor(Math.random() * RANDOM_COLORS.length)]) =>
+  `RQ-${SEAL_LETTERS[color]}${Math.random().toString(36).slice(2, 9).toUpperCase().padEnd(7, '0')}`;
 export const sealColorOf = (key) => [...SEAL_COLORS, ...LEGACY_SEAL_COLORS].find((c) => c.key === key) ?? null;
 
 export const LOCATIONS = ['A棚（バッグ・小物）', 'B棚（時計・ジュエリー）', 'C棚（カメラ・家電）', '金庫室（高額品）', '要確認エリア'];

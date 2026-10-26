@@ -7,6 +7,7 @@ import {
   loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, answerInquiry, isOpenReturn, shipReturn, completeReturn, addReturnMessage, returnAlerts, suggestPrice, scopeState,
 } from '../src/warehouse.js';
 import { loadUnits, saveUnits, receive, receiveCodes, resultMessage, setUnitPhoto, clearUnitPhoto } from '../src/stock.js';
+import { sealColorOfCode } from '../src/stock.js';
 import { shrinkImage, productPhoto } from '../src/image.js';
 import { seedSample } from '../src/warehouseSample.js';
 import { login, loadSession, saveSession, clearSession } from '../src/warehouseStaff.js';
@@ -231,11 +232,12 @@ function doRelabel(code) {
   const state = loadState();
   const unit = state.units.find((u) => u.code === code);
   if (unit?.status === 'stored' && !ownsAll([code])) return;
-  const r = relabelUnit(state, code, { newCode: ui.rl.newCode, color: ui.rl.color, by: staff.name });
+  const color = ui.rl.color || sealColorOfCode(ui.rl.newCode) || '';
+  const r = relabelUnit(state, code, { newCode: ui.rl.newCode, color, by: staff.name });
   if (!r.ok) return alert(RELABEL_TEXT[r.reason]);
   if (!saveUnits(r.state.units)) return alert('保存できませんでした（容量超過）');
   commit(r.state);
-  const next = r.state.units.find((u) => u.sealColor === ui.rl.color && u.relabels?.at(-1)?.from === code);
+  const next = r.state.units.find((u) => u.sealColor === color && u.relabels?.at(-1)?.from === code);
   const problem = next.status === 'stored' ? destinationProblem(master, next, next.warehouseId ?? staff.warehouseId) : '';
   ui.rc = { ...ui.rc, checks: ui.rc.checks.filter((c) => c !== code) };
   ui.rl = { code: '', newCode: '', color: '' };
@@ -522,6 +524,12 @@ document.addEventListener('input', (e) => {
     return;
   }
   onField(e, true);
+  if (e.target.dataset.f === 'rl.newCode') { // 新しいシールのQRから色が分かれば、色の選択と記録ボタンに反映する（入力欄は再描画しない）
+    const color = ui.rl.color || sealColorOfCode(ui.rl.newCode) || '';
+    document.querySelectorAll('[data-rl-color]').forEach((b) => b.classList.toggle('on', b.dataset.rlColor === color));
+    const go = document.querySelector('[data-rl-do]');
+    if (go) go.disabled = !(ui.rl.newCode.trim() && color);
+  }
 });
 document.addEventListener('change', (e) => {
   if (e.target.matches?.('[data-photo-file]')) { // 商品の写真を撮影・選択して登録する

@@ -54,3 +54,15 @@ test('シールの色: 紫・赤・黄・緑・青の5つから選ぶ（黄・�
   const units = unitsFromVisit({ visitId: 'V', userId: 'u01', customerName: 'x', slots, labels: { 'a-1': 'RQ-1', 'b-1': 'RQ-2', 'c-1': 'RQ-3' }, colors: { 'a-1': 'purple', 'b-1': 'green' } });
   assert.deepEqual(units.map((u) => u.sealColor), ['purple', 'green', null]); // 色の記録がなければ null
 });
+
+test('シールのQR: シールNo.の「RQ-」のすぐ後ろの文字が色を表す（P紫・R赤・Y黄・G緑・B青）。読み取ると色が分かる', async () => {
+  const { sealColorOfCode, newSealNo } = await import('../src/stock.js');
+  assert.equal(sealColorOfCode('RQ-PABC1234'), 'purple');
+  assert.equal(sealColorOfCode('rq-rabc1234'), 'red');
+  assert.deepEqual(['RQ-Y1', 'RQ-G1', 'RQ-B1'].map(sealColorOfCode), ['yellow', 'green', 'blue']);
+  assert.equal(sealColorOfCode('RQ-XABC1234'), null); // 色の文字がない（古いシール・手入力）
+  assert.equal(sealColorOfCode(''), null);
+  for (const c of ['purple', 'red', 'yellow', 'green', 'blue']) assert.equal(sealColorOfCode(newSealNo(c)), c);
+  assert.match(newSealNo('green'), /^RQ-G[0-9A-Z]{7}$/);
+  assert.ok(sealColorOfCode(newSealNo()), '色の指定がなければ、どれかの色');
+});

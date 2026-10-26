@@ -1,6 +1,7 @@
 // 店頭買取の作業中の内容（お客様確認 → 説明事項 → 買取明細 → シール → 確認・支払い）。来店1件につき1つ。
 // すべて新しい作業を返す純関数。来店ごとに localStorage へ保存するので、途中で画面を閉じても続けられる。
 import { STORE_DRAFT_KEY } from './store.js';
+import { sealColorOfCode, newSealNo } from './stock.js';
 import { EXPLAIN_ITEMS, LEAVE_CHECKS, slotsOf, sellItems } from './storePurchase.js';
 
 export const STEPS = ['お客様確認', '説明事項', '買取明細', 'シール', '確認・支払い'];
@@ -58,7 +59,8 @@ export function assignLabel(d, key, raw, { taken = [] } = {}) {
   const code = String(raw ?? '').trim().toUpperCase();
   if (!code) return { draft: d };
   if (Object.values(d.labels).includes(code) || taken.includes(code)) return { draft: d, error: 'dup', code };
-  return { draft: { ...d, labels: { ...d.labels, [key]: code } } };
+  const color = sealColorOfCode(code); // QRから色が分かれば、自動で選ぶ
+  return { draft: { ...d, labels: { ...d.labels, [key]: code }, colors: color ? { ...d.colors, [key]: color } : d.colors } };
 }
 export const setColor = (d, key, color) => ({ ...d, colors: { ...d.colors, [key]: color } });
 export const clearLabel = (d, key) => {
@@ -70,7 +72,7 @@ export const clearLabel = (d, key) => {
 // 読み取り（モック）で出す、新しいシールNo.
 export function newSealCode(taken = []) {
   let code;
-  do code = `RQ-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+  do code = newSealNo();
   while (taken.includes(code));
   return code;
 }

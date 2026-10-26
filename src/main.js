@@ -27,7 +27,7 @@ import {
   newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, startReady, closeReady,
 } from './workday.js';
 import {
-  loadUnits, saveUnits, unitsFromVisit, addUnits, byUser, inScope, pendingOf, receive, markMissing, resultMessage, demoUnits,
+  loadUnits, saveUnits, unitsFromVisit, addUnits, byUser, inScope, pendingOf, receive, markMissing, resultMessage, demoUnits, sealColorOfCode, newSealNo,
 } from './stock.js';
 import { DEFAULT_STOCK, stockTarget, isHonshaItem } from './stockView.js';
 
@@ -238,7 +238,7 @@ function runAi(photo) {
 const newCode = () => {
   const used = Object.values(state.labels);
   let code;
-  do code = `RQ-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+  do code = newSealNo();
   while (used.includes(code));
   return code;
 };
@@ -250,7 +250,8 @@ function assignLabel(key, raw) {
     set({ labelError: { key, msg: `このシール(${code})は既に別の商品に紐づいています` } });
     return;
   }
-  set({ labels: { ...state.labels, [key]: code }, labelError: null });
+  const color = sealColorOfCode(code); // QRから色が分かれば、自動で選ぶ
+  set({ labels: { ...state.labels, [key]: code }, labelError: null, sealColors: color ? { ...state.sealColors, [key]: color } : state.sealColors });
 }
 
 let scanToken = 0;
@@ -318,10 +319,10 @@ const actions = {
     }, 2200);
   },
   'scan-cancel': () => { scanToken += 1; set({ scan: null }); },
-  // デモ用: 残りを一括で読み取る（色は、未選択のものを黄にする）
+  // デモ用: 残りを一括で読み取る（色は、QRから自動で選ばれる）
   'dummy-scan-all': () => {
     V.labelSlots(state).forEach((x) => !state.labels[x.key] && assignLabel(x.key, newCode()));
-    set({ sealColors: Object.fromEntries(V.labelSlots(state).map((x) => [x.key, state.sealColors[x.key] ?? 'yellow'])) });
+    set({ sealColors: Object.fromEntries(V.labelSlots(state).map((x) => [x.key, state.sealColors[x.key] ?? sealColorOfCode(state.labels[x.key]) ?? 'yellow'])) });
   },
   'seal-color': (el) => set({ sealColors: { ...state.sealColors, [el.dataset.key]: el.dataset.value } }),
   'clear-label': (el) => {
