@@ -821,6 +821,9 @@ document.addEventListener('input', (e) => {
     set({ evalDraft: { ...state.evalDraft, memo: el.value } });
   } else if (el.dataset.draft) {
     set({ draft: { ...state.draft, [el.dataset.draft]: el.value } });
+    // 査定依頼の送信ボタンは、文章か写真があれば押せる（入力のたびに再描画はしない）
+    const send = $('[data-action="send-appraisal"]');
+    if (send) send.disabled = !(state.draft.note.trim() || state.draft.photos.length);
   } else if (el.dataset.field) {
     set({ customer: { ...state.customer, [el.dataset.field]: el.value } });
     const next = $('[data-action="next"]');
