@@ -318,10 +318,10 @@ const actions = {
     }, 2200);
   },
   'scan-cancel': () => { scanToken += 1; set({ scan: null }); },
-  // デモ用: 残りを一括で読み取る（色は、未選択のものを「その他」にする）
+  // デモ用: 残りを一括で読み取る（色は、未選択のものを黄にする）
   'dummy-scan-all': () => {
     V.labelSlots(state).forEach((x) => !state.labels[x.key] && assignLabel(x.key, newCode()));
-    set({ sealColors: Object.fromEntries(V.labelSlots(state).map((x) => [x.key, state.sealColors[x.key] ?? 'other'])) });
+    set({ sealColors: Object.fromEntries(V.labelSlots(state).map((x) => [x.key, state.sealColors[x.key] ?? 'yellow'])) });
   },
   'seal-color': (el) => set({ sealColors: { ...state.sealColors, [el.dataset.key]: el.dataset.value } }),
   'clear-label': (el) => {

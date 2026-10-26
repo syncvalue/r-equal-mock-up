@@ -25,7 +25,7 @@ const phonesOf = (name) => {
 const CO_OPERATOR = '佐藤'; // クーリングオフ用の番号を受けたオペレーター（見本。コールセンターのオペレーター）
 const staffOfWh = (warehouseId) => MASTER.staff.find((s) => s.warehouseId === warehouseId)?.name;
 // シールの色（見本）。貴金属・高額な商品が、紫・赤（本社管理）、それ以外は黄・緑・青
-const colorOf = (category, price) => (price >= 400000 ? 'purple' : category === 'ジュエリー・貴金属' || price >= 300000 ? 'red' : 'other');
+const colorOf = (category, price) => (price >= 400000 ? 'purple' : category === 'ジュエリー・貴金属' || price >= 300000 ? 'red' : ['yellow', 'green', 'blue'][Math.floor(price / 1000) % 3]);
 const SHELF_LETTER = { 'ブランドバッグ': 'A', '財布・小物': 'A', '腕時計': 'B', 'ジュエリー・貴金属': 'B', 'カメラ・家電': 'C' };
 // 保管場所は、入庫した倉庫の棚から選ぶ（高額品は金庫室、それ以外はカテゴリの棚。なければ先頭の棚）
 const placeOf = (category, price, warehouseId) => {
@@ -145,7 +145,7 @@ export function buildSample(now = Date.now()) {
     (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-OSAKA', location: 'A棚（バッグ・小物）', by: staffOfWh('W-OSAKA'), at: at(8) }),
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-KANTO', toId: 'W-FUKUOKA', codes: [code(31)], by: staffOfWh('W-KANTO'), at: at(6) }),
     (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-FUKUOKA', location: 'B棚', by: staffOfWh('W-FUKUOKA'), at: at(5) }),
-    (s) => W.relabelUnit(s, code(33), { newCode: R(2), color: 'other', by: staffOfWh('W-HONSHA'), at: at(6) }), // 赤を貼り間違えていた → 高額品ではないので倉庫へ
+    (s) => W.relabelUnit(s, code(33), { newCode: R(2), color: 'yellow', by: staffOfWh('W-HONSHA'), at: at(6) }), // 赤を貼り間違えていた → 高額品ではないので倉庫へ
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-HONSHA', toId: 'W-KANTO', codes: [R(2)], by: staffOfWh('W-HONSHA'), at: at(5) }),
     (s) => T.receiveTransfer(s, MASTER, s.transfers[0].id, { receiverWarehouseId: 'W-KANTO', location: 'A棚（バッグ・小物）', by: staffOfWh('W-KANTO'), at: at(4) }),
     // 輸送中（送った倉庫の「送った商品・輸送中」と、送り先の「受け取り待ち」に出る）
@@ -155,7 +155,7 @@ export function buildSample(now = Date.now()) {
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-KANTO', toId: 'W-FUKUOKA', codes: [code(32)], by: staffOfWh('W-KANTO'), at: at(3) }),
     (s) => W.relabelUnit(s, code(36), { newCode: R(3), color: 'red', by: staffOfWh('W-OSAKA'), at: at(2) }),
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-HONSHA', codes: [R(3)], by: staffOfWh('W-OSAKA'), at: at(1) }),
-    (s) => W.relabelUnit(s, code(35), { newCode: R(4), color: 'other', by: staffOfWh('W-HONSHA'), at: at(2) }),
+    (s) => W.relabelUnit(s, code(35), { newCode: R(4), color: 'yellow', by: staffOfWh('W-HONSHA'), at: at(2) }),
     (s) => T.sendTransfer(s, MASTER, { fromId: 'W-HONSHA', toId: 'W-FUKUOKA', codes: [R(4)], by: staffOfWh('W-HONSHA'), at: at(1) }),
     // 梱包中のパック（どの倉庫・本社でも、パックの作業の途中が見えるように）
     (s) => T.createPack(s, MASTER, { fromId: 'W-OSAKA', toId: 'W-FUKUOKA', by: staffOfWh('W-OSAKA'), at: at(0, 9) }),
@@ -173,7 +173,7 @@ export function buildSample(now = Date.now()) {
     (s) => T.addToPack(s, MASTER, s.transfers[0].id, code(42), { at: at(0, 9) }),
     (s) => T.addToPack(s, MASTER, s.transfers[0].id, code(43), { at: at(0, 9) }),
     (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'jp', size: '80', boxes: 2 }),
-    (s) => W.relabelUnit(s, code(44), { newCode: R(5), color: 'other', by: staffOfWh('W-HONSHA'), at: at(3) }), // 赤の貼り間違いを直した商品を、本社から倉庫へ
+    (s) => W.relabelUnit(s, code(44), { newCode: R(5), color: 'yellow', by: staffOfWh('W-HONSHA'), at: at(3) }), // 赤の貼り間違いを直した商品を、本社から倉庫へ
     (s) => T.createPack(s, MASTER, { fromId: 'W-HONSHA', toId: 'W-OSAKA', by: staffOfWh('W-HONSHA'), at: at(0, 9) }),
     (s) => T.addToPack(s, MASTER, s.transfers[0].id, R(5), { at: at(0, 9) }),
     (s) => T.updatePack(s, s.transfers[0].id, { carrier: 'jp', size: '60' }),

@@ -1,7 +1,7 @@
 // 倉庫のマスタ。倉庫は営業所とは独立した施設で、営業所と一体の倉庫・倉庫のみ・倉庫のない営業所（営業のみ）がある。
 // 倉庫担当（master.staff）は、マスタ管理の社員（倉庫担当）から読み込む（登録・所属変更・有効/無効は社員管理）。商品は、入庫した倉庫に保管される。操作はすべて新しいマスタを返す。
 import { loadOffices, officeName as officeNameOf } from './offices.js';
-import { LOCATIONS, SEAL_COLORS } from './stock.js';
+import { LOCATIONS, sealColorOf } from './stock.js';
 import { DEFAULT_EMPLOYEES, loadEmployees, warehouseStaffOf } from './employees.js';
 
 export const MASTER_KEY = 'rq-mock-warehouse-master';
@@ -131,7 +131,7 @@ export function setVendorActive(master, id, active) {
 export function saveHighValueRule(master, { colors }) {
   const list = [...new Set(colors ?? [])];
   if (!list.length) return fail(master, 'noRule');
-  if (list.some((c) => !SEAL_COLORS.some((x) => x.key === c))) return fail(master, 'badColor');
+  if (list.some((c) => !sealColorOf(c))) return fail(master, 'badColor');
   return { ok: true, master: { ...master, highValue: { colors: list } } };
 }
 

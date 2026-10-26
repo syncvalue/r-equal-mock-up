@@ -1,6 +1,6 @@
 // 発送（配送業者・サイズ）の定義と、発送伝票・明細・CSVの出力。すべて純粋関数（画面は、結果を印刷・ダウンロードする）。
 import { esc, yen } from './format.js';
-import { SEAL_COLORS } from './stock.js';
+import { sealColorOf } from './stock.js';
 
 export const CARRIERS = [
   { key: 'yamato', label: 'ヤマト運輸', service: '宅急便', csvLabel: 'ヤマト運輸（B2クラウド取込用）' },
@@ -95,7 +95,7 @@ export function packingListHtml(pack, units, master, { now = Date.now() } = {}) 
   const kind = pack.kind ?? 'transfer';
   const list = unitsOf(pack, units);
   const { count, total, ask } = packSummary(pack, units);
-  const color = (k) => SEAL_COLORS.find((c) => c.key === k)?.label ?? '';
+  const color = (k) => sealColorOf(k)?.label ?? '';
   const TITLE = { transfer: '送付明細（倉庫間移動）', consign: '委託明細（業者への委託）', sale: '納品書' };
   const money = (u) => yen(pack.prices?.[u.code] ?? 0);
   const head = {

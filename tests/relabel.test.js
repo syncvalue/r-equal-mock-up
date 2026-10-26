@@ -91,3 +91,8 @@ test('古いシールNo.: 読み取ると、貼り替え済みであることと
   assert.ok(S.resultMessage(r.result).text.includes('RQ-NEW') && !S.resultMessage(r.result).ok);
   assert.equal(S.receive(s.units, null, 'RQ-NEW', { location: 'A棚', by: 'x' }).result.type, 'ok');
 });
+
+test('貼り替え: 黄・緑・青のどれにも貼り替えられる。選べない色は不可。高額品の判定は紫・赤だけ（黄・緑・青の扱いは同じ）', () => {
+  for (const c of ['yellow', 'green', 'blue']) assert.equal(rl(state([unit('A', { sealColor: 'purple' })]), 'A', `RQ-${c}`, c).ok, true, c);
+  assert.equal(rl(state([unit('A')]), 'A', 'RQ-X', 'pink').ok, false);
+});

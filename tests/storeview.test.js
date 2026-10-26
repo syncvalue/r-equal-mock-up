@@ -84,12 +84,12 @@ test('買取 手順3 買取明細: 商品の検索結果・金額（単価）の
   assert.ok(/合計 ¥60,000/.test(text(html)), text(html));
 });
 
-test('買取 手順4 シール: 売る商品を1点ずつ並べ、シールNo.・読み取り・色の選択肢（3つ）が出る', () => {
+test('買取 手順4 シール: 売る商品を1点ずつ並べ、シールNo.・読み取り・色の選択肢（5つ）が出る', () => {
   let d = D.updateItem(D.addProduct({ ...D.blankDraft(visit), step: 3 }, { id: 'p1', name: 'テスト商品', category: '腕時計' }), 'p1', { price: 30000 });
   d = D.setQty(d, 'p1', 2);
   const html = purchaseHtml(ctxOf(d, { labelError: { key: 'p1-2', code: 'RQ-X' } }));
   assert.ok(html.includes('data-seal="p1-1"') && html.includes('data-seal="p1-2"') && html.includes('data-scan="p1-1"'));
-  assert.equal((html.match(/data-color="p1-1"/g) || []).length, 3);
+  assert.equal((html.match(/data-color="p1-1"/g) || []).length, 5);
   assert.ok(text(html).includes('このシール（RQ-X）は、すでに使われています'));
 });
 

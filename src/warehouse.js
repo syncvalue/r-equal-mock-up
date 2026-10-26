@@ -108,7 +108,7 @@ export function relabelUnit(state, code, { newCode, color, by = '', at = Date.no
   if (!next) return fail(state, 'badCode');
   if (next === code) return fail(state, 'sameCode');
   if (state.units.some((u) => u.code === next || (u.relabels ?? []).some((r) => r.from === next))) return fail(state, 'dupCode');
-  if (!SEAL_COLORS.some((c) => c.key === color)) return fail(state, 'badColor');
+  if (!sealColorOf(color)) return fail(state, 'badColor');
   if (!['incoming', 'missing', 'stock'].includes(rowOf(state, code, at).stage)) return fail(state, 'notRelabelable');
   const swap = (c) => (c === code ? next : c);
   const entry = { from: code, to: next, fromColor: unit.sealColor ?? null, toColor: color, by, at };

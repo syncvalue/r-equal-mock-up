@@ -55,7 +55,7 @@ test('倉庫: 一覧（保管中・倉庫担当・営業所との関係）、登
   assert.ok(/大阪倉庫.*大阪営業所と一体.*小川 直樹、中島 里奈.*3点/.test(t), t);
   assert.ok(t.includes('福岡倉庫') && t.includes('倉庫のみ') && t.includes('高額品の保管先'));
   for (const a of ['data-mw-edit="W-OSAKA"', 'data-mw-toggle="W-OSAKA"', 'data-mw-save', 'data-f="mw.name"', 'data-hv-save']) assert.ok(html.includes(a), a);
-  assert.equal((html.match(/data-hv-color=/g) || []).length, 3); // 紫・赤・その他（黄・緑・青）
+  assert.equal((html.match(/data-hv-color=/g) || []).length, 5); // 紫・赤・黄・緑・青
   const select = html.match(/data-f="mw.officeId"[\s\S]*?<\/select>/)[0];
   assert.ok(select.includes('大阪営業所と一体') && select.includes('東海営業所と一体'));
   const off = DEFAULT_OFFICES.map((o) => (o.id === 'tokai' ? { ...o, active: false } : o));

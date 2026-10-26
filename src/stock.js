@@ -4,13 +4,17 @@
 import { STOCK_KEY } from './store.js';
 import { dateKey } from './workday.js';
 
-// シールの色。紫（最も高額）・赤は本社の管理対象（高額品）。黄・緑・青は、システム上は区別しない（青は1点では出品できないが、今は区別しない）
+// シールの色（選べる5色）。紫（最も高額）・赤は本社の管理対象（高額品）。黄・緑・青は、色は選ぶが、システム上の扱いは同じ（青は1点では出品できないが、今は区別しない）
 export const SEAL_COLORS = [
   { key: 'purple', label: '紫', note: '最も高額', dot: '🟣' },
   { key: 'red', label: '赤', note: '高額', dot: '🔴' },
-  { key: 'other', label: '黄・緑・青', note: 'その他', dot: '🟡' },
+  { key: 'yellow', label: '黄', note: 'その他', dot: '🟡' },
+  { key: 'green', label: '緑', note: 'その他', dot: '🟢' },
+  { key: 'blue', label: '青', note: 'その他', dot: '🔵' },
 ];
-export const sealColorOf = (key) => SEAL_COLORS.find((c) => c.key === key) ?? null;
+// 色を分ける前の記録（「黄・緑・青」をまとめた other）。選択肢には出さないが、読み込みと判定には使える
+const LEGACY_SEAL_COLORS = [{ key: 'other', label: '黄・緑・青', note: 'その他', dot: '🟡' }];
+export const sealColorOf = (key) => [...SEAL_COLORS, ...LEGACY_SEAL_COLORS].find((c) => c.key === key) ?? null;
 
 export const LOCATIONS = ['A棚（バッグ・小物）', 'B棚（時計・ジュエリー）', 'C棚（カメラ・家電）', '金庫室（高額品）', '要確認エリア'];
 

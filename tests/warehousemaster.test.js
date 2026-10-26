@@ -123,6 +123,7 @@ test('高額品: シールの色が、紫・赤の商品（本社管理）。黄
   assert.equal(M.isHighValue({ sealColor: 'purple' }, HM), true);
   assert.equal(M.isHighValue({ sealColor: 'red' }, HM), true);
   assert.equal(M.isHighValue({ sealColor: 'other' }, HM), false);
+  for (const c of ['yellow', 'green', 'blue']) assert.equal(M.isHighValue({ sealColor: c }, HM), false, c);
   assert.equal(M.isHighValue({ sealColor: null }, HM), false); // 色のない古い商品は、高額品として扱わない
   assert.equal(M.isHighValue({ sealColor: 'other' }, { ...HM, highValue: { colors: ['other'] } }), true);
 });
