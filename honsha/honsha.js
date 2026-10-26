@@ -204,19 +204,23 @@ function approvalBlock(v, item, approvals, aps) {
   const st = apvState(v, item, approvals);
   const gate = canApprove(aps, v.visitId, item.id);
   const canDecide = item.price > 0 && st !== 'ok';
+  // 査定依頼が続いている間は、隠さずにマスクして見せる（完結すると操作できる）
+  const masked = !gate.ok;
   return `
-  <div class="rounded-lg border-2 ${canDecide ? 'border-amber-400' : 'border-slate-200'} bg-white p-3 space-y-2">
+  <div class="sticky top-0 z-10 rounded-lg border-2 ${canDecide ? 'border-amber-400' : 'border-slate-200'} bg-white shadow-md">
+    <div class="p-3 space-y-2 ${masked ? 'opacity-40 pointer-events-none select-none' : ''}" ${masked ? 'aria-disabled="true"' : ''}>
     <div class="flex justify-between items-center"><b>✅ 買取の承認</b>${item.price > 0 ? apvBadge(st) : '<span class="text-xs text-slate-400">金額未入力</span>'}</div>
     <div class="text-sm">営業の査定：<b>${item.price > 0 ? yen(item.price) : '未入力'}</b>（${item.qty}点分の合計） ／ ランク${item.rank}${item.sell ? '' : '<span class="ml-2 text-slate-500">（売らない）</span>'}</div>
     ${st === 'stale' ? `<div class="text-sm text-orange-700 font-bold">前回の判断（${yen(rec.price)}・ランク${rec.rank}・${rec.qty}点）から変更されています。</div>` : ''}
     ${st === 'ok' ? `<div class="text-sm text-emerald-700 font-bold">承認済み（${fmtTime(rec.decidedAt)}）</div>` : ''}
     ${st === 'ng' ? `<div class="text-sm text-rose-700"><b>差戻し済み：</b>${esc(rec.comment)}（営業の見直しを待っています）</div>` : ''}
-    ${canDecide && !gate.ok ? `<div class="rounded bg-amber-50 border border-amber-300 text-amber-800 text-sm font-bold px-2 py-1">${esc(gate.reason)}</div>` : ''}
     ${canDecide ? `
       <textarea class="w-full border rounded px-3 py-2 text-sm" rows="2" data-f="reason" placeholder="差戻しの場合は理由を入力（必須）">${esc(draft.reason)}</textarea>
       <div class="grid grid-cols-2 gap-2">
-        <button class="bg-emerald-600 text-white font-bold rounded py-3 disabled:opacity-40 disabled:cursor-not-allowed" data-approve="${item.id}" ${gate.ok ? '' : 'disabled'}>承認する</button>
-        <button class="bg-white border-2 border-rose-500 text-rose-600 font-bold rounded py-3" data-reject="${item.id}">差戻し</button></div>` : ''}
+        <button class="bg-emerald-600 text-white font-bold rounded py-3 disabled:opacity-40 disabled:cursor-not-allowed" data-approve="${item.id}" ${masked ? 'disabled' : ''}>承認する</button>
+        <button class="bg-white border-2 border-rose-500 text-rose-600 font-bold rounded py-3" data-reject="${item.id}" ${masked ? 'disabled' : ''}>差戻し</button></div>` : ''}
+    </div>
+    ${masked ? `<div class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-200/50 p-3 text-center text-sm font-bold text-slate-800">🔒 査定依頼のやり取り中（${esc(threadFor(aps, v.visitId, item.id).status === '依頼中' ? '返信待ち' : '回答済み')}）。完結すると承認できます</div>` : ''}
   </div>`;
 }
 
@@ -230,12 +234,12 @@ function detailPanel(v, aps, cs, approvals) {
   const t = orphan ?? threadFor(aps, v.visitId, itemId);
   return `
   <div class="space-y-3">
+    ${item ? approvalBlock(v, item, approvals, aps) : ''}
     <div><div class="text-xl font-bold">${esc(item?.name ?? orphan?.name ?? '')}</div>
       ${item ? `<div class="text-sm text-slate-500">ランク${item.rank} ／ ${item.qty}点 ／ 営業の査定（合計） ${yen(item.price)}</div>` : ''}</div>
     ${t ? chatPanel(t) : ''}
     ${item ? aiCard(item) : ''}
     ${t ? sendForm(item?.id ?? t.itemId, item, true) : ''}
-    ${item ? approvalBlock(v, item, approvals, aps) : ''}
     ${thread(cs, itemId)}
     ${item && !t ? sendForm(item.id, item) : ''}
   </div>`;
@@ -314,10 +318,8 @@ function decideItem(itemId, ok) {
   const v = loadLive()[visitId];
   const item = v?.items.find((i) => i.id === itemId);
   if (!item || !(item.price > 0)) return false;
-  if (ok) {
-    const gate = canApprove(loadAppraisals(), visitId, itemId);
-    if (!gate.ok) { alert(gate.reason); return false; }
-  }
+  const gate = canApprove(loadAppraisals(), visitId, itemId);
+  if (!gate.ok) { alert(gate.reason); return false; }
   if (!ok && !draft.reason.trim()) { alert('差戻しの理由を入力してください'); return false; }
   const now = Date.now();
   upsertApproval({
