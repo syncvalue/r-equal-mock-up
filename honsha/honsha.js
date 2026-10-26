@@ -1,9 +1,8 @@
 // 査定部デスク画面（ダミー・PC想定）。営業の買取明細をリアルタイムで見て、依頼への回答や提案を行う。
 import {
-  AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, COMMENT_TAGS, LIVE_KEY, loadAppraisals, loadComments, loadLive, newAppraisalId,
+  AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, LIVE_KEY, loadAppraisals, loadComments, loadLive, newAppraisalId,
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
-import { RANKS } from '../src/data.js';
 import { threadFor, messagesOf, addMessage, closeThread, canApprove, hasUnread, markRead } from '../src/appraisalThread.js';
 import { USERS } from '../src/dashboard.js';
 import { loadEmployees, appraisersOf } from '../src/employees.js';
@@ -27,7 +26,6 @@ const scopeUsers = () => USERS.filter((u) => appraiser().groups.includes(u.group
 let compose = null; // 営業へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
-const TEMPLATES = ['状態良好のため上限で査定しました。', '傷・使用感があるため減額しています。', '写真だけでは判断できません。型番・シリアルの写真を追加で送ってください。'];
 const sum = (items) => items.filter((i) => i.sell).reduce((n, i) => n + i.price, 0);
 
 const visitsSorted = () =>
@@ -143,23 +141,18 @@ function itemsTable(v, aps, cs, approvals) {
 
 const emptyDraft = () => ({ tag: '', text: '', price: '', rank: null, reason: '' });
 
-// 営業への送信フォーム（コメント＋任意で提案査定額）。回答・意見の区別なく、これ1つで送る
+// 営業への送信フォーム（PC想定。タグ・定型文はなく、キーボードで入力する。Ctrl+Enter でも送信）
+// 提案査定額は任意（入れると、営業が買取金額に反映できる。ランクは営業の入力のまま）
 function sendForm(itemId, item, hasThread = false) {
-  const rank = draft.rank ?? item?.rank ?? 'A';
   return `
   <div class="rounded-lg border bg-white p-3 space-y-2">
-    <div class="font-bold">💬 ${hasThread ? '営業に返信' : '営業へ送信'} ${itemId ? '' : `（訪問全体）${helpIcon('明細の商品を選ぶと、その商品について営業とやり取りできます。')}`}</div>
-    <div class="flex flex-wrap gap-1">${COMMENT_TAGS.map((t) => `<button class="px-3 py-1 rounded border text-sm font-bold ${t === draft.tag ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-white'}" data-tag="${t}">${t}</button>`).join('')}</div>
-    <textarea class="w-full border rounded px-3 py-2" rows="3" data-f="text" placeholder="例: 状態Aで9万円は安すぎます。実績は12万円前後です。">${esc(draft.text)}</textarea>
-    <div class="flex flex-wrap gap-1">${TEMPLATES.map((t, i) => `<button class="px-2 py-1 rounded border text-xs bg-white" data-tpl="${i}">${esc(t.slice(0, 14))}…</button>`).join('')}</div>
-    ${item ? `
-    <div class="border-t pt-2 space-y-2">
-      ${item.price > 0 ? `<button class="w-full rounded border-2 border-emerald-600 text-emerald-700 font-bold py-2 hover:bg-emerald-50" data-fillprice="${item.price}" data-fillrank="${item.rank}">営業の査定額 ${yen(item.price)}（ランク${item.rank}）をそのまま入力</button>` : ''}
-      <div class="text-sm font-bold">提案する査定額（円・数量分の合計・任意）
-        <div class="mt-1">${moneyInputHtml({ attrs: 'data-f="price"', value: Number(draft.price) || 0, placeholder: '入力すると、営業が買取金額に反映できます', cls: 'w-full border rounded px-3 py-2 text-lg' })}</div></div>
-      ${draft.price ? `<div class="flex flex-wrap gap-1">${RANKS.map((r) => `<button class="px-2 py-1 rounded border text-sm font-bold ${r.value === rank ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-white'}" data-rank="${r.value}">${r.label}</button>`).join('')}</div>` : ''}
-    </div>` : ''}
-    <button class="w-full bg-indigo-700 text-white font-bold rounded py-3" data-send="${itemId ?? ''}">${hasThread ? '返信する' : '営業に送信'}</button>
+    <div class="font-bold">${hasThread ? '返信' : '営業へコメント'} ${itemId ? '' : `（訪問全体）${helpIcon('明細の商品を選ぶと、その商品について営業とやり取りできます。')}`}</div>
+    <textarea class="w-full border rounded px-3 py-2" rows="3" data-f="text" placeholder="メッセージ（Ctrl+Enter で送信）">${esc(draft.text)}</textarea>
+    <div class="flex items-center gap-2">
+      ${item ? `<div class="flex-1 text-sm font-bold flex items-center gap-2 whitespace-nowrap">提案額（任意）
+        ${moneyInputHtml({ attrs: 'data-f="price"', value: Number(draft.price) || 0, placeholder: '円・数量分の合計', cls: 'w-full border rounded px-3 py-1.5 font-normal' })}</div>` : '<div class="flex-1"></div>'}
+      <button class="bg-indigo-700 text-white font-bold rounded px-6 py-2" data-send="${itemId ?? ''}">${hasThread ? '返信する' : '送信'}</button>
+    </div>
   </div>`;
 }
 
@@ -191,11 +184,9 @@ function chatPanel(t) {
   const done = t.status === '完結';
   return `
   <div class="border-2 ${t.status === '依頼中' ? 'border-amber-400 shadow-md' : 'border-slate-200'} rounded-lg p-3 space-y-2 bg-white">
-    <div class="flex justify-between items-center"><span class="font-bold">📨 査定依頼のやり取り</span>${apStatus(t)}</div>
+    <div class="flex justify-between items-center"><span class="font-bold">📨 査定依頼</span><span class="flex items-center gap-2">${apStatus(t)}${done ? '' : `<button class="rounded border border-emerald-600 text-emerald-700 text-sm font-bold px-3 py-1 hover:bg-emerald-50" data-close-thread="${t.id}">完結する</button>${helpIcon('完結すると、この商品を承認できます。営業が続けて送ると、再開します。')}`}</span></div>
     <div class="space-y-2">${bubbles}</div>
-    ${done
-      ? `<div class="text-sm font-bold text-emerald-700">✓ 完結しました（${fmtTime(t.closedAt)}）。続きを送ると再開します。</div>`
-      : `<button class="w-full rounded border-2 border-emerald-600 text-emerald-700 font-bold py-2 hover:bg-emerald-50" data-close-thread="${t.id}">この査定依頼を完結する${helpIcon('完結すると、この商品を承認できます。営業が続けて送ると、再開します。')}</button>`}
+    ${done ? `<div class="text-sm font-bold text-emerald-700">✓ 完結しました（${fmtTime(t.closedAt)}）。続きを送ると再開します。</div>` : ''}
   </div>`;
 }
 
@@ -349,15 +340,15 @@ function send(itemId) {
   if (!text && !price) return alert('コメントか査定額のどちらかを入力してください');
   const v = loadLive()[visitId];
   const item = itemId ? v.items.find((i) => i.id === itemId) : null;
-  const rank = draft.rank ?? item?.rank ?? 'A';
+  const rank = item?.rank ?? 'A';
   const now = Date.now();
   const t = itemId ? threadFor(loadAppraisals(), visitId, itemId) : null;
   if (t) {
     // 営業からの査定依頼があれば、そのチャットに返信する
-    upsertAppraisal(addMessage(t, { from: 'hq', tag: draft.tag, text, price: price || null, rank: price ? rank : null, at: now }));
+    upsertAppraisal(addMessage(t, { from: 'hq', tag: '', text, price: price || null, rank: price ? rank : null, at: now }));
   } else {
     upsertComment({
-      id: newCommentId(), visitId, itemId: itemId || null, tag: draft.tag, text: text || '（査定額の提案）',
+      id: newCommentId(), visitId, itemId: itemId || null, tag: '', text: text || '（査定額の提案）',
       price: price || null, rank: price ? rank : null, from: '査定部', createdAt: now, ack: false, ackAt: null,
     });
   }
@@ -379,10 +370,6 @@ document.addEventListener('click', (e) => {
   else if (t.dataset.item) { sel = { type: 'item', id: t.dataset.item }; draft = emptyDraft(); }
   else if (t.dataset.req) { sel = { type: 'req', id: t.dataset.req }; draft = emptyDraft(); }
   else if ('cvisit' in t.dataset) { sel = null; draft = emptyDraft(); }
-  else if (t.dataset.tag) draft = { ...draft, tag: draft.tag === t.dataset.tag ? '' : t.dataset.tag };
-  else if (t.dataset.fillprice) draft = { ...draft, price: t.dataset.fillprice, rank: t.dataset.fillrank, text: draft.text || 'この査定額でOKです。' };
-  else if (t.dataset.rank) draft = { ...draft, rank: t.dataset.rank };
-  else if (t.dataset.tpl) draft = { ...draft, text: TEMPLATES[Number(t.dataset.tpl)] };
   else if ('send' in t.dataset) send(t.dataset.send);
   else if (t.dataset.closeThread) {
     const a = loadAppraisals().find((x) => x.id === t.dataset.closeThread);
@@ -399,6 +386,12 @@ document.addEventListener('click', (e) => {
   else return;
   render();
 });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.dataset?.f === 'text') {
+    e.preventDefault();
+    document.querySelector('[data-send]')?.click();
+  }
+});
 document.addEventListener('change', (e) => {
   if (e.target.matches('[data-hidedone]')) { hideDone = e.target.checked; setPref('rq-mock-hq-hidedone', hideDone ? '1' : '0'); render(); return; }
   if (e.target.matches('[data-appraiser]')) { appraiserId = e.target.value; setPref('rq-mock-hq-appraiser', appraiserId); visitId = null; sel = null; render(); return; }
@@ -408,10 +401,8 @@ document.addEventListener('change', (e) => {
 document.addEventListener('input', (e) => {
   if (compose && e.target.dataset.m && e.target.dataset.m !== 'target') { compose = { ...compose, [e.target.dataset.m]: e.target.value }; return; }
   if (e.target.dataset.f === 'price') {
-    // 金額は3桁区切りで表示し、内部では数字のみ保持する（ランク選択欄の出し入れのため、入力有無が変わる時だけ再描画）
-    const had = Boolean(draft.price);
+    // 金額は3桁区切りで表示し、内部では数字のみ保持する
     draft = { ...draft, price: String(formatMoneyInput(e.target) || '') };
-    if (had !== Boolean(draft.price)) { const pos = e.target.selectionStart; render(); const el = document.querySelector('[data-f=price]'); el?.focus(); el?.setSelectionRange(pos, pos); }
   } else if (e.target.dataset.f) draft = { ...draft, [e.target.dataset.f]: e.target.value };
 });
 
