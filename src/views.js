@@ -878,7 +878,7 @@ function appraisalComposeView(s, m) {
     ${!ai && thread ? chatView(thread) : ''}
     <label class="block"><span class="font-bold">${!ai && thread ? 'メッセージ' : '状態・補足'}</span>
       <textarea class="field mt-1" rows="2" data-draft="note" placeholder="${thread && !ai ? '返信や追加の情報' : '傷、付属品、お客様の希望額など'}">${esc(d.note)}</textarea></label>
-    <div><div class="font-bold mb-1">写真（${d.photos.length}枚）${thread && !ai ? '<span class="text-sm font-normal text-slate-500">　追加するときだけ</span>' : ''}</div>
+    <div><div class="font-bold mb-1">写真（${d.photos.length}枚）${thread && !ai ? '<span class="text-sm font-normal text-slate-500">　任意</span>' : ''}</div>
       <div class="flex gap-2 flex-wrap">
         ${d.photos.map((p, i) => `<div class="relative"><img src="${p}" class="h-20 w-20 object-cover rounded-lg border" alt="写真${i + 1}" />
           <button class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-7 h-7" data-action="ap-remove-photo" data-idx="${i}" aria-label="削除">✕</button></div>`).join('')}
@@ -889,7 +889,7 @@ function appraisalComposeView(s, m) {
     ${ai
       ? `${item ? aiResultView(s, item) : ''}
          <button class="btn w-full bg-violet-600 text-white" data-action="ai-run" ${d.photos.length && !s.aiBusy ? '' : 'disabled'}>${item?.aiAppraisal ? 'もう一度AI査定する' : 'AI査定を実行'}</button>`
-      : `<button class="btn btn-primary w-full" data-action="send-appraisal" ${(thread ? d.note.trim() || d.photos.length : d.photos.length) ? '' : 'disabled'}>${thread ? '査定部に送る' : '査定部に依頼する'}</button>
+      : `<button class="btn btn-primary w-full" data-action="send-appraisal" ${d.note.trim() || d.photos.length ? '' : 'disabled'}>${thread ? '査定部に送る' : '査定部に依頼する'}</button>
          <button class="text-xs underline text-slate-400" data-action="open-hq">（デモ用）本社査定画面を別タブで開く</button>`}`,
   );
 }

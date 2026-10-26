@@ -517,18 +517,17 @@ const actions = {
   'ap-dummy-photo': () => set({ draft: { ...state.draft, photos: [...state.draft.photos, dummyPhoto(state.draft.photos.length + 1)] } }),
   'ap-remove-photo': (el) =>
     set({ draft: { ...state.draft, photos: state.draft.photos.filter((_, i) => i !== Number(el.dataset.idx)) } }),
-  // 査定部への依頼。最初は写真が必須。やり取りが始まったあとは、文章か写真のどちらかで追記する（チャット）
+  // 査定部への依頼。写真は任意（文章か写真のどちらかは必要）。やり取りが始まったあとも、文章か写真で追記する（チャット）
   'send-appraisal': () => {
     const d = state.draft;
     const itemId = state.modal.itemId;
     const text = d.note.trim();
     const thread = threadFor(loadAppraisals(), state.visitId, itemId);
     const msg = { from: 'sales', text, photos: d.photos, at: Date.now() };
+    if (!text && !d.photos.length) return;
     if (thread) {
-      if (!text && !d.photos.length) return;
       upsertAppraisal(addMessage(thread, msg));
     } else {
-      if (!d.photos.length) return;
       upsertAppraisal(addMessage({
         id: newAppraisalId(), createdAt: Date.now(), visitId: state.visitId, itemId, name: d.name.trim() || '（名称未入力）',
         note: d.note, photos: d.photos, sender: `営業 ${userById(state.user).name}`, customerName: state.customer.name,
