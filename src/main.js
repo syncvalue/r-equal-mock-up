@@ -610,8 +610,7 @@ const actions = {
   // 商品の持ち帰り（入庫）
   'stock-tab': (el) => set({ stock: { ...state.stock, tab: el.dataset.value } }),
   'stock-scope': (el) => set({ stock: { ...state.stock, scope: el.dataset.value, last: null } }),
-  'stock-wh': (el) => set({ stock: { ...state.stock, warehouseId: el.dataset.value, location: null } }),
-  'stock-loc': (el) => set({ stock: { ...state.stock, location: el.dataset.value } }),
+  'stock-wh': (el) => set({ stock: { ...state.stock, warehouseId: el.dataset.value } }),
   'stock-submit': () => submitStockCode(),
   'stock-missing': (el) => {
     if (!confirm('この商品を「所在不明」として報告します。よろしいですか？\n（後でシールを読み取れば、入庫できます）')) return;
@@ -625,7 +624,7 @@ const actions = {
     const todo = pendingOf(inScope(byUser(loadUnits(), state.user), state.stock.scope)).filter((u) => !isHonshaItem(u)); // 高額品は、本社で入庫する
     if (!todo.length) return;
     scanToken += 1;
-    set({ scan: { mode: 'stock', status: 'scanning', code: '', name: '', stored: 0, left: todo.length, location: state.stock.location } });
+    set({ scan: { mode: 'stock', status: 'scanning', code: '', name: '', stored: 0, left: todo.length, location: stockTarget(state).location } });
     stockScanStep(scanToken);
   },
   // 経費

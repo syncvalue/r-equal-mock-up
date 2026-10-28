@@ -66,3 +66,13 @@ test('シールのQR: シールNo.の「RQ-」のすぐ後ろの文字が色を�
   assert.match(newSealNo('green'), /^RQ-G[0-9A-Z]{7}$/);
   assert.ok(sealColorOfCode(newSealNo()), '色の指定がなければ、どれかの色');
 });
+
+test('営業のタブレットの入庫: 保管場所は選ばず、クーリングオフ保管棚に入る（納入先の倉庫だけ選ぶ）', async () => {
+  const { COOLING_OFF_SHELF } = await import('../src/stock.js');
+  const { stockTarget, DEFAULT_STOCK } = await import('../src/stockView.js');
+  assert.equal(COOLING_OFF_SHELF, 'クーリングオフ保管棚');
+  const t = stockTarget({ user: 'u01', stock: { ...DEFAULT_STOCK, location: 'B棚（時計・ジュエリー）' } }); // 古い選択が残っていても無視する
+  assert.equal(t.location, COOLING_OFF_SHELF);
+  assert.ok(t.warehouse.id);
+  assert.equal(receive(list(), 'u01', 'A', { location: t.location, by: '営業' }).list[0].location, COOLING_OFF_SHELF);
+});

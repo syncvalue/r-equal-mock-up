@@ -23,6 +23,8 @@ export const newSealNo = (color = RANDOM_COLORS[Math.floor(Math.random() * RANDO
   `RQ-${SEAL_LETTERS[color]}${Math.random().toString(36).slice(2, 9).toUpperCase().padEnd(7, '0')}`;
 export const sealColorOf = (key) => [...SEAL_COLORS, ...LEGACY_SEAL_COLORS].find((c) => c.key === key) ?? null;
 
+// 営業が入庫した商品は、商品ごとに分けず、クーリングオフ期間中の専用の棚にまとめて保管する（5.2）
+export const COOLING_OFF_SHELF = 'クーリングオフ保管棚';
 export const LOCATIONS = ['A棚（バッグ・小物）', 'B棚（時計・ジュエリー）', 'C棚（カメラ・家電）', '金庫室（高額品）', '要確認エリア'];
 
 // 状態: pending（入庫待ち）／stored（入庫済み）／missing（所在不明として報告）

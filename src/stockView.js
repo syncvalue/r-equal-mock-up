@@ -2,7 +2,7 @@
 import { esc, yen, fmtTime } from './format.js';
 import { helpIcon } from './help.js';
 import { dateKey } from './workday.js';
-import { byUser, inScope, pendingOf, dateKeys } from './stock.js';
+import { byUser, inScope, pendingOf, dateKeys, COOLING_OFF_SHELF } from './stock.js';
 import { loadMaster, activeWarehouses, receiveTarget, officeName, isHighValue } from './warehouseMaster.js';
 import { areaOfUser } from './dispatch.js';
 
@@ -13,13 +13,13 @@ const dateLabel = (key) => {
   return `${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${key === dateKey() ? ' 今日' : ''}`;
 };
 
-export const DEFAULT_STOCK = { tab: 'pending', scope: 'all', warehouseId: null, location: null, last: null };
+export const DEFAULT_STOCK = { tab: 'pending', scope: 'all', warehouseId: null, last: null };
 
-// 入庫の納入先（倉庫）と保管場所。未選択のときは、自分の営業所に併設の倉庫が初期値になる
+// 入庫の納入先（倉庫）。保管場所は選ばず、クーリングオフ保管棚に入る。未選択のときは、自分の営業所に併設の倉庫が初期値になる
 // 高額品（貴金属など）は、納入のときから本社に入る（営業は入庫せず、本社へ郵送・持参する）
 export const isHonshaItem = (u) => isHighValue(u, loadMaster());
 
-export const stockTarget = (s) => receiveTarget(loadMaster(), areaOfUser(s.user), s.stock);
+export const stockTarget = (s) => ({ ...receiveTarget(loadMaster(), areaOfUser(s.user), { warehouseId: s.stock.warehouseId }), location: COOLING_OFF_SHELF });
 
 // メニューのバッジ用: 自分の入庫待ちの点数
 export const pendingCount = (s) => pendingOf(byUser(s.units ?? [], s.user)).length;
@@ -110,20 +110,16 @@ function actionCard(s, mine) {
   return `
   <div class="card !p-4 w-[24rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[50%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="stockR">
     <h3 class="font-bold text-lg">入庫する${helpIcon('シールの色が紫・赤の高額品は、納入のときから本社（保管場所）に入ります。\nここでは入庫せず、本社へ郵送・持参してください（本社で入庫します）。')}</h3>
-    <div>
-      <div class="font-bold text-sm mb-1">納入先の倉庫${helpIcon('倉庫担当に渡す場合も、倉庫を選んでください。')}</div>
-      <div class="flex flex-wrap gap-1.5">${activeWarehouses(master).map((w) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.warehouse.id === w.id ? 'active' : ''}" data-action="stock-wh" data-value="${esc(w.id)}">${esc(w.name)}${w.officeId ? `<span class="text-xs opacity-70">（${esc(officeName(w.officeId))}営業所と一体）</span>` : ''}</button>`).join('')}</div>
-    </div>
-    <div>
-      <div class="font-bold text-sm mb-1">保管場所${helpIcon('読み取った商品は、ここに入庫します。')}</div>
-      <div class="flex flex-wrap gap-1.5">${target.warehouse.locations.map((l) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.location === l ? 'active' : ''}" data-action="stock-loc" data-value="${esc(l)}">${esc(l)}</button>`).join('')}</div>
-    </div>
-    <button class="btn btn-primary w-full text-xl !py-4" data-action="stock-scan" ${todo.some((u) => !isHonshaItem(u)) ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
-    <p class="text-xs text-slate-500 -mt-1">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
-    <label class="block"><span class="font-bold text-sm">シールNo.を入力（スキャナ・手入力）</span>
+    <button class="btn btn-primary w-full text-xl !py-5" data-action="stock-scan" ${todo.some((u) => !isHonshaItem(u)) ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
+    <p class="text-xs text-slate-500 -mt-2">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
+    ${last ? `<div class="rounded-xl border-2 p-3 text-sm font-bold ${last.ok ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-rose-50 border-rose-400 text-rose-700'}">${last.ok ? '✓' : '⚠'} ${esc(last.text)}</div>` : ''}
+    <label class="block"><span class="font-bold text-sm">QRが読めないとき：シールNo.を入力（スキャナ・手入力）</span>
       <div class="flex gap-2 mt-1"><input id="stock-code" class="field font-mono !py-2" placeholder="RQ-XXXXXXXX" autocomplete="off" data-stock-code />
         <button class="btn btn-secondary !py-2 !px-4 !min-h-[48px]" data-action="stock-submit">入庫</button></div></label>
-    ${last ? `<div class="rounded-xl border-2 p-3 text-sm font-bold ${last.ok ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-rose-50 border-rose-400 text-rose-700'}">${last.ok ? '✓' : '⚠'} ${esc(last.text)}</div>` : ''}
+    <div class="border-t pt-3">
+      <div class="font-bold text-sm mb-1">納入先の倉庫${helpIcon('倉庫担当に渡す場合も、倉庫を選んでください。\n商品は、倉庫の「クーリングオフ保管棚」に、まとめて保管されます（商品ごとに棚は分けません）。')}</div>
+      <div class="flex flex-wrap gap-1.5">${activeWarehouses(master).map((w) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${target.warehouse.id === w.id ? 'active' : ''}" data-action="stock-wh" data-value="${esc(w.id)}">${esc(w.name)}${w.officeId ? `<span class="text-xs opacity-70">（${esc(officeName(w.officeId))}営業所と一体）</span>` : ''}</button>`).join('')}</div>
+    </div>
     ${s.user && todo.some((u) => u.status === 'missing') ? `<div class="rounded-xl bg-rose-50 border border-rose-300 p-2 text-xs text-rose-700">所在不明の商品が ${todo.filter((u) => u.status === 'missing').length} 点あります。見つからない場合は本社へ連絡してください。</div>` : ''}
     <div class="mt-auto flex flex-col gap-1 items-end">
       <button class="text-xs underline text-slate-400" data-action="stock-demo-add">（デモ用）過去2日分の入庫待ちを追加</button>
