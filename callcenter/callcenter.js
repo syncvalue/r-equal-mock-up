@@ -570,6 +570,8 @@ document.addEventListener('click', (e) => {
   else if ('calstaffpanel' in d) { cvStaffOpen = !cvStaffOpen; render(); }
   else if ('calstaffclear' in d) { cvStaff = []; render(); }
   else if (d.calstaff) { cvStaff = cvStaff.includes(d.calstaff) ? cvStaff.filter((id) => id !== d.calstaff) : [...cvStaff, d.calstaff]; calSel = null; render(); }
+  else if (d.calblock) { calSel = calSel === d.calblock ? null : d.calblock; callDraft = { result: 'reached', memo: '' }; render(); } // 週の表の訪問を押す: 右に詳細（日別には切り替えない）
+  else if ('calblockclose' in d) { calSel = null; render(); }
   else if (d.calday) { cvDate = d.calday; cvMode = 'day'; calSel = null; render(); }
   else if ('calweek' in d) { cvMode = 'week'; cvWeekStart = shiftYmd(cvDate, 0); calSel = null; render(); }
   else if (d.calshift) { if (cvMode === 'week') cvWeekStart = shiftYmd(cvWeekStart, Number(d.calshift)); else cvDate = shiftYmd(cvDate, Number(d.calshift)); calSel = null; render(); }

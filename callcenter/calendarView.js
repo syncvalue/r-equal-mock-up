@@ -8,6 +8,7 @@ import { slotStarts, weekHeat, dayColumns, heatStyle, areaStaffOver } from '../s
 import { minToHHMM } from '../src/reservations.js';
 import { dateLabel, statusBadge, attTag, attShade, blockCls, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
+import { USERS } from '../src/dashboard.js';
 
 const STATUS_CLS = { none: 'bg-slate-200 text-slate-700', noanswer: 'bg-amber-400 text-slate-900', reached: 'bg-emerald-600 text-white' };
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
@@ -47,7 +48,7 @@ const legendHtml = () => `<span class="flex flex-wrap items-center gap-2 text-[1
 const WEEK_ROW = 36; // 30分あたりの高さ（px）
 const weekTop = (m) => ((m - WORK_START) / SLOT_STEP) * WEEK_ROW;
 
-function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [] }) {
+function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], calSel = null, draft }) {
   const dates = Array.from({ length: 7 }, (_, i) => shift(weekStart, i));
   const heat = weekHeat({ areaId, dates, reservations, now, userIds: staffSel });
   const inArea = reservations.filter((r) => r.areaId === areaId && (!staffSel.length || staffSel.includes(r.userId)));
@@ -63,13 +64,35 @@ function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [] }
       const r = b.rid ? reservations.find((x) => x.id === b.rid) : null;
       const w = 100 / b.cols;
       const style = `top:${weekTop(b.start)}px;height:${weekTop(b.end) - weekTop(b.start) - 1}px;left:calc(${b.col * w}% + 1px);width:calc(${w}% - 2px)`;
-      const tip = `${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.name} 様　${b.place}`;
-      return `<button class="absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[10px] leading-tight text-white ring-1 ring-white/70 ${callCls(b, r)}" style="${style}" data-calday="${d.date}" title="${esc(tip)}"><b class="block truncate">${esc(b.name)}</b><span class="block truncate opacity-95">${esc(Array.from(b.place).slice(0, 10).join(''))}</span></button>`;
+      const tip = `${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.name} 様　${b.place}（押すと、右に詳細）`;
+      const sel = blockKey(b) === calSel;
+      return `<button class="absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[10px] leading-tight text-white ${sel ? 'z-20 ring-2 ring-amber-300' : 'ring-1 ring-white/70'} ${callCls(b, r)}" style="${style}" data-calblock="${esc(blockKey(b))}" title="${esc(tip)}"><b class="block truncate">${esc(b.name)}</b><span class="block truncate opacity-95">${esc(Array.from(b.place).slice(0, 10).join(''))}</span></button>`;
     }).join('');
     return `<div class="relative border-l" style="height:${h}px">${bg}${blocks}</div>`;
   }).join('');
-  return `<div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>
-    <div class="mt-1">${legendHtml()}</div></div>`;
+  const picked = calSel ? heat.flatMap((d) => d.blocks.map((b) => ({ ...b, date: d.date }))).find((b) => blockKey(b) === calSel) : null;
+  return `<div class="flex h-full min-h-0 gap-3"><div class="min-h-0 min-w-0 flex-1 overflow-y-auto"><div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>
+    <div class="mt-1">${legendHtml()}</div></div></div>
+    ${picked ? `<div class="min-h-0 w-[min(26rem,40%)] shrink-0 overflow-y-auto pr-1">${visitDetailHtml(picked, reservations.find((r) => r.id === picked.rid), draft)}</div>` : ''}</div>`;
+}
+
+// 週の表で押した訪問の詳細（画面の右側）。受付した訪問は、前日確認の記録もここでできる
+const blockKey = (b) => b.rid ?? b.gid ?? `${b.userId}/${b.start}`;
+function visitDetailHtml(b, r, draft) {
+  const staff = USERS.find((u) => u.id === b.userId)?.name ?? '未定';
+  const row = (k, v) => (v ? `<div class="flex gap-2"><dt class="w-24 shrink-0 text-slate-500">${k}</dt><dd class="min-w-0 break-words">${esc(v)}</dd></div>` : '');
+  const h = r?.hearing ?? {};
+  const rows = [
+    row('日時', `${dateLabel(b.date)} ${minToHHMM(b.start)}〜${minToHHMM(b.end)}`), row('住所', r?.customer.address ?? b.place),
+    row('電話番号', r ? [r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ ') : ''), row('担当営業', staff), row('受付番号', r?.receptionNo),
+    row('売りたいもの', h.wants), row('前日確認の連絡時間', h.contact), row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('訪問時の注意', h.notes && h.notes !== '未確認' ? h.notes : ''),
+  ].join('');
+  return `<div class="space-y-2 rounded-lg border-2 border-teal-600 bg-white p-3 text-sm">
+    <div class="flex flex-wrap items-center gap-2"><b class="text-base">${esc(b.name)} 様</b>${r ? `${statusBadge(r)}${statusChip(r)}` : ''}
+      <button class="ml-auto text-lg leading-none text-slate-500 hover:text-slate-800" data-calblockclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
+    <dl class="space-y-1 text-xs">${rows}</dl>
+    <button class="b b-sec !min-h-0 !py-1 text-xs" data-calday="${b.date}">この日だけを、営業ごとに見る</button>
+    ${r ? `<div><div class="mt-1 text-xs font-bold text-teal-800">前日確認</div>${callPanelHtml(r, draft)}</div>` : '<div class="rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">この予定には、受付の記録がありません（前日確認の記録はできません）</div>'}</div>`;
 }
 
 // 日別の表: 縦=時間、横=営業。訪問の帯を押すと、右の一覧でその訪問が開く
@@ -133,7 +156,7 @@ export function calendarHtml(x0) {
   const span = mode === 'week' ? Array.from({ length: 7 }, (_, i) => shift(x0.weekStart, i)) : [x0.date];
   const x = { ...x0, staff: areaStaffOver(areaId, span, reservations, now) };
   const body = mode === 'week'
-    ? `<div class="min-h-0 flex-1 overflow-y-auto">${weekHtml({ ...x, now })}</div>`
+    ? `<div class="min-h-0 flex-1">${weekHtml({ ...x, now })}</div>`
     : `<div class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)] gap-3"><div class="min-h-0 overflow-y-auto">${dayGridHtml({ cols: dayColumns({ areaId, date: x.date, reservations, now, userIds: x.staffSel ?? [] }).map((c) => ({ ...c, reservationOf: (id) => reservations.find((r) => r.id === id) })), date: x.date, calSel: x.calSel })}</div>
       <div class="min-h-0 overflow-y-auto pr-1">${dayListHtml(x)}</div></div>`;
   return `<div class="flex h-[calc(100vh-52px)] flex-col gap-2 p-3">${barHtml(x)}${body}</div>`;

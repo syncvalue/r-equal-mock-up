@@ -86,7 +86,7 @@ test('週の表: 訪問は、開始から終了までの1つのブロック（�
   assert.ok(block.includes('<b class="block truncate">山田 花子</b>') && block.includes('大阪府大阪市阿倍野区</span>'));
   assert.ok(!text(block).includes('阿倍野区阿')); // 先頭10文字まで（吹き出しには全文）
   assert.ok(block.includes('top:180px;height:71px')); // 11:30は、9:00から5枠め（36px×5）。1時間＝2枠（72px−1）
-  assert.ok(block.includes('data-calday="2026-10-30"'));
+  assert.ok(block.includes('data-calblock="R1"') && !block.includes('data-calday')); // ブロックは、日別には切り替えず、詳細を開く
   assert.ok(text(h).includes('同じ時間にかぶる訪問は、横に並びます'));
 });
 
@@ -96,7 +96,7 @@ test('週の表: 同じ時間にかぶる訪問は、日の列の中で横に並
   assert.equal(free.length, 2);
   const list = [rec({ id: 'A', userId: free[0].user.id, start: '11:30', end: '12:30', customer: { name: '甲野 太郎', address: '大阪府A' } }), rec({ id: 'B', userId: free[1].user.id, start: '11:30', end: '12:30', customer: { name: '乙川 次郎', address: '大阪府B' } })];
   const h = calendarHtml({ ...base, reservations: list, staffSel: free.map((c) => c.user.id) }); // 2人だけに絞って、ほかの人の予定とかぶらないようにする
-  const style = (name) => h.match(new RegExp(`style="([^"]*)" data-calday="2026-10-30" title="[^"]*"><b class="block truncate">${name}`))[1];
+  const style = (name) => h.match(new RegExp(`style="([^"]*)" data-calblock="[^"]*" title="[^"]*"><b class="block truncate">${name}`))[1];
   assert.ok(style('甲野 太郎').includes('left:calc(0% + 1px);width:calc(50% - 2px)'));
   assert.ok(style('乙川 次郎').includes('left:calc(50% + 1px);width:calc(50% - 2px)'));
 });
@@ -113,4 +113,36 @@ test('営業で絞り込む: ボタン・営業の選択肢・絞り込み中の
   assert.ok(text(week).includes('絞り込み中（1名）') && week.includes('data-calstaffclear'));
   const day = calendarHtml({ ...base, mode: 'day', reservations: list, staffSel: [a.id] });
   assert.ok(day.includes('甲野 太郎') && !day.includes('乙川 次郎') && !day.includes(`>${b.name}<`));
+});
+
+
+test('週の表: 日表示に切り替えるのは、見出しの日付だけ。枠やブロックを押しても切り替わらない', () => {
+  const h = calendarHtml({ ...base, reservations: [rec()] });
+  const heads = h.match(/data-calday="[^"]*"/g) || [];
+  assert.equal(heads.length, 7); // 見出しの日付7つだけ
+  assert.ok(h.includes('data-calblock="R1"'));
+});
+
+test('週の表: 訪問を押すと、右側に詳細（日時・住所・電話・担当営業・ヒアリング）と、前日確認の記録が出る', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
+  const r = rec({ userId: u.id, receptionNo: 'CC-777', customer: { name: '山田 花子', phone: '090-1111-2222', phone2: '06-1234-5678', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3' }, hearing: { contact: '17:00〜19:00', wants: '時計・指輪', parking: 'なし', nameplate: 'あり', notes: '駐車場なし' }, confirmCalls: [{ result: 'noanswer', memo: '留守電に入れた', by: '佐藤', at: 1 }] });
+  const none = calendarHtml({ ...base, reservations: [r] });
+  assert.ok(!none.includes('data-callsave') && !none.includes('data-calblockclose'));
+  const h = calendarHtml({ ...base, calSel: 'R1', reservations: [r] });
+  const t = text(h);
+  for (const s of ['山田 花子 様', '10/30（金） 10:30〜12:00', '大阪府大阪市阿倍野区阿倍野筋1-2-3', '090-1111-2222 ／ 06-1234-5678', u.name, 'CC-777', '時計・指輪', '17:00〜19:00', '駐車場なし', '不通 1回', '留守電に入れた']) assert.ok(t.includes(s), s);
+  for (const k of ['data-calblockclose', 'data-callsave="R1"', 'data-callmemo', 'data-chg="R1"', 'data-calday="2026-10-30"']) assert.ok(h.includes(k), k);
+  assert.ok(h.includes('ring-amber-300')); // 選んだブロックの印
+  assert.ok(!h.includes('class="b b-sec !min-h-0 !py-1" data-calweek')); // 週の表のまま（日別に切り替えない）
+});
+
+test('週の表: 営業の元からの予定を押すと、詳細は出るが、前日確認の記録はない', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const c = cols.find((x) => x.blocks.length);
+  const b = c.blocks[0];
+  const key = b.rid ?? b.gid;
+  assert.ok(key);
+  const h = calendarHtml({ ...base, calSel: key, weekStart: '2026-10-30', reservations: [] });
+  assert.ok(text(h).includes('この予定には、受付の記録がありません') && !h.includes('data-callsave'));
 });
