@@ -15,7 +15,7 @@ test('週の表: エリアの切り替え・縦に時間・横に7日。セル�
   const h = calendarHtml({ ...base, reservations: [] });
   for (const a of ['osaka', 'hyogo', 'kanto', 'tokai']) assert.ok(h.includes(`data-calarea="${a}"`), a);
   for (const d of ['2026-10-29', '2026-10-30', '2026-11-04']) assert.ok(h.includes(`data-calday="${d}"`), d);
-  assert.equal((h.match(/<tr>/g) || []).length, 20 + 1); // 時間の行（9:00〜18:30）と、見出しの行
+  assert.equal((h.match(/height:35px;background:rgba\(13,148,136,/g) || []).length, 7 * 20); // 7日 × 20枠の背景（濃さ）
   assert.ok(h.includes('data-calshift="-7"') && h.includes('data-calshift="7"') && h.includes('data-caltoday'));
   assert.match(h, /rgba\(13,148,136,/);
   assert.ok(text(h).includes('濃い（埋まっている）') && text(h).includes('09:00'));
@@ -78,13 +78,27 @@ test('日別: 前日確認が連絡済みの帯は緑、不通は橙、未連絡
 });
 
 
-test('週の表: 枠の中は、訪問を1件1行で、お名前と住所の先頭10文字（数字ではない）', () => {
+test('週の表: 訪問は、開始から終了までの1つのブロック（お名前と、住所の先頭10文字）。時間に比例した位置と高さ', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const u = cols.find((c) => !c.absent && c.att.kind === 'present' && !c.blocks.some((b) => b.start < 750 && b.end > 690)).user;
   const h = calendarHtml({ ...base, reservations: [rec({ userId: u.id, start: '11:30', end: '12:30', customer: { name: '山田 花子', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3' } })] });
-  assert.ok(h.includes('<b>山田 花子</b> 大阪府大阪市阿倍野区'));
-  assert.ok(!h.includes('</b> 大阪府大阪市阿倍野区阿')); // 先頭10文字まで（吹き出しには全文）
-  assert.ok(text(h).includes('枠の中＝その時間の訪問'));
+  const block = h.match(/<button class="absolute z-10[^>]*>(?:(?!<\/button>)[\s\S])*?山田 花子[\s\S]*?<\/button>/)[0];
+  assert.ok(block.includes('<b class="block truncate">山田 花子</b>') && block.includes('大阪府大阪市阿倍野区</span>'));
+  assert.ok(!text(block).includes('阿倍野区阿')); // 先頭10文字まで（吹き出しには全文）
+  assert.ok(block.includes('top:180px;height:71px')); // 11:30は、9:00から5枠め（36px×5）。1時間＝2枠（72px−1）
+  assert.ok(block.includes('data-calday="2026-10-30"'));
+  assert.ok(text(h).includes('同じ時間にかぶる訪問は、横に並びます'));
+});
+
+test('週の表: 同じ時間にかぶる訪問は、日の列の中で横に並べる（幅を分け合う）', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const free = cols.filter((c) => !c.absent && c.att.kind === 'present' && !c.blocks.some((b) => b.start < 750 && b.end > 690)).slice(0, 2);
+  assert.equal(free.length, 2);
+  const list = [rec({ id: 'A', userId: free[0].user.id, start: '11:30', end: '12:30', customer: { name: '甲野 太郎', address: '大阪府A' } }), rec({ id: 'B', userId: free[1].user.id, start: '11:30', end: '12:30', customer: { name: '乙川 次郎', address: '大阪府B' } })];
+  const h = calendarHtml({ ...base, reservations: list, staffSel: free.map((c) => c.user.id) }); // 2人だけに絞って、ほかの人の予定とかぶらないようにする
+  const style = (name) => h.match(new RegExp(`style="([^"]*)" data-calday="2026-10-30" title="[^"]*"><b class="block truncate">${name}`))[1];
+  assert.ok(style('甲野 太郎').includes('left:calc(0% + 1px);width:calc(50% - 2px)'));
+  assert.ok(style('乙川 次郎').includes('left:calc(50% + 1px);width:calc(50% - 2px)'));
 });
 
 test('営業で絞り込む: ボタン・営業の選択肢・絞り込み中の表示。選んだ営業の訪問だけが残る（週・日別とも）', () => {

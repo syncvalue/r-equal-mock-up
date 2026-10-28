@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { slotStarts, areaStaff, areaStaffOver, weekHeat, dayColumns, heatStyle } from '../src/visitCalendar.js';
+import { slotStarts, areaStaff, areaStaffOver, weekHeat, dayColumns, heatStyle, layoutBlocks } from '../src/visitCalendar.js';
 import { areaOfUser } from '../src/dispatch.js';
 
 const NOW = new Date(2026, 9, 29, 9, 0);
@@ -62,17 +62,33 @@ test('濃さの色: 空きは薄く、埋まるほど濃くなる。濃いとき
   assert.equal(heatStyle(1).fg, 'text-white');
 });
 
-test('枠の訪問は、1件ずつ（お客様の名前・住所）。その時間に重なる訪問がすべて入る', () => {
+test('その日の訪問は、ブロックとして返る（お客様の名前・住所・開始と終了）。取消は含まない', () => {
   const cols = dayColumns({ areaId: 'osaka', date: dates[0], reservations: [], now: NOW });
   const c = cols.find((x) => !x.absent && x.att.kind === 'present' && !x.blocks.some((b) => b.start < 750 && b.end > 690));
   assert.ok(c);
-  const heat = weekHeat({ areaId: 'osaka', dates, reservations: [rez(c.user.id, dates[0], '11:30', '12:30', { customer: { name: '山田 花子', address: '大阪府大阪市阿倍野区1-2-3' } })], now: NOW });
-  const slot = (m) => heat[0].slots[(m - 540) / 30];
-  const v = slot(690).visits.find((x) => x.userId === c.user.id);
-  assert.deepEqual([v.name, v.place, v.rid], ['山田 花子', '大阪府大阪市阿倍野区1-2-3', `T-${c.user.id}-${dates[0]}-11:30`]);
-  assert.ok(slot(720).visits.some((x) => x.userId === c.user.id)); // 12:00の枠にも（12:30まで）
-  assert.ok(!slot(750).visits.some((x) => x.rid === v.rid));
-  assert.equal(slot(690).busy, new Set(slot(690).visits.map((x) => x.userId)).size);
+  const mine = rez(c.user.id, dates[0], '11:30', '12:30', { customer: { name: '山田 花子', address: '大阪府大阪市阿倍野区1-2-3' } });
+  const day = (list) => weekHeat({ areaId: 'osaka', dates, reservations: list, now: NOW })[0];
+  const v = day([mine]).blocks.find((x) => x.rid === mine.id);
+  assert.deepEqual([v.name, v.place, v.start, v.end, v.userId], ['山田 花子', '大阪府大阪市阿倍野区1-2-3', 690, 750, c.user.id]);
+  assert.ok(!day([{ ...mine, status: 'cancelled' }]).blocks.some((x) => x.rid === mine.id));
+});
+
+test('かぶった訪問は、横に並べる: かぶっているまとまりごとに、列の番号と並ぶ数を付ける', () => {
+  const b = (id, start, end) => ({ id, start, end });
+  const out = layoutBlocks([b('a', 600, 690), b('b', 630, 720), b('c', 660, 700), b('d', 720, 780), b('e', 800, 860)]);
+  const by = Object.fromEntries(out.map((x) => [x.id, [x.col, x.cols]]));
+  assert.deepEqual(by.a, [0, 3]); // a・b・cが、ぜんぶ一緒にかぶる
+  assert.deepEqual(by.b, [1, 3]);
+  assert.deepEqual(by.c, [2, 3]);
+  assert.deepEqual(by.d, [0, 1]); // bの終了と同時に始まるdは、かぶらない
+  assert.deepEqual(by.e, [0, 1]);
+  assert.deepEqual(layoutBlocks([]), []);
+});
+
+test('かぶりが終わったあとの列は、再び使う（a→cの順に、空いた列へ）', () => {
+  const out = layoutBlocks([{ id: 'a', start: 600, end: 660 }, { id: 'b', start: 600, end: 720 }, { id: 'c', start: 660, end: 720 }]);
+  const by = Object.fromEntries(out.map((x) => [x.id, [x.col, x.cols]]));
+  assert.deepEqual([by.a, by.b, by.c], [[0, 2], [1, 2], [0, 2]]);
 });
 
 test('営業で絞り込む: 選んだ営業だけの列・人数・訪問になる（空なら全員）', () => {
@@ -81,6 +97,6 @@ test('営業で絞り込む: 選んだ営業だけの列・人数・訪問にな
   const some = dayColumns({ areaId: 'osaka', date: dates[0], reservations: [], now: NOW, userIds: pick });
   assert.deepEqual(some.map((c) => c.user.id), pick);
   const heat = weekHeat({ areaId: 'osaka', dates, reservations: [], now: NOW, userIds: pick });
-  for (const d of heat) { assert.ok(d.total <= 2); for (const s of d.slots) assert.ok(s.visits.every((v) => pick.includes(v.userId))); }
+  for (const d of heat) { assert.ok(d.total <= 2); assert.ok(d.blocks.every((v) => pick.includes(v.userId))); }
   assert.equal(areaStaffOver('osaka', dates, [], NOW).length >= all.length, true);
 });

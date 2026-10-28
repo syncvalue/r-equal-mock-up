@@ -40,23 +40,36 @@ function barHtml({ areaId, mode, weekStart, date, staff = [], staffSel = [], sta
 
 const legendHtml = () => `<span class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">濃さ（訪問が入っている営業の割合）
   <span class="inline-flex items-center gap-0.5">薄い（空き）${[0, 0.25, 0.5, 0.75, 1].map((r) => `<i class="inline-block h-3 w-5 rounded-sm" style="background:${heatStyle(r).bg}"></i>`).join('')}濃い（埋まっている）</span>
-  <span>枠の中＝その時間の訪問（お客様のお名前と、住所の先頭10文字）</span></span>`;
+  <span>ブロック＝訪問（お客様のお名前と、住所の先頭10文字）。同じ時間にかぶる訪問は、横に並びます</span></span>`;
 
-// 週の表: 縦=時間、横=日付。セルは、訪問が入っている営業の人数。日付や枠を押すと、その日だけ（営業ごとの列）
+// 週の表（Googleカレンダー風）: 縦=時間、横=日付。訪問は、開始から終了までの1つのブロック。同じ時間にかぶる訪問は、日の列の中で横に並べる。
+// 背景は、訪問が入っている営業の割合に応じた濃さ（集中は濃く、空きは薄く）。ブロックや枠を押すと、その日だけ（営業ごとの列）
+const WEEK_ROW = 36; // 30分あたりの高さ（px）
+const weekTop = (m) => ((m - WORK_START) / SLOT_STEP) * WEEK_ROW;
+
 function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [] }) {
   const dates = Array.from({ length: 7 }, (_, i) => shift(weekStart, i));
   const heat = weekHeat({ areaId, dates, reservations, now, userIds: staffSel });
   const inArea = reservations.filter((r) => r.areaId === areaId && (!staffSel.length || staffSel.includes(r.userId)));
   const pending = confirmPending(inArea, today);
+  const h = ((WORK_END - WORK_START) / SLOT_STEP) * WEEK_ROW;
+  const grid = `grid-template-columns:3rem repeat(7,minmax(9rem,1fr));min-width:${3 + 7 * 9}rem`;
   const head = heat.map((d) => { const p = parts(d.date); const n = pending.filter((r) => r.date === d.date).length;
-    return `<th class="px-0.5 py-0.5 text-center text-xs font-bold leading-tight ${headCls(p.w)} ${d.date === today ? 'bg-teal-100' : ''}"><button class="w-full rounded hover:bg-slate-100" data-calday="${d.date}" title="この日だけを、営業ごとに見る">${p.m}/${p.d}<br /><span class="text-[10px]">${WEEK[p.w]}${d.total ? '' : '（営業なし）'}</span></button>${n ? `<div class="text-[10px] font-bold text-rose-600" title="今日、前日確認の連絡をする訪問（まだつながっていない）">前日確認 未${n}</div>` : ''}</th>`; }).join('');
-  const rows = slotStarts().map((start, i) => `<tr><th class="pr-1 text-right text-[11px] font-normal text-slate-500 whitespace-nowrap">${minToHHMM(start)}</th>${heat.map((d) => {
-    const s = d.slots[i]; const h = heatStyle(s.ratio);
-    const lines = s.visits.map((v) => `<span class="block truncate text-left text-[11px] leading-tight"><b>${esc(v.name)}</b> ${esc(Array.from(v.place).slice(0, 10).join(''))}</span>`).join('');
-    return `<td class="p-0.5 align-top"><button class="block min-h-7 w-full space-y-0.5 rounded px-1 py-0.5 ${h.fg} hover:ring-2 hover:ring-teal-600" style="background:${h.bg}" data-calday="${d.date}" title="${esc(`${dateLabel(d.date)} ${minToHHMM(start)}〜　訪問中 ${s.busy}名／働く営業 ${s.total}名（空き ${s.total - s.busy}名）${s.visits.map((v) => `\n${v.name}　${v.place}`).join('')}`)}">${lines}</button></td>`;
-  }).join('')}</tr>`).join('');
-  return `<div class="rounded-lg border bg-white p-2"><div class="overflow-x-auto"><table class="w-full table-fixed border-separate border-spacing-0" style="min-width:${3.2 + 7 * 11}rem"><colgroup><col style="width:3.2rem" />${heat.map(() => '<col />').join('')}</colgroup>
-    <thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div><div class="mt-1">${legendHtml()}</div></div>`;
+    return `<div class="border-b px-0.5 py-0.5 text-center text-xs font-bold leading-tight ${headCls(p.w)} ${d.date === today ? 'bg-teal-100' : ''}"><button class="w-full rounded hover:bg-slate-100" data-calday="${d.date}" title="この日だけを、営業ごとに見る">${p.m}/${p.d}<br /><span class="text-[10px]">${WEEK[p.w]}${d.total ? '' : '（営業なし）'}</span></button>${n ? `<div class="text-[10px] font-bold text-rose-600" title="今日、前日確認の連絡をする訪問（まだつながっていない）">前日確認 未${n}</div>` : ''}</div>`; }).join('');
+  const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${slotStarts().map((m, i) => `<span class="absolute right-1 text-[10px] text-slate-400" style="top:${i * WEEK_ROW + 1}px">${minToHHMM(m)}</span>`).join('')}</div>`;
+  const body = heat.map((d) => {
+    const bg = d.slots.map((s, i) => `<div class="absolute inset-x-0" style="top:${i * WEEK_ROW}px;height:${WEEK_ROW - 1}px;background:${heatStyle(s.ratio).bg}" title="${esc(`${dateLabel(d.date)} ${minToHHMM(s.start)}〜　訪問中 ${s.busy}名／働く営業 ${s.total}名（空き ${s.total - s.busy}名）`)}"></div>`).join('');
+    const blocks = d.blocks.map((b) => {
+      const r = b.rid ? reservations.find((x) => x.id === b.rid) : null;
+      const w = 100 / b.cols;
+      const style = `top:${weekTop(b.start)}px;height:${weekTop(b.end) - weekTop(b.start) - 1}px;left:calc(${b.col * w}% + 1px);width:calc(${w}% - 2px)`;
+      const tip = `${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.name} 様　${b.place}`;
+      return `<button class="absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[10px] leading-tight text-white ring-1 ring-white/70 ${callCls(b, r)}" style="${style}" data-calday="${d.date}" title="${esc(tip)}"><b class="block truncate">${esc(b.name)}</b><span class="block truncate opacity-95">${esc(Array.from(b.place).slice(0, 10).join(''))}</span></button>`;
+    }).join('');
+    return `<div class="relative border-l" style="height:${h}px">${bg}${blocks}</div>`;
+  }).join('');
+  return `<div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>
+    <div class="mt-1">${legendHtml()}</div></div>`;
 }
 
 // 日別の表: 縦=時間、横=営業。訪問の帯を押すと、右の一覧でその訪問が開く

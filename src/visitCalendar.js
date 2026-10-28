@@ -20,17 +20,43 @@ export function dayColumns({ areaId, date, reservations, now = new Date(), userI
   });
 }
 
-// 週の濃さ。slots の visits=その時間の訪問、busy=その時間に訪問が入っている営業の人数、total=その日に働く営業の人数（欠勤を除く）、ratio=busy/total
+// 同じ時間にかぶる訪問を、横に並べる（Googleカレンダーと同じ）。かぶっている訪問のまとまりごとに、列の番号（col）と、横に並ぶ数（cols）を付ける
+export function layoutBlocks(blocks) {
+  const sorted = [...blocks].sort((a, b) => a.start - b.start || a.end - b.end);
+  const out = [];
+  let cluster = [];
+  let clusterEnd = -1;
+  const flush = () => {
+    const colEnds = [];
+    const placed = cluster.map((b) => {
+      let col = colEnds.findIndex((end) => end <= b.start);
+      if (col < 0) { col = colEnds.length; colEnds.push(0); }
+      colEnds[col] = b.end;
+      return { ...b, col };
+    });
+    placed.forEach((p) => out.push({ ...p, cols: colEnds.length }));
+    cluster = [];
+    clusterEnd = -1;
+  };
+  for (const b of sorted) {
+    if (cluster.length && b.start >= clusterEnd) flush();
+    cluster.push(b);
+    clusterEnd = Math.max(clusterEnd, b.end);
+  }
+  if (cluster.length) flush();
+  return out;
+}
+
+// 週の濃さ。blocks=その日の訪問（かぶりを横に並べる位置つき）、slots の busy=その時間に訪問が入っている営業の人数、total=その日に働く営業の人数（欠勤を除く）、ratio=busy/total
 export function weekHeat({ areaId, dates, reservations, now = new Date(), userIds = [] }) {
   return dates.map((date) => {
     const present = dayColumns({ areaId, date, reservations, now, userIds }).filter((c) => !c.absent);
     const slots = slotStarts().map((start) => {
-      // visits: その時間に入っている訪問（1件1行で出す。お客様の名前と、訪問先の住所）
-      const visits = present.flatMap((c) => c.blocks.filter((b) => b.start < start + SLOT_STEP && b.end > start).map((b) => ({ userId: c.user.id, name: String(b.label ?? '').replace(/\s*様$/, ''), place: b.place ?? '', rid: b.rid ?? null })));
-      const busy = new Set(visits.map((v) => v.userId)).size;
-      return { start, busy, total: present.length, ratio: present.length ? busy / present.length : 0, visits };
+      const busy = present.filter((c) => c.blocks.some((b) => b.start < start + SLOT_STEP && b.end > start)).length;
+      return { start, busy, total: present.length, ratio: present.length ? busy / present.length : 0 };
     });
-    return { date, total: present.length, slots };
+    const blocks = layoutBlocks(present.flatMap((c) => c.blocks.map((b) => ({ ...b, userId: c.user.id, name: String(b.label ?? '').replace(/\s*様$/, ''), place: b.place ?? '' }))));
+    return { date, total: present.length, slots, blocks };
   });
 }
 
