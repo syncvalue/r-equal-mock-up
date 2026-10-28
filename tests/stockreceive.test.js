@@ -76,3 +76,15 @@ test('営業のタブレットの入庫: 保管場所は選ばず、クーリン
   assert.ok(t.warehouse.id);
   assert.equal(receive(list(), 'u01', 'A', { location: t.location, by: '営業' }).list[0].location, COOLING_OFF_SHELF);
 });
+
+test('倉庫担当の入庫: 訪問買取はクーリングオフ保管棚、店頭買取（クーリング・オフの対象外）は選んだ棚に入る', async () => {
+  const { shelfFor, COOLING_OFF_SHELF } = await import('../src/stock.js');
+  const items = [u('V', 'u01', 'V1'), u('S', 'u01', 'V2', { channel: 'store' })];
+  const loc = shelfFor('B棚（時計・ジュエリー）');
+  assert.equal(loc(items[0]), COOLING_OFF_SHELF);
+  assert.equal(loc(items[1]), 'B棚（時計・ジュエリー）');
+  const r = receiveCodes(items, ['V', 'S'], { location: loc, by: '倉庫担当', method: 'manual' });
+  const by = Object.fromEntries(r.list.map((x) => [x.code, x.location]));
+  assert.deepEqual(by, { V: COOLING_OFF_SHELF, S: 'B棚（時計・ジュエリー）' });
+  assert.equal(receive(items, null, 'V', { location: loc, by: '倉庫担当', method: 'scan' }).list[0].location, COOLING_OFF_SHELF);
+});

@@ -14,8 +14,9 @@ function scanPanel(rc, todo, warehouse) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
     <h2 class="font-bold text-lg">📥 入庫する <span class="text-sm font-normal text-sky-700">入庫先: ${esc(warehouse.name)}</span>${helpIcon('営業から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。\nシールの色が紫・赤の高額品は、納入のときから本社に入るため、本社の倉庫担当だけが入庫できます（本社以外では、高額品以外を入庫します）。\n営業が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。')}</h2>
-    <div><div class="text-sm font-bold mb-1">保管場所${helpIcon('入庫する商品は、ここに保管します。')}</div>
-      <div class="flex flex-wrap gap-1.5">${warehouse.locations.map((l) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${rc.location === l ? 'on' : ''}" data-rc-loc="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>
+    <div class="text-sm rounded bg-teal-50 border border-teal-200 p-2">保管場所: <b>クーリングオフ保管棚</b>${helpIcon('訪問買取の商品は、クーリングオフ期間中、商品ごとに分けず、全てこの棚にまとめて保管します。')}</div>
+    ${todo.some((u) => u.channel === 'store') ? `<div><div class="text-sm font-bold mb-1">店頭買取の保管場所${helpIcon('店頭買取はクーリング・オフの対象外なので、クーリングオフ保管棚には入れません。ここで選んだ棚に保管します。')}</div>
+      <div class="flex flex-wrap gap-1.5">${warehouse.locations.map((l) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${rc.location === l ? 'on' : ''}" data-rc-loc="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>` : ''}
     <label class="text-sm font-bold block">シールNo.${helpIcon('スキャナ・手入力。Enterで入庫。読み取りで、照合したものとして記録します。')}
       <div class="flex gap-2 mt-1"><input class="inp font-mono font-normal" data-rc-code placeholder="RQ-XXXXXXXX" autocomplete="off" /><button class="b b-pri" data-rc-submit>入庫</button></div></label>
     <button class="b b-pri w-full !bg-teal-700" data-cam-receive>📷 カメラで読み取って入庫</button>
@@ -47,7 +48,7 @@ function contractCard(units, rc, rl, warehouse, master) {
       <td>${TAG[u.status]}</td><td class="text-xs !whitespace-normal">${u.status === 'stored' ? `📍 ${esc(u.location)}<div>${checkInfo(u)}</div>` : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-rl-open="${esc(u.code)}">シール貼り替え</button>`}</td></tr>${rl.code === u.code ? `<tr><td colspan="7">${relabelForm(rl, u)}</td></tr>` : ''}`).join('')}</tbody></table>
     ${actionable.length ? `<div class="flex flex-wrap items-center gap-2">
       <button class="b b-sec !min-h-0 !py-1.5 !px-3 text-sm" data-rc-all="${esc(first.visitId)}">${checked.length === actionable.length ? '☑をすべて外す' : '残りをすべて☑'}</button>
-      <button class="b b-pri !min-h-0 !py-1.5 !px-3 text-sm" data-rc-visit="${esc(first.visitId)}" ${checked.length ? '' : 'disabled'}>☑した${checked.length}点を入庫（${esc(rc.location.replace(/（.*/, ''))}）</button>
+      <button class="b b-pri !min-h-0 !py-1.5 !px-3 text-sm" data-rc-visit="${esc(first.visitId)}" ${checked.length ? '' : 'disabled'}>☑した${checked.length}点を入庫（${first.channel === 'store' ? esc(rc.location.replace(/（.*/, '')) : 'クーリングオフ保管棚'}）</button>
       ${helpIcon('明細にあるのに届いていない商品は、☑せずに残します（営業に確認してください）。')}</div>` : ''}
   </div>`;
 }

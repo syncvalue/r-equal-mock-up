@@ -25,6 +25,8 @@ export const sealColorOf = (key) => [...SEAL_COLORS, ...LEGACY_SEAL_COLORS].find
 
 // 営業が入庫した商品は、商品ごとに分けず、クーリングオフ期間中の専用の棚にまとめて保管する（5.2）
 export const COOLING_OFF_SHELF = 'クーリングオフ保管棚';
+// 倉庫担当の入庫の保管場所。訪問買取はクーリングオフ保管棚、店頭買取（クーリング・オフの対象外）は選んだ棚。receive / receiveCodes の location に渡す
+export const shelfFor = (chosen) => (unit) => (unit.channel === 'store' ? chosen : COOLING_OFF_SHELF);
 export const LOCATIONS = ['A棚（バッグ・小物）', 'B棚（時計・ジュエリー）', 'C棚（カメラ・家電）', '金庫室（高額品）', '要確認エリア'];
 
 // 状態: pending（入庫待ち）／stored（入庫済み）／missing（所在不明として報告）
@@ -105,7 +107,7 @@ export function receive(list, userId, raw, { location, by, at = Date.now(), meth
   if (userId != null && unit.userId !== userId) return { list, result: { type: 'other', code, unit } };
   if (unit.status === 'stored') return { list, result: { type: 'dup', code, unit } };
   // method（scan＝シール読取／manual＝明細と実物を見比べて☑）は、倉庫での照合の記録。営業のタブレットからの入庫は null
-  const stored = { ...unit, status: 'stored', storedAt: at, location, by, check: method ? { by, at, method } : null, ...(warehouseId ? { warehouseId } : {}) }; // warehouseId: 入庫した倉庫
+  const stored = { ...unit, status: 'stored', storedAt: at, location: typeof location === 'function' ? location(unit) : location, by, check: method ? { by, at, method } : null, ...(warehouseId ? { warehouseId } : {}) }; // warehouseId: 入庫した倉庫
   return { list: list.map((u) => (u.code === code ? stored : u)), result: { type: 'ok', code, unit: stored } };
 }
 

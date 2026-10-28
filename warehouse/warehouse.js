@@ -6,7 +6,7 @@ import {
 import {
   loadState, saveState, buildRows, relabelUnit, replacedCode, listItem, reprice, delist, recall, sell, answerInquiry, isOpenReturn, shipReturn, completeReturn, addReturnMessage, returnAlerts, suggestPrice, scopeState,
 } from '../src/warehouse.js';
-import { loadUnits, saveUnits, receive, receiveCodes, resultMessage, setUnitPhoto, clearUnitPhoto } from '../src/stock.js';
+import { loadUnits, saveUnits, receive, receiveCodes, shelfFor, resultMessage, setUnitPhoto, clearUnitPhoto } from '../src/stock.js';
 import { sealColorOfCode } from '../src/stock.js';
 import { shrinkImage, productPhoto } from '../src/image.js';
 import { seedSample } from '../src/warehouseSample.js';
@@ -158,7 +158,7 @@ function storeCode(raw) {
   const unit = loadUnits().find((u) => u.code === String(raw ?? '').trim().toUpperCase());
   const problem = unit && unit.status !== 'stored' ? destinationProblem(master, unit, staff.warehouseId) : '';
   if (problem) { ui.rc = { ...ui.rc, last: { ok: false, text: `${unit.code} ${DEST_TEXT[problem]}` } }; return; }
-  const { list, result } = receive(loadUnits(), null, raw, { location: ui.rc.location, by: staff.name, method: 'scan', warehouseId: staff.warehouseId });
+  const { list, result } = receive(loadUnits(), null, raw, { location: shelfFor(ui.rc.location), by: staff.name, method: 'scan', warehouseId: staff.warehouseId });
   if (result.type === 'ok' && !saveUnits(list)) return alert('保存できませんでした（容量超過）');
   ui.rc = { ...ui.rc, last: resultMessage(result) };
 }
@@ -166,10 +166,10 @@ function storeCode(raw) {
 function storeChecked(codes) {
   const mine = new Map(loadUnits().map((u) => [u.code, u]));
   const targets = codes.filter((c) => ui.rc.checks.includes(c) && mine.has(c) && !destinationProblem(master, mine.get(c), staff.warehouseId));
-  const { list, count } = receiveCodes(loadUnits(), targets, { location: ui.rc.location, by: staff.name, method: 'manual', warehouseId: staff.warehouseId });
+  const { list, count } = receiveCodes(loadUnits(), targets, { location: shelfFor(ui.rc.location), by: staff.name, method: 'manual', warehouseId: staff.warehouseId });
   if (!count) return alert('明細と実物を見比べて、☑を付けた商品がありません');
   if (!saveUnits(list)) return alert('保存できませんでした（容量超過）');
-  ui.rc = { ...ui.rc, checks: ui.rc.checks.filter((c) => !codes.includes(c)), last: { ok: true, text: `${count}点を ${ui.rc.location} に入庫しました（${myWarehouse().name}・照合: ${staff.name}）` } };
+  ui.rc = { ...ui.rc, checks: ui.rc.checks.filter((c) => !codes.includes(c)), last: { ok: true, text: `${count}点を入庫しました（${myWarehouse().name}・照合: ${staff.name}）` } };
 }
 const visitCodes = (visitId) => loadUnits().filter((u) => u.visitId === visitId && u.status !== 'stored' && !destinationProblem(master, u, staff.warehouseId)).map((u) => u.code); // 自分の倉庫で入庫できる商品だけ
 function toggleAll(visitId) {
@@ -216,7 +216,7 @@ function openCamera(mode) {
     return;
   }
   closeCamera = openMockCamera({
-    title: '読み取って入庫', subtitle: `入庫先: ${myWarehouse().name}／保管場所: ${ui.rc.location}`, continuous: true,
+    title: '読み取って入庫', subtitle: `入庫先: ${myWarehouse().name}／クーリングオフ保管棚`, continuous: true,
     pickNext: () => loadUnits().find((u) => u.status !== 'stored' && !destinationProblem(master, u, staff.warehouseId))?.code ?? '', // モック: 入庫待ちの商品を、順に読み取る
     onFound: (code) => { storeCode(code); render(); },
     getMessage: () => ui.rc.last,
