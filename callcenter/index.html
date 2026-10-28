@@ -19,6 +19,8 @@
     .inp.sel { border-color: #0f766e; background: #f0fdfa; font-weight: 700; }
     .dim > * { opacity: .6; pointer-events: none; }
     .flash { animation: flash 2.2s ease-out; }
+    @keyframes menuSlide { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+    .menu-slide { animation: menuSlide .18s ease-out; }
     html.dark .chip { background: #0f172a; color: #e2e8f0; border-color: #2f405a; }
     html.dark .chip.on { background: #0d9488; border-color: #0d9488; color: #fff; }
   </style>

@@ -24,6 +24,7 @@ import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.j
 import { cooloffPage, filtersHtml, resultsHtml, formHtml as cooloffFormHtml, progressHtml, zoomHtml, REJECT_TEXT } from './cooloffView.js';
 import { RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY, STORE_VISITS_KEY } from '../src/store.js';
 import { createStoreTab } from './storeTab.js';
+import { tabLabel, menuView } from './menu.js';
 import { loadState as loadWarehouse, saveState as saveWarehouse, requestReturn, addReturnMessage, cooloffContracts, purchaseDays } from '../src/warehouse.js';
 import { loadMaster } from '../src/warehouseMaster.js';
 import { loadCurrentTrips, tripAreas } from '../src/trips.js';
@@ -47,6 +48,7 @@ const digits = (s) => String(s ?? '').replace(/\D/g, '');
 const blankForm = () => makeBlankForm();
 
 let tab = 'new';
+let menuOpen = false; // 左側のメニューの開閉
 const operators = () => operatorNames(loadEmployees()); // オペレーターは、社員管理から読み込む（有効な人だけ）
 let operator = operators().includes(pref('rq-mock-cc-operator', '')) ? pref('rq-mock-cc-operator', '') : operators()[0] ?? '';
 let form = blankForm();
@@ -307,12 +309,18 @@ function dispatchChips() {
   const list = loadReservations();
   return [0, 1, 2, 3, 4].map((n) => { const date = addDays(n); return { date, label: ['今日', '明日', '翌々日', '3日後', '4日後'][n], tentative: list.filter((r) => r.date === date && isTentative(r)).length, review: list.filter((r) => r.date === date && needsReview(r)).length }; });
 }
-const tentativeBadge = () => {
+// メニューの件数の印（仮確定・確定済みから戻った変更・倉庫の回答待ち）。☰ には、どれかあれば点を出す
+const menuBadges = () => {
   const list = loadReservations();
   const n = list.filter(isTentative).length;
-  const rv = list.filter(needsReview).length; // 確定済みが変更されて、仮確定に戻ったもの
-  return `${n ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-xs text-amber-950" title="仮確定">${n}</span>` : ''}${rv ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-xs text-white" title="確定済みが変更されて、仮確定に戻りました">変更${rv}</span>` : ''}`;
+  const rv = list.filter(needsReview).length;
+  const co = loadWarehouse().returns.filter((r) => r.status === 'inquiring').length;
+  return {
+    dispatch: [...(n ? [{ cls: 'bg-amber-500', text: `仮確定 ${n}` }] : []), ...(rv ? [{ cls: 'bg-rose-600', text: `変更 ${rv}` }] : [])],
+    cooloff: co ? [{ cls: 'bg-rose-600', text: `回答待ち ${co}` }] : [],
+  };
 };
+const menuAlert = () => Object.values(menuBadges()).some((b) => b.length);
 
 // 配車係が動かして取り込んだ元の予定は、元の位置に出さない
 const syncHidden = () => { hiddenBlocks.clear(); loadMovedIds().forEach((id) => hiddenBlocks.add(id)); };
@@ -323,19 +331,15 @@ function render() {
   if (!ops.includes(operator)) operator = ops[0] ?? operator; // オペレーターが、社員管理で無効になっていたら、先頭の人に
   $('#root').innerHTML = `
   <header class="bg-teal-800 text-white px-6 h-[52px] flex justify-between items-center">
-    <div class="font-bold text-xl">📞 コールセンター 受付・配車 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <nav class="flex gap-1">
-      <button class="rounded px-4 py-1.5 font-bold ${tab === 'new' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="new">新規受付</button>
-      <button class="rounded px-4 py-1.5 font-bold ${tab === 'dispatch' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="dispatch">配車確定（配車係）${tentativeBadge()}</button>
-      <button class="rounded px-4 py-1.5 font-bold ${tab === 'cooloff' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="cooloff">クーリングオフ${cooloffBadge()}</button>
-      <button class="rounded px-4 py-1.5 font-bold ${tab === 'store' ? 'bg-white text-teal-800' : 'bg-white/10'}" data-tab="store">来店予約（店舗）</button>
-    </nav>
+    <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${menuAlert() ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
+      <span class="font-bold text-xl">📞 コールセンター</span><span class="text-teal-200">›</span><span class="font-bold">${tabLabel(tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">オペレーター <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${ops.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
       ${tab === 'new' && !editId ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">🎙 音声入力デモ${demoOpen ? 'を閉じる' : '（今後の拡張）'}</button>` : ''}
       <a class="underline text-white/80 text-xs" href="/tablet/" target="_blank" rel="noopener">営業アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
+  ${menuOpen ? menuView({ tab, badges: menuBadges() }) : ''}
   ${tab === 'new' ? renderNew() : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
   ${custInfoRid && tab === 'dispatch' ? customerModalHtml({ rid: custInfoRid, reservations: loadReservations(), now: new Date() }) : ''}
@@ -346,10 +350,6 @@ function render() {
 }
 
 // ---- クーリングオフ（受電 → 商品の状態を確認 → 依頼を作る → 倉庫が回答・返送 → 完了までの進捗）-------------------------
-const cooloffBadge = () => {
-  const n = loadWarehouse().returns.filter((r) => r.status === 'inquiring').length; // 倉庫の回答待ち
-  return n ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-xs text-white" title="倉庫の回答待ち">${n}</span>` : '';
-};
 const coCriteria = () => ({ q: coQ, dates: coDates, category: coCat });
 function cooloffParts() {
   const state = loadWarehouse();
@@ -493,7 +493,9 @@ document.addEventListener('click', (e) => {
   if (!t) return;
   const d = t.dataset;
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
-  if (d.tab) { stopDemo(); tab = d.tab; render(); }
+  if (d.tab) { stopDemo(); tab = d.tab; menuOpen = false; render(); }
+  else if ('menuOpen' in d) { menuOpen = true; render(); }
+  else if ('menuClose' in d) { menuOpen = false; render(); }
   else if (storeTab.click(d, t)) { /* 来店予約（店舗） */ }
   else if ('zipaddr' in d) { // 住所の候補を入れる。番地は、続けて入力できるよう、住所欄の末尾にカーソルを置く
     form = { ...form, address: d.zipaddr };
