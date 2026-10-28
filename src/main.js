@@ -608,9 +608,7 @@ const actions = {
     closeForm: { ...state.closeForm, counted: summaryOf(state.day, state.user).balance, countedSet: true, checks: Object.fromEntries(END_CHECKS.map((c) => [c.key, true])) },
   }),
   // 商品の持ち帰り（入庫）
-  'stock-tab': (el) => set({ stock: { ...state.stock, tab: el.dataset.value } }),
   'stock-scope': (el) => set({ stock: { ...state.stock, scope: el.dataset.value, last: null } }),
-  'stock-wh': (el) => set({ stock: { ...state.stock, warehouseId: el.dataset.value } }),
   'stock-submit': () => submitStockCode(),
   'stock-missing': (el) => {
     if (!confirm('この商品を「所在不明」として報告します。よろしいですか？\n（後でシールを読み取れば、入庫できます）')) return;
