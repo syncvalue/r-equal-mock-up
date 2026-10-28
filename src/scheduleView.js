@@ -45,6 +45,13 @@ export function evalTargetOf(s, eventId) {
   return { visitId: v.visitId, startedAt: v.startedAt, customer: { name: e.customer.name, phone: e.customer.phone }, existing: evalOfVisit(v, loadEvals()) };
 }
 
+// 日報の訪問から開くとき。訪問の記録（本社と共有している訪問状況）から探す
+export function evalTargetOfVisit(visitId) {
+  const v = loadLive()[visitId];
+  if (!v || v.outcome) return null;
+  return { visitId, startedAt: v.startedAt, customer: { name: v.customerName, phone: v.phone }, existing: evalOfVisit(v, loadEvals()) };
+}
+
 const visitStateOf = (s, e) => (doneVisitOf(s, e) ? 'done' : s.visitEventId === e.id && isVisiting(s) ? 'visiting' : 'todo');
 
 function eventBlock(s, e, dayN, evals) {

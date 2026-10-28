@@ -9,7 +9,7 @@ import {
 import { dummyPhoto, shrinkImage } from './image.js';
 import { threadFor, addMessage, hasUnread, markRead as markThreadRead, messagesOf } from './appraisalThread.js';
 import * as V from './views.js';
-import { evalTargetOf } from './scheduleView.js';
+import { evalTargetOf, evalTargetOfVisit } from './scheduleView.js';
 import { initTheme } from './theme.js';
 import { initHelp } from './help.js';
 import { userById, isLeader } from './dashboard.js';
@@ -172,6 +172,7 @@ function publish() {
     step: state.step,
     briefing: { propose: state.briefing.propose },
     customerName: state.customer.name,
+    phone: state.customer.phone,
     callInfo: state.callInfo,
     outcome: state.outcome ? { ...state.outcome, label: outcomeOf(state.outcome.type).label } : null,
     items: state.items.map(({ id, name, category, rank, qty, price, sell, aiAppraisal }) => ({ id, name, category, rank, qty, price, sell, aiAppraisal })),
@@ -652,7 +653,7 @@ const actions = {
   'exp-view': (el) => set({ modal: { type: 'receipt', id: el.dataset.id } }),
   // お客様の評価（営業の記録）。訪問が完了した予定から登録する。保存済みの内容があれば、それを下書きとして開く
   'eval-open': (el) => {
-    const target = evalTargetOf(state, el.dataset.id);
+    const target = el.dataset.visitId ? evalTargetOfVisit(el.dataset.visitId) : evalTargetOf(state, el.dataset.id);
     if (target) set({ modal: { type: 'eval', ...target }, evalDraft: target.existing ? { ...V.blankEval(), ...target.existing } : V.blankEval() });
   },
   'eval-set': (el) => {

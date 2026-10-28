@@ -4,7 +4,8 @@ import { helpIcon } from './help.js';
 import { moneyInputHtml } from './moneyInput.js';
 import { userById } from './dashboard.js';
 import { hqMessagesFor } from './messages.js';
-import { loadReadIds } from './store.js';
+import { loadReadIds, loadEvals } from './store.js';
+import { evalOfVisit, evalStatus, pendingEvalCount } from './visitEval.js';
 import { pendingCount } from './stockView.js';
 import {
   START_CHECKS, END_CHECKS, EXPENSE_TYPES, VISIT_OUTCOMES, outcomeOf, outcomeReady, typeOf, carryoverFor, summaryOf, closeDiff, startReady, closeReady, expenseReady, dateKey,
@@ -117,10 +118,19 @@ function startScreen(s) {
 }
 
 // ---- 日報（終業前のプレビュー／終業後の確定版） ------------------------------------
+// 訪問ごとのお客様の評価の状況（未登録は目立たせ、そこから登録できる）。不在などの訪問は対象外
+function evalBadge(v, evals) {
+  if (evalStatus(v, evals) === 'pending') return `<button class="ml-1 rounded-full bg-rose-600 text-white text-xs font-bold px-3 min-h-[32px] animate-pulse" data-action="eval-open" data-visit-id="${esc(v.visitId)}">★ 評価を登録</button>`;
+  const ev = evalOfVisit(v, evals);
+  return `<button class="ml-1 text-xs rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 font-bold" data-action="eval-open" data-visit-id="${esc(v.visitId)}">評価済み ★${ev.overall || '-'}</button>`;
+}
+
 function reportCard(s, day) {
   const sm = summaryOf(day, s.user);
   const closed = Boolean(day.closedAt);
   const visits = day.visits;
+  const evals = loadEvals();
+  const evalPending = pendingEvalCount(visits, evals);
   const row = (label, val, cls = '') => `<div class="flex justify-between py-1 ${cls}"><span>${label}</span><b>${val}</b></div>`;
   return `
   <div class="card !p-4 flex flex-col gap-3 min-h-0 flex-1 min-w-0 overflow-y-auto" data-scroll="wdReport">
@@ -151,7 +161,8 @@ function reportCard(s, day) {
     </div>
 
     <div class="rounded-xl border p-3"><div class="font-bold mb-1">🏠 訪問・買取${visits.some((v) => v.outcome) ? helpIcon('不在・日程変更などは訪問実績に数え、業績（成約率など）には影響しません。') : ''}　<span class="font-normal text-sm">訪問 ${visits.length}件${visits.some((v) => v.outcome) ? `（うち買取に至らず ${visits.filter((v) => v.outcome).length}件）` : ''} ／ ${visits.reduce((n, v) => n + v.itemCount, 0)}点 ／ 買取金額 <b>${yen(visits.reduce((n, v) => n + v.total, 0))}</b></span></div>
-      <div class="text-sm divide-y">${visits.length ? visits.map((v) => row(`${fmtTime(v.at).slice(0, 5)}　${esc(v.customerName)} 様${v.outcome ? `<span class="ml-1 text-xs rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">${outcomeOf(v.outcome.type).icon} ${outcomeOf(v.outcome.type).label}</span>${v.outcome.memo ? `<span class="block text-xs text-slate-500 font-normal">${esc(v.outcome.memo)}</span>` : ''}` : `（${v.itemCount}点）`}`, v.outcome ? '<span class="text-slate-400 font-normal">買取なし</span>' : yen(v.total))).join('') : '<div class="text-slate-400 py-2">完了した訪問はまだありません</div>'}</div></div>
+      ${evalPending ? `<div class="rounded-lg border-2 border-rose-400 bg-rose-50 px-2 py-1.5 text-sm font-bold text-rose-700 mb-1">⭐ お客様の評価が未登録です（${evalPending}件）。下の「評価を登録」から入力してください。</div>` : ''}
+      <div class="text-sm divide-y">${visits.length ? visits.map((v) => row(`${fmtTime(v.at).slice(0, 5)}　${esc(v.customerName)} 様${v.outcome ? `<span class="ml-1 text-xs rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">${outcomeOf(v.outcome.type).icon} ${outcomeOf(v.outcome.type).label}</span>${v.outcome.memo ? `<span class="block text-xs text-slate-500 font-normal">${esc(v.outcome.memo)}</span>` : ''}` : `（${v.itemCount}点）${evalBadge(v, evals)}`}`, v.outcome ? '<span class="text-slate-400 font-normal">買取なし</span>' : yen(v.total))).join('') : '<div class="text-slate-400 py-2">完了した訪問はまだありません</div>'}</div></div>
 
     <div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">✅ 始業点検</div>
       ${START_CHECKS.length}項目すべて確認済み（${fmtTime(day.startedAt).slice(0, 5)}）</div>
