@@ -10,7 +10,7 @@ import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { initHelp } from '../src/help.js';
 import { esc } from '../src/format.js';
 import { CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml } from './view.js';
+import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml, zipCandidatesHtml } from './view.js';
 import { dispatcherHtml, staffModalHtml, customerModalHtml, BOARD_ROW } from './dispatcherView.js';
 import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
@@ -408,8 +408,10 @@ function onField(e) {
   if (k === 'ageEst' && e.target.value) { form = { ...form, age: '' }; refresh(); return; } // 年代を選んだら、年齢の欄は空にする
   if (k === 'flyerId') { form = withFlyer(form, e.target.value); renderFlyerResult(); renderDispatch(); return; }
   if (k === 'date' && e.target.value) weekStart = weekStartFor(e.target.value);
+  if (k === 'zip' || k === 'address') renderZipCandidates();
   if (LIVE.has(k)) renderDispatch(); else updateChecklist();
 }
+const renderZipCandidates = () => { const el = $('#zip-cands'); if (el) el.innerHTML = zipCandidatesHtml(form); }; // 入力欄は作り直さない
 document.addEventListener('input', (e) => {
   if (storeTab.input(e)) return;
   if (e.target.matches('[data-co-msg]')) { coDraft = { ...coDraft, [e.target.dataset.coMsg]: e.target.value }; return; }
@@ -493,6 +495,13 @@ document.addEventListener('click', (e) => {
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
   if (d.tab) { stopDemo(); tab = d.tab; render(); }
   else if (storeTab.click(d, t)) { /* 来店予約（店舗） */ }
+  else if ('zipaddr' in d) { // 住所の候補を入れる。番地は、続けて入力できるよう、住所欄の末尾にカーソルを置く
+    form = { ...form, address: d.zipaddr };
+    refresh();
+    const el = document.querySelector('[data-f="address"]');
+    el?.focus();
+    el?.setSelectionRange(el.value.length, el.value.length);
+  }
   else if ('coCreate' in d) createCooloff();
   else if (d.coChat) { coChatOpen = coChatOpen.includes(d.coChat) ? coChatOpen.filter((x) => x !== d.coChat) : [...coChatOpen, d.coChat]; renderCooloffParts(); }
   else if (d.coSend) sendCooloffMessage(d.coSend);

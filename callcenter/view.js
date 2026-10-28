@@ -12,6 +12,7 @@ import { specialtiesOf, AREAS, areaById, conflictOf, conflictText, WORK_START, W
 import { minToHHMM } from '../src/reservations.js';
 import { CHIRASHI, CATEGORIES, AGE_BANDS, MAIN_ITEMS, MAIN_BANDS, ATTENDEES, YESNO, CONTACT_TIMES, flyerOf, isFlyerIndex } from './master.js';
 import { FIELD_LABELS } from './transcript.js';
+import { addressCandidates, normalizeZip, ZIP_TABLE } from '../src/zipAddress.js';
 import { fullName } from './intake.js';
 
 export const mapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -102,6 +103,15 @@ export { custRankBadge, troubleBadge, cooloffBadge, customerMarks, customerProfi
 // ---- 入力フォーム ------------------------------------------------------------------
 const lbl = (text, inner, { req = false, cls = '' } = {}) => `<label class="block ${cls}"><span class="text-xs font-bold">${text}${req ? '<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>' : ''}</span>${inner}</label>`;
 const inp = (key, v, { type = 'text', ph = '', extra = '' } = {}) => `<input class="inp mt-0.5" data-f="${key}" type="${type}" value="${esc(v)}" placeholder="${esc(ph)}" ${extra} />`;
+// 郵便番号から出す住所の候補（押すと住所に入る）。7桁そろって表にないときは、その旨だけ。住所がすでに候補で始まっていれば出さない
+export function zipCandidatesHtml(f, table = ZIP_TABLE) {
+  if (normalizeZip(f.zip).length !== 7) return '';
+  const cands = addressCandidates(f.zip, table);
+  if (!cands.length) return '<p class="text-xs text-slate-500">この郵便番号の住所は、見つかりません（住所を直接入力してください）</p>';
+  const address = String(f.address ?? '').trim();
+  if (cands.some((c) => address.startsWith(c))) return '';
+  return `<div class="flex flex-wrap items-center gap-1"><span class="text-xs text-slate-500">住所の候補</span>${cands.map((c) => `<button class="chip" data-zipaddr="${esc(c)}">${esc(c)}</button>`).join('')}</div>`;
+}
 const sec = (title, body) => `<section class="bg-white rounded-lg shadow p-3 space-y-2"><h2 class="font-bold text-teal-800 text-sm">${title}</h2>${body}</section>`;
 
 export function flyerResultHtml(id) {
@@ -134,7 +144,8 @@ export function formHtml(f, today, list = []) {
     <div class="grid grid-cols-3 gap-2">
       ${lbl(`郵便番号${b('zip')}`, inp('zip', f.zip, { ph: '545-6016' }))}
       ${lbl(`訪問先の住所${b('address')}`, `<div class="flex gap-1">${inp('address', f.address, { ph: '大阪府大阪市阿倍野区…' })}<button class="b b-sec mt-0.5 shrink-0 !px-2" data-map title="Googleマップで開く">🗺</button></div>`, { req: true, cls: 'col-span-2' })}
-    </div>`);
+    </div>
+    <div id="zip-cands" class="empty:hidden">${zipCandidatesHtml(f)}</div>`);
   const when = sec('② 訪問の希望日時', `
     <div class="grid grid-cols-2 gap-2">
       ${lbl(`希望日${b('when')}`, inp('date', f.date, { type: 'date', extra: `min="${today}"` }), { req: true })}
