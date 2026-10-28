@@ -79,14 +79,17 @@ function sidebar(visits, aps, approvals) {
       <span>${pending ? `<span class="rounded-full bg-rose-600 text-white text-xs px-2 py-0.5">依頼${pending}</span>` : ''}${pendingApprovals(v, approvals).length ? `<span class="ml-1 rounded-full bg-amber-500 text-white text-xs px-2 py-0.5">未承認${pendingApprovals(v, approvals).length}</span>` : ''}</span></div>`;
   };
   const row = ({ e, v, key, label }) => {
+    const now = key === 'visiting';
+    const badge = now ? 'bg-emerald-600 text-white font-bold animate-pulse' : v?.outcome ? 'bg-amber-100 text-amber-800' : ST[key][1];
     const inner = `
       <div class="flex justify-between items-center gap-2"><span class="font-bold">${e.start}–${e.end}　${esc(e.customer.name)} 様</span>
-        <span class="text-xs rounded px-2 py-0.5 shrink-0 ${v?.outcome ? 'bg-amber-100 text-amber-800' : ST[key][1]}">${esc(label)}</span></div>
+        <span class="text-xs rounded px-2 py-0.5 shrink-0 ${badge}">${now ? '● ' : ''}${esc(label)}</span></div>
       <div class="text-xs text-slate-500">営業 ${esc(USERS.find((u) => u.id === e.userId)?.name ?? '')} ／ ${esc(e.items)}${v ? ` ／ 開始 ${fmtTime(v.startedAt)}` : ''}</div>
       ${v ? visitCard(v) : ''}`;
+    const nowCls = now ? 'bg-emerald-100 border-l-8 border-l-emerald-600' : 'border-l-8 border-l-transparent';
     return v
-      ? `<button class="w-full text-left p-3 border-b hover:bg-indigo-50 ${v.visitId === visitId ? 'bg-indigo-50' : ''}" data-visit="${v.visitId}">${inner}</button>`
-      : `<div class="p-3 border-b ${key === 'done' ? 'opacity-60' : ''}">${inner}</div>`;
+      ? `<button class="w-full text-left p-3 border-b ${nowCls} ${now ? 'hover:bg-emerald-200' : 'hover:bg-indigo-50'} ${v.visitId === visitId ? (now ? 'ring-2 ring-inset ring-indigo-500' : 'bg-indigo-50') : ''}" data-visit="${v.visitId}">${inner}</button>`
+      : `<div class="p-3 border-b ${nowCls} ${key === 'done' ? 'opacity-60' : ''}">${inner}</div>`;
   };
   const extra = extras.filter((v) => !(hideDone && v.endedAt)).map((v) => row({ e: { start: fmtTime(v.startedAt).slice(0, 5), end: '', customer: { name: v.customerName }, userId: v.userId ?? 'u01', items: '予定外・別日の訪問' }, v, key: v.endedAt ? 'done' : 'visiting', label: v.outcome ? v.outcome.label : v.endedAt ? '完了' : '訪問中' }));
   if (!shown.length && !extra.length) return `<p class="p-6 text-slate-400">${rows.length ? '表示する予定はありません（完了分を隠しています）' : '担当する営業の、今日の予定はありません'}</p>`;
