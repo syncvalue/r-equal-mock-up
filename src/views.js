@@ -623,7 +623,7 @@ export function endView(s) {
           done
             ? `<div class="rounded-xl bg-slate-100 p-3 text-center text-sm">訪問時間 ${fmtTime(s.visitStartedAt)} 〜 ${fmtTime(s.visitEndedAt)}（${fmtElapsed(s.visitStartedAt, s.visitEndedAt)}）
                <button class="btn btn-secondary block mx-auto mt-2 !min-h-[44px] !py-1" data-action="reset">新しい訪問を開始</button></div>`
-            : `<button class="btn btn-primary w-full text-xl !py-3" data-action="finish" ${left ? 'disabled' : ''}>${left ? `あと${left}項目のチェックが必要です` : '訪問終了'}</button>`
+            : `<button class="btn btn-primary w-full text-xl !py-3" data-action="finish-ask" ${left ? 'disabled' : ''}>${left ? `あと${left}項目のチェックが必要です` : '訪問終了'}</button>`
         }
       </div>
       <div class="card !p-4 flex flex-col gap-2 min-h-0">
@@ -721,6 +721,16 @@ export function modalView(s) {
   const m = s.modal;
   if (!m) return '';
   if (m.type === 'ai') return modalShell('🤖 AIカメラで商品候補を探す', `<div id="ai" class="space-y-3">${aiView(s)}</div>`);
+  if (m.type === 'finish-confirm') {
+    return modalShell(
+      '訪問を終了しますか？',
+      `<p class="text-center text-slate-600">${esc(s.customer.name)} 様の訪問を終了します。終了すると、訪問の内容は変更できません。</p>
+      <div class="grid grid-cols-2 gap-3">
+        <button class="btn btn-secondary w-full text-xl !py-3" data-action="close-modal">いいえ</button>
+        <button class="btn btn-primary w-full text-xl !py-3" data-action="finish">はい</button></div>`,
+      { right: '<span></span>' },
+    );
+  }
   if (m.type === 'customer') {
     const c = s.customer;
     return modalShell(

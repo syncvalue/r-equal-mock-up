@@ -552,9 +552,10 @@ const actions = {
     showToast('提案された査定額を買取金額に反映しました');
   },
   // 訪問終了は、お客様宅を出る前のチェックリストがすべて完了している場合のみ。買取代金は、経費として自動計上する
+  'finish-ask': () => { if (V.leaveRemaining(state) === 0) set({ modal: { type: 'finish-confirm' } }); },
   finish: () => {
     if (V.leaveRemaining(state) !== 0) return;
-    set({ visitEndedAt: Date.now() });
+    set({ visitEndedAt: Date.now(), modal: null });
     // 査定はしたが売らなかったもの（見送り品）を、お客様ごとの記録に残す。次回の訪問や、営業の当てはめの判断に使う
     recordDeclined({ visitId: state.visitId, phone: state.customer.phone, customerName: state.customer.name, at: Date.now(), items: state.items.filter((i) => !i.sell) });
     const sel = V.selectedItems(state);
