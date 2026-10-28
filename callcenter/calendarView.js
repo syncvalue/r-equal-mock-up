@@ -61,11 +61,11 @@ function dayGridHtml({ cols, date, calSel }) {
   const body = cols.map((c) => {
     const blocks = c.blocks.map((b) => {
       const sel = b.rid && b.rid === calSel;
-      const inner = `<b>${b.source === 'reservation' ? blockMark(b) : ''}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}`;
+      const inner = `<b>${blockMark(b.source === 'reservation' ? b : { source: 'reservation', status: 'confirmed' })}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}`;
       const style = `top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px`;
       return b.rid
         ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] text-white ${blockCls(b)} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style}" data-callopen="${b.rid}" title="前日確認を記録する">${inner}<span class="ml-0.5 rounded bg-white/90 px-1 font-bold text-slate-800">${miniMark(c.reservationOf?.(b.rid) ?? {})}</span></button>`
-        : `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded bg-slate-500 px-1 text-[10px] leading-[1.15] text-white" style="${style}" title="${esc(b.label)}">${inner}</div>`;
+        : `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls({ source: 'reservation', status: 'confirmed' })}" style="${style}" title="${esc(b.label)}">${inner}</div>`;
     }).join('');
     const away = c.absent ? '<div class="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-2"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : '';
     return `<div class="relative border-l" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)`}">${blocks}${attShade(c.att, DAY_ROW)}${away}</div>`;

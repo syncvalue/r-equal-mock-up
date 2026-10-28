@@ -55,3 +55,11 @@ test('メモの文字は、HTMLとして解釈しない', () => {
   const h = calendarHtml({ ...base, mode: 'day', calSel: 'R1', reservations: [rec({ confirmCalls: [{ result: 'reached', memo: '<b>x</b>', by: '佐藤', at: 1 }] })] });
   assert.ok(!h.includes('<b>x</b>') && h.includes('&lt;b&gt;x&lt;/b&gt;'));
 });
+
+test('日別: 受付の帯と、営業の元からの予定の帯は、同じ色（確定の濃い青）で出す。色で区別しない', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const withPlan = cols.find((c) => c.blocks.length);
+  assert.ok(withPlan);
+  const h = calendarHtml({ ...base, mode: 'day', reservations: [] });
+  assert.ok(h.includes('bg-indigo-700') && !h.includes('bg-slate-500'));
+});
