@@ -6,6 +6,7 @@ globalThis.localStorage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) 
 
 const { storeTabHtml, blankStoreForm, pastCustomerHtml, createStoreTab } = await import('../callcenter/storeTab.js');
 const V = await import('../src/storeVisits.js');
+const { storeWeek } = await import('../src/storeSlots.js');
 const { DEFAULT_STORES } = await import('../src/stores.js');
 
 const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
@@ -55,9 +56,37 @@ test('操作: 予約を受け付けると保存され、店舗の画面の予約
   const saved = V.loadStoreVisits();
   assert.deepEqual([saved.length, saved[0].status, saved[0].time, saved[0].createdBy, saved[0].storeId], [1, 'reserved', '15:30', '佐藤', DEFAULT_STORES[0].id]);
   assert.match(messages[0], /山田 花子 様の来店予約を受け付けました（なんば店 15:30）/);
-  assert.equal(rerenders, 1);
+  assert.equal(rerenders, 3); // 日・時刻を変えるたび（空き状況のカレンダーのため）と、予約を受け付けたとき
   assert.equal(tab.click({ stCancel: saved[0].id }, { parentElement: { querySelector: () => ({ value: 'お客様のご都合（やめる）' }) } }), true);
   const after = V.loadStoreVisits()[0];
   assert.deepEqual([after.status, after.cancelReason, after.cancelledBy], ['cancelled', 'お客様のご都合（やめる）', '佐藤']);
   assert.equal(tab.click({ other: '' }), false);
+});
+
+test('空き状況のカレンダー: 縦=時刻・横=日付。空きは押せて、満席・過ぎた枠は押せない。選んだ来店が分かる', () => {
+  const opts = { storeIds: ['S-NAMBA'], now: NOW };
+  const day = ymd(tomorrow);
+  let list = [];
+  for (const n of ['a', 'b']) list = V.reserveVisit(list, { storeId: 'S-NAMBA', date: day, time: '14:00', name: n, phone: '090-1', by: '佐藤' }, opts).list;
+  const days = storeWeek({ visits: list, storeId: 'S-NAMBA', dates: [ymd(new Date(NOW)), day], capacity: 2, now: NOW });
+  const html = storeTabHtml({ form: { ...blankStoreForm('S-NAMBA', day), time: '14:30' }, stores: DEFAULT_STORES, upcoming: [], cal: { weekStart: ymd(new Date(NOW)), capacity: 2, storeName: 'なんば店', days } });
+  const t = text(html);
+  assert.ok(t.includes('空き状況（なんば店）') && t.includes('同じ時刻に受けられるのは 2 組'));
+  assert.ok(html.includes(`data-st-slot="${day}|10:00"`) && html.includes(`data-st-slot="${day}|14:30"`));
+  assert.ok(!html.includes(`data-st-slot="${day}|14:00"`) && t.includes('満')); // 満席は押せない
+  assert.ok(html.includes('data-st-week="-7"') && html.includes('data-st-week="7"') && html.includes('data-st-weektoday'));
+  assert.ok(/選んだ来店： \d+\/\d+（.） 14:30/.test(t));
+  assert.ok(html.includes('data-st="date"') && html.includes('data-st="time"')); // 日・時刻の入力も、これまでどおり
+});
+
+test('空きの枠を押すと、来店の日・時刻に入る。週を動かせる（今日より前には戻らない）', () => {
+  const day = ymd(tomorrow);
+  let rendered = 0;
+  const tab = createStoreTab({ operator: () => '佐藤', rerender: () => { rendered += 1; }, flash: () => {} });
+  assert.equal(tab.click({ stSlot: `${day}|15:30` }, null), true);
+  assert.ok(tab.html().includes(`選んだ来店：`) && text(tab.html()).includes('15:30'));
+  assert.equal(tab.click({ stWeek: '-7' }, null), true);
+  assert.ok(tab.html().includes(`data-st-slot="${ymd(new Date(NOW))}|`) || tab.html().includes(`data-st-slot="${day}|`)); // 今日より前には動かない
+  assert.equal(tab.click({ stWeek: '7' }, null), true);
+  assert.ok(rendered >= 3);
 });
