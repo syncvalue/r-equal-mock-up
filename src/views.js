@@ -17,6 +17,7 @@ import { SEAL_COLORS } from './stock.js';
 import { fakeQr } from './fakeQr.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 import { helpIcon } from './help.js';
+import { evalFilled } from './visitEval.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '説明事項', '買取明細', '買取商品の確認', 'シール紐づけ', '送信・終了'];
 
@@ -566,10 +567,11 @@ export const EVAL_OPTIONS = {
   flags: ['価格交渉が強い', '他社と比較中', '家族の同意が必要', '時間にルーズ', 'クレーム注意', '紹介が見込める'],
 };
 export const blankEval = () => ({ overall: 0, attitude: '', repeat: '', wealth: '', timing: '', cats: [], flags: [], memo: '' });
-export const evalFilled = (e) => Boolean(e && (e.overall || e.attitude || e.repeat || e.wealth || e.timing || e.cats.length || e.flags.length || e.memo.trim()));
+export { evalFilled };
 
 function evalModalView(s) {
   const d = s.evalDraft;
+  const customer = s.modal.customer;
   const single = (field, label) => `
     <div><div class="font-bold text-sm mb-1">${label}</div><div class="flex flex-wrap gap-1.5">
       ${EVAL_OPTIONS[field].map((o) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${d[field] === o ? 'active' : ''}" data-action="eval-set" data-field="${field}" data-value="${o}">${o}</button>`).join('')}</div></div>`;
@@ -577,7 +579,7 @@ function evalModalView(s) {
     <div><div class="font-bold text-sm mb-1">${label}<span class="font-normal text-xs text-slate-500">（複数選択可）</span></div><div class="flex flex-wrap gap-1.5">
       ${EVAL_OPTIONS[field].map((o) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${d[field].includes(o) ? 'active' : ''}" data-action="eval-toggle" data-field="${field}" data-value="${o}">${o}</button>`).join('')}</div></div>`;
   return modalShell(
-    `⭐ お客様の評価　<span class="text-sm font-normal text-slate-500">${esc(s.customer.name)} 様</span>${helpIcon('社内記録です。お客様には表示されません。')}`,
+    `⭐ お客様の評価　<span class="text-sm font-normal text-slate-500">${esc(customer.name)} 様</span>${helpIcon('社内記録です。お客様には表示されません。')}`,
     `<div class="grid sm:grid-cols-2 gap-3 items-start">
       <div class="space-y-2.5">
         <div><div class="font-bold text-sm mb-1">総合評価</div><div class="flex gap-1">
@@ -617,7 +619,6 @@ export function endView(s) {
           <div class="text-slate-600 text-sm">契約No. ${esc(s.contract.id)}<br>買取金額 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
         </div>
         <button class="btn w-full bg-sky-600 text-white !min-h-[48px] !py-2" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
-        <button class="btn btn-secondary w-full !min-h-[48px] !py-2 flex items-center justify-center gap-2" data-action="open-eval">⭐ お客様の評価を登録${evalFilled(s.evaluation) ? `<span class="text-xs rounded bg-emerald-100 text-emerald-800 px-2 py-0.5">登録済み${s.evaluation.overall ? ` ★${s.evaluation.overall}` : ''}</span>` : '<span class="text-xs text-slate-500">（任意）</span>'}</button>
         ${
           done
             ? `<div class="rounded-xl bg-slate-100 p-3 text-center text-sm">訪問時間 ${fmtTime(s.visitStartedAt)} 〜 ${fmtTime(s.visitEndedAt)}（${fmtElapsed(s.visitStartedAt, s.visitEndedAt)}）

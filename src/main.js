@@ -9,6 +9,7 @@ import {
 import { dummyPhoto, shrinkImage } from './image.js';
 import { threadFor, addMessage, hasUnread, markRead as markThreadRead, messagesOf } from './appraisalThread.js';
 import * as V from './views.js';
+import { evalTargetOf } from './scheduleView.js';
 import { initTheme } from './theme.js';
 import { initHelp } from './help.js';
 import { userById, isLeader } from './dashboard.js';
@@ -87,7 +88,6 @@ const initialState = () => ({
   leaveChecks: {},
   showStaff: false,
   briefing: { checks: {}, propose: '' },
-  evaluation: null,
   evalDraft: V.blankEval(),
   approvals: [],
   apMode: 'hq',
@@ -650,8 +650,11 @@ const actions = {
     saveDay(removeExpense(state.day, el.dataset.id));
   },
   'exp-view': (el) => set({ modal: { type: 'receipt', id: el.dataset.id } }),
-  // お客様の評価（営業の記録）。保存済みの内容があれば、それを下書きとして開く
-  'open-eval': () => set({ modal: { type: 'eval' }, evalDraft: state.evaluation ? { ...state.evaluation } : V.blankEval() }),
+  // お客様の評価（営業の記録）。訪問が完了した予定から登録する。保存済みの内容があれば、それを下書きとして開く
+  'eval-open': (el) => {
+    const target = evalTargetOf(state, el.dataset.id);
+    if (target) set({ modal: { type: 'eval', ...target }, evalDraft: target.existing ? { ...V.blankEval(), ...target.existing } : V.blankEval() });
+  },
   'eval-set': (el) => {
     const v = el.dataset.field === 'overall' ? Number(el.dataset.value) : el.dataset.value;
     set({ evalDraft: { ...state.evalDraft, [el.dataset.field]: state.evalDraft[el.dataset.field] === v ? (typeof v === 'number' ? 0 : '') : v } });
@@ -662,13 +665,12 @@ const actions = {
     set({ evalDraft: { ...state.evalDraft, [el.dataset.field]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] } });
   },
   'eval-save': () => {
+    const { visitId, startedAt, customer } = state.modal;
     const e = state.evalDraft;
-    const record = {
-      visitId: state.visitId, customerName: state.customer.name, phone: state.customer.phone, savedAt: Date.now(), by: `営業 ${userById(state.user).name}`, ...e, memo: e.memo.trim(),
-    };
+    const record = { visitId, customerName: customer.name, phone: customer.phone, savedAt: Date.now(), by: `営業 ${userById(state.user).name}`, ...e, memo: e.memo.trim() };
     upsertEval(record); // 営業が入力するのは、訪問ごとの評価
-    setFirstVisitCustomerEval(record, { before: state.visitStartedAt ?? Infinity }); // 初めての訪問なら、お客様の評価の初期値にもなる（あとから登録し直せる）
-    set({ evaluation: { ...e, memo: e.memo.trim() }, modal: null });
+    setFirstVisitCustomerEval(record, { before: startedAt ?? Infinity }); // 初めての訪問なら、お客様の評価の初期値にもなる（あとから登録し直せる）
+    set({ modal: null });
     showToast('お客様の評価を保存しました');
   },
   'staff-toggle': () => set({ showStaff: !state.showStaff }),

@@ -9,6 +9,7 @@ import { historyOf, customerProfile, declinedList } from './customerHistory.js';
 import { salesCustomerCard, salesDeclinedCard, customerMarks } from './customerProfileView.js';
 import { repeatBadge, pastEvalView } from './customerHistoryView.js';
 import { hearingRows, hearingMeta } from './hearingView.js';
+import { evalOfVisit, evalStatus, pendingEvalCount } from './visitEval.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const HOUR_FROM = 8;
@@ -32,13 +33,27 @@ const BLOCK = {
   visiting: { box: 'bg-emerald-100 border-emerald-600 ring-2 ring-emerald-400', text: 'text-emerald-900', badge: '<span class="rounded px-1 text-[10px] font-bold bg-emerald-600 text-white animate-pulse">● 訪問中</span>' },
   done: { box: 'bg-slate-200 border-slate-400 opacity-80', text: 'text-slate-500', badge: '<span class="rounded px-1 text-[10px] font-bold bg-slate-600 text-white">✓ 完了</span>' },
 };
+// 訪問が完了した予定（昨日・今日）と、その訪問の記録の組。お客様の評価の登録状況を見るのに使う
+const doneVisitsOf = (s) => [-1, 0].flatMap((n) => eventsOfDay(n, s.user).map((e) => ({ e, v: doneVisitOf(s, e) }))).filter((x) => x.v);
+const evalPendingOf = (s, e, evals) => { const v = doneVisitOf(s, e); return Boolean(v) && evalStatus(v, evals) === 'pending'; };
+
+// 評価のモーダルを開くための情報（予定の訪問が完了していて、評価の対象のときだけ）
+export function evalTargetOf(s, eventId) {
+  const e = eventById(eventId);
+  const v = e && doneVisitOf(s, e);
+  if (!v || v.outcome) return null;
+  return { visitId: v.visitId, startedAt: v.startedAt, customer: { name: e.customer.name, phone: e.customer.phone }, existing: evalOfVisit(v, loadEvals()) };
+}
+
 const visitStateOf = (s, e) => (doneVisitOf(s, e) ? 'done' : s.visitEventId === e.id && isVisiting(s) ? 'visiting' : 'todo');
 
-function eventBlock(s, e, dayN) {
+function eventBlock(s, e, dayN, evals) {
   const top = ((toMin(e.start) - HOUR_FROM * 60) / 60) * HOUR_H;
   const h = Math.max(28, ((toMin(e.end) - toMin(e.start)) / 60) * HOUR_H - 2);
   const sel = s.sched.sel === e.id;
-  const st = dayN <= 0 ? BLOCK[visitStateOf(s, e)] : null; // 昨日の実績は完了、今日は状況で色分け、明日は予定のまま
+  const base = dayN <= 0 ? BLOCK[visitStateOf(s, e)] : null; // 昨日の実績は完了、今日は状況で色分け、明日は予定のまま
+  const pending = Boolean(base) && evalPendingOf(s, e, evals); // 訪問が完了しても、お客様の評価が未登録なら目立たせる
+  const st = pending ? { box: 'bg-rose-50 border-rose-600 ring-2 ring-rose-400', text: 'text-rose-900', badge: '<span class="rounded px-1 text-[10px] font-bold bg-rose-600 text-white animate-pulse">★ 評価未登録</span>' } : base;
   return `
   <button class="absolute left-1 right-1 rounded-md border-l-[6px] px-1.5 py-1 text-left overflow-hidden leading-tight ${st ? `${st.box} ${st.text}` : 'bg-indigo-50 border-indigo-500'} ${sel ? 'outline outline-2 outline-offset-1 outline-teal-500 shadow-lg' : 'shadow'}"
     style="top:${top}px;height:${h}px" data-action="sched-select" data-id="${e.id}">
@@ -49,11 +64,12 @@ function eventBlock(s, e, dayN) {
 }
 
 // 訪問が終わった予定をタップしたときの、訪問結果
-function resultPanel(s, e, v) {
+function resultPanel(s, e, v, evals) {
   const d = dayDate(e.day);
   const sold = v.items.filter((i) => i.sell);
   const skipped = v.items.filter((i) => !i.sell);
-  const ev = v.eval ?? loadEvals().find((x) => x.visitId === v.visitId);
+  const ev = evalOfVisit(v, evals);
+  const filled = evalStatus(v, evals) === 'done';
   const mins = Math.max(1, Math.round((v.endedAt - v.startedAt) / 60000));
   const row = (k, val) => `<div class="flex gap-2"><dt class="w-20 text-slate-500 shrink-0">${k}</dt><dd class="flex-1">${val}</dd></div>`;
   return `
@@ -71,16 +87,17 @@ function resultPanel(s, e, v) {
            ${sold.length ? `<div class="rounded-lg border divide-y text-sm">${sold.map((i) => `<div class="flex justify-between gap-2 px-2 py-1"><span class="min-w-0 truncate">${esc(i.name)}<span class="text-xs text-slate-400"> ランク${esc(i.rank)}・${i.qty}点</span></span><b class="shrink-0">${yen(i.price)}</b></div>`).join('')}</div>` : ''}
            ${skipped.length ? `<div class="text-xs text-slate-400">見送り：${skipped.map((i) => esc(i.name)).join('、')}</div>` : ''}
            ${v.briefing?.propose ? row('他商品の提案', v.briefing.propose === 'yes' ? '提案してよい（お客様の回答）' : '提案は不要（お客様の回答）') : ''}
-           ${row('お客様評価', ev ? `<span class="text-amber-500 text-lg">${'★'.repeat(ev.overall)}</span><span class="text-slate-300 text-lg">${'★'.repeat(5 - ev.overall)}</span>${ev.memo ? `<span class="block text-xs text-slate-500 whitespace-pre-wrap">${esc(ev.memo)}</span>` : ''}` : '<span class="text-slate-400">未登録</span>')}`}
+           ${row('お客様評価', filled ? `<span class="text-amber-500 text-lg">${'★'.repeat(ev.overall)}</span><span class="text-slate-300 text-lg">${'★'.repeat(5 - ev.overall)}</span>${ev.memo ? `<span class="block text-xs text-slate-500 whitespace-pre-wrap">${esc(ev.memo)}</span>` : ''}<button class="text-xs underline text-teal-700 mt-1" data-action="eval-open" data-id="${e.id}">評価を修正する</button>` : '<b class="text-rose-600">未登録</b>')}`}
     </dl>
+    ${!v.outcome && !filled ? `<button class="btn w-full !min-h-[52px] !py-2 bg-rose-600 text-white font-bold animate-pulse" data-action="eval-open" data-id="${e.id}">⭐ お客様の評価を登録する</button><p class="text-xs text-rose-700 -mt-1">訪問が終わったら、お客様の評価を登録してください（お客様には見せません）。</p>` : ''}
   </div>`;
 }
 
-function detailPanel(s) {
+function detailPanel(s, evals) {
   const e = eventById(s.sched.sel);
   if (!e) return '<div class="card !p-4 text-slate-400 text-center">予定をタップすると詳細が出ます。</div>';
   const doneVisit = doneVisitOf(s, e);
-  if (doneVisit) return resultPanel(s, e, doneVisit);
+  if (doneVisit) return resultPanel(s, e, doneVisit, evals);
   const d = dayDate(e.day);
   const visiting = isVisiting(s);
   const h = historyOf(e.customer);
@@ -107,8 +124,18 @@ function detailPanel(s) {
   </div>`;
 }
 
+// 評価が未登録の訪問があるとき、予定表の上に出す帯。名前をタップすると、評価のモーダルが開く
+function pendingEvalBanner(s, evals) {
+  const list = doneVisitsOf(s).filter(({ v }) => evalStatus(v, evals) === 'pending');
+  if (!list.length) return '';
+  return `<div class="flex items-center gap-2 flex-wrap bg-rose-50 border-b-2 border-rose-400 px-3 py-2">
+    <span class="font-bold text-sm text-rose-700">⭐ お客様の評価が未登録です（${pendingEvalCount(list.map((x) => x.v), evals)}件）</span>
+    ${list.map(({ e }) => `<button class="rounded-full bg-rose-600 text-white text-xs font-bold px-3 min-h-[36px] animate-pulse" data-action="eval-open" data-id="${e.id}">${esc(e.customer.name)} 様 ${e.start}</button>`).join('')}</div>`;
+}
+
 function calendarBody(s) {
   const now = new Date();
+  const evals = loadEvals();
   const days = [-1, 0, 1].map((n) => ({ n, date: dayDate(n, now), events: eventsOfDay(n, s.user) })); // 前日（実績）・今日・明日
   const hours = Array.from({ length: HOUR_TO - HOUR_FROM }, (_, i) => HOUR_FROM + i);
   const nowTop = ((now.getHours() * 60 + now.getMinutes() - HOUR_FROM * 60) / 60) * HOUR_H;
@@ -122,6 +149,7 @@ function calendarBody(s) {
           <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-emerald-100 border-2 border-emerald-600"></span>訪問中</span>
           <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-slate-200 border-2 border-slate-400"></span>完了</span></span>
         <span class="text-sm text-slate-500">${days[0].date.getMonth() + 1}/${days[0].date.getDate()}〜${days[2].date.getMonth() + 1}/${days[2].date.getDate()}</span></div>
+      ${pendingEvalBanner(s, evals)}
       <div class="grid grid-cols-[3.2rem_repeat(3,1fr)] border-b">
         <div></div>
         ${days.map((d) => `<div class="text-center py-1.5 border-l ${d.n === 0 ? 'bg-teal-50/60' : ''}">
@@ -133,13 +161,13 @@ function calendarBody(s) {
         <div class="grid grid-cols-[3.2rem_repeat(3,1fr)] relative" style="height:${hours.length * HOUR_H}px">
           <div class="relative">${hours.map((h, i) => `<div class="absolute right-1 text-[11px] text-slate-400 -translate-y-1/2" style="top:${i * HOUR_H}px">${i === 0 ? '' : `${h}:00`}</div>`).join('')}</div>
           ${days.map((d) => `<div class="relative border-l" style="background-image:repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_H - 1}px, rgba(148,163,184,.35) ${HOUR_H - 1}px, rgba(148,163,184,.35) ${HOUR_H}px)">
-            ${d.events.map((e) => eventBlock(s, e, d.n)).join('')}
+            ${d.events.map((e) => eventBlock(s, e, d.n, evals)).join('')}
             ${d.n === 0 && nowTop > 0 && nowTop < hours.length * HOUR_H ? `<div class="absolute left-0 right-0 z-10 pointer-events-none" style="top:${nowTop}px"><div class="h-0.5 bg-rose-500"></div><div class="w-2.5 h-2.5 rounded-full bg-rose-500 -mt-1.5 -ml-1"></div></div>` : ''}
           </div>`).join('')}
         </div>
       </div>
     </div>
-    <div class="w-80 shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[42%] overflow-y-auto min-h-0" data-scroll="schedDetail">${detailPanel(s)}</div>
+    <div class="w-80 shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[42%] overflow-y-auto min-h-0" data-scroll="schedDetail">${detailPanel(s, evals)}</div>
   </div>`;
 }
 
