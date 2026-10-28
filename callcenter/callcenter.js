@@ -55,6 +55,8 @@ let cvArea = 'osaka'; // 訪問カレンダーのエリア
 let cvMode = 'week'; // week=週の表（日 × 時間・濃さ）／day=その日だけ（営業ごとの列）
 let cvWeekStart = ymdOf(new Date()); // 週の表の先頭の日
 let cvDate = ymdOf(new Date()); // 日別で見ている日
+let cvStaff = []; // 営業で絞り込み（空なら全員）
+let cvStaffOpen = false;
 let calSel = null; // 前日確認を記録している訪問
 let callDraft = { result: 'reached', memo: '' }; // 記録の入力途中
 let menuOpen = false; // 左側のメニューの開閉
@@ -351,7 +353,7 @@ function render() {
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
   ${menuOpen ? menuView({ tab, badges: menuBadges() }) : ''}
-  ${tab === 'new' ? renderNew() : tab === 'calendar' ? calendarHtml({ areaId: cvArea, mode: cvMode, weekStart: cvWeekStart, date: cvDate, reservations: loadReservations(), today: ymdOf(new Date()), calSel, draft: callDraft, now: new Date() }) : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
+  ${tab === 'new' ? renderNew() : tab === 'calendar' ? calendarHtml({ areaId: cvArea, mode: cvMode, weekStart: cvWeekStart, date: cvDate, reservations: loadReservations(), today: ymdOf(new Date()), calSel, draft: callDraft, now: new Date(), staffSel: cvStaff, staffOpen: cvStaffOpen }) : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
   ${custInfoRid && tab === 'dispatch' ? customerModalHtml({ rid: custInfoRid, reservations: loadReservations(), now: new Date() }) : ''}
   ${staffInfoId && tab === 'dispatch' ? staffModalHtml({ userId: staffInfoId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
@@ -564,7 +566,10 @@ document.addEventListener('click', (e) => {
   else if ('new' in d) { editId = null; stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
   else if ('calllog' in d) { callLogOpen = !callLogOpen; renderHint(); }
   else if (d.chg) startEdit(d.chg);
-  else if (d.calarea) { cvArea = d.calarea; calSel = null; render(); }
+  else if (d.calarea) { cvArea = d.calarea; cvStaff = []; calSel = null; render(); } // エリアを変えたら、営業の絞り込みは外す
+  else if ('calstaffpanel' in d) { cvStaffOpen = !cvStaffOpen; render(); }
+  else if ('calstaffclear' in d) { cvStaff = []; render(); }
+  else if (d.calstaff) { cvStaff = cvStaff.includes(d.calstaff) ? cvStaff.filter((id) => id !== d.calstaff) : [...cvStaff, d.calstaff]; calSel = null; render(); }
   else if (d.calday) { cvDate = d.calday; cvMode = 'day'; calSel = null; render(); }
   else if ('calweek' in d) { cvMode = 'week'; cvWeekStart = shiftYmd(cvDate, 0); calSel = null; render(); }
   else if (d.calshift) { if (cvMode === 'week') cvWeekStart = shiftYmd(cvWeekStart, Number(d.calshift)); else cvDate = shiftYmd(cvDate, Number(d.calshift)); calSel = null; render(); }

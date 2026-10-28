@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { slotStarts, areaStaff, weekHeat, dayColumns, heatStyle } from '../src/visitCalendar.js';
+import { slotStarts, areaStaff, areaStaffOver, weekHeat, dayColumns, heatStyle } from '../src/visitCalendar.js';
 import { areaOfUser } from '../src/dispatch.js';
 
 const NOW = new Date(2026, 9, 29, 9, 0);
@@ -60,4 +60,27 @@ test('濃さの色: 空きは薄く、埋まるほど濃くなる。濃いとき
   assert.ok(a[0] < 0.15 && a[4] > 0.8);
   assert.equal(heatStyle(0.2).fg, 'text-slate-700');
   assert.equal(heatStyle(1).fg, 'text-white');
+});
+
+test('枠の訪問は、1件ずつ（お客様の名前・住所）。その時間に重なる訪問がすべて入る', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: dates[0], reservations: [], now: NOW });
+  const c = cols.find((x) => !x.absent && x.att.kind === 'present' && !x.blocks.some((b) => b.start < 750 && b.end > 690));
+  assert.ok(c);
+  const heat = weekHeat({ areaId: 'osaka', dates, reservations: [rez(c.user.id, dates[0], '11:30', '12:30', { customer: { name: '山田 花子', address: '大阪府大阪市阿倍野区1-2-3' } })], now: NOW });
+  const slot = (m) => heat[0].slots[(m - 540) / 30];
+  const v = slot(690).visits.find((x) => x.userId === c.user.id);
+  assert.deepEqual([v.name, v.place, v.rid], ['山田 花子', '大阪府大阪市阿倍野区1-2-3', `T-${c.user.id}-${dates[0]}-11:30`]);
+  assert.ok(slot(720).visits.some((x) => x.userId === c.user.id)); // 12:00の枠にも（12:30まで）
+  assert.ok(!slot(750).visits.some((x) => x.rid === v.rid));
+  assert.equal(slot(690).busy, new Set(slot(690).visits.map((x) => x.userId)).size);
+});
+
+test('営業で絞り込む: 選んだ営業だけの列・人数・訪問になる（空なら全員）', () => {
+  const all = dayColumns({ areaId: 'osaka', date: dates[0], reservations: [], now: NOW });
+  const pick = all.slice(0, 2).map((c) => c.user.id);
+  const some = dayColumns({ areaId: 'osaka', date: dates[0], reservations: [], now: NOW, userIds: pick });
+  assert.deepEqual(some.map((c) => c.user.id), pick);
+  const heat = weekHeat({ areaId: 'osaka', dates, reservations: [], now: NOW, userIds: pick });
+  for (const d of heat) { assert.ok(d.total <= 2); for (const s of d.slots) assert.ok(s.visits.every((v) => pick.includes(v.userId))); }
+  assert.equal(areaStaffOver('osaka', dates, [], NOW).length >= all.length, true);
 });

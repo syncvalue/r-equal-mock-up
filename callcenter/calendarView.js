@@ -4,7 +4,7 @@ import { esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
 import { AREAS, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { CALL_RESULTS, confirmStatus, confirmDateOf, confirmPending } from '../src/confirmCall.js';
-import { slotStarts, weekHeat, dayColumns, heatStyle } from '../src/visitCalendar.js';
+import { slotStarts, weekHeat, dayColumns, heatStyle, areaStaffOver } from '../src/visitCalendar.js';
 import { minToHHMM } from '../src/reservations.js';
 import { dateLabel, statusBadge, attTag, attShade, blockCls, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
@@ -25,32 +25,37 @@ const miniMark = (r) => ({ none: '・未連絡', noanswer: '△不通', reached:
 const callCls = (b, r) => ({ reached: 'bg-emerald-600', noanswer: 'bg-amber-500 !text-slate-900' })[confirmStatus(r ?? {}).key] ?? blockCls(b);
 
 // 上の操作（エリア・週／日の移動）
-function barHtml({ areaId, mode, weekStart, date }) {
+function barHtml({ areaId, mode, weekStart, date, staff = [], staffSel = [], staffOpen = false }) {
   const areas = AREAS.map((a) => `<button class="chip ${a.id === areaId ? 'on' : ''}" data-calarea="${a.id}">${esc(a.name)}</button>`).join('');
   const nav = mode === 'week'
     ? `<button class="b b-sec !min-h-0 !py-1" data-calshift="-7" title="前の週">◀</button><b class="text-sm">${dateLabel(weekStart)}〜${dateLabel(shift(weekStart, 6))}</b><button class="b b-sec !min-h-0 !py-1" data-calshift="7" title="次の週">▶</button>`
     : `<button class="b b-sec !min-h-0 !py-1" data-calshift="-1" title="前の日">◀</button><b class="text-sm">${dateLabel(date)}</b><button class="b b-sec !min-h-0 !py-1" data-calshift="1" title="次の日">▶</button><button class="b b-sec !min-h-0 !py-1 text-xs" data-calweek>週の表に戻る</button>`;
   return `<div class="flex flex-wrap items-center gap-2"><span class="flex flex-wrap items-center gap-1"><span class="text-xs font-bold text-slate-500">エリア</span>${areas}</span>
-    <span class="flex items-center gap-2">${nav}<button class="b b-sec !min-h-0 !py-1 text-xs" data-caltoday>今日</button></span></div>`;
+    <span class="flex items-center gap-2">${nav}<button class="b b-sec !min-h-0 !py-1 text-xs" data-caltoday>今日</button></span></div>
+    <div><div class="flex flex-wrap items-center gap-2"><button class="chip ${staffSel.length ? 'on' : ''}" data-calstaffpanel>👥 営業を絞る ${staffOpen ? '▲' : '▼'}</button>
+      <span class="text-xs ${staffSel.length ? 'font-bold text-teal-800' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${staff.filter((u) => staffSel.includes(u.id)).map((u) => esc(u.name)).join('・')}` : `全員（${staff.length}名）を表示`}</span>
+      ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-calstaffclear>解除</button>' : ''}</div>
+      ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((u) => `<button class="chip ${staffSel.includes(u.id) ? 'on' : ''}" data-calstaff="${u.id}">${esc(u.name)}</button>`).join('')}</div>` : ''}</div>`;
 }
 
 const legendHtml = () => `<span class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">濃さ（訪問が入っている営業の割合）
   <span class="inline-flex items-center gap-0.5">薄い（空き）${[0, 0.25, 0.5, 0.75, 1].map((r) => `<i class="inline-block h-3 w-5 rounded-sm" style="background:${heatStyle(r).bg}"></i>`).join('')}濃い（埋まっている）</span>
-  <span>数字＝その時間に訪問中の営業の人数</span></span>`;
+  <span>枠の中＝その時間の訪問（お客様のお名前と、住所の先頭10文字）</span></span>`;
 
 // 週の表: 縦=時間、横=日付。セルは、訪問が入っている営業の人数。日付や枠を押すと、その日だけ（営業ごとの列）
-function weekHtml({ areaId, weekStart, reservations, today, now }) {
+function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [] }) {
   const dates = Array.from({ length: 7 }, (_, i) => shift(weekStart, i));
-  const heat = weekHeat({ areaId, dates, reservations, now });
-  const inArea = reservations.filter((r) => r.areaId === areaId);
+  const heat = weekHeat({ areaId, dates, reservations, now, userIds: staffSel });
+  const inArea = reservations.filter((r) => r.areaId === areaId && (!staffSel.length || staffSel.includes(r.userId)));
   const pending = confirmPending(inArea, today);
   const head = heat.map((d) => { const p = parts(d.date); const n = pending.filter((r) => r.date === d.date).length;
     return `<th class="px-0.5 py-0.5 text-center text-xs font-bold leading-tight ${headCls(p.w)} ${d.date === today ? 'bg-teal-100' : ''}"><button class="w-full rounded hover:bg-slate-100" data-calday="${d.date}" title="この日だけを、営業ごとに見る">${p.m}/${p.d}<br /><span class="text-[10px]">${WEEK[p.w]}${d.total ? '' : '（営業なし）'}</span></button>${n ? `<div class="text-[10px] font-bold text-rose-600" title="今日、前日確認の連絡をする訪問（まだつながっていない）">前日確認 未${n}</div>` : ''}</th>`; }).join('');
   const rows = slotStarts().map((start, i) => `<tr><th class="pr-1 text-right text-[11px] font-normal text-slate-500 whitespace-nowrap">${minToHHMM(start)}</th>${heat.map((d) => {
     const s = d.slots[i]; const h = heatStyle(s.ratio);
-    return `<td class="p-0.5"><button class="block h-7 w-full rounded text-sm font-bold ${h.fg} hover:ring-2 hover:ring-teal-600" style="background:${h.bg}" data-calday="${d.date}" title="${esc(`${dateLabel(d.date)} ${minToHHMM(start)}〜　訪問中 ${s.busy}名／働く営業 ${s.total}名（空き ${s.total - s.busy}名）`)}">${s.busy || ''}</button></td>`;
+    const lines = s.visits.map((v) => `<span class="block truncate text-left text-[11px] leading-tight"><b>${esc(v.name)}</b> ${esc(Array.from(v.place).slice(0, 10).join(''))}</span>`).join('');
+    return `<td class="p-0.5 align-top"><button class="block min-h-7 w-full space-y-0.5 rounded px-1 py-0.5 ${h.fg} hover:ring-2 hover:ring-teal-600" style="background:${h.bg}" data-calday="${d.date}" title="${esc(`${dateLabel(d.date)} ${minToHHMM(start)}〜　訪問中 ${s.busy}名／働く営業 ${s.total}名（空き ${s.total - s.busy}名）${s.visits.map((v) => `\n${v.name}　${v.place}`).join('')}`)}">${lines}</button></td>`;
   }).join('')}</tr>`).join('');
-  return `<div class="rounded-lg border bg-white p-2"><div class="overflow-x-auto"><table class="w-full table-fixed border-separate border-spacing-0"><colgroup><col style="width:3.2rem" />${heat.map(() => '<col />').join('')}</colgroup>
+  return `<div class="rounded-lg border bg-white p-2"><div class="overflow-x-auto"><table class="w-full table-fixed border-separate border-spacing-0" style="min-width:${3.2 + 7 * 11}rem"><colgroup><col style="width:3.2rem" />${heat.map(() => '<col />').join('')}</colgroup>
     <thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div><div class="mt-1">${legendHtml()}</div></div>`;
 }
 
@@ -94,8 +99,8 @@ function callPanelHtml(r, draft) {
 }
 
 // 右の一覧: その日の、このエリアの訪問（受付）。ひとりずつ前日確認を記録する
-function dayListHtml({ areaId, date, reservations, today, calSel, draft }) {
-  const list = reservations.filter((r) => r.areaId === areaId && r.status !== 'cancelled' && r.date === date).sort((a, b) => toMin(a.start) - toMin(b.start));
+function dayListHtml({ areaId, date, reservations, today, calSel, draft, staffSel = [] }) {
+  const list = reservations.filter((r) => r.areaId === areaId && r.status !== 'cancelled' && r.date === date && (!staffSel.length || staffSel.includes(r.userId))).sort((a, b) => toMin(a.start) - toMin(b.start));
   const due = confirmDateOf(date) === today;
   const row = (r) => `<div class="rounded-lg border p-2 ${confirmStatus(r).key === 'reached' ? 'border-emerald-400 bg-emerald-50' : 'bg-white'} ${calSel === r.id ? 'border-teal-600 ring-2 ring-teal-200' : ''}">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-1"><b>${esc(r.start)}〜${esc(r.end)}</b><b>${esc(r.customer.name)} 様</b>${statusBadge(r)}${statusChip(r)}
@@ -110,11 +115,13 @@ function dayListHtml({ areaId, date, reservations, today, calSel, draft }) {
     ${list.length ? list.map(row).join('') : '<div class="rounded-lg bg-slate-100 py-8 text-center text-sm text-slate-500">この日の受付した訪問はありません</div>'}</div>`;
 }
 
-export function calendarHtml(x) {
-  const { areaId, mode, reservations, now = new Date() } = x;
+export function calendarHtml(x0) {
+  const { areaId, mode, reservations, now = new Date() } = x0;
+  const span = mode === 'week' ? Array.from({ length: 7 }, (_, i) => shift(x0.weekStart, i)) : [x0.date];
+  const x = { ...x0, staff: areaStaffOver(areaId, span, reservations, now) };
   const body = mode === 'week'
     ? `<div class="min-h-0 flex-1 overflow-y-auto">${weekHtml({ ...x, now })}</div>`
-    : `<div class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)] gap-3"><div class="min-h-0 overflow-y-auto">${dayGridHtml({ cols: dayColumns({ areaId, date: x.date, reservations, now }).map((c) => ({ ...c, reservationOf: (id) => reservations.find((r) => r.id === id) })), date: x.date, calSel: x.calSel })}</div>
+    : `<div class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)] gap-3"><div class="min-h-0 overflow-y-auto">${dayGridHtml({ cols: dayColumns({ areaId, date: x.date, reservations, now, userIds: x.staffSel ?? [] }).map((c) => ({ ...c, reservationOf: (id) => reservations.find((r) => r.id === id) })), date: x.date, calSel: x.calSel })}</div>
       <div class="min-h-0 overflow-y-auto pr-1">${dayListHtml(x)}</div></div>`;
   return `<div class="flex h-[calc(100vh-52px)] flex-col gap-2 p-3">${barHtml(x)}${body}</div>`;
 }

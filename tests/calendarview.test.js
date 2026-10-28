@@ -76,3 +76,27 @@ test('日別: 前日確認が連絡済みの帯は緑、不通は橙、未連絡
   assert.ok(text(html(undefined)).includes('前日確認： 連絡済み'));
   assert.ok(calendarHtml({ ...base, mode: 'day', reservations: [rec({ confirmCalls: call('reached') })] }).includes('border-emerald-400')); // 一覧の行も緑
 });
+
+
+test('週の表: 枠の中は、訪問を1件1行で、お名前と住所の先頭10文字（数字ではない）', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const u = cols.find((c) => !c.absent && c.att.kind === 'present' && !c.blocks.some((b) => b.start < 750 && b.end > 690)).user;
+  const h = calendarHtml({ ...base, reservations: [rec({ userId: u.id, start: '11:30', end: '12:30', customer: { name: '山田 花子', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3' } })] });
+  assert.ok(h.includes('<b>山田 花子</b> 大阪府大阪市阿倍野区'));
+  assert.ok(!h.includes('</b> 大阪府大阪市阿倍野区阿')); // 先頭10文字まで（吹き出しには全文）
+  assert.ok(text(h).includes('枠の中＝その時間の訪問'));
+});
+
+test('営業で絞り込む: ボタン・営業の選択肢・絞り込み中の表示。選んだ営業の訪問だけが残る（週・日別とも）', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const [a, b] = cols.filter((c) => !c.absent && c.att.kind === 'present').map((c) => c.user);
+  const list = [rec({ id: 'A', userId: a.id, customer: { name: '甲野 太郎', address: '大阪府A' } }), rec({ id: 'B', userId: b.id, customer: { name: '乙川 次郎', address: '大阪府B' } })];
+  assert.ok(calendarHtml({ ...base, reservations: list }).includes('data-calstaffpanel'));
+  const open = calendarHtml({ ...base, reservations: list, staffOpen: true });
+  assert.ok(open.includes(`data-calstaff="${a.id}"`) && open.includes(`data-calstaff="${b.id}"`));
+  const week = calendarHtml({ ...base, reservations: list, staffSel: [a.id] });
+  assert.ok(week.includes('甲野 太郎') && !week.includes('乙川 次郎'));
+  assert.ok(text(week).includes('絞り込み中（1名）') && week.includes('data-calstaffclear'));
+  const day = calendarHtml({ ...base, mode: 'day', reservations: list, staffSel: [a.id] });
+  assert.ok(day.includes('甲野 太郎') && !day.includes('乙川 次郎') && !day.includes(`>${b.name}<`));
+});
