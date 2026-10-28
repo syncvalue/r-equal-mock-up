@@ -79,7 +79,7 @@ const initialState = () => ({
   mlimit: 40,
   recent: loadRecent(),
   labels: {},
-  sealColors: {}, // シールの色（枠ごと）。紫・赤は本社へ納入する高額品
+  sealColors: {}, // シールの色（枠ごと）。紫・赤は、のちに本社へ移す高額品
   labelError: null,
   contract: null,
   appraisals: [],
