@@ -87,6 +87,7 @@ test('コールセンターのクーリングオフ: 進捗一覧に、対応中
   for (const k of ['対応中', '完了・対応不可', '倉庫の回答', '代金の返還', '倉庫に問い合わせ中', '返送済み・代金の返還待ち', '完了', '対応不可', '売却済みのため']) assert.ok(p.includes(k), k);
   assert.ok(!p.includes('data-ship') && !p.includes('data-inq-ok') && !p.includes('data-return-done')); // オペレーターは、回答・返送・完了の操作はできない
   const page = cooloffPage({ q: '山田', filtersInner: 'FL', resultsInner: 'R', formInner: 'F', progressInner: 'P' });
+  assert.ok(page.includes('grid-rows-[minmax(0,1fr)]')); // 行が中身の高さまで伸びると、左右それぞれの縦スクロールが効かない
   for (const k of ['data-co-q', 'id="co-filters"', 'id="co-zoom"', 'id="co-results"', 'id="co-form"', 'id="co-progress"', 'value="山田"']) assert.ok(page.includes(k), k);
 });
 

@@ -60,11 +60,11 @@ function formHtml(f, stores, cal) {
       <label class="text-sm font-bold">時刻<select class="inp mt-1 font-normal" data-st="time">${TIMES.map((t) => `<option ${t === f.time ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
     </div>
     ${slotsHtml(f, cal)}
-    <div class="grid sm:grid-cols-4 gap-3">
+    <div class="grid sm:grid-cols-3 gap-3">
       <label class="text-sm font-bold">電話番号<span class="text-rose-600">＊</span><input class="inp mt-1 font-normal" data-st="phone" value="${esc(f.phone)}" placeholder="090-0000-0000" inputmode="tel" /></label>
       <label class="text-sm font-bold">お名前<span class="text-rose-600">＊</span><input class="inp mt-1 font-normal" data-st="name" value="${esc(f.name)}" placeholder="例: 山田 花子" /></label>
       <label class="text-sm font-bold">フリガナ<input class="inp mt-1 font-normal" data-st="kana" value="${esc(f.kana)}" placeholder="ヤマダ ハナコ" /></label>
-      <label class="text-sm font-bold sm:col-span-2">売りたいもの<input class="inp mt-1 font-normal" data-st="wants" value="${esc(f.wants)}" placeholder="例: 腕時計 2本、ブランドバッグ" /></label>
+      <label class="text-sm font-bold sm:col-span-3">売りたいもの<textarea class="inp mt-1 font-normal" rows="4" data-st="wants" placeholder="例: 腕時計 2本&#10;ブランドバッグ（ヴィトン）">${esc(f.wants)}</textarea></label>
     </div>
     <div id="st-hint">${pastCustomerHtml(f.phone)}</div>
     <button class="b b-pri" data-st-save>予約を受け付ける</button>
@@ -77,15 +77,16 @@ function listHtml(upcoming, stores) {
   return days.map((day) => `<div class="space-y-1"><div class="font-bold text-sm border-b pb-0.5">${dayLabel(day)}</div>
     ${upcoming.filter((v) => v.date === day).map((v) => `<div class="rounded-lg border bg-white p-2 flex flex-wrap items-center gap-3">
       <b class="w-12">${esc(v.time)}</b><span class="rounded bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-0.5">${esc(storeNameOf(v.storeId, stores))}</span>
-      <span class="font-bold">${esc(v.customer.name)} 様</span><span class="text-xs text-slate-500">📞 ${esc(v.customer.phone)}${v.wants ? ` ／ ${esc(v.wants)}` : ''} ／ 受付: ${esc(v.createdBy)}</span>
+      <span class="font-bold">${esc(v.customer.name)} 様</span><span class="text-xs text-slate-500">📞 ${esc(v.customer.phone)}${v.wants ? ` ／ <span class="whitespace-pre-line">${esc(v.wants)}</span>` : ''} ／ 受付: ${esc(v.createdBy)}</span>
       <span class="ml-auto flex items-center gap-1"><select class="inp !w-40 !py-1 text-xs" data-st-reason="${esc(v.id)}">${CANCEL_REASONS.map((r) => `<option>${esc(r)}</option>`).join('')}</select><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs text-rose-700" data-st-cancel="${esc(v.id)}">取消</button></span></div>`).join('')}</div>`).join('');
 }
 
 // ctx: { form, stores（全店舗）, upcoming, cal（空き状況のカレンダー。なければ出さない） }
 export function storeTabHtml({ form, stores, upcoming, cal = null }) {
   const active = activeStores(stores);
-  return `<div class="p-4 space-y-4 max-w-5xl mx-auto">${formHtml(form, active, cal)}
-    <section class="space-y-2"><h2 class="font-bold">これからの来店予約 <span class="text-slate-500 text-sm">${upcoming.length}件</span></h2><div data-st-list>${listHtml(upcoming, stores)}</div></section></div>`;
+  return `<div class="grid h-[calc(100vh-52px)] grid-cols-[minmax(0,1fr)_minmax(24rem,32rem)] grid-rows-[minmax(0,1fr)] gap-4 p-4">
+    <div class="min-h-0 overflow-y-auto pr-1">${formHtml(form, active, cal)}</div>
+    <section class="min-h-0 space-y-2 overflow-y-auto pr-1"><h2 class="font-bold">これからの来店予約 <span class="text-slate-500 text-sm">${upcoming.length}件</span></h2><div data-st-list>${listHtml(upcoming, stores)}</div></section></div>`;
 }
 
 export function createStoreTab({ operator, rerender, flash }) {

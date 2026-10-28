@@ -123,7 +123,7 @@ export function progressHtml(returns, units, chat = { open: [], draft: {} }) {
 
 // タブ全体。手がかりの入力・検索結果・依頼の入力・進捗一覧は、それぞれ独立して作り直せるよう、入れ物（id）をつける
 export function cooloffPage({ q, filtersInner, resultsInner, formInner, progressInner }) {
-  return `<div class="grid grid-cols-[minmax(30rem,42rem)_1fr] gap-4 p-4 overflow-hidden h-[calc(100vh-52px)]">
+  return `<div class="grid grid-cols-[minmax(30rem,42rem)_1fr] grid-rows-[minmax(0,1fr)] gap-4 p-4 overflow-hidden h-[calc(100vh-52px)]">
     <section class="space-y-3 overflow-y-auto pr-1">
       <div class="rounded-xl border bg-white p-3 space-y-2">
         <div class="font-bold">📞 クーリングオフの受電${helpIcon('専用の番号に電話が入ったら、お客様の手がかりで商品を探し、写真を見ながら「これですか」と確認して、依頼を作ります。\n依頼は倉庫に届き、倉庫が回答・返送します。')}</div>

@@ -35,7 +35,7 @@ function card(v, { profileOf, tone }) {
   const cancelNote = v.status === 'cancelled' ? `<span class="text-xs text-slate-500">理由: ${esc(v.cancelReason)}（${esc(v.cancelledBy)}）</span>` : '';
   return `<div class="rounded-lg border bg-white p-3 space-y-1 ${tone}">
     <div class="flex flex-wrap items-center gap-2"><b>${esc(v.customer.name)} 様</b>${marks(p)}<span class="text-xs text-slate-500">${when}</span>${v.status === 'serving' ? `<span class="text-xs text-indigo-700 font-bold">対応: ${esc(v.staffName)}</span>` : ''}${result}${v.status === 'noshow' ? '<span class="text-xs text-slate-500">来ず</span>' : ''}</div>
-    <div class="text-xs text-slate-600">${v.customer.phone ? `📞 ${esc(v.customer.phone)}` : '電話番号: 未入力'}${v.wants ? ` ／ 売りたいもの: ${esc(v.wants)}` : ''}${v.source === 'reserved' && v.createdBy ? ` ／ 受付: ${esc(v.createdBy)}` : ''}</div>
+    <div class="text-xs text-slate-600">${v.customer.phone ? `📞 ${esc(v.customer.phone)}` : '電話番号: 未入力'}${v.wants ? ` ／ 売りたいもの: <span class="whitespace-pre-line">${esc(v.wants)}</span>` : ''}${v.source === 'reserved' && v.createdBy ? ` ／ 受付: ${esc(v.createdBy)}` : ''}</div>
     ${cancelNote}${ops ? `<div class="flex flex-wrap gap-2 pt-1">${ops}</div>` : ''}</div>`;
 }
 

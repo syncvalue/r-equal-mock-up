@@ -90,3 +90,20 @@ test('空きの枠を押すと、来店の日・時刻に入る。週を動か�
   assert.equal(tab.click({ stWeek: '7' }, null), true);
   assert.ok(rendered >= 3);
 });
+
+test('売りたいものは複数行の入力欄。改行は、保存しても、一覧に出しても残る', () => {
+  const day = ymd(tomorrow);
+  const html = storeTabHtml({ form: blankStoreForm('S-NAMBA', day), stores: DEFAULT_STORES, upcoming: [] });
+  assert.match(html, /<textarea[^>]*data-st="wants"/);
+  const r = V.reserveVisit([], { storeId: 'S-NAMBA', date: day, time: '14:00', name: '山田', phone: '090-1', wants: '腕時計 2本\nブランドバッグ', by: '佐藤' }, { storeIds: ['S-NAMBA'], now: NOW });
+  assert.equal(r.visit.wants, '腕時計 2本\nブランドバッグ');
+  const list = storeTabHtml({ form: blankStoreForm('S-NAMBA', day), stores: DEFAULT_STORES, upcoming: [r.visit] });
+  assert.match(list, /whitespace-pre-line[^>]*>腕時計 2本\nブランドバッグ</);
+});
+
+test('画面は、PCの幅いっぱいに、左に入力・右に一覧の2列。それぞれ縦にスクロールできる（下にはみ出さない）', () => {
+  const html = storeTabHtml({ form: blankStoreForm('S-NAMBA', ymd(tomorrow)), stores: DEFAULT_STORES, upcoming: [] });
+  assert.ok(!html.includes('max-w-5xl'));
+  assert.ok(html.includes('grid-rows-[minmax(0,1fr)]')); // 行が中身の高さまで伸びると、内側のスクロールが効かない
+  assert.ok(html.includes('h-[calc(100vh-52px)]') && (html.match(/overflow-y-auto/g) || []).length >= 2);
+});
