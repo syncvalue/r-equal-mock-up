@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CALL_RESULTS, confirmDateOf, addConfirmCall, confirmStatus, confirmPending, monthCells } from '../src/confirmCall.js';
+import { CALL_RESULTS, confirmDateOf, addConfirmCall, confirmStatus, confirmPending } from '../src/confirmCall.js';
 
 const visit = (o = {}) => ({ id: 'R1', date: '2026-10-30', status: 'confirmed', ...o });
 const at = new Date(2026, 9, 29, 10, 5);
@@ -52,25 +52,4 @@ test('今日連絡する訪問（明日の訪問で、まだつながってい�
   ];
   assert.deepEqual(confirmPending(list, '2026-10-29').map((r) => r.id), ['a', 'c', 'f']);
   assert.deepEqual(confirmPending(list, '2026-10-30').map((r) => r.id), ['e']);
-});
-
-test('月のカレンダー: 日曜はじまりの週ごと。日ごとの件数（取消は除く）と、仮確定の件数', () => {
-  const list = [visit({ id: 'a' }), visit({ id: 'b', status: 'tentative' }), visit({ id: 'c', status: 'cancelled' }), visit({ id: 'd', date: '2026-09-28' })];
-  const weeks = monthCells('2026-10', list, '2026-10-29');
-  assert.ok(weeks.every((w) => w.length === 7));
-  assert.equal(weeks[0][0].date, '2026-09-27'); // 2026-10-01は木曜
-  assert.equal(weeks[0][0].inMonth, false);
-  const cells = weeks.flat();
-  const d30 = cells.find((c) => c.date === '2026-10-30');
-  assert.deepEqual([d30.count, d30.tentative, d30.inMonth], [2, 1, true]);
-  assert.equal(cells.find((c) => c.date === '2026-09-28').count, 1); // 前後の月の日にも件数を出す
-  assert.equal(cells.find((c) => c.date === '2026-10-29').today, true);
-  assert.equal(cells.at(-1).date, '2026-10-31');
-});
-
-test('カレンダーの日に、前日確認が未の件数を付ける（今日連絡する日＝明日の訪問だけ）', () => {
-  const list = [visit({ id: 'a' }), visit({ id: 'b', confirmCalls: [{ result: 'reached', memo: '', by: 'x', at: 1 }] })];
-  const cells = monthCells('2026-10', list, '2026-10-29').flat();
-  assert.equal(cells.find((c) => c.date === '2026-10-30').pending, 1);
-  assert.equal(monthCells('2026-10', list, '2026-10-20').flat().find((c) => c.date === '2026-10-30').pending, 0);
 });

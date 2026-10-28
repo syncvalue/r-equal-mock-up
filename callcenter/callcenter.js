@@ -43,6 +43,7 @@ const weekStartFor = (date) => {
   const today = ymdOf(new Date());
   return date >= weekStart && date <= end ? weekStart : date < today ? today : date;
 };
+const shiftYmd = (date, n) => { const [y, m, d] = date.split('-').map(Number); return ymdOf(new Date(y, m - 1, d + n)); }; // 訪問カレンダー用（過去にも動ける）
 const shiftDay = (date, n) => { const [y, m, d] = date.split('-').map(Number); const next = ymdOf(new Date(y, m - 1, d + n)); const today = ymdOf(new Date()); return next < today ? today : next; };
 const shiftWeek = (n) => { const [y, m, d] = weekStart.split('-').map(Number); const next = ymdOf(new Date(y, m - 1, d + n)); const today = ymdOf(new Date()); return next < today ? today : next; };
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
@@ -50,8 +51,10 @@ const digits = (s) => String(s ?? '').replace(/\D/g, '');
 const blankForm = () => makeBlankForm();
 
 let tab = 'new';
-let calYm = ymdOf(new Date()).slice(0, 7); // 訪問カレンダーの表示月
-let calDate = ymdOf(new Date()); // 選んだ日
+let cvArea = 'osaka'; // 訪問カレンダーのエリア
+let cvMode = 'week'; // week=週の表（日 × 時間・濃さ）／day=その日だけ（営業ごとの列）
+let cvWeekStart = ymdOf(new Date()); // 週の表の先頭の日
+let cvDate = ymdOf(new Date()); // 日別で見ている日
 let calSel = null; // 前日確認を記録している訪問
 let callDraft = { result: 'reached', memo: '' }; // 記録の入力途中
 let menuOpen = false; // 左側のメニューの開閉
@@ -348,7 +351,7 @@ function render() {
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
   ${menuOpen ? menuView({ tab, badges: menuBadges() }) : ''}
-  ${tab === 'new' ? renderNew() : tab === 'calendar' ? calendarHtml({ ym: calYm, date: calDate, reservations: loadReservations(), today: ymdOf(new Date()), calSel, draft: callDraft }) : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
+  ${tab === 'new' ? renderNew() : tab === 'calendar' ? calendarHtml({ areaId: cvArea, mode: cvMode, weekStart: cvWeekStart, date: cvDate, reservations: loadReservations(), today: ymdOf(new Date()), calSel, draft: callDraft, now: new Date() }) : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
   ${custInfoRid && tab === 'dispatch' ? customerModalHtml({ rid: custInfoRid, reservations: loadReservations(), now: new Date() }) : ''}
   ${staffInfoId && tab === 'dispatch' ? staffModalHtml({ userId: staffInfoId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
@@ -561,9 +564,11 @@ document.addEventListener('click', (e) => {
   else if ('new' in d) { editId = null; stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
   else if ('calllog' in d) { callLogOpen = !callLogOpen; renderHint(); }
   else if (d.chg) startEdit(d.chg);
-  else if (d.calday) { calDate = d.calday; calYm = d.calday.slice(0, 7); calSel = null; render(); }
-  else if (d.calmonth) { const [y, m] = calYm.split('-').map(Number); calYm = ymdOf(new Date(y, m - 1 + Number(d.calmonth), 1)).slice(0, 7); render(); }
-  else if ('caltoday' in d) { calDate = ymdOf(new Date()); calYm = calDate.slice(0, 7); calSel = null; render(); }
+  else if (d.calarea) { cvArea = d.calarea; calSel = null; render(); }
+  else if (d.calday) { cvDate = d.calday; cvMode = 'day'; calSel = null; render(); }
+  else if ('calweek' in d) { cvMode = 'week'; cvWeekStart = shiftYmd(cvDate, 0); calSel = null; render(); }
+  else if (d.calshift) { if (cvMode === 'week') cvWeekStart = shiftYmd(cvWeekStart, Number(d.calshift)); else cvDate = shiftYmd(cvDate, Number(d.calshift)); calSel = null; render(); }
+  else if ('caltoday' in d) { cvDate = ymdOf(new Date()); cvWeekStart = cvDate; calSel = null; render(); }
   else if (d.callopen) { calSel = calSel === d.callopen ? null : d.callopen; callDraft = { result: 'reached', memo: '' }; render(); }
   else if (d.callresult) { callDraft = { ...callDraft, result: d.callresult }; render(); }
   else if (d.callsave) { // 前日確認の連絡の記録を足す（つながった・つながらなかった・お客様から告げられたこと）

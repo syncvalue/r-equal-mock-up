@@ -1,7 +1,7 @@
 // 左側の開閉式メニュー（経理部・倉庫・物流・営業のタブレットと同じ。☰ で開き、項目を選ぶか、外側・✕で閉じる）
 export const TABS = [
   { key: 'new', icon: '📞', label: '新規受付', sub: '電話の聞き取りと、仮確定（オペレーター）' },
-  { key: 'calendar', icon: '📅', label: '訪問カレンダー', sub: '訪問の予定と、前日確認の連絡' },
+  { key: 'calendar', icon: '📅', label: '訪問カレンダー', sub: 'エリアごとの訪問の予定と、前日確認の連絡' },
   { key: 'dispatch', icon: '🗓', label: '配車確定（配車係）', sub: '仮確定の訪問の確定と、営業の調整' },
   { key: 'cooloff', icon: '↩️', label: 'クーリングオフ', sub: '受電と依頼の作成、倉庫の対応の進み具合' },
   { key: 'store', icon: '🏬', label: '来店予約（店舗）', sub: '店舗への来店の予約' },
