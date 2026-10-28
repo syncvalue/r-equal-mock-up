@@ -20,7 +20,9 @@ const topOf = (m) => ((m - WORK_START) / SLOT_STEP) * DAY_ROW;
 const toMin = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
 
 export const statusChip = (r) => { const s = confirmStatus(r); return `<span class="rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_CLS[s.key]}">${s.label}</span>`; };
-const miniMark = (r) => ({ none: '・未', noanswer: '△不通', reached: '✔済' })[confirmStatus(r).key];
+const miniMark = (r) => ({ none: '・未連絡', noanswer: '△不通', reached: '✔連絡済み' })[confirmStatus(r).key];
+// 日別の帯の色: 連絡済みは緑、不通は橙。未連絡は、訪問の色（確定＝濃い青・仮確定＝薄い青）のまま
+const callCls = (b, r) => ({ reached: 'bg-emerald-600', noanswer: 'bg-amber-500 !text-slate-900' })[confirmStatus(r ?? {}).key] ?? blockCls(b);
 
 // 上の操作（エリア・週／日の移動）
 function barHtml({ areaId, mode, weekStart, date }) {
@@ -63,14 +65,16 @@ function dayGridHtml({ cols, date, calSel }) {
       const sel = b.rid && b.rid === calSel;
       const inner = `<b>${blockMark(b.source === 'reservation' ? b : { source: 'reservation', status: 'confirmed' })}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}`;
       const style = `top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px`;
+      const r = b.rid ? c.reservationOf?.(b.rid) : null;
       return b.rid
-        ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] text-white ${blockCls(b)} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style}" data-callopen="${b.rid}" title="前日確認を記録する">${inner}<span class="ml-0.5 rounded bg-white/90 px-1 font-bold text-slate-800">${miniMark(c.reservationOf?.(b.rid) ?? {})}</span></button>`
+        ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] text-white ${callCls(b, r)} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style}" data-callopen="${b.rid}" title="前日確認：${confirmStatus(r ?? {}).label}（押して記録）"><span class="mr-0.5 rounded bg-white px-1 font-bold text-slate-800">${miniMark(r ?? {})}</span>${inner}</button>`
         : `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls({ source: 'reservation', status: 'confirmed' })}" style="${style}" title="${esc(b.label)}">${inner}</div>`;
     }).join('');
     const away = c.absent ? '<div class="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-2"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : '';
     return `<div class="relative border-l" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)`}">${blocks}${attShade(c.att, DAY_ROW)}${away}</div>`;
   }).join('');
-  return `<div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div></div>`;
+  return `<div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>
+    <div class="mt-1 flex flex-wrap items-center gap-x-3 text-[11px] text-slate-600">前日確認：<span><i class="inline-block h-2.5 w-3 rounded-sm bg-emerald-600 align-middle"></i> 連絡済み</span><span><i class="inline-block h-2.5 w-3 rounded-sm bg-amber-500 align-middle"></i> 不通（つながっていない）</span><span><i class="inline-block h-2.5 w-3 rounded-sm bg-indigo-700 align-middle"></i> 未連絡（濃い青＝確定、薄い青＝仮確定）</span></div></div>`;
 }
 
 // 連絡の記録（これまでの履歴と、新しく記録する入力）
@@ -93,7 +97,7 @@ function callPanelHtml(r, draft) {
 function dayListHtml({ areaId, date, reservations, today, calSel, draft }) {
   const list = reservations.filter((r) => r.areaId === areaId && r.status !== 'cancelled' && r.date === date).sort((a, b) => toMin(a.start) - toMin(b.start));
   const due = confirmDateOf(date) === today;
-  const row = (r) => `<div class="rounded-lg border bg-white p-2 ${calSel === r.id ? 'border-teal-600 ring-2 ring-teal-200' : ''}">
+  const row = (r) => `<div class="rounded-lg border p-2 ${confirmStatus(r).key === 'reached' ? 'border-emerald-400 bg-emerald-50' : 'bg-white'} ${calSel === r.id ? 'border-teal-600 ring-2 ring-teal-200' : ''}">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-1"><b>${esc(r.start)}〜${esc(r.end)}</b><b>${esc(r.customer.name)} 様</b>${statusBadge(r)}${statusChip(r)}
       <button class="b b-sec ml-auto !min-h-0 !py-1 text-xs" data-callopen="${r.id}">${calSel === r.id ? '閉じる' : '前日確認を記録'}</button></div>
     <div class="mt-1 text-xs text-slate-600">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>

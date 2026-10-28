@@ -63,3 +63,16 @@ test('日別: 受付の帯と、営業の元からの予定の帯は、同じ色
   const h = calendarHtml({ ...base, mode: 'day', reservations: [] });
   assert.ok(h.includes('bg-indigo-700') && !h.includes('bg-slate-500'));
 });
+
+test('日別: 前日確認が連絡済みの帯は緑、不通は橙、未連絡は訪問の色のまま。印の文字と、凡例も出す', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
+  const call = (result) => [{ result, memo: '', by: '佐藤', at: 1 }];
+  const html = (confirmCalls) => calendarHtml({ ...base, mode: 'day', reservations: [rec({ userId: u.id, confirmCalls })] });
+  const btn = (h) => h.match(/<button class="absolute[^>]*data-callopen="R1"[^>]*>[\s\S]*?<\/button>/)[0];
+  assert.ok(btn(html(call('reached'))).includes('bg-emerald-600') && btn(html(call('reached'))).includes('✔連絡済み'));
+  assert.ok(btn(html(call('noanswer'))).includes('bg-amber-500') && btn(html(call('noanswer'))).includes('△不通'));
+  assert.ok(btn(html(undefined)).includes('bg-indigo-700') && btn(html(undefined)).includes('・未連絡'));
+  assert.ok(text(html(undefined)).includes('前日確認： 連絡済み'));
+  assert.ok(calendarHtml({ ...base, mode: 'day', reservations: [rec({ confirmCalls: call('reached') })] }).includes('border-emerald-400')); // 一覧の行も緑
+});
