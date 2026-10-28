@@ -7,7 +7,7 @@ import { WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY } from './store.js';
 import { loadUnits, SEAL_COLORS, sealColorOf } from './stock.js';
 import { carrierOf } from './shipping.js';
 import { dateKey } from './workday.js';
-import { warehouseIdOf, honshaOf, isHighValue } from './warehouseMaster.js';
+import { warehouseIdOf } from './warehouseMaster.js';
 
 // 法律上のクーリングオフは、書面を受け取った日から8日間。お客様の通知は郵送で届くため、余裕を見て10日間は販売せず保管する（返品もこの間は受け付ける）
 export const COOLING_OFF_DAYS = 10;
@@ -353,8 +353,8 @@ export function purchaseDays(state, now = Date.now(), n = 14) {
 
 const newReturnId = (at) => `RT-${at.toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
-// 問い合わせを受ける倉庫。入庫前の商品は、納入先になる倉庫（高額品は本社）
-export const inquiryWarehouseId = (unit, master) => (unit.status === 'stored' || !isHighValue(unit, master) ? warehouseIdOf(unit, master) : honshaOf(master)?.id ?? warehouseIdOf(unit, master));
+// 問い合わせを受ける倉庫。入庫前の商品は、納入先になる倉庫（高額品も、いったん倉庫に入る）
+export const inquiryWarehouseId = (unit, master) => warehouseIdOf(unit, master);
 
 // 受電した依頼を作る。受け付けられない商品は rejected に理由つきで返す（unknown／inProgress／returned／inTransit／inPacking）。売却済みの商品は、対応不可の依頼として記録する。
 // master を渡すと、商品が複数の倉庫（本社を含む）に分かれている契約は、倉庫ごとの依頼に分け、groupId で同じ契約として結びつける

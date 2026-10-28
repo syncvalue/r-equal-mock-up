@@ -280,10 +280,10 @@ const sealChip = (s, i) => {
   return n ? `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${n === i.qty ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">🏷 シール ${n}/${i.qty}</span>` : '';
 };
 
-// シールの色の選択。紫・赤は、本社で管理する高額品（納入のときから本社に入る）。黄・緑・青は、区別しない
+// シールの色の選択。紫・赤は、本社で管理する高額品（いったん倉庫に入庫し、倉庫間移動で本社へ移す）。黄・緑・青は、区別しない
 const colorChips = (s, key, size) => `<div class="flex flex-wrap items-center gap-1.5 mt-1.5"><span class="${size === 'xs' ? 'text-xs' : 'text-sm'} font-bold text-slate-500">シールの色</span>
   ${SEAL_COLORS.map((c) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${s.sealColors[key] === c.key ? 'active' : ''}" data-action="seal-color" data-key="${key}" data-value="${c.key}">${c.dot} ${c.label}</button>`).join('')}
-  ${s.sealColors[key] === 'purple' || s.sealColors[key] === 'red' ? '<span class="text-xs font-bold text-violet-700">本社へ納入</span>' : s.sealColors[key] ? '<span class="text-xs text-slate-400">倉庫へ納入</span>' : '<span class="text-xs text-rose-600 font-bold">選んでください</span>'}</div>`;
+  ${s.sealColors[key] === 'purple' || s.sealColors[key] === 'red' ? '<span class="text-xs font-bold text-violet-700">のちに本社へ移動</span>' : s.sealColors[key] ? '<span class="text-xs text-slate-400">倉庫へ納入</span>' : '<span class="text-xs text-rose-600 font-bold">選んでください</span>'}</div>`;
 
 // 商品の詳細モーダル内のシール貼付。買取明細の段階で、貼りながら進める場合に使う（あとの「シール紐づけ」で一括する場合は不要）
 function sealSection(s, item) {

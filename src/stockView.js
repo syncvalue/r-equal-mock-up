@@ -16,7 +16,7 @@ const dateLabel = (key) => {
 export const DEFAULT_STOCK = { scope: 'all', last: null };
 
 // 入庫の納入先（倉庫）は選ばない。自分の営業所に併設の倉庫に入り（なければ先頭の倉庫）、保管場所はクーリングオフ保管棚
-// 高額品（貴金属など）は、納入のときから本社に入る（営業は入庫せず、本社へ郵送・持参する）
+// 高額品（貴金属など）も、いったん倉庫に入り、倉庫間移動で本社へ移す（一覧に目印を出す）
 export const isHonshaItem = (u) => isHighValue(u, loadMaster());
 
 export const stockTarget = (s) => ({ ...receiveTarget(loadMaster(), areaOfUser(s.user)), location: COOLING_OFF_SHELF });
@@ -34,13 +34,13 @@ const unitRow = (u) => `
   <div class="flex items-center gap-3 rounded-xl border-2 px-3 py-2 min-h-[52px] ${u.status === 'stored' ? 'border-slate-200 bg-slate-100 text-slate-400' : u.status === 'missing' ? 'border-rose-300' : 'border-slate-200'}">
     <div class="flex-1 min-w-0">
       <div class="font-bold text-sm truncate">${esc(u.name)}${u.qty > 1 ? `（${u.n}/${u.qty}）` : ''}</div>
-      <div class="text-xs ${u.status === 'stored' ? 'text-slate-400' : 'text-slate-500'}"><span class="font-mono">${esc(u.code)}</span> ／ ${esc(u.category)} ／ ランク${esc(u.rank)} ／ ${yen(u.price)}</div>
+      <div class="text-xs ${u.status === 'stored' ? 'text-slate-400' : 'text-slate-500'}"><span class="font-mono">${esc(u.code)}</span> ／ ${esc(u.category)} ／ ランク${esc(u.rank)} ／ ${yen(u.price)}${isHonshaItem(u) ? ' ／ <b class="text-violet-700">高額品（あとで本社へ移動）</b>' : ''}</div>
     </div>
     ${u.status === 'stored'
       ? `<div class="text-right text-xs text-slate-500"><div class="font-bold">📍 ${esc(u.location)}</div><div>${fmtTime(u.storedAt)}</div></div>`
       : u.status === 'missing'
         ? '<span class="text-xs text-rose-600">シールを読み取れば入庫できます</span>'
-        : `${u.status === 'pending' && isHonshaItem(u) ? '<span class="rounded bg-violet-50 text-violet-800 text-xs font-bold px-2 py-0.5 whitespace-normal">高額品 → 本社へ</span>' : ''}<button class="btn btn-secondary !py-1 !px-3 !min-h-[40px] !text-sm text-rose-600" data-action="stock-missing" data-code="${esc(u.code)}">所在不明</button>`}
+        : `<button class="btn btn-secondary !py-1 !px-3 !min-h-[40px] !text-sm text-rose-600" data-action="stock-missing" data-code="${esc(u.code)}">所在不明</button>`}
     ${TAG[u.status]}
   </div>`;
 
@@ -99,8 +99,8 @@ function actionCard(s, mine) {
   const last = s.stock.last;
   return `
   <div class="card !p-4 w-[24rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[50%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="stockR">
-    <h3 class="font-bold text-lg">入庫する${helpIcon('シールの色が紫・赤の高額品は、納入のときから本社（保管場所）に入ります。\nここでは入庫せず、本社へ郵送・持参してください（本社で入庫します）。')}</h3>
-    <button class="btn btn-primary w-full text-xl !py-5" data-action="stock-scan" ${todo.some((u) => !isHonshaItem(u)) ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
+    <h3 class="font-bold text-lg">入庫する${helpIcon('シールの色が紫・赤の高額品も、ここでは、ほかの商品と同じように倉庫に入庫します。\nそのあと、倉庫の担当が、倉庫間移動で本社へ移します。')}</h3>
+    <button class="btn btn-primary w-full text-xl !py-5" data-action="stock-scan" ${todo.length ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
     <p class="text-xs text-slate-500 -mt-2">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
     ${last ? `<div class="rounded-xl border-2 p-3 text-sm font-bold ${last.ok ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-rose-50 border-rose-400 text-rose-700'}">${last.ok ? '✓' : '⚠'} ${esc(last.text)}</div>` : ''}
     <label class="block"><span class="font-bold text-sm">QRが読めないとき：シールNo.を入力（スキャナ・手入力）</span>

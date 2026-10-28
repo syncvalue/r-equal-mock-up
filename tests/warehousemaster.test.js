@@ -139,16 +139,14 @@ test('納入先の規則: 高額品は本社だけ、高額品以外は本社以
   assert.equal(M.destinationProblem({ ...HM, warehouses: HM.warehouses.filter((x) => !x.highValue) }, high, w.id), ''); // 本社が登録されていなければ、制限しない
 });
 
-test('営業の納入先（商品ごと）: 高額品は本社に自動で、それ以外は選んだ倉庫（本社は選べない）', () => {
+test('入庫: 色にかかわらず、営業所と一体の倉庫に入る（高額品も、いったん倉庫に入り、倉庫間移動で本社へ移す）。本社には、入庫ではなく移動でだけ入る', () => {
   const w = HM.warehouses.find((x) => x.officeId === 'osaka');
-  const high = { sealColor: 'purple' };
-  const normal = { sealColor: 'other' };
-  const th = M.receiveTargetFor(HM, high, 'osaka', { warehouseId: w.id, location: w.locations[1] });
-  assert.equal(th.warehouse.id, hon.id); assert.equal(th.location, hon.locations[0]);
-  const tn = M.receiveTargetFor(HM, normal, 'osaka', { warehouseId: w.id, location: w.locations[1] });
-  assert.equal(tn.warehouse.id, w.id); assert.equal(tn.location, w.locations[1]);
-  assert.equal(M.receiveTargetFor(HM, normal, 'osaka', { warehouseId: hon.id }).warehouse.id, w.id); // 本社は、通常の納入先に選べない
+  assert.equal(M.receiveTarget(HM, 'osaka', {}).warehouse.id, w.id);
   assert.ok(!M.receiveTarget(HM, 'nowhere', {}).warehouse.highValue); // 営業所に倉庫がなくても、本社にはならない
+  assert.equal(M.receiveTargetFor, undefined); // 色で納入先を変える仕組みはない
+  assert.equal(M.receiveProblem(HM, w.id), '');
+  assert.equal(M.receiveProblem(HM, hon.id), 'toHonsha'); // 本社への入庫は不可（移動で入る）
+  assert.equal(M.receiveProblem({ ...HM, warehouses: HM.warehouses.filter((x) => !x.highValue) }, w.id), '');
 });
 
 test('本社の登録: 本社（高額品の保管先）は1つだけ。高額品の判定の設定は保存できる', () => {

@@ -6,7 +6,7 @@ import { DEFAULT_EMPLOYEES, loadEmployees, warehouseStaffOf } from './employees.
 
 export const MASTER_KEY = 'rq-mock-warehouse-master';
 
-// 本社も、倉庫と同じ保管場所の1つ（highValue: 高額品の保管先）。貴金属などの高額品は、納入のときから本社に入り、それ以外は倉庫に入る。
+// 本社も、倉庫と同じ保管場所の1つ（highValue: 高額品の保管先）。貴金属などの高額品は、いったん倉庫に入庫し、倉庫間移動で本社へ移す（本社には、入庫ではなく移動でだけ入る）。
 // 初期値（ダミー）。大阪・関東は営業所と一体、福岡は倉庫のみ。兵庫・京都、東海の営業所には倉庫がない（営業のみ）
 export const DEFAULT_MASTER = {
   warehouses: [
@@ -67,19 +67,15 @@ export const warehouseIdOf = (unit, master) => unit.warehouseId ?? master.wareho
 // ---- 本社（高額品の保管先）---------------------------------------------------
 export const honshaOf = (master) => activeWarehouses(master).find((w) => w.highValue) ?? null;
 export const isHighValue = (unit, master) => (master.highValue?.colors ?? []).includes(unit.sealColor);
-// 納入先の規則: 高額品は本社だけ、高額品以外は本社以外の倉庫だけ（本社が登録されていなければ、制限しない）。'' は問題なし
+// 倉庫間移動の規則: 高額品は本社だけ、高額品以外は本社以外の倉庫だけ（本社が登録されていなければ、制限しない）。'' は問題なし
 export function destinationProblem(master, unit, warehouseId) {
   if (!honshaOf(master)) return '';
   const toHonsha = Boolean(warehouseById(master, warehouseId)?.highValue);
   const high = isHighValue(unit, master);
   return high && !toHonsha ? 'highToHonsha' : !high && toHonsha ? 'normalToWarehouse' : '';
 }
-// 商品ごとの納入先。高額品は本社に自動で、それ以外は選んだ倉庫（本社は選べない）
-export function receiveTargetFor(master, unit, officeId, sel = {}) {
-  const hon = honshaOf(master);
-  if (hon && isHighValue(unit, master)) return { warehouse: hon, location: hon.locations.includes(sel.location) ? sel.location : hon.locations[0] };
-  return receiveTarget(master, officeId, sel);
-}
+// 入庫の規則: 色にかかわらず、倉庫に入る。高額品も、いったん倉庫に入り、倉庫間移動で本社へ移す。本社には、入庫ではなく移動でだけ入る
+export const receiveProblem = (master, warehouseId) => (warehouseById(master, warehouseId)?.highValue ? 'toHonsha' : '');
 
 const newId = (prefix) => `${prefix}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 const toList = (v) => [...new Set((Array.isArray(v) ? v : String(v ?? '').split(/[,、\n]/)).map((x) => String(x).trim()).filter(Boolean))];
