@@ -170,10 +170,11 @@ test('住所の位置は、同じ住所なら毎回同じで、エリアの中�
 test('前後の訪問からの距離: 直前の予定がなければ、その側は出さない（営業所からの距離は見ない）', () => {
   const here = { lat: 34.7, lng: 135.5 };
   const blocks = [
-    { start: 600, end: 690, label: 'A 様', source: 'event', lat: 34.65, lng: 135.5 },
+    { start: 600, end: 690, label: 'A 様', source: 'event', lat: 34.65, lng: 135.5, place: '大阪府堺市堺区南瓦町1-1' },
     { start: 900, end: 960, label: 'B 様', source: 'event', lat: 34.75, lng: 135.5 },
   ];
   const t = travelAround(blocks, 750, 840, here);
+  assert.deepEqual([t.prev.place, t.prev.gap, t.next.place, t.next.gap], ['大阪府堺市堺区南瓦町1-1', 60, '', 60]); // 余白（分）= 前の終了から開始まで／終了から次の開始まで
   assert.deepEqual([t.prev.label, t.prev.at, t.next.label, t.next.at], ['A 様', 690, 'B 様', 900]);
   assert.ok(t.prev.km > 5 && t.prev.km < 6 && t.prev.min > 0); // 約5.6km
   const first = travelAround(blocks, 540, 600, here); // 一番最初の枠: 直前なし、直後はA様

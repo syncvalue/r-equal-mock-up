@@ -54,6 +54,24 @@ export const legHtml = (l, dir) => {
   return `${chip('次の訪問', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}開始）まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;
 };
 
+// 日別の表示で枠を選んだとき、前の訪問の住所から今回の住所までの距離・所要時間・余裕を、カレンダーのすぐ上に出す（概算。本実装はGoogleマップの2点間の距離）
+export function travelStripHtml(col, f) {
+  if (!col) return '';
+  const box = (cls, body) => `<div class="mb-1 rounded border px-2 py-1 text-xs ${cls}">${body}</div>`;
+  if (!String(f.address ?? '').trim()) return box('border-slate-200 bg-slate-50 text-slate-500', '🚗 住所を入力すると、前の訪問からの距離・所要時間が出ます');
+  const t = col.travel;
+  if (!t) return '';
+  const place = (v) => (v ? `（${esc(v)}）` : '');
+  const leg = (l, dir) => {
+    const over = l.min - l.gap;
+    const room = over > 0 ? `<b class="text-rose-600">⚠ 移動が間に合いません（あと${over}分足りない）</b>` : `<span class="text-emerald-700">余裕${-over}分</span>`;
+    const where = dir === 'prev' ? `<b>前の訪問</b> ${esc(l.label)}${place(l.place)} ${minToHHMM(l.at)}終了 → 今回（${esc(f.address.trim())}）まで` : `<b>次の訪問</b> ${esc(l.label)}${place(l.place)} ${minToHHMM(l.at)}開始 ← 今回から`;
+    return `<div>${where} <b class="text-slate-900">${l.km}km</b>・約${l.min}分　${room}</div>`;
+  };
+  const lines = [t.prev ? leg(t.prev, 'prev') : '<div>前の訪問なし（営業所からの距離は出しません）</div>', t.next ? leg(t.next, 'next') : ''].join('');
+  return box(t.prev && t.prev.min > t.prev.gap ? 'border-rose-300 bg-rose-50' : 'border-sky-200 bg-sky-50 text-slate-700', `<div class="font-bold text-slate-600">🚗 ${esc(col.user.name)} の移動（概算）</div>${lines}`);
+}
+
 // ---- 通話の文字起こし（デモ） -----------------------------------------------------------
 export const demoWindowHtml = (pos) => `<div id="demo-win" class="fixed z-50 w-[26rem] max-w-[calc(100vw-1rem)] rounded-lg bg-white shadow-2xl border-2 border-amber-400" style="left:${pos.x}px;top:${pos.y}px">
   <div class="flex items-center justify-between bg-amber-400 text-slate-900 rounded-t px-3 py-1.5 cursor-move select-none" data-drag><b class="text-sm">🎙 音声入力デモ（文字起こし）</b><button class="text-lg leading-none px-1" data-demo="close" title="閉じる">✕</button></div>
@@ -297,6 +315,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
       <div class="text-sm font-bold">${dh.md}（${dh.w}）<span class="font-normal text-xs text-slate-500 ml-2">${form.dur}分 ${minToHHMM(form.start)}〜${minToHHMM(end)}</span>${helpIcon('空いている枠を押すと、その営業・その時刻を選べます')}</div>
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="1" title="次の日">▶</button>
       <button class="chip ${onlyFree ? 'on' : ''}" data-onlyfree title="希望の時間に空いている営業だけを表示">空きのみ</button></div>
+ ${travelStripHtml(cols.find((c) => c.user.id === selectedId && !c.absent), form)}
     ${cols.length ? `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axisCol}${body}</div></div>` : '<div class="py-6 text-center text-sm text-slate-400">この時間に空いている営業がいません</div>'}
     <div class="mt-0.5">${legendHtml()}</div>
   </div>`;

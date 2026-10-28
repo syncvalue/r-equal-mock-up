@@ -128,16 +128,16 @@ export function locateAddress(address, area) {
 // 直前・直後の予定から、今回のお客様の住所までの距離。直前・直後の予定がなければ、その側は null。km は小数1桁、min は移動時間の目安（分）
 export function travelAround(blocks, start, end, here) {
   if (!here) return null;
-  const leg = (from, label, at) => {
+  const leg = (from, label, at, gap) => {
     if (!from || from.lat == null) return null;
     const km = Math.round(haversineKm(from, here) * 10) / 10;
-    return { label, at, km, min: Math.round((km * 60) / AVG_SPEED_KMH) };
+    return { label, at, km, min: Math.round((km * 60) / AVG_SPEED_KMH), place: from.place ?? '', gap }; // gap: 訪問と訪問のあいだの空き（分）
   };
   const before = [...blocks].filter((b) => b.end <= start).sort((a, b) => b.end - a.end)[0];
   const after = blocks.find((b) => b.start >= end);
   return {
-    prev: before ? leg(before, before.label, before.end) : null, // 直前の訪問がなければ、距離は出さない（営業所からの距離は見ない）
-    next: after ? leg(after, after.label, after.start) : null,
+    prev: before ? leg(before, before.label, before.end, start - before.end) : null, // 直前の訪問がなければ、距離は出さない（営業所からの距離は見ない）
+    next: after ? leg(after, after.label, after.start, after.start - end) : null,
   };
 }
 
