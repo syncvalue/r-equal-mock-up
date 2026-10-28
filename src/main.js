@@ -265,7 +265,7 @@ function receiveCode(raw) {
     showToast('入庫を保存できませんでした（保存容量不足）');
     return result;
   }
-  set({ stock: { ...state.stock, last: resultMessage(result) } });
+  set({ stock: { ...state.stock, last: result.type === 'ok' ? null : resultMessage(result) } }); // 入庫できたときは、メッセージを出さない（一覧が入庫済みに変わる）
   return result;
 }
 

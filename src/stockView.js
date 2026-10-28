@@ -102,7 +102,7 @@ function actionCard(s, mine) {
     <h3 class="font-bold text-lg">入庫する${helpIcon('シールの色が紫・赤の高額品も、ここでは、ほかの商品と同じように倉庫に入庫します。\nそのあと、倉庫の担当が、倉庫間移動で本社へ移します。')}</h3>
     <button class="btn btn-primary w-full text-xl !py-5" data-action="stock-scan" ${todo.length ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
     <p class="text-xs text-slate-500 -mt-2">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
-    ${last ? `<div class="rounded-xl border-2 p-3 text-sm font-bold ${last.ok ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-rose-50 border-rose-400 text-rose-700'}">${last.ok ? '✓' : '⚠'} ${esc(last.text)}</div>` : ''}
+    ${last && !last.ok ? `<div class="rounded-xl border-2 p-3 text-sm font-bold bg-rose-50 border-rose-400 text-rose-700">⚠ ${esc(last.text)}</div>` : ''}
     <label class="block"><span class="font-bold text-sm">QRが読めないとき：シールNo.を入力（スキャナ・手入力）</span>
       <div class="flex gap-2 mt-1"><input id="stock-code" class="field font-mono !py-2" placeholder="RQ-XXXXXXXX" autocomplete="off" data-stock-code />
         <button class="btn btn-secondary !py-2 !px-4 !min-h-[48px]" data-action="stock-submit">入庫</button></div></label>
