@@ -1,6 +1,7 @@
 // GMOサイン管理画面（ダミー）。実サービスとは無関係のモックです。
 import { RESET_CONFIRM, clearTransactions, loadContracts, upsertContract } from '../src/store.js';
 import { ID_TYPES } from '../src/data.js';
+import { buildKyc, kycPhotos } from '../src/kyc.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { initHelp, helpIcon } from '../src/help.js';
 import { contractFormHtml } from './contractForm.js';
@@ -70,10 +71,9 @@ function detailView(c) {
       <section class="bg-white shadow rounded-lg p-5 space-y-3">
         <h2 class="font-bold text-lg">① 本人確認書類の登録</h2>
         ${c.kyc
-          ? `<p class="text-emerald-700 font-bold">✅ 登録済み：${esc(c.kyc.type)}</p><img src="${c.kyc.photo}" alt="本人確認書類" class="h-32 rounded border" />`
-          : `<select class="inp" id="kyc-type">${ID_TYPES.map((t) => `<option>${t}</option>`).join('')}</select>
-             <div class="flex gap-2"><label class="b b-sec cursor-pointer flex-1 text-center">ファイル選択<input type="file" accept="image/*" class="hidden" id="kyc-file" /></label>
-             <button class="b b-pri" data-act="kyc-dummy">ダミー画像で登録</button></div>`}
+          ? `<p class="text-emerald-700 font-bold">✅ 登録済み：${esc(c.kyc.type)}（${kycPhotos(c.kyc).length}枚）</p>
+             <div class="flex gap-2">${kycPhotos(c.kyc).map((p, i) => `<img src="${p}" alt="本人確認書類（${SIDES[i]}）" class="h-32 rounded border" />`).join('')}</div>`
+          : kycForm()}
         <h2 class="font-bold text-lg pt-2">② 契約書の印刷${helpIcon('印刷した契約書に、お客様がボールペンで「チェック項目への記入」と「署名」をします（この画面では行いません）。')}</h2>
         ${!c.kyc
           ? '<p class="text-slate-400">本人確認書類の登録後に印刷できます。</p>'
@@ -84,6 +84,18 @@ function detailView(c) {
     </div>
   </main>`;
 }
+
+const SIDES = ['表面', '裏面'];
+// 登録前の入力（画像は選んだ時点で読み込み、画面を描き直しても残す）
+let draft = { type: ID_TYPES[0], photos: ['', ''] };
+const kycForm = () => `
+  <select class="inp" id="kyc-type">${ID_TYPES.map((t) => `<option${t === draft.type ? ' selected' : ''}>${t}</option>`).join('')}</select>
+  <div class="grid grid-cols-2 gap-2">${SIDES.map((side, i) => `
+    <div class="space-y-1 text-center"><div class="text-sm font-bold">${side}${i ? '（任意）' : '（必須）'}</div>
+      ${draft.photos[i] ? `<img src="${draft.photos[i]}" alt="${side}" class="h-24 mx-auto rounded border" /><button class="text-xs text-sky-700 underline" data-act="kyc-clear" data-i="${i}">選び直す</button>`
+        : `<label class="b b-sec cursor-pointer block">ファイル選択<input type="file" accept="image/*" class="hidden" data-kyc-file="${i}" /></label>`}</div>`).join('')}</div>
+  <div class="flex gap-2"><button class="b b-pri flex-1" data-act="kyc-save"${draft.photos[0] ? '' : ' disabled'}>登録する</button>
+  <button class="b b-sec" data-act="kyc-dummy">ダミー画像（2枚）で登録</button></div>`;
 
 const COPIES = ['会社控え', 'お客様控え'];
 let previewOpen = false;
@@ -112,7 +124,9 @@ const acts = {
   logout: () => { sessionStorage.removeItem('gmo-auth'); location.hash = '#login'; },
   reload: render,
   'reset-all': () => { if (confirm(RESET_CONFIRM)) { clearTransactions(); location.hash = '#login'; render(); } },
-  'kyc-dummy': () => update({ kyc: { type: $('#kyc-type').value, photo: DUMMY }, status: '印刷待ち' }),
+  'kyc-dummy': () => { draft = { ...draft, photos: [DUMMY, DUMMY] }; acts['kyc-save'](); },
+  'kyc-save': () => { const kyc = buildKyc(draft.type, ...draft.photos); if (kyc) { draft = { type: ID_TYPES[0], photos: ['', ''] }; update({ kyc, status: '印刷待ち' }); } },
+  'kyc-clear': (a) => { draft = { ...draft, photos: draft.photos.map((p, i) => (i === Number(a.dataset.i) ? '' : p)) }; render(); },
   preview: () => { previewOpen = true; render(); },
   'close-preview': () => { previewOpen = false; render(); },
   // 印刷時刻を契約日として記録してから印刷する（紙には契約日時が印字される）
@@ -128,7 +142,7 @@ document.addEventListener('click', (e) => {
   const go = e.target.closest('[data-go]');
   if (go) { location.hash = go.dataset.go; return; }
   const a = e.target.closest('[data-act]');
-  if (a) acts[a.dataset.act]?.();
+  if (a) acts[a.dataset.act]?.(a);
 });
 document.addEventListener('submit', (e) => {
   if (e.target.dataset.form !== 'login') return;
@@ -137,13 +151,14 @@ document.addEventListener('submit', (e) => {
   location.hash = '#list';
 });
 document.addEventListener('change', (e) => {
-  if (e.target.id !== 'kyc-file' || !e.target.files[0]) return;
-  const type = $('#kyc-type').value;
+  if (e.target.id === 'kyc-type') { draft = { ...draft, type: e.target.value }; return; }
+  const i = e.target.dataset.kycFile;
+  if (i === undefined || !e.target.files[0]) return;
   const r = new FileReader();
-  r.onload = () => update({ kyc: { type, photo: r.result }, status: '印刷待ち' });
+  r.onload = () => { draft = { ...draft, photos: draft.photos.map((p, k) => (k === Number(i) ? r.result : p)) }; render(); };
   r.readAsDataURL(e.target.files[0]);
 });
-window.addEventListener('hashchange', () => { previewOpen = false; render(); });
+window.addEventListener('hashchange', () => { previewOpen = false; draft = { type: ID_TYPES[0], photos: ['', ''] }; render(); });
 initTheme();
 initHelp();
 render();
