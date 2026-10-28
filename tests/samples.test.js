@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sampleReservations } from '../callcenter/samples.js';
+import { confirmStatus } from '../src/confirmCall.js';
 import { formFromRecord } from '../callcenter/record.js';
 import { blankForm } from '../callcenter/form.js';
 import { isAbsent, attendanceOf, inOffTime, busyBlocks } from '../src/dispatch.js';
@@ -73,4 +74,11 @@ test('サンプルの受付: 一度も確定していない仮確定と、確定
   assert.ok(back.some(needsReview)); // オペレーターの変更で戻った
   assert.ok(back.some((r) => r.holdNote && !needsReview(r))); // 配車係が意図的に戻した
   assert.ok(list.filter((r) => r.status === 'confirmed').every((r) => !isReverted(r)));
+});
+
+test('明日の訪問に、前日確認の連絡の見本（連絡済み・不通）がある。翌々日の訪問は未連絡', () => {
+  const tomorrow = list.filter((r) => r.date === ymd(1) && r.status !== 'cancelled');
+  const keys = tomorrow.map((r) => confirmStatus(r).key).sort();
+  assert.deepEqual(keys, ['noanswer', 'reached']);
+  assert.ok(list.filter((r) => r.date === ymd(2)).every((r) => confirmStatus(r).key === 'none'));
 });

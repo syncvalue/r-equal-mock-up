@@ -25,6 +25,8 @@ import { cooloffPage, filtersHtml, resultsHtml, formHtml as cooloffFormHtml, pro
 import { RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY, STORE_VISITS_KEY } from '../src/store.js';
 import { createStoreTab } from './storeTab.js';
 import { tabLabel, menuView } from './menu.js';
+import { calendarHtml } from './calendarView.js';
+import { addConfirmCall, confirmPending } from '../src/confirmCall.js';
 import { loadState as loadWarehouse, saveState as saveWarehouse, requestReturn, addReturnMessage, cooloffContracts, purchaseDays } from '../src/warehouse.js';
 import { loadMaster } from '../src/warehouseMaster.js';
 import { loadCurrentTrips, tripAreas } from '../src/trips.js';
@@ -48,6 +50,10 @@ const digits = (s) => String(s ?? '').replace(/\D/g, '');
 const blankForm = () => makeBlankForm();
 
 let tab = 'new';
+let calYm = ymdOf(new Date()).slice(0, 7); // 訪問カレンダーの表示月
+let calDate = ymdOf(new Date()); // 選んだ日
+let calSel = null; // 前日確認を記録している訪問
+let callDraft = { result: 'reached', memo: '' }; // 記録の入力途中
 let menuOpen = false; // 左側のメニューの開閉
 const operators = () => operatorNames(loadEmployees()); // オペレーターは、社員管理から読み込む（有効な人だけ）
 let operator = operators().includes(pref('rq-mock-cc-operator', '')) ? pref('rq-mock-cc-operator', '') : operators()[0] ?? '';
@@ -315,7 +321,9 @@ const menuBadges = () => {
   const n = list.filter(isTentative).length;
   const rv = list.filter(needsReview).length;
   const co = loadWarehouse().returns.filter((r) => r.status === 'inquiring').length;
+  const call = confirmPending(list, ymdOf(new Date())).length; // 今日、前日確認の連絡をする訪問のうち、まだつながっていないもの
   return {
+    calendar: call ? [{ cls: 'bg-rose-600', text: `前日確認 未${call}` }] : [],
     dispatch: [...(n ? [{ cls: 'bg-amber-500', text: `仮確定 ${n}` }] : []), ...(rv ? [{ cls: 'bg-rose-600', text: `変更 ${rv}` }] : [])],
     cooloff: co ? [{ cls: 'bg-rose-600', text: `回答待ち ${co}` }] : [],
   };
@@ -340,7 +348,7 @@ function render() {
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
   ${menuOpen ? menuView({ tab, badges: menuBadges() }) : ''}
-  ${tab === 'new' ? renderNew() : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
+  ${tab === 'new' ? renderNew() : tab === 'calendar' ? calendarHtml({ ym: calYm, date: calDate, reservations: loadReservations(), today: ymdOf(new Date()), calSel, draft: callDraft }) : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
   ${custInfoRid && tab === 'dispatch' ? customerModalHtml({ rid: custInfoRid, reservations: loadReservations(), now: new Date() }) : ''}
   ${staffInfoId && tab === 'dispatch' ? staffModalHtml({ userId: staffInfoId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
@@ -414,6 +422,7 @@ function onField(e) {
 const renderZipCandidates = () => { const el = $('#zip-cands'); if (el) el.innerHTML = zipCandidatesHtml(form); }; // 入力欄は作り直さない
 document.addEventListener('input', (e) => {
   if (storeTab.input(e)) return;
+  if (e.target.matches('[data-callmemo]')) { callDraft = { ...callDraft, memo: e.target.value }; return; } // 入力欄は作り直さない
   if (e.target.matches('[data-co-msg]')) { coDraft = { ...coDraft, [e.target.dataset.coMsg]: e.target.value }; return; }
   if (e.target.matches('[data-co-q]')) { coQ = e.target.value; renderCooloffParts(); return; } // 検索欄は作り直さない（入力中の文字を壊さない）
   if (e.target.matches('[data-co-field]')) { coForm = { ...coForm, [e.target.dataset.coField]: e.target.value }; return; }
@@ -552,6 +561,19 @@ document.addEventListener('click', (e) => {
   else if ('new' in d) { editId = null; stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
   else if ('calllog' in d) { callLogOpen = !callLogOpen; renderHint(); }
   else if (d.chg) startEdit(d.chg);
+  else if (d.calday) { calDate = d.calday; calYm = d.calday.slice(0, 7); calSel = null; render(); }
+  else if (d.calmonth) { const [y, m] = calYm.split('-').map(Number); calYm = ymdOf(new Date(y, m - 1 + Number(d.calmonth), 1)).slice(0, 7); render(); }
+  else if ('caltoday' in d) { calDate = ymdOf(new Date()); calYm = calDate.slice(0, 7); calSel = null; render(); }
+  else if (d.callopen) { calSel = calSel === d.callopen ? null : d.callopen; callDraft = { result: 'reached', memo: '' }; render(); }
+  else if (d.callresult) { callDraft = { ...callDraft, result: d.callresult }; render(); }
+  else if (d.callsave) { // 前日確認の連絡の記録を足す（つながった・つながらなかった・お客様から告げられたこと）
+    const r = loadReservations().find((x) => x.id === d.callsave);
+    const res = r ? addConfirmCall(r, { ...callDraft, by: operator, at: new Date() }) : { ok: false, reason: '受付が見つかりません' };
+    if (!res.ok) { flash(res.reason); return; }
+    updateReservation(r.id, res.fields);
+    callDraft = { result: 'reached', memo: '' };
+    flash(`${r.customer.name} 様の前日確認を記録しました`);
+  }
   else if ('editcancel' in d) { editId = null; form = blankForm(); weekStart = addDays(0); render(); }
   else if ('saveedit' in d) saveEdit();
   else if (d.cancelres) { cancelId = d.cancelres; cancelReason = CANCEL_REASONS[0]; render(); }
@@ -696,7 +718,7 @@ window.addEventListener('storage', (e) => {
   if ([RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY].includes(e.key)) { if (tab === 'cooloff' && !document.activeElement?.matches?.('[data-co-msg]')) renderCooloffParts(); return; } // 倉庫の回答・返送を反映
   if (e.key === STORE_VISITS_KEY) { if (tab === 'store' && !document.activeElement?.matches?.('input,select')) render(); return; } // 店舗での来店・取消を反映
   if (e.key !== RESERVATION_KEY) return;
-  if (tab === 'new') renderDispatch(); else render();
+  if (tab === 'new') renderDispatch(); else if (!document.activeElement?.matches?.('[data-callmemo]')) render(); // 記録の入力中は、作り直さない
 });
 
 // 最初に開いたときと、データ初期化のあとに、サンプルの受付を入れる（配車確定の画面などを、すぐ見られるように）
@@ -712,7 +734,7 @@ function seedSamples() {
 function applyDeepLink() {
   try {
     const q = new URLSearchParams(location.search);
-    if (['dispatch', 'cooloff', 'store'].includes(q.get('tab'))) tab = q.get('tab');
+    if (['calendar', 'dispatch', 'cooloff', 'store'].includes(q.get('tab'))) tab = q.get('tab');
     if (q.get('demo') === '1' && tab === 'new') demoOpen = true;
     if (['all', ...AREAS.map((a) => a.id)].includes(q.get('area'))) boardArea = q.get('area');
     const day = Number(q.get('day'));
