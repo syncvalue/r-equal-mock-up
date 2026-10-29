@@ -7,6 +7,7 @@ import {
   AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
+import { addPhoto, removePhoto } from './itemPhotos.js';
 import { threadFor, addMessage, hasUnread, markRead as markThreadRead, messagesOf } from './appraisalThread.js';
 import * as V from './views.js';
 import { evalTargetOf, evalTargetOfVisit } from './scheduleView.js';
@@ -458,6 +459,8 @@ const actions = {
           },
     );
   },
+  'item-photo-dummy': (el) => { const it = state.items.find((i) => i.id === el.dataset.id); if (it) set({ items: state.items.map((i) => (i.id === it.id ? addPhoto(i, dummyPhoto(`${it.name.slice(0, 6)} ${(it.photos?.length ?? 0) + 1}`)) : i)) }); },
+  'item-photo-remove': (el) => set({ items: state.items.map((i) => (i.id === el.dataset.id ? removePhoto(i, Number(el.dataset.idx)) : i)) }),
   'remove-item': (el) => set({ items: state.items.filter((i) => i.id !== el.dataset.id), labels: Object.fromEntries(Object.entries(state.labels).filter(([k]) => !k.startsWith(`${el.dataset.id}-`))), sealColors: Object.fromEntries(Object.entries(state.sealColors).filter(([k]) => !k.startsWith(`${el.dataset.id}-`))), modal: null }),
   qty: (el) => {
     const item = state.items.find((i) => i.id === el.dataset.id);
@@ -724,6 +727,12 @@ document.addEventListener('change', (e) => {
   if (el.dataset.apPhoto !== undefined && el.files[0]) {
     shrinkImage(el.files[0])
       .then((img) => { set({ draft: { ...state.draft, photos: [...state.draft.photos, img] } }); rerenderKeepScroll(); })
+      .catch(() => showToast('画像を読み込めませんでした'));
+  }
+  if (el.dataset.itemPhoto !== undefined && el.files[0]) {
+    const id = el.dataset.itemPhoto;
+    shrinkImage(el.files[0])
+      .then((img) => { set({ items: state.items.map((i) => (i.id === id ? addPhoto(i, img) : i)) }); rerenderKeepScroll(); })
       .catch(() => showToast('画像を読み込めませんでした'));
   }
   if (el.dataset.aiPhoto !== undefined && el.files[0]) {

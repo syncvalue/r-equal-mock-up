@@ -17,6 +17,7 @@ import { SEAL_COLORS } from './stock.js';
 import { fakeQr } from './fakeQr.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 import { helpIcon } from './help.js';
+import { hasPhoto, itemReady } from './itemPhotos.js';
 import { evalFilled } from './visitEval.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '説明事項', '買取明細', '買取商品の確認', 'シール紐づけ', '送信・終了'];
@@ -204,7 +205,7 @@ export function canProceed(s) {
   switch (s.step) {
     case 1: return s.customerConfirmed && s.customer.name.trim() !== '' && s.customer.phone.trim() !== '';
     case 2: return briefingDone(s);
-    case 3: return s.items.length > 0 && s.items.every((i) => i.price > 0);
+    case 3: return s.items.length > 0 && s.items.every(itemReady);
     case 4: return selectedItems(s).length > 0 && allApproved(s);
     case 5: return labelSlots(s).every((x) => s.labels[x.key] && s.sealColors[x.key]);
     default: return true;
@@ -215,7 +216,7 @@ const hint = (s) =>
   ({
     1: 'お客様確認を済ませてください（氏名・電話は必須）',
     2: briefingHint(s),
-    3: '商品を1点以上追加し、査定金額を入力してください',
+    3: '商品を1点以上追加し、全商品に写真（1枚以上）と査定金額を入力してください',
     4: isCustomerFacing(s) ? '最終確認中です。少々お待ちください' : '全商品に査定部の承認が必要です',
     5: '全商品にシールを紐づけてください',
   })[s.step] ?? '';
@@ -285,6 +286,22 @@ const colorChips = (s, key, size) => `<div class="flex flex-wrap items-center ga
   ${SEAL_COLORS.map((c) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${s.sealColors[key] === c.key ? 'active' : ''}" data-action="seal-color" data-key="${key}" data-value="${c.key}">${c.dot} ${c.label}</button>`).join('')}
   ${s.sealColors[key] === 'purple' || s.sealColors[key] === 'red' ? '<span class="text-xs font-bold text-violet-700">のちに本社へ移動</span>' : s.sealColors[key] ? '<span class="text-xs text-slate-400">倉庫へ納入</span>' : '<span class="text-xs text-rose-600 font-bold">選んでください</span>'}</div>`;
 
+// 商品の写真（必須・複数枚）。査定依頼の写真とは別で、買取商品そのものの記録
+function itemPhotoSection(item) {
+  const ph = item.photos ?? [];
+  return `
+  <div class="rounded-xl border-2 ${ph.length ? 'border-slate-200' : 'border-rose-400 bg-rose-50'} p-2.5">
+    <div class="font-bold text-sm mb-1">📷 商品の写真（${ph.length}枚）<span class="${ph.length ? 'text-slate-500' : 'text-rose-600'} text-xs">　必須・1枚以上、複数枚OK</span></div>
+    <div class="flex gap-2 flex-wrap items-center">
+      ${ph.map((p, i) => `<div class="relative"><img src="${p}" class="h-16 w-16 object-cover rounded-lg border" alt="商品の写真${i + 1}" />
+        <button class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-7 h-7" data-action="item-photo-remove" data-id="${item.id}" data-idx="${i}" aria-label="写真を削除">✕</button></div>`).join('')}
+      <label class="h-16 w-16 rounded-lg border-2 border-dashed border-slate-400 flex items-center justify-center text-3xl cursor-pointer bg-white">📷
+        <input type="file" accept="image/*" capture="environment" class="hidden" data-item-photo="${item.id}" /></label>
+      <button class="btn btn-secondary !py-1 !min-h-[40px] text-sm" data-action="item-photo-dummy" data-id="${item.id}">（デモ用）ダミー写真を追加</button>
+    </div>
+  </div>`;
+}
+
 // 商品の詳細モーダル内のシール貼付。買取明細の段階で、貼りながら進める場合に使う（あとの「シール紐づけ」で一括する場合は不要）
 function sealSection(s, item) {
   const slots = itemSlots(s, item);
@@ -316,7 +333,7 @@ export function itemsListView(s) {
     <div class="flex items-center gap-2 rounded-xl border-2 border-slate-200 pl-3 pr-2 py-1">
       <div class="flex-1 min-w-0 leading-tight">
         <div class="font-bold text-[15px] line-clamp-2">${esc(i.name)}${itemWarn(s, i.id)}</div>
-        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}点${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
+        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}点${hasPhoto(i) ? `・📷${i.photos.length}枚` : '<span class="text-rose-600 font-bold">・📷写真なし</span>'}${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
       </div>
       ${i.price ? `<div class="font-bold text-right whitespace-nowrap">${yen(i.price)}</div>` : '<div class="font-bold text-rose-600 text-sm text-right leading-tight">金額<br>未入力</div>'}
       <button class="${btn} border-slate-300 bg-white text-slate-700" data-action="open-item" data-id="${i.id}" aria-label="詳細を編集">✎<br>編集</button>
@@ -768,6 +785,7 @@ export function modalView(s) {
         </div>
         <div id="range-box">${rangeView(i)}</div>
       </div>
+      ${itemPhotoSection(i)}
       ${sealSection(s, i)}
       <div class="flex gap-3 pt-1">
         <button class="btn btn-secondary text-rose-600 !min-h-[48px] !py-2" data-action="remove-item" data-id="${i.id}">削除</button>
