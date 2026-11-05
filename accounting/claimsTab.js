@@ -4,8 +4,11 @@ import { onlyOffice } from '../src/accounting.js';
 import { checkRows, checkCounts, loadChecks, bulkTargets as bulkOf, CHECK_STATUS, shiftDate } from '../src/dailyCheck.js';
 import { userById } from '../src/dashboard.js';
 import { helpIcon } from '../src/help.js';
-import { yen, fmtTime, esc } from '../src/format.js';
-import { LEVEL, badge, card, signed, mdw } from './ui.js';
+import { fmtTime, esc } from '../src/format.js';
+import { LEVEL, badge, card, signed, signedYen as yen, mdw } from './ui.js';
+
+const TH = 'text-left text-slate-700 bg-slate-200 border-b-2 border-slate-300'; // 表の見出し行
+const ZEBRA = '[&>tr:nth-child(even)]:bg-slate-50'; // 1行おきに薄い背景
 
 const FILTERS = [['pending', '未チェック'], ['ok', 'チェック済み'], ['returned', '差戻し'], ['all', 'すべて']];
 
@@ -20,12 +23,12 @@ export function pendingBefore(c, today) {
 }
 export const bulkTargets = bulkOf;
 
-const table = (head, body, empty) => `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b">${head}</tr></thead><tbody>${body || `<tr><td colspan="9" class="text-slate-400">${empty}</td></tr>`}</tbody></table>`;
+const table = (head, body, empty) => `<table class="w-full text-sm border border-slate-200 rounded"><thead><tr class="${TH}">${head}</tr></thead><tbody class="${ZEBRA}">${body || `<tr><td colspan="9" class="text-slate-400">${empty}</td></tr>`}</tbody></table>`;
 const chips = (flags) => flags.map((f) => badge(LEVEL[f.level], esc(f.text))).join(' ');
 
 function reconcileTable(r, s) {
   const x = r.rec;
-  const line = (label, value, note = '', strong = false) => `<tr class="border-b ${strong ? 'font-bold bg-slate-50' : ''}"><td>${label}</td><td class="text-right">${value}</td><td class="!whitespace-normal text-xs">${note}</td></tr>`;
+  const line = (label, value, note = '', strong = false) => `<tr class="border-b ${strong ? 'font-bold !bg-slate-100' : ''}"><td>${label}</td><td class="text-right">${value}</td><td class="!whitespace-normal text-xs">${note}</td></tr>`;
   const diff = (n) => (n ? `<span class="${n ? 'text-rose-600 font-bold' : ''}">${signed(n)}</span>` : '<span class="text-emerald-700">一致</span>');
   const closed = x.closeCounted !== null;
   const notes = [['始業時の理由', r.day.start?.note], ['終業時の理由', r.day.close?.note], ['鑑定士のコメント', r.day.close?.comment]].filter(([, t]) => t);
@@ -80,7 +83,7 @@ function listRow(c, r, selected) {
   const x = r.rec;
   const danger = r.issues.filter((i) => i.level === 'danger').length;
   const warn = r.issues.filter((i) => i.level === 'warn').length;
-  return `<tr class="border-b cursor-pointer ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}" data-claim-user="${r.userId}"><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td>
+  return `<tr class="border-b cursor-pointer ${selected ? '!bg-teal-100' : 'hover:bg-slate-50'}" data-claim-user="${r.userId}"><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td>
     <td class="text-right">${yen(x.carryover)}</td><td class="text-right">${x.closeCounted === null ? '<span class="text-rose-600 font-bold">未提出</span>' : yen(x.closeCounted)}</td>
     <td class="text-right ${x.closeDiff ? 'text-rose-600 font-bold' : ''}">${x.closeDiff === null ? '－' : signed(x.closeDiff)}</td>
     <td class="text-right">${yen(x.expenses)}</td><td class="text-right">${yen(x.customerPaid)}</td>
@@ -110,7 +113,7 @@ export function claimsTab(c) {
     ${FILTERS.map(([k, l]) => `<button class="b b-sec ${c.st.claimFilter === k ? 'on' : ''}" data-claim-filter="${k}">${l}</button>`).join('')}
     <button class="b b-sec ml-auto" data-claim-bulk ${bulk.length ? '' : 'disabled'}>指摘のない未チェック ${bulk.length}人を一括でチェック済み</button>
   </div>
-  <div class="overflow-x-auto"><table class="w-full text-sm bg-white rounded-xl border"><thead><tr class="text-left text-slate-500 border-b"><th>鑑定士</th><th class="text-right">前日繰越金</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th class="text-right">経費</th><th class="text-right">お客様への支払</th><th>指摘</th><th>状況</th></tr></thead><tbody>
+  <div class="overflow-x-auto"><table class="w-full text-sm bg-white rounded-xl border border-slate-300 overflow-hidden"><thead><tr class="${TH}"><th>鑑定士</th><th class="text-right">前日繰越金</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th class="text-right">経費</th><th class="text-right">お客様への支払</th><th>指摘</th><th>状況</th></tr></thead><tbody class="${ZEBRA}">
     ${list.length ? list.map((r) => listRow(c, r, r === picked)).join('') : `<tr><td colspan="8" class="text-slate-400">${all.length ? '該当する鑑定士はいません。' : 'この日に提出された記録はありません。'}</td></tr>`}
   </tbody></table></div>
   ${picked ? detail(c, picked) : ''}`;
