@@ -8,7 +8,7 @@ import { loadReadIds, loadEvals } from './store.js';
 import { evalOfVisit, evalStatus, pendingEvalCount } from './visitEval.js';
 import { pendingCount } from './stockView.js';
 import {
-  START_CHECKS, END_CHECKS, EXPENSE_TYPES, VISIT_OUTCOMES, outcomeOf, outcomeReady, typeOf, carryoverFor, summaryOf, closeDiff, startReady, closeReady, expenseReady, dateKey,
+  START_CHECKS, END_CHECKS, EXPENSE_TYPES, DENOMINATIONS, cashTotal, expensesToReview, VISIT_OUTCOMES, outcomeOf, outcomeReady, typeOf, carryoverFor, summaryOf, closeDiff, startReady, closeReady, expenseReady, dateKey,
 } from './workday.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
@@ -58,7 +58,8 @@ const startHint = (s, carry) => {
 };
 const closeHint = (s, diff) => {
   if (isVisiting(s)) return '訪問中です。訪問を終了してください';
-  if (!s.closeForm.countedSet) return '現金の確認が必要です';
+  if (!s.closeForm.countedSet) return '現金の枚数を入力してください';
+  if (!s.closeForm.cashPhoto) return '現金の写真を添付してください';
   const left = END_CHECKS.filter((c) => !s.closeForm.checks[c.key]).length;
   if (left) return `あと${left}項目の点検が必要です`;
   return diff !== 0 && !s.closeForm.note.trim() ? '差異の理由を入力してください' : '';
@@ -149,6 +150,7 @@ function reportCard(s, day) {
           ${closed ? row('実際の所持金（終業時）', yen(day.close.counted)) : ''}
           ${closed ? row('過不足', `<span class="${day.close.diff ? 'text-rose-600' : 'text-emerald-700'}">${day.close.diff ? signed(day.close.diff) : '一致 ✓'}</span>`) : ''}
         </div>
+        ${closed && day.close.cashPhoto ? `<div class="flex items-center gap-3 mt-2"><img src="${day.close.cashPhoto}" alt="現金の写真" class="h-20 rounded-lg border" /><div class="text-xs text-slate-600">${DENOMINATIONS.filter((d) => day.close.counts?.[d.value]).map((d) => `${d.label} ${day.close.counts[d.value]}枚`).join('、') || '枚数の記録なし'}</div></div>` : ''}
         ${closed && day.close.diff ? `<div class="text-xs rounded bg-rose-50 p-2 mt-1">差異の理由: ${esc(day.close.note)}</div>` : ''}
         ${day.start.diff ? `<div class="text-xs rounded bg-amber-50 p-2 mt-1">始業時の繰越金の差異 ${signed(day.start.diff)}: ${esc(day.start.note)}</div>` : ''}
       </div>
@@ -179,6 +181,41 @@ const stockNotice = (s) => {
     : '';
 };
 
+// 現金の枚数入力（紙幣・硬貨ごと）と、数えた現金の写真
+export const cashTotalView = (form) => `合計 <b class="text-lg">${yen(cashTotal(form.counts))}</b>`;
+function cashCountView(form) {
+  return `
+    <div class="font-bold text-sm">実際に所持している現金<span class="font-normal text-xs text-slate-500">（紙幣・硬貨ごとの枚数）</span></div>
+    <div class="grid grid-cols-2 gap-x-3 gap-y-1.5">
+      ${DENOMINATIONS.map((d) => `<label class="flex items-center gap-2 text-sm"><span class="flex-1 ${d.kind === 'bill' ? 'font-bold' : ''}">${d.kind === 'bill' ? '💴' : '🪙'} ${d.label}</span>
+        <input class="field !py-1 !min-h-[40px] w-16 text-right font-bold" type="text" inputmode="numeric" autocomplete="off" data-wd="close-count" data-value="${d.value}" value="${form.counts?.[d.value] || ''}" placeholder="0" aria-label="${d.label}の枚数" /><span class="text-xs text-slate-500">枚</span></label>`).join('')}</div>
+    <div id="close-total" class="text-right border-t pt-1">${cashTotalView(form)}</div>
+    <div><div class="font-bold text-sm mb-1">現金の写真<span class="text-rose-600 ml-1">必須</span><span class="font-normal text-xs text-slate-500">（数えた現金を並べて撮影）</span></div>
+      ${form.cashPhoto
+        ? `<div class="flex items-center gap-3"><img src="${form.cashPhoto}" alt="現金の写真" class="h-24 rounded-lg border" /><button class="btn btn-secondary !min-h-[44px] !py-1 !px-3 text-sm" data-action="close-photo-clear">撮り直す</button></div>`
+        : `<div class="grid grid-cols-2 gap-2">
+            <label class="btn btn-primary !min-h-[48px] !py-2 !px-2 text-center cursor-pointer flex items-center justify-center">📷 撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-cash-photo /></label>
+            <button class="btn btn-secondary !min-h-[48px] !py-2 !px-2" data-action="close-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>`;
+}
+
+// 今日計上した経費の履歴とレシート画像（終業時に、間違いがないか見直す）
+function expenseReviewView(day) {
+  const list = expensesToReview(day);
+  const total = list.reduce((n, e) => n + e.amount, 0);
+  const noPhoto = list.filter((e) => !e.photo).length;
+  return `<div class="rounded-xl border-2 p-3 space-y-1.5">
+    <div class="flex items-center justify-between"><b>🧾 今日の経費を見直す</b><span class="text-sm text-slate-500">${list.length}件　${yen(total)}</span></div>
+    ${noPhoto ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-2 py-1 text-xs font-bold text-rose-700">⚠ レシートのない経費が ${noPhoto}件あります</div>` : ''}
+    ${list.length ? `<div class="space-y-1 max-h-64 overflow-y-auto" data-scroll="wdExpReview">${list.map((e) => { const t = typeOf(e.type); return `
+      <div class="flex items-center gap-2 rounded-lg border px-2 py-1.5">
+        <span class="text-xs text-slate-500 w-10">${fmtTime(e.at).slice(0, 5)}</span><span class="text-xl">${t.icon}</span>
+        <span class="flex-1 min-w-0 text-sm"><b>${t.label}</b>${e.invoice ? '<span class="ml-1 text-[11px] rounded bg-emerald-100 text-emerald-800 px-1.5">インボイス</span>' : ''}<span class="block text-xs text-slate-500 truncate">${esc(e.memo)}</span></span>
+        ${e.photo ? `<button class="w-12 h-12 rounded-lg overflow-hidden border shrink-0" data-action="exp-view" data-id="${e.id}" aria-label="レシートを拡大"><img src="${e.photo}" alt="レシート" class="w-full h-full object-cover" /></button>` : '<span class="w-12 text-[11px] text-rose-600 font-bold text-center leading-tight">写真なし</span>'}
+        <b class="w-20 text-right text-rose-600 text-sm">−${yen(e.amount)}</b></div>`; }).join('')}</div>
+      <div class="text-xs text-slate-500">金額・種別・レシートの写真を見て、間違いがないか確認してください。違う経費は、経費管理で削除して計上し直せます。</div>`
+      : '<div class="text-sm text-slate-400 py-1">今日計上した経費はありません</div>'}</div>`;
+}
+
 // ---- 終業（日報のプレビュー ＋ 終業手続き） ---------------------------------------
 function closeScreen(s) {
   const day = s.day;
@@ -198,12 +235,12 @@ function closeScreen(s) {
           <div class="flex justify-between py-0.5"><span>＋ 入金</span><span>${yen(sm.depositTotal)}</span></div>
           <div class="flex justify-between py-0.5"><span>− 経費</span><span>${yen(sm.expenseTotal)}</span></div>
           <div class="flex justify-between py-1 font-bold text-lg"><span>帳簿上の残高</span><span>${yen(sm.balance)}</span></div></div>
-        <label class="block"><span class="font-bold text-sm">実際に所持している現金</span>
-          ${moneyInputHtml({ attrs: 'data-wd="close-counted"', value: form.counted, cls: 'field' })}</label>
+        ${cashCountView(form)}
         <label class="block"><span class="font-bold text-sm">差異の理由<span class="font-normal text-xs text-slate-500">（ずれがある場合は必須）</span></span>
           <textarea class="field !py-2 mt-1" rows="2" data-wd="close-note" placeholder="例: 駐車場代のレシートを紛失">${esc(form.note)}</textarea></label>
       </div>
       ${stockNotice(s)}
+      ${expenseReviewView(day)}
       <div class="space-y-1.5">
         <div class="flex items-center justify-between"><b>終業点検</b><span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${END_CHECKS.length - left} / ${END_CHECKS.length}</span></div>
         ${END_CHECKS.map((c) => checkRow(form, c, false)).join('')}</div>

@@ -26,7 +26,7 @@ import {
 import { formatMoneyInput } from './moneyInput.js';
 import { blankPettyForm, sendPettyRequest, withdrawPetty, pettyReady } from './pettyRequest.js';
 import {
-  START_CHECKS, END_CHECKS, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
+  START_CHECKS, END_CHECKS, cashTotal, breakdownOf, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
   newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, invoiceAfterRead, startReady, closeReady,
 } from './workday.js';
 import {
@@ -605,8 +605,10 @@ const actions = {
   'wd-demo-start': () => set({
     startForm: { ...state.startForm, counted: carryoverFor(state.user).amount, countedSet: true, checks: Object.fromEntries(START_CHECKS.map((c) => [c.key, true])) },
   }),
+  'close-photo-dummy': () => set({ closeForm: { ...state.closeForm, cashPhoto: dummyPhoto('CASH') } }),
+  'close-photo-clear': () => set({ closeForm: { ...state.closeForm, cashPhoto: null } }),
   'wd-demo-close': () => set({
-    closeForm: { ...state.closeForm, counted: summaryOf(state.day, state.user).balance, countedSet: true, checks: Object.fromEntries(END_CHECKS.map((c) => [c.key, true])) },
+    closeForm: { ...state.closeForm, counted: summaryOf(state.day, state.user).balance, countedSet: true, counts: breakdownOf(summaryOf(state.day, state.user).balance), cashPhoto: state.closeForm.cashPhoto ?? dummyPhoto('CASH'), checks: Object.fromEntries(END_CHECKS.map((c) => [c.key, true])) },
   }),
   // 商品の持ち帰り（入庫）
   'stock-scope': (el) => set({ stock: { ...state.stock, scope: el.dataset.value, last: null } }),
@@ -722,6 +724,11 @@ document.addEventListener('change', (e) => {
       .then((img) => { set({ expDraft: { ...state.expDraft, photo: img } }); readReceiptAi(receiptSampleFor(img.length)); rerenderKeepScroll(); })
       .catch(() => showToast('画像を読み込めませんでした'));
   }
+  if (el.dataset.cashPhoto !== undefined && el.files[0]) {
+    shrinkImage(el.files[0], 1000)
+      .then((img) => { set({ closeForm: { ...state.closeForm, cashPhoto: img } }); rerenderKeepScroll(); })
+      .catch(() => showToast('画像を読み込めませんでした'));
+  }
   if (el.dataset.action === 'brief-check') {
     set({ briefing: { ...state.briefing, checks: { ...state.briefing.checks, [el.dataset.key]: el.checked } } });
     rerenderKeepScroll();
@@ -808,6 +815,16 @@ document.addEventListener('input', (e) => {
     // ログイン画面の入力。再描画せず state だけ更新する（フォーカス維持）。認証コードは数字のみ
     if (el.dataset.auth === 'code') el.value = el.value.replace(/\D/g, '').slice(0, 6);
     set({ auth: { ...state.auth, [el.dataset.auth]: el.value } });
+    return;
+  }
+  if (el.dataset.wd === 'close-count') {
+    // 現金の枚数。数字だけにして、合計（実際の所持金）を更新する
+    const n = Number(el.value.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/\D/g, '').slice(0, 5)) || 0;
+    el.value = n || '';
+    const counts = { ...state.closeForm.counts, [el.dataset.value]: n };
+    set({ closeForm: { ...state.closeForm, counts, counted: cashTotal(counts), countedSet: true } });
+    if ($('#close-total')) $('#close-total').innerHTML = V.cashTotalView(state.closeForm);
+    if ($('#wd-live')) $('#wd-live').innerHTML = V.wdLiveView(state);
     return;
   }
   if (el.dataset.wd) {

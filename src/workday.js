@@ -42,11 +42,25 @@ export const START_CHECKS = [
 
 // 終業時の点検項目
 export const END_CHECKS = [
-  { key: 'receipt', text: '今日の経費は、すべてレシート付きで計上した' },
+  { key: 'receipt', text: '今日の経費の履歴とレシート画像を見直し、間違いがない（すべてレシート付き）' },
   { key: 'goods', text: '買取商品の入庫（倉庫への保管）を済ませた、または未入庫分を引き継いだ' },
   { key: 'contract', text: '契約書・書類を整理し、紛失がない' },
   { key: 'car', text: '車両・タブレットの片付け、充電をした' },
 ];
+
+// ---- 現金の数え方（終業時） ---------------------------------------------------
+export const DENOMINATIONS = [10000, 5000, 2000, 1000, 500, 100, 50, 10, 5, 1].map((value) => ({ value, kind: value >= 1000 ? 'bill' : 'coin', label: value >= 1000 ? `${value.toLocaleString('ja-JP')}円札` : `${value}円玉` }));
+const countOf = (n) => (Number.isInteger(Number(n)) && Number(n) > 0 ? Number(n) : 0);
+export const cashTotal = (counts) => DENOMINATIONS.reduce((n, d) => n + d.value * countOf(counts?.[d.value]), 0);
+// 金額を、大きい紙幣・硬貨から順に枚数へ分ける（デモ用）
+export function breakdownOf(amount) {
+  let rest = Math.max(0, Math.floor(amount));
+  const counts = {};
+  for (const d of DENOMINATIONS) { const n = Math.floor(rest / d.value); if (n) { counts[d.value] = n; rest -= n * d.value; } }
+  return counts;
+}
+// 終業時に確認する経費（鑑定士が計上したもの。買取代金の自動計上は、レシートがないので除く）
+export const expensesToReview = (day) => (day?.expenses ?? []).filter((e) => !e.auto);
 
 // ---- 日付・金額 -------------------------------------------------------------
 const p2 = (n) => String(n).padStart(2, '0');
@@ -148,7 +162,7 @@ export function closeDay(day, userId, form, now = Date.now()) {
   const s = summaryOf(day, userId);
   const counted = form.counted;
   const diff = counted - s.balance;
-  const close = { counted, expected: s.balance, diff, note: form.note.trim(), checks: { ...form.checks }, comment: form.comment.trim() };
+  const close = { counted, expected: s.balance, diff, note: form.note.trim(), counts: { ...form.counts }, cashPhoto: form.cashPhoto ?? null, checks: { ...form.checks }, comment: form.comment.trim() };
   return {
     ...day, closedAt: now, close,
     report: {
@@ -166,12 +180,13 @@ export const startReady = (form, userId) => {
 };
 export const closeReady = (form, day, userId, visiting) => {
   const diff = closeDiff(day, userId, form.counted);
-  return !visiting && form.countedSet && END_CHECKS.every((c) => form.checks[c.key]) && (diff === 0 || form.note.trim() !== '');
+  return !visiting && form.countedSet && Boolean(form.cashPhoto) && END_CHECKS.every((c) => form.checks[c.key]) && (diff === 0 || form.note.trim() !== '');
 };
 export const expenseReady = (d) => Boolean(d.type && d.amount > 0 && d.photo && (d.type !== 'other' || d.memo.trim()));
 
 export const blankStartForm = () => ({ counted: 0, countedSet: false, note: '', checks: {} });
-export const blankCloseForm = () => ({ counted: 0, countedSet: false, note: '', checks: {}, comment: '' });
+// counts: 紙幣・硬貨ごとの枚数（counted は、その合計）。cashPhoto: 数えた現金の写真（必須）
+export const blankCloseForm = () => ({ counted: 0, countedSet: false, counts: {}, cashPhoto: null, note: '', checks: {}, comment: '' });
 export const blankExpenseDraft = () => ({ type: '', amount: 0, memo: '', photo: null, invoice: false, ai: null }); // invoice: インボイス対応（適格請求書）のレシートか。ai: レシートのAI読み取りの状態
 
 // 本社画面の一覧用: 全鑑定士の「今日」の状況
