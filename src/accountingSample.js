@@ -1,6 +1,6 @@
 // 経理部画面の見本データ。鑑定士の始業・経費・日報、鑑定士への補充金、お客様への支払、入出金の帳簿（約4週間）、
 // 経費精算（一次チェック）の結果を、今日を基準に作る。
-import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY } from './store.js';
+import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY, ADVANCE_REQ_KEY } from './store.js';
 import { makeEntry } from './ledger.js';
 import { USERS } from './dashboard.js';
 import { dateKey, loadDays } from './workday.js';
@@ -92,7 +92,7 @@ export function buildSample(now = Date.now()) {
     { id: 'SP-3', customerName: '井上 和夫', amount: 95000, reason: 'highvalue', userId: 'u03', memo: '□□銀行 難波支店 普通 1112223', status: 'done', at: at(now, ago(1), 16), paidAt: at(now, ago(1), 17, 30) },
   ];
   const storedDeposits = [...deposits, ...past.flatMap((d) => (d.closedAt ? [] : [{ id: `SD-${d.userId}-${d.date}`, userId: d.userId, amount: d.withdrawals.reduce((n, w) => n + w.amount, 0), memo: '買取資金', by: '経理部', at: at(now, d.date, 9) }]))];
-  return { days, deposits: storedDeposits, payments, ...buildLedger(now, today, ago, deposits, payments), checks: buildChecks(earlier), items: buildItemChecks(earlier), chats: buildChats(now, earlier, yesterday) };
+  return { days, deposits: storedDeposits, payments, ...buildLedger(now, today, ago, deposits, payments), checks: buildChecks(earlier), items: buildItemChecks(earlier), chats: buildChats(now, earlier, yesterday), advRequests: buildAdvRequests(now, today, ago) };
 }
 
 // 経費精算（一次チェック）の見本: 2日前・3日前の分はチェック済み（1人だけ差戻し）。前日の分は、すべて未チェック
@@ -109,6 +109,17 @@ function buildChecks(earlier) {
 // 2日前・3日前の分は、経費・お客様への支払・現金を、1件ずつ確認済みにしておく
 function buildItemChecks(earlier) {
   return Object.fromEntries(earlier.flatMap((d) => [...d.expenses.map((e) => e.id), `cash:${d.userId}:${d.date}`].map((id) => [id, { by: '営業サポート', at: d.closedAt }])));
+}
+
+// 補充の依頼の見本: 対応待ち2件（今日）、振込済み1件・却下1件（過去）
+function buildAdvRequests(now, today, ago) {
+  const r = (id, userId, date, h, amount, memo, extra = {}) => ({ id, userId, amount, memo, status: 'pending', at: at(now, date, h), decidedAt: null, by: '', reason: '', paidAmount: 0, ...extra });
+  return [
+    r('SAR-1', 'u03', today, 11, 200000, '高額案件（時計）の買取の予定があるため'),
+    r('SAR-2', 'u05', today, 13, 100000, ''),
+    r('SAR-3', 'u01', ago(1), 10, 300000, '午後に2件、大きな買取の予定', { status: 'rejected', decidedAt: at(now, ago(1), 11), by: '経理部', reason: 'まだ前日の補充金のうち10万円が、未引き出しです。先に引き出してください' }),
+    r('SAR-4', 'u01', ago(4), 9, 150000, '', { status: 'done', decidedAt: at(now, ago(4), 10), by: '経理部', paidAmount: 150000 }),
+  ];
 }
 
 // 経費精算のやり取り（チャット）の見本: 差戻しの日（鑑定士と経理部のやり取り）、前日の経理部からの質問（鑑定士は未読）、前日の鑑定士からの連絡（経理部は未読）
@@ -168,7 +179,7 @@ function buildLedger(now, today, ago, deposits, payments) {
 export function seedSample(now = Date.now(), force = false) {
   try {
     if (!force && (localStorage.getItem(SAMPLE_SEEDED_KEY) || Object.keys(loadDays()).length)) return false;
-    const { days, deposits, payments, ledger, checks, items, chats } = buildSample(now);
+    const { days, deposits, payments, ledger, checks, items, chats, advRequests } = buildSample(now);
     localStorage.setItem(WORKDAY_KEY, JSON.stringify(days));
     localStorage.setItem(DEPOSIT_KEY, JSON.stringify(deposits));
     localStorage.setItem(CUSTOMER_PAY_KEY, JSON.stringify(payments));
@@ -176,6 +187,7 @@ export function seedSample(now = Date.now(), force = false) {
     localStorage.setItem(DAILY_CHECK_KEY, JSON.stringify(checks));
     localStorage.setItem(ITEM_CHECK_KEY, JSON.stringify(items));
     localStorage.setItem(CHAT_KEY, JSON.stringify(chats));
+    localStorage.setItem(ADVANCE_REQ_KEY, JSON.stringify(advRequests));
     localStorage.setItem(SAMPLE_SEEDED_KEY, '1');
     return true;
   } catch {

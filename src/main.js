@@ -4,7 +4,7 @@ import { estimateByPhotos, RECEIPT_SAMPLES, receiptSampleFor } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
   sendMessage,
-  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, DAILY_CHECK_KEY, CHAT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
+  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, DAILY_CHECK_KEY, CHAT_KEY, ADVANCE_REQ_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import { addPhoto, removePhoto } from './itemPhotos.js';
@@ -26,6 +26,7 @@ import {
 import { formatMoneyInput } from './moneyInput.js';
 import { loadChats, saveChats, post as postChat, markRead as markChatRead, unreadCount } from './expenseChat.js';
 import { ballList } from './ball.js';
+import { loadRequests, saveRequests, blankRequestForm, requestReady, makeRequest, addRequest, withdrawRequest, requestsOf } from './advanceRequest.js';
 import { revisableDays, loadChecks, saveChecks, loadItemChecks, saveItemChecks, afterRevise, canRevise } from './dailyCheck.js';
 import {
   START_CHECKS, END_CHECKS, cashTotal, breakdownOf, loadDay, loadDays, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, reviseExpense, reviseRemove, recordVisit, summaryOf, carryoverFor,
@@ -58,6 +59,8 @@ const initialState = () => ({
   expDraft: blankExpenseDraft(),
   rvChat: '', // 経理部とのやり取りの入力中の文章
   chats: {},
+  advForm: blankRequestForm(), // 補充の依頼の入力中データ
+  advRequests: [], // 自分の補充の依頼
   undrawn: 0, // 補充金の未引き出し
   balls: [], // 経費精算で、鑑定士が対応待ちの日（差戻し・経理部の質問）
   rvDraft: blankExpenseDraft(), // 提出済みの経費の修正の入力中データ
@@ -208,7 +211,7 @@ function render() {
   if (state.modal?.type === 'revise') saveChats(markChatRead(loadChats(), state.user, state.modal.date, 'sales'));
   const allDays = Object.values(loadDays());
   const undrawn = phase === 'open' ? Math.max(0, summaryOf(day, state.user).undrawn) : 0; // 補充金のうち、まだ引き出していない金額
-  set({ undrawn, chats: loadChats(), balls: ballList(allDays, loadChecks(), loadChats(), dateKey(), 'sales', state.user), day, phase, units: loadUnits(), fixable: revisableDays(Object.values(loadDays()), loadChecks(), state.user) });
+  set({ advRequests: requestsOf(loadRequests(), state.user), undrawn, chats: loadChats(), balls: ballList(allDays, loadChecks(), loadChats(), dateKey(), 'sales', state.user), day, phase, units: loadUnits(), fixable: revisableDays(Object.values(loadDays()), loadChecks(), state.user) });
   // 始業するまで（終業後も）、現地買取だけは使えない
   if (phase !== 'open' && state.view === 'visit') set({ view: 'workday', modal: null });
   readOpenThread();
@@ -696,6 +699,14 @@ const actions = {
     saveDay(removeExpense(state.day, el.dataset.id));
   },
   // 提出済みの経費の修正（営業サポートがチェック済みにするまで。差戻し・確認待ちの日）
+  // 補充の依頼（経理部が、振り込む／却下する）
+  'adv-send': () => {
+    if (!requestReady(state.advForm)) return;
+    if (!saveRequests(addRequest(loadRequests(), makeRequest(state.user, state.advForm)))) { showToast('保存できませんでした'); return; }
+    set({ advForm: blankRequestForm() });
+    showToast('補充を依頼しました（経理部が対応します）');
+  },
+  'adv-withdraw': (el) => { if (confirm('この補充の依頼を取り下げます。よろしいですか？')) saveRequests(withdrawRequest(loadRequests(), el.dataset.id, state.user)); },
   'rv-open': (el) => set({ modal: { type: 'revise', date: el.dataset.date, day: loadDays()[`${state.user}:${el.dataset.date}`] }, rvDraft: blankExpenseDraft() }),
   'rv-edit': (el) => {
     const e = state.fixable.find((r) => r.date === state.modal?.date)?.day.expenses.find((x) => x.id === el.dataset.id);
@@ -896,7 +907,7 @@ document.addEventListener('input', (e) => {
   if (el.dataset.wd) {
     // 始業・終業・経費の入力。再描画せず state だけ更新し、差異の表示とボタンだけ差し替える（フォーカス維持）
     const filled = el.value.trim() !== '';
-    const amount = el.dataset.wd.endsWith('counted') || ['exp-amount', 'rv-amount', 'wdr-amount'].includes(el.dataset.wd) ? formatMoneyInput(el) : 0;
+    const amount = el.dataset.wd.endsWith('counted') || ['exp-amount', 'rv-amount', 'adv-amount', 'wdr-amount'].includes(el.dataset.wd) ? formatMoneyInput(el) : 0;
     const patch = {
       'start-counted': { startForm: { ...state.startForm, counted: amount, countedSet: filled } },
       'start-note': { startForm: { ...state.startForm, note: el.value } },
@@ -908,6 +919,8 @@ document.addEventListener('input', (e) => {
       'exp-memo': { expDraft: { ...state.expDraft, memo: el.value } },
       'rv-amount': { rvDraft: { ...state.rvDraft, amount } },
       'rv-chat': { rvChat: el.value },
+      'adv-amount': { advForm: { ...state.advForm, amount } },
+      'adv-memo': { advForm: { ...state.advForm, memo: el.value } },
       'rv-memo': { rvDraft: { ...state.rvDraft, memo: el.value } },
       'oc-memo': { outcomeDraft: { ...state.outcomeDraft, memo: el.value } },
       'oc-date': { outcomeDraft: { ...state.outcomeDraft, date: el.value } },
@@ -918,6 +931,7 @@ document.addEventListener('input', (e) => {
     if ($('#wd-start-bottom')) $('#wd-start-bottom').innerHTML = V.wdStartBottomView(state);
     if ($('#exp-live')) $('#exp-live').innerHTML = V.expLiveView(state);
     if ($('#rv-live')) $('#rv-live').innerHTML = V.rvLiveView(state);
+    if ($('#adv-live')) $('#adv-live').innerHTML = V.advLiveView(state);
     if (el.dataset.wd === 'wdr-amount') { const b = $('[data-action="wdr-add"]'); if (b) b.disabled = !withdrawalReady(state.withdrawDraft); }
     if ($('#oc-live')) $('#oc-live').innerHTML = V.ocLiveView(state);
     return;
@@ -970,6 +984,13 @@ window.addEventListener('storage', (e) => {
   if (e.key === CHAT_KEY) { // 経費精算のやり取り（経理部からのメッセージ）
     const unread = (list) => list.reduce((n, r) => n + unreadCount(loadChats(), state.user, r.date, 'sales'), 0);
     if (unread(state.fixable) > 0 && state.modal?.type !== 'revise') showToast('💬 経理部から、経費精算のメッセージが届きました');
+    rerenderKeepScroll();
+    return;
+  }
+  if (e.key === ADVANCE_REQ_KEY) { // 補充の依頼への、経理部の対応
+    const rejected = (list) => requestsOf(list, state.user).filter((r) => r.status === 'rejected').length;
+    const before = state.advRequests.filter((r) => r.status === 'rejected').length;
+    if (rejected(loadRequests()) > before) showToast('⚠ 補充の依頼が却下されました。理由を確認してください');
     rerenderKeepScroll();
     return;
   }

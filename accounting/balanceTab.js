@@ -6,6 +6,7 @@ import { userById } from '../src/dashboard.js';
 import { moneyInputHtml } from '../src/moneyInput.js';
 import { helpIcon } from '../src/help.js';
 import { yen, fmtTime, esc } from '../src/format.js';
+import { loadRequests, pendingRequests, requestsOf, REQUEST_STATUS } from '../src/advanceRequest.js';
 import { LEVEL, signed, signedYen, badge, card, mdw } from './ui.js';
 
 const PHASE = { before: ['未始業', 'bg-slate-200 text-slate-600'], open: ['業務中', 'bg-emerald-100 text-emerald-800'], closed: ['終業済み', 'bg-indigo-100 text-indigo-800'] };
@@ -96,6 +97,25 @@ function customerPayments(c) {
   </section>`;
 }
 
+// 鑑定士からの補充の依頼: 振り込む（補充金を入力する）か、却下する
+function advanceRequests(c) {
+  const ids = c.scopedIds();
+  const all = loadRequests().filter((r) => ids.includes(r.userId));
+  const pending = pendingRequests(all);
+  const recent = all.filter((r) => r.status !== 'pending').sort((a, b) => b.decidedAt - a.decidedAt).slice(0, 5);
+  const rejecting = c.st.advReject;
+  return `
+  <section class="rounded-xl border-2 ${pending.length ? 'border-amber-400' : 'border-slate-200'} bg-white p-4 space-y-3">
+    <h2 class="font-bold text-lg">🙋 鑑定士からの補充の依頼${pending.length ? ` ${badge('bg-amber-400 text-slate-900', `対応待ち ${pending.length}`)}` : ''}${helpIcon('鑑定士が、鑑定士タブレットから、補充金の振込を依頼します。「振り込む」と、鑑定士の補充金と、帳簿の支払（鑑定士への補充金）に、依頼の金額で記録します（日付は今日）。鑑定士の所持金に入るのは、鑑定士が引き出し金額を登録してからです。却下は理由が必要で、鑑定士のタブレットに表示されます。')}</h2>
+    <table class="w-full text-sm"><thead><tr class="${'text-left text-slate-700 bg-slate-200 border-b-2 border-slate-300'}"><th>依頼</th><th>鑑定士</th><th class="text-right">金額</th><th>理由・用途</th><th>操作</th></tr></thead><tbody class="[&>tr:nth-child(even)]:bg-slate-50">
+      ${pending.map((r) => `<tr class="border-b"><td>${fmtTime(r.at).slice(0, 5)}</td><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td><td class="text-right font-bold">${yen(r.amount)}</td><td class="!whitespace-normal">${esc(r.memo) || '<span class="text-slate-400">（記入なし）</span>'}</td>
+        <td class="space-x-1"><button class="b b-pri !min-h-0 !py-1 !px-2 text-xs" data-adv-ok="${r.id}">${yen(r.amount)} を振り込む</button><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-adv-rej="${r.id}">却下する</button></td></tr>
+        ${rejecting?.id === r.id ? `<tr class="bg-rose-50"><td colspan="5"><div class="flex flex-wrap items-end gap-2 p-1"><label class="text-sm font-bold flex-1 min-w-[16rem]">却下の理由（必須・鑑定士に伝える内容）<input class="inp mt-1 font-normal" data-f="adv.reason" value="${esc(rejecting.reason)}" placeholder="例: まだ30万円が未引き出しです。先に引き出してください" /></label><button class="b b-pri" data-adv-rej-send>却下する</button><button class="b b-sec" data-adv-rej-cancel>やめる</button></div></td></tr>` : ''}`).join('') || '<tr><td colspan="5" class="text-slate-400">対応待ちの依頼はありません。</td></tr>'}
+    </tbody></table>
+    ${recent.length ? `<div class="text-sm font-bold">最近の対応</div><table class="w-full text-sm"><tbody>${recent.map((r) => `<tr class="border-b"><td>${mdw(dateKey(new Date(r.decidedAt)))} ${fmtTime(r.decidedAt).slice(0, 5)}</td><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td><td class="text-right">${yen(r.amount)}</td><td>${badge(REQUEST_STATUS[r.status].cls, REQUEST_STATUS[r.status].label)}</td><td class="!whitespace-normal text-xs">${r.status === 'rejected' ? esc(r.reason) : esc(r.memo)}</td></tr>`).join('')}</tbody></table>` : ''}
+  </section>`;
+}
+
 export function balanceTab(c) {
   const today = dateKey();
   const t = totals(c.st.ledger.filter((e) => e.date === today));
@@ -105,6 +125,7 @@ export function balanceTab(c) {
   <div class="flex flex-wrap gap-3">
     ${card('今日の残高', signedYen(bal.balance), bal.balance < 0 ? 'text-rose-600' : '')}${card('今日の入金', yen(t.in), 'text-emerald-700')}${card('今日の支払', yen(t.out), 'text-rose-700')}${card('振込待ち', `${pending} 件`, pending ? 'text-amber-700' : '')}
   </div>
+  ${advanceRequests(c)}
   <div class="grid xl:grid-cols-2 gap-4">${ledgerForm(c)}${dailyTable(c)}</div>
   ${advanceTable(c)}
   ${customerPayments(c)}`;

@@ -95,3 +95,12 @@ test('サンプル: 経費精算のやり取りがある（差戻しの日・経
   assert.equal(unreadCount(chats, 'u04', yesterday, 'accounting'), 1);
   assert.equal(threadOf(chats, 'u01', yesterday).messages.length, 0);
 });
+
+test('サンプル: 補充の依頼に、対応待ち・振込済み・却下がある', async () => {
+  seedSample(NOW, true);
+  const { loadRequests, pendingRequests } = await import('../src/advanceRequest.js');
+  const list = loadRequests();
+  assert.equal(pendingRequests(list).length, 2);
+  assert.ok(list.some((r) => r.status === 'done' && r.paidAmount === r.amount) && list.some((r) => r.status === 'rejected' && r.reason));
+  assert.equal(new Set(list.map((r) => r.id)).size, list.length);
+});

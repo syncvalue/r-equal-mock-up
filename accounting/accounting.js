@@ -1,6 +1,6 @@
 // 経理部デスク画面（ダミー・PC想定）。経費精算／残高・入出金管理／週間収支。（固定費の画面は、メニューから外している）
-import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY } from '../src/store.js';
-import { USERS } from '../src/dashboard.js';
+import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY, ADVANCE_REQ_KEY } from '../src/store.js';
+import { USERS, userById } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser } from '../src/dispatch.js';
 import { dateKey } from '../src/workday.js';
 import { officeUsers, giveAdvance, advanceReady, addCustomerPayment, paymentReady, markPaid, loadCustomerPayments, onlyOffice } from '../src/accounting.js';
@@ -13,6 +13,7 @@ import { zoomView } from './ui.js';
 import { balanceTab } from './balanceTab.js';
 import { claimsTab, dayRows, acctBalls, bulkTargets, markPickedRead, pickedOf } from './claimsTab.js';
 import { loadChats, saveChats, post } from '../src/expenseChat.js';
+import { loadRequests, saveRequests, approveRequest, rejectRequest, pendingRequests } from '../src/advanceRequest.js';
 import { fixedTab, shiftMonth, fixedRows } from './fixedTab.js';
 import { weeklyTab } from './weeklyTab.js';
 import { seedSample } from '../src/accountingSample.js';
@@ -37,7 +38,7 @@ const st = {
   tab: 'claims', menuOpen: false,
   office: AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : '', // 絞り込み中の営業所（空は全営業所）
   ledger: loadLedger(), selDay: null, selUser: null,
-  led: blank.led(), pay: blank.pay(), fix: blank.fix(), returning: null,
+  led: blank.led(), pay: blank.pay(), fix: blank.fix(), returning: null, advReject: null,
   claimFilter: 'pending', claimUser: null, chat: { text: '' }, calOpen: false, zoom: null, openPurchase: [], calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
 };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
@@ -57,14 +58,16 @@ function render() {
   if (st.pay.userId && !scopedIds().includes(st.pay.userId)) st.pay = { ...st.pay, userId: '' };
   const pending = onlyOffice(loadCustomerPayments(), scopedIds(), Boolean(st.office)).filter((p) => p.status === 'pending').length;
   const balls = acctBalls(ctx);
-  const badges = { balance: pending, claims: balls.length };
-  document.title = `${balls.length ? `(${balls.length}) ` : ''}経理部（ダミー）`; // タブを見るだけで、対応待ちに気づけるように
+  const advPending = pendingRequests(loadRequests(), scopedIds()).length; // 鑑定士からの補充の依頼（対応待ち）
+  const badges = { balance: pending + advPending, claims: balls.length };
+  document.title = `${balls.length + advPending ? `(${balls.length + advPending}) ` : ''}経理部（ダミー）`; // タブを見るだけで、対応待ちに気づけるように
   const filter = FILTERED_TABS.includes(st.tab)
     ? `<label class="text-xs font-bold">営業所 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-office><option class="text-slate-800" value="">全営業所（${USERS.length}人）</option>${AREAS.map((a) => `<option class="text-slate-800" value="${a.id}" ${st.office === a.id ? 'selected' : ''}>${esc(a.name.replace('エリア', ''))}（${officeUsers(USERS, a.id, areaOfUser).length}人）</option>`).join('')}</select></label>` : '';
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
   <header class="bg-teal-800 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${Object.values(badges).some(Boolean) ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
       <span class="font-bold text-xl">経理部</span><span class="text-teal-200">›</span><span class="font-bold">${tabLabel(st.tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span>
+      ${advPending && st.tab !== 'balance' ? `<button class="ml-2 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-900 text-sm font-bold px-3 py-1 animate-pulse" data-tab="balance">🙋 補充の依頼 ${advPending}件</button>` : ''}
       ${balls.length ? `<button class="ml-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-ball-jump="${balls[0].date}|${balls[0].userId}" title="${esc(balls[0].why)}">🔔 対応待ち ${balls.length}件</button>` : ''}</div>
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${filter}<button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
@@ -115,6 +118,20 @@ const ACTIONS = {
   ledAdd: addLedger,
   payAdd: addPay,
   payDone: (d) => markPaid(d.payDone),
+  advOk: (d) => {
+    const r = loadRequests().find((x) => x.id === d.advOk && x.status === 'pending');
+    if (!r) return;
+    if (!confirm(`${userById(r.userId).name} さんへ、補充金 ${r.amount.toLocaleString('ja-JP')}円 を振り込みます（補充金として記録します）。よろしいですか？`)) return false;
+    if (!giveAdvance({ userId: r.userId, amount: r.amount, memo: `補充の依頼に対応${r.memo ? `（${r.memo}）` : ''}` }, { by: BY })) return alert('保存できませんでした（容量超過）');
+    saveRequests(approveRequest(loadRequests(), r.id, { by: BY }));
+  },
+  advRej: (d) => { st.advReject = { id: d.advRej, reason: '' }; },
+  advRejCancel: () => { st.advReject = null; },
+  advRejSend: () => {
+    if (!st.advReject?.reason.trim()) return alert('却下の理由を入力してください');
+    saveRequests(rejectRequest(loadRequests(), st.advReject.id, st.advReject.reason, { by: BY }));
+    st.advReject = null;
+  },
   claimFilter: (d) => { st.claimFilter = d.claimFilter; },
   claimUser: (d) => { st.claimUser = d.claimUser; st.returning = null; st.chat = { text: '' }; },
   ballJump: (d) => { const [date, userId] = d.ballJump.split('|'); st.tab = 'claims'; st.checkDate = date; st.claimUser = userId; st.claimFilter = 'all'; st.returning = null; st.chat = { text: '' }; st.menuOpen = false; st.calOpen = false; },
@@ -176,9 +193,9 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = ['led', 'pay', 'fix', 'ret', 'chat'];
+const FORMS = ['led', 'pay', 'fix', 'ret', 'chat', 'adv'];
 const MONEY = ['amount', 'cost'];
-const SLOT = { ret: 'returning' }; // 入力欄の名前と、状態の名前が違うもの
+const SLOT = { ret: 'returning', adv: 'advReject' }; // 入力欄の名前と、状態の名前が違うもの
 const setForm = (name, value) => { st[SLOT[name] ?? name] = value; };
 const getForm = (name) => st[SLOT[name] ?? name];
 function onField(e, isInput) {
@@ -207,7 +224,7 @@ document.addEventListener('change', (e) => {
 // 鑑定士側（タブレット）などの更新を即時反映。入力中なら、入力欄から離れたときに反映する
 const isEditing = () => Boolean(document.activeElement?.dataset?.f);
 window.addEventListener('storage', (e) => {
-  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY].includes(e.key)) return;
+  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY, ADVANCE_REQ_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;
   else render();
 });

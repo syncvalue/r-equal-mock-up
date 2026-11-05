@@ -13,6 +13,6 @@ test('経理部のメニュー: 経費精算／残高・入出金管理／週間
   assert.match(html, /bg-teal-700[^"]*"[^>]*data-tab="claims"/);
   assert.ok(html.includes('data-menu-close') && html.includes('メインメニュー'));
   const t = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  assert.ok(t.includes('振込待ち 2') && t.includes('対応待ち 3'));
+  assert.ok(t.includes('対応待ち 2') && t.includes('対応待ち 3'));
   assert.ok(!menuView({ tab: 'weekly', badges: {} }).includes('対応待ち')); // 0件のときは出さない
 });
