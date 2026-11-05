@@ -306,7 +306,7 @@ function ledgerRows(s) {
   ].sort((a, b) => a.at - b.at);
   const base = `<div class="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-lg text-sm"><span class="w-12 text-slate-500">始業</span><span class="flex-1 font-bold">前日繰越金（始業時に確認）</span><b>${yen(sm.opening)}</b></div>`;
   const line = (r) => {
-    if (r.kind === 'dep') return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border border-sky-200 bg-sky-50"><span class="w-12 text-xs text-slate-500">${fmtTime(r.at).slice(0, 5)}</span><span class="text-xl">🏦</span><span class="flex-1"><b>補充金（経理部から振込）</b><span class="block text-xs text-slate-500">${esc(r.d.memo || '')}　引き出すまで所持金に入りません</span></span><b class="text-sky-700">${yen(r.d.amount)}</b></div>`;
+    if (r.kind === 'dep') return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border border-sky-200 bg-sky-50"><span class="w-12 text-xs text-slate-500">${fmtTime(r.at).slice(0, 5)}</span><span class="text-xl">🏦</span><span class="flex-1"><b>補充金（経理部から振込）</b>${sm.undrawn > 0 ? '<span class="ml-1 text-[11px] rounded bg-amber-400 text-slate-900 font-bold px-1.5">未引き出し</span>' : '<span class="ml-1 text-[11px] rounded bg-emerald-100 text-emerald-800 font-bold px-1.5">引き出し済み</span>'}<span class="block text-xs text-slate-500">${esc(r.d.memo || '')}　${sm.undrawn > 0 ? '引き出すまで、所持金に入りません' : '引き出した分が、所持金に入っています'}</span></span><b class="text-sky-700">${yen(r.d.amount)}</b></div>`;
     if (r.kind === 'wdr') return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50"><span class="w-12 text-xs text-slate-500">${fmtTime(r.at).slice(0, 5)}</span><span class="text-xl">🏧</span><span class="flex-1"><b>引き出し</b><span class="block text-xs text-slate-500">${esc(r.w.memo || '')}</span></span><b class="text-emerald-700">+${yen(r.w.amount)}</b><button class="w-9 h-9 rounded-lg text-slate-400 hover:bg-slate-100" data-action="wdr-remove" data-id="${r.w.id}" aria-label="引き出しを削除">🗑</button></div>`;
     const e = r.e;
     const t = typeOf(e.type);
@@ -331,13 +331,16 @@ export function expenseView(s) {
   return `
   <section class="${SEC} flex flex-col gap-3">
     ${reviseSection(s)}
+    ${sm.undrawn > 0 ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3 flex flex-wrap items-center gap-3" role="alert"><span class="text-2xl">🏦</span>
+      <div class="flex-1 min-w-[16rem]"><div class="font-bold text-amber-900">経理部から補充金 ${yen(sm.depositTotal)} が振り込まれています（未引き出し ${yen(sm.undrawn)}）</div><div class="text-sm text-amber-900">銀行などで引き出したら、下の「引き出し金額」に登録してください。<b>登録すると、はじめて所持金に加わります。</b></div></div>
+      <button class="btn btn-primary !min-h-[48px]" data-action="wdr-rest">未引き出し分 ${yen(sm.undrawn)} を、引き出した</button></div>` : ''}
     <div class="flex gap-3">
-      ${stat('前日繰越金', yen(sm.opening))}${stat('補充金（経理部から振込）', yen(sm.depositTotal))}${stat('引き出し金額', `+${yen(sm.withdrawalTotal)}`, 'text-emerald-700')}${stat('経費（買取代金を含む）', `−${yen(sm.expenseTotal)}`, 'text-rose-600')}
+      ${stat('前日繰越金', yen(sm.opening))}<div class="card !p-3 flex-1 text-right ${sm.undrawn > 0 ? '!border-2 !border-amber-400 !bg-amber-50' : ''}"><div class="text-xs text-slate-500">補充金（振込済み。引き出すまで所持金ではありません）</div><div class="text-2xl font-bold text-sky-700">${yen(sm.depositTotal)}</div>${sm.undrawn > 0 ? `<div class="text-xs font-bold text-amber-800">未引き出し ${yen(sm.undrawn)}</div>` : sm.depositTotal ? '<div class="text-xs font-bold text-emerald-700">✓ 引き出し済み</div>' : ''}</div>${stat('＋ 引き出した金額（所持金に加わる）', `+${yen(sm.withdrawalTotal)}`, 'text-emerald-700')}${stat('経費（買取代金を含む）', `−${yen(sm.expenseTotal)}`, 'text-rose-600')}
       <div class="card !p-3 flex-1 text-right !bg-teal-600 text-white"><div class="text-xs text-teal-100">現在の所持金（帳簿）</div><div class="text-3xl font-bold">${yen(sm.balance)}</div>${sm.balance < 0 ? '<div class="text-xs font-bold text-amber-200">⚠ 残高がマイナスです。引き出し金額・計上を確認してください</div>' : ''}</div>
     </div>
     <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
       <div class="card !p-3 flex-1 min-w-0 flex flex-col min-h-0"><h2 class="font-bold text-lg mb-2">📒 今日の入出金</h2>
-        <div class="rounded-xl border-2 p-2 mb-2 space-y-1.5"><div class="font-bold text-sm">🏧 引き出し金額${helpIcon('経理部から振り込まれた補充金のうち、いくら引き出したかを入力します。通常は、補充金と同じ金額です。引き出した分が、所持金になります。')}</div>
+        <div class="rounded-xl border-2 p-2 mb-2 space-y-1.5"><div class="font-bold text-sm">🏧 引き出し金額（補充金を引き出して、所持金に加える）${helpIcon('経理部から振り込まれた補充金のうち、いくら引き出したかを入力します。通常は、補充金と同じ金額です。引き出した分が、所持金になります。')}</div>
           <div id="wdr-live" class="space-y-1.5">${withdrawLiveView(s)}</div></div>
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="expLedger">${ledgerRows(s)}</div></div>
       <div class="card !p-3 w-[26rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[55%] flex flex-col gap-2 min-h-0 overflow-y-auto" data-scroll="expForm">
