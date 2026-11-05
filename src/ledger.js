@@ -12,11 +12,12 @@ export const IN_CATEGORIES = [
 export const OUT_CATEGORIES = [
   { key: 'advance', label: '鑑定士への補充金', hint: '買取資金として、鑑定士に振り込んだお金（鑑定士が引き出して使う）' },
   { key: 'customer', label: 'お客様への支払', hint: '銀行振込など、お客様への買取代金のお支払い' },
-  { key: 'fixed', label: '固定費', hint: '家賃・人件費など（固定費・小口金管理から支払う）' },
-  { key: 'petty', label: '鑑定士の小口金', hint: '鑑定士への小口金の補充（固定費・小口金管理から渡す）' },
+  { key: 'fixed', label: '固定費', hint: '家賃・人件費など（固定費の画面から支払う）' },
   { key: 'other_out', label: 'その他の支払', hint: '内容をメモに記入' },
 ];
-export const categoryOf = (key) => [...IN_CATEGORIES, ...OUT_CATEGORIES].find((c) => c.key === key) ?? null;
+// 廃止した区分（以前の記録に残っているもの）。選べないが、帳簿には、そのまま出す
+const LEGACY_CATEGORIES = [{ key: 'petty', label: '小口金（廃止）', hint: '' }];
+export const categoryOf = (key) => [...IN_CATEGORIES, ...OUT_CATEGORIES].find((c) => c.key === key) ?? LEGACY_CATEGORIES.find((c) => c.key === key) ?? null;
 export const kindOf = (key) => (IN_CATEGORIES.some((c) => c.key === key) ? 'in' : 'out');
 
 const readJson = (key, fallback) => {
@@ -26,7 +27,7 @@ export const loadLedger = () => readJson(LEDGER_KEY, []);
 export const saveLedger = (list) => { try { localStorage.setItem(LEDGER_KEY, JSON.stringify(list)); return true; } catch { return false; } };
 
 // 記録の入力が足りているか。金額は1円以上、「その他」はメモ必須
-export const entryReady = (d) => Boolean(categoryOf(d.category) && d.amount > 0 && (!/^other_/.test(d.category) || d.memo?.trim()));
+export const entryReady = (d) => Boolean([...IN_CATEGORIES, ...OUT_CATEGORIES].some((c) => c.key === d.category) && d.amount > 0 && (!/^other_/.test(d.category) || d.memo?.trim()));
 
 // 記録を作る（日付は、記録した日。記録の日付を指定すれば、その日の入出金になる）
 export function makeEntry(d, { by = '経理部', now = Date.now() } = {}) {

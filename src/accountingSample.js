@@ -1,6 +1,6 @@
 // 経理部画面の見本データ。鑑定士の始業・経費・日報、鑑定士への補充金、お客様への支払、入出金の帳簿（約4週間）、
-// 鑑定士の小口金、経費精算（一次チェック）の結果を、今日を基準に作る。
-import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY } from './store.js';
+// 経費精算（一次チェック）の結果を、今日を基準に作る。
+import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY } from './store.js';
 import { makeEntry } from './ledger.js';
 import { USERS } from './dashboard.js';
 import { dateKey, loadDays } from './workday.js';
@@ -133,7 +133,7 @@ function buildChats(now, earlier, yesterday) {
   return { ...built, [rk]: { ...built[rk], accountingReadAt: at(now, ret.date, 19, 35), salesReadAt: at(now, ret.date, 19, 20) } };
 }
 
-// 入出金の帳簿の見本: 28日分の販売代金・補充金・お客様への支払・固定費、鑑定士の小口金の補充と使用
+// 入出金の帳簿の見本: 28日分の販売代金・補充金・お客様への支払・固定費
 function buildLedger(now, today, ago, deposits, payments) {
   const L = [];
   const push = (date, d, h = 10) => L.push({ ...makeEntry({ ...d, date }, { now: at(now, date, h) }), id: `SL-${L.length + 1}` });
@@ -157,33 +157,22 @@ function buildLedger(now, today, ago, deposits, payments) {
     const date = `${today.slice(0, 7)}-10`;
     if (date < today) push(date, { category: 'fixed', amount, memo: name, fixedId: id, month: today.slice(0, 7) }, 11);
   }
-  // 鑑定士の小口金: 全員に5万円を補充（u02 だけ6万円）。u01 は残りが十分、u02 は使って残りが少ない（補充が必要）
-  for (const u of USERS) push(ago(14), { category: 'petty', amount: u.id === 'u02' ? 60000 : 50000, memo: '小口金の補充', userId: u.id }, 10);
   // 今日: 鑑定士への補充金・お客様への支払は、見本の補充金・振込済みから
   for (const d of deposits) push(today, { category: 'advance', amount: d.amount, memo: d.memo, userId: d.userId }, 10);
   for (const p of payments.filter((x) => x.status === 'done')) push(dateKey(new Date(p.paidAt)), { category: 'customer', amount: p.amount, memo: `${p.customerName} 様 高額のため、後日 銀行振込`, userId: p.userId }, 17);
   push(today, { category: 'sales', amount: 240000, cost: 160000, memo: '業者への販売' }, 14);
-  const pettyUses = [
-    { id: 'SU-1', userId: 'u01', date: ago(9), amount: 12000, memo: '梱包用のテープ・手袋・クリーナー', at: at(now, ago(9), 14) },
-    { id: 'SU-2', userId: 'u01', date: ago(3), amount: 6000, memo: '資料の郵送料・コピー代', at: at(now, ago(3), 14) },
-    { id: 'SU-3', userId: 'u02', date: ago(10), amount: 32000, memo: '鑑定ツール（試金石・拡大鏡）', at: at(now, ago(10), 14) },
-    { id: 'SU-4', userId: 'u02', date: ago(2), amount: 20000, memo: '現場への交通費（電車）', at: at(now, ago(2), 14), proxy: true, by: '経理部' },
-    { id: 'SU-5', userId: 'u01', date: today, amount: 8000, memo: '査定用の白手袋・クリーニングクロス', at: at(now, today, 11), status: 'pending' },
-    { id: 'SU-6', userId: 'u02', date: today, amount: 12000, memo: '買取品の鑑定書の取り寄せ費用', at: at(now, today, 12), status: 'pending' }, // 残りより多い（先に補充が必要）
-  ];
-  return { ledger: L, pettyUses };
+  return { ledger: L };
 }
 
 // 見本を保存する。force でないときは、まだ入れたことがなく、記録が空のときだけ入れる。入れたら true
 export function seedSample(now = Date.now(), force = false) {
   try {
     if (!force && (localStorage.getItem(SAMPLE_SEEDED_KEY) || Object.keys(loadDays()).length)) return false;
-    const { days, deposits, payments, ledger, pettyUses, checks, items, chats } = buildSample(now);
+    const { days, deposits, payments, ledger, checks, items, chats } = buildSample(now);
     localStorage.setItem(WORKDAY_KEY, JSON.stringify(days));
     localStorage.setItem(DEPOSIT_KEY, JSON.stringify(deposits));
     localStorage.setItem(CUSTOMER_PAY_KEY, JSON.stringify(payments));
     localStorage.setItem(LEDGER_KEY, JSON.stringify(ledger));
-    localStorage.setItem(PETTY_KEY, JSON.stringify(pettyUses));
     localStorage.setItem(DAILY_CHECK_KEY, JSON.stringify(checks));
     localStorage.setItem(ITEM_CHECK_KEY, JSON.stringify(items));
     localStorage.setItem(CHAT_KEY, JSON.stringify(chats));

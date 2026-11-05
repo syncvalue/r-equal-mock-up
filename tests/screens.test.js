@@ -22,7 +22,7 @@ test('経理部の画面は、描画できる（サンプルデータ入り）',
   assert.ok(root.innerHTML.includes('経理部') && root.innerHTML.includes('経費精算') && root.innerHTML.includes('前日繰越金') && root.innerHTML.includes('現金の照合') && root.innerHTML.includes('チェック済みにする'));
 });
 
-test('経理部の画面（経費精算／残高・入出金管理／週間収支）は、サンプルデータで描画できる。固定費・小口金管理の画面も、まだ描画できる', async () => {
+test('経理部の画面（経費精算／残高・入出金管理／週間収支）は、サンプルデータで描画できる。固定費の画面も、まだ描画できる', async () => {
   const { balanceTab } = await import('../accounting/balanceTab.js');
   const { claimsTab } = await import('../accounting/claimsTab.js');
   const { fixedTab } = await import('../accounting/fixedTab.js');
@@ -34,7 +34,7 @@ test('経理部の画面（経費精算／残高・入出金管理／週間収�
   const { shiftDate } = await import('../src/dailyCheck.js');
   const day = dateKey();
   const yesterday = shiftDate(day, -1);
-  const st = { office: '', ledger: loadLedger(), selDay: null, selUser: null, led: { kind: 'in', category: 'sales', date: day, amount: 0, cost: 0, userId: '', memo: '' }, pay: { customerName: '', amount: 0, reason: '', userId: '', memo: '' }, fix: { id: '', type: 'rent', name: '', amount: 0, payDay: 25 }, pu: { appraiserId: 'a1', date: day, amount: 0, memo: '' }, returning: { id: 'u02', reason: '' }, claimFilter: 'all', claimUser: 'u02', checkDate: yesterday, calOpen: true, openPurchase: [], calMonth: yesterday.slice(0, 7), month: day.slice(0, 7), week: weekStart(day) };
+  const st = { office: '', ledger: loadLedger(), selDay: null, selUser: null, led: { kind: 'in', category: 'sales', date: day, amount: 0, cost: 0, userId: '', memo: '' }, pay: { customerName: '', amount: 0, reason: '', userId: '', memo: '' }, fix: { id: '', type: 'rent', name: '', amount: 0, payDay: 25 }, returning: { id: 'u02', reason: '' }, claimFilter: 'all', claimUser: 'u02', checkDate: yesterday, calOpen: true, openPurchase: [], calMonth: yesterday.slice(0, 7), month: day.slice(0, 7), week: weekStart(day) };
   const c = { st, scoped: () => USERS, scopedIds: () => USERS.map((u) => u.id), officeOf: () => '大阪', withOffice: (u) => `${u.name}（大阪）`, today: () => day };
   assert.ok(balanceTab(c).includes('入金・支払の登録') && balanceTab(c).includes('鑑定士の補充金') && balanceTab(c).includes('お客様への支払'));
   const claims = claimsTab(c);
@@ -48,10 +48,9 @@ test('経理部の画面（経費精算／残高・入出金管理／週間収�
   assert.ok(!claims.includes('買取の内訳</div>') && claims.includes('＋'));
   const opened = claimsTab({ ...c, st: { ...st, openPurchase: [buyId] } });
   assert.ok(opened.includes('買取の内訳</div>') && opened.includes('－') && opened.includes('合計'));
-  assert.ok(fixedTab(c).includes('本社 家賃') && fixedTab(c).includes('鑑定士の小口金') && fixedTab(c).includes('補充が必要'));
+  assert.ok(fixedTab(c).includes('本社 家賃') && !fixedTab(c).includes('小口金'));
   const w = weeklyTab(c);
   assert.ok(w.includes('粗利') && w.includes('直近8週の推移') && !w.includes('NaN') && !w.includes('undefined'));
-  assert.ok(fixedTab(c).includes('鑑定士からの申請（承認待ち）') && fixedTab(c).includes('経理代行') && fixedTab(c).includes('先に補充'));
   for (const html of [balanceTab(c), claimsTab(c), fixedTab(c)]) assert.ok(!html.includes('NaN') && !html.includes('undefined'));
 });
 
@@ -85,20 +84,3 @@ test('店舗の画面は、描画できる。ログイン前はログイン画�
   assert.ok(JSON.parse(mem.get('rq-mock-store-visits')).length >= 8); // サンプルの来店が入る
 });
 
-test('鑑定士タブレットの小口金: 残り・申請・自分の申請の状況が出る。申請すると承認待ちになり、取り下げられる', async () => {
-  const P = await import('../src/pettyRequest.js');
-  const { pettyView } = await import('../src/pettyView.js');
-  const before = P.pettyPendingCount('u03');
-  const s = { user: 'u03', petty: P.blankPettyForm() };
-  assert.equal(P.sendPettyRequest('u03', { ...P.blankPettyForm(), amount: 0, memo: 'x' }), false);
-  assert.equal(P.pettyReady({ ...P.blankPettyForm(), amount: 100, memo: ' ' }), false);
-  assert.equal(P.sendPettyRequest('u03', { ...P.blankPettyForm(), amount: 2500, memo: '資料のコピー代' }), true);
-  assert.equal(P.pettyPendingCount('u03'), before + 1);
-  const html = pettyView(s);
-  assert.ok(html.includes('使用を申請する') && html.includes('資料のコピー代') && html.includes('承認待ち') && html.includes('残り') && !html.includes('NaN'));
-  const { loadPettyUses } = await import('../src/fixedCosts.js');
-  P.withdrawPetty('u04', loadPettyUses().find((u) => u.memo === '資料のコピー代').id); // 他の鑑定士は取り下げられない
-  assert.equal(P.pettyPendingCount('u03'), before + 1);
-  P.withdrawPetty('u03', loadPettyUses().find((u) => u.memo === '資料のコピー代').id);
-  assert.equal(P.pettyPendingCount('u03'), before);
-});

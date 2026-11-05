@@ -97,8 +97,7 @@ export const MENU = [
   { key: 'start', view: 'workday', icon: '☀', label: '始業', sub: '始業点検をして、業務を開始' },
   { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
   { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
-  { key: 'expense', icon: '💴', label: '経費管理', sub: '所持金・経費の計上（レシート撮影）' },
-  { key: 'petty', icon: '👜', label: '小口金', sub: '残りの確認と、使用の申請（経理部が承認）' },
+  { key: 'expense', icon: '💴', label: '経費管理', sub: '前日繰越金・補充金（入）と、経費・買取代金（出）' },
   { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品のQR読取・倉庫への入庫' },
   { key: 'end', view: 'workday', icon: '🌙', label: '終業・日報', sub: '現金の締めと、日報の提出' },
 ];
@@ -934,7 +933,6 @@ export { masterBodyView } from './masterView.js';
 export { dashboardView } from './dashboardView.js';
 export { scheduleView } from './scheduleView.js';
 export { authView } from './authView.js';
-export { pettyView } from './pettyView.js';
 export { workdayView, expenseView, receiptModalView, outcomeModalView, outcomeResultView, wdLiveView, cashTotalView, withdrawLiveView, wdStartBottomView, expLiveView, ocLiveView } from './workdayView.js';
 export { stockView } from './stockView.js';
 export { reviseBanner, reviseSection, reviseModalView, rvLiveView } from './reviseView.js';

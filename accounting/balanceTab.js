@@ -9,14 +9,14 @@ import { yen, fmtTime, esc } from '../src/format.js';
 import { LEVEL, signed, signedYen, badge, card, mdw } from './ui.js';
 
 const PHASE = { before: ['未始業', 'bg-slate-200 text-slate-600'], open: ['業務中', 'bg-emerald-100 text-emerald-800'], closed: ['終業済み', 'bg-indigo-100 text-indigo-800'] };
-const MANUAL = { in: IN_CATEGORIES, out: OUT_CATEGORIES.filter((c) => !['fixed', 'petty'].includes(c.key)) }; // 固定費・小口金は、固定費・小口金管理から
+const MANUAL = { in: IN_CATEGORIES, out: OUT_CATEGORIES.filter((c) => c.key !== 'fixed') }; // 固定費は、固定費の画面から
 
 const ledgerForm = (c) => {
   const f = c.st.led;
   const cat = categoryOf(f.category);
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">✍️ 入金・支払の登録${helpIcon('家賃・人件費などの固定費、鑑定士の小口金は、固定費・小口金管理から支払います。')}</h2>
+    <h2 class="font-bold text-lg">✍️ 入金・支払の登録${helpIcon('家賃・人件費などの固定費は、固定費の画面から支払います。')}</h2>
     <div class="flex gap-2">${[['in', '入金'], ['out', '支払']].map(([k, l]) => `<button class="b b-sec ${f.kind === k ? 'on' : ''}" data-led-kind="${k}">${l}</button>`).join('')}</div>
     <div class="grid sm:grid-cols-2 gap-3">
       <label class="text-sm font-bold">区分<select class="inp mt-1 font-normal" data-f="led.category">${MANUAL[f.kind].map((x) => `<option value="${x.key}" ${f.category === x.key ? 'selected' : ''}>${x.label}</option>`).join('')}</select><span class="text-xs font-normal text-slate-500">${esc(cat?.hint ?? '')}</span></label>

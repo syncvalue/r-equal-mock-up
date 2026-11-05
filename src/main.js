@@ -4,7 +4,7 @@ import { estimateByPhotos, RECEIPT_SAMPLES, receiptSampleFor } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
   sendMessage,
-  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, PETTY_KEY, LEDGER_KEY, DAILY_CHECK_KEY, CHAT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
+  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, DAILY_CHECK_KEY, CHAT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import { addPhoto, removePhoto } from './itemPhotos.js';
@@ -27,7 +27,6 @@ import { formatMoneyInput } from './moneyInput.js';
 import { loadChats, saveChats, post as postChat, markRead as markChatRead, unreadCount } from './expenseChat.js';
 import { ballList } from './ball.js';
 import { revisableDays, loadChecks, saveChecks, loadItemChecks, saveItemChecks, afterRevise, canRevise } from './dailyCheck.js';
-import { blankPettyForm, sendPettyRequest, withdrawPetty, pettyReady } from './pettyRequest.js';
 import {
   START_CHECKS, END_CHECKS, cashTotal, breakdownOf, loadDay, loadDays, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, reviseExpense, reviseRemove, recordVisit, summaryOf, carryoverFor,
   newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, withdrawalReady, addWithdrawal, removeWithdrawal, invoiceAfterRead, startReady, closeReady,
@@ -63,7 +62,6 @@ const initialState = () => ({
   rvDraft: blankExpenseDraft(), // 提出済みの経費の修正の入力中データ
   fixable: [], // 鑑定士が経費を直せる日（差戻し・確認待ち）
   withdrawDraft: { amount: 0 },
-  petty: blankPettyForm(), // 小口金の申請の入力中データ
   outcome: null,
   outcomeDraft: blankOutcomeDraft(),
   units: [],
@@ -219,7 +217,7 @@ function render() {
   document.title = `${state.balls.length ? `(${state.balls.length}) ` : ''}${BASE_TITLE}`; // タブを見るだけで、対応待ちに気づけるように
   $('#app').innerHTML =
     V.headerView(state) +
-    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : state.view === 'petty' ? V.pettyView(state) : state.view === 'return' ? V.stockView(state) : V.placeholderView(state)}</main>` +
+    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : state.view === 'return' ? V.stockView(state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
     V.modalView(state) +
     V.receiptModalView(state) +
@@ -719,13 +717,6 @@ const actions = {
   'rv-remove': (el) => {
     if (confirm('この経費を削除します。よろしいですか？')) reviseDay((day) => reviseRemove(day, state.user, el.dataset.id), [el.dataset.id], '経費を削除しました');
   },
-  // 小口金の申請（承認は経理部）
-  'petty-send': () => {
-    if (!sendPettyRequest(state.user, state.petty)) { showToast('金額と用途を入力してください'); return; }
-    set({ petty: blankPettyForm() });
-    showToast('小口金の使用を申請しました（経理部が承認します）');
-  },
-  'petty-withdraw': (el) => { if (confirm('この申請を取り下げます。よろしいですか？')) { withdrawPetty(state.user, el.dataset.id); set({}); } },
   'exp-view': (el) => set({ modal: { type: 'receipt', id: el.dataset.id } }),
   // お客様の評価（鑑定士の記録）。訪問が完了した予定から登録する。保存済みの内容があれば、それを下書きとして開く
   'eval-open': (el) => {
@@ -903,7 +894,7 @@ document.addEventListener('input', (e) => {
   if (el.dataset.wd) {
     // 始業・終業・経費の入力。再描画せず state だけ更新し、差異の表示とボタンだけ差し替える（フォーカス維持）
     const filled = el.value.trim() !== '';
-    const amount = el.dataset.wd.endsWith('counted') || ['exp-amount', 'rv-amount', 'petty-amount', 'wdr-amount'].includes(el.dataset.wd) ? formatMoneyInput(el) : 0;
+    const amount = el.dataset.wd.endsWith('counted') || ['exp-amount', 'rv-amount', 'wdr-amount'].includes(el.dataset.wd) ? formatMoneyInput(el) : 0;
     const patch = {
       'start-counted': { startForm: { ...state.startForm, counted: amount, countedSet: filled } },
       'start-note': { startForm: { ...state.startForm, note: el.value } },
@@ -916,9 +907,6 @@ document.addEventListener('input', (e) => {
       'rv-amount': { rvDraft: { ...state.rvDraft, amount } },
       'rv-chat': { rvChat: el.value },
       'rv-memo': { rvDraft: { ...state.rvDraft, memo: el.value } },
-      'petty-amount': { petty: { ...state.petty, amount } },
-      'petty-date': { petty: { ...state.petty, date: el.value } },
-      'petty-memo': { petty: { ...state.petty, memo: el.value } },
       'oc-memo': { outcomeDraft: { ...state.outcomeDraft, memo: el.value } },
       'oc-date': { outcomeDraft: { ...state.outcomeDraft, date: el.value } },
       'oc-time': { outcomeDraft: { ...state.outcomeDraft, time: el.value } },
@@ -930,7 +918,6 @@ document.addEventListener('input', (e) => {
     if ($('#rv-live')) $('#rv-live').innerHTML = V.rvLiveView(state);
     if (el.dataset.wd === 'wdr-amount') { const b = $('[data-action="wdr-add"]'); if (b) b.disabled = !withdrawalReady(state.withdrawDraft); }
     if ($('#oc-live')) $('#oc-live').innerHTML = V.ocLiveView(state);
-    if (el.dataset.wd.startsWith('petty')) { const b = $('[data-action="petty-send"]'); if (b) b.disabled = !pettyReady(state.petty); }
     return;
   }
   if (el.dataset.evalmemo !== undefined) {
@@ -971,10 +958,6 @@ function rerenderKeepScroll() {
 
 // 本社(別タブ)からの回答を受信
 window.addEventListener('storage', (e) => {
-  if (e.key === PETTY_KEY || e.key === LEDGER_KEY) { // 小口金の承認・却下・補充（経理部）
-    if (state.view === 'petty') rerenderKeepScroll();
-    return;
-  }
   if (e.key === DAILY_CHECK_KEY) { // 営業サポートの経費精算のチェック（差戻し・チェック済み）
     const before = state.fixable.filter((r) => r.status === 'returned').length;
     const after = revisableDays(Object.values(loadDays()), loadChecks(), state.user).filter((r) => r.status === 'returned').length;

@@ -98,10 +98,9 @@ export const WORKDAY_KEY = 'rq-mock-workdays';
 export const DEPOSIT_KEY = 'rq-mock-deposits';
 // 経理部から、お客様への入金（銀行振込）の記録
 export const CUSTOMER_PAY_KEY = 'rq-mock-customer-payments';
-// 経理部: 入出金の帳簿、固定費の登録、査定員の小口金の使用記録、経費精算（一次チェック）の結果
+// 経理部: 入出金の帳簿、固定費の登録、経費精算（一次チェック）の結果
 export const LEDGER_KEY = 'rq-mock-ledger';
 export const FIXED_KEY = 'rq-mock-fixed-costs';
-export const PETTY_KEY = 'rq-mock-petty-uses';
 export const DAILY_CHECK_KEY = 'rq-mock-daily-checks';
 export const CHAT_KEY = 'rq-mock-expense-chats'; // 経費精算: 経理部と鑑定士のやり取り（チャット）
 export const ITEM_CHECK_KEY = 'rq-mock-item-checks'; // 経費精算: 経費・お客様への支払・現金の1件ずつの確認
@@ -126,7 +125,7 @@ export { RESERVATION_KEY };
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY, STORE_VISITS_KEY, STORE_DRAFT_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY, STORE_VISITS_KEY, STORE_DRAFT_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
   sessionStorage.removeItem('rq-mock-wh-session'); // 倉庫担当のログイン状態も

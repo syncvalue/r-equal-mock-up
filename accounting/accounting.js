@@ -1,11 +1,11 @@
-// 経理部デスク画面（ダミー・PC想定）。経費精算／残高・入出金管理／週間収支。（固定費・小口金管理は、メニューから外している）
-import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY } from '../src/store.js';
+// 経理部デスク画面（ダミー・PC想定）。経費精算／残高・入出金管理／週間収支。（固定費の画面は、メニューから外している）
+import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY } from '../src/store.js';
 import { USERS } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser } from '../src/dispatch.js';
 import { dateKey } from '../src/workday.js';
 import { officeUsers, giveAdvance, advanceReady, addCustomerPayment, paymentReady, markPaid, loadCustomerPayments, onlyOffice } from '../src/accounting.js';
 import { loadLedger, saveLedger, makeEntry, addEntry, entryReady, kindOf } from '../src/ledger.js';
-import { loadFixed, saveFixed, fixedReady, saveFixedCost, setFixedActive, loadPettyUses, savePettyUses, pettyUseReady, makePettyUse, addPettyUse, decidePettyUse, pettyRows, fieldStaff } from '../src/fixedCosts.js';
+import { loadFixed, saveFixed, fixedReady, saveFixedCost, setFixedActive } from '../src/fixedCosts.js';
 import { loadChecks, saveChecks, loadItemChecks, saveItemChecks, toggleItem, markAllItems, markOk, markReturned, reopen, shiftDate } from '../src/dailyCheck.js';
 import { weekStart, shiftWeek } from '../src/weekly.js';
 import { tabLabel, menuView } from './menu.js';
@@ -30,7 +30,6 @@ const blank = {
   led: () => ({ kind: 'in', category: 'sales', date: today(), amount: 0, cost: 0, userId: '', memo: '' }),
   pay: () => ({ customerName: '', amount: 0, reason: '', userId: '', memo: '' }),
   fix: () => ({ id: '', type: 'rent', name: '', amount: 0, payDay: 25 }),
-  pu: () => ({ userId: fieldStaff()[0]?.id ?? '', date: today(), amount: 0, memo: '' }),
   ret: () => ({ id: '', reason: '' }),
 };
 
@@ -38,7 +37,7 @@ const st = {
   tab: 'claims', menuOpen: false,
   office: AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : '', // 絞り込み中の営業所（空は全営業所）
   ledger: loadLedger(), selDay: null, selUser: null,
-  led: blank.led(), pay: blank.pay(), fix: blank.fix(), pu: blank.pu(), returning: null, pettyReject: null,
+  led: blank.led(), pay: blank.pay(), fix: blank.fix(), returning: null,
   claimFilter: 'pending', claimUser: null, chat: { text: '' }, calOpen: false, zoom: null, openPurchase: [], calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
 };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
@@ -100,28 +99,6 @@ function saveFix() {
   saveFixed(saveFixedCost(loadFixed(), st.fix));
   st.fix = blank.fix();
 }
-function refillPetty(id) {
-  const r = pettyRows(loadLedger(), loadPettyUses(), fieldStaff()).find((x) => x.user.id === id);
-  if (!r?.suggest || !confirm(`${r.user.name} さんへ、小口金を ${r.suggest.toLocaleString('ja-JP')}円 補充します。よろしいですか？`)) return;
-  saveLedger(addEntry(loadLedger(), makeEntry({ category: 'petty', amount: r.suggest, memo: '小口金の補充', userId: id }, { by: BY })));
-}
-function usePetty() {
-  if (!pettyUseReady(st.pu)) return alert('鑑定士・金額・用途を入力してください');
-  savePettyUses(addPettyUse(loadPettyUses(), makePettyUse(st.pu, { by: BY, proxy: true }))); // 経理代行は、承認済みで記録する
-  st.pu = { ...blank.pu(), userId: st.pu.userId };
-}
-const balanceOfAppraiser = (id) => pettyRows(loadLedger(), loadPettyUses(), fieldStaff()).find((r) => r.user.id === id)?.balance ?? 0;
-function approvePetty(id) {
-  const u = loadPettyUses().find((x) => x.id === id);
-  if (!u) return;
-  if (u.amount > balanceOfAppraiser(u.userId)) return alert('小口金の残りが足りません。先に補充してください');
-  savePettyUses(decidePettyUse(loadPettyUses(), id, 'approved', { by: BY, balance: balanceOfAppraiser(u.userId) }));
-}
-function rejectPetty() {
-  if (!st.pettyReject?.reason.trim()) return alert('却下の理由を入力してください');
-  savePettyUses(decidePettyUse(loadPettyUses(), st.pettyReject.id, 'rejected', { reason: st.pettyReject.reason, by: BY }));
-  st.pettyReject = null;
-}
 const review = (fn) => saveChecks(fn(loadChecks()));
 // 差戻し・チェック済みの記録を、その鑑定士とのやり取りに残す
 const event = (userId, kind, text) => saveChats(post(loadChats(), userId, st.checkDate, { from: 'accounting', by: BY, kind, text }));
@@ -178,16 +155,10 @@ const ACTIONS = {
   fixToggle: (d) => saveFixed(setFixedActive(loadFixed(), d.fixToggle, !loadFixed().find((x) => x.id === d.fixToggle)?.active)),
   fixSave: saveFix,
   fixCancel: () => { st.fix = blank.fix(); },
-  pettyRefill: (d) => refillPetty(d.pettyRefill),
-  pettyUse: usePetty,
-  pettyOk: (d) => approvePetty(d.pettyOk),
-  pettyRej: (d) => { st.pettyReject = { id: d.pettyRej, reason: '' }; },
-  pettyRejCancel: () => { st.pettyReject = null; },
-  pettyRejSend: rejectPetty,
   week: (d) => { st.week = shiftWeek(st.week, Number(d.week)); },
   pickWeek: (d) => { st.week = d.pickWeek; },
   sample: () => {
-    if (!confirm('鑑定士の始業・経費・補充金、入出金の帳簿、固定費、小口金、経費精算（一次チェック）の結果を、サンプルデータに置き換えます。よろしいですか？')) return false;
+    if (!confirm('鑑定士の始業・経費・補充金、入出金の帳簿、固定費、経費精算（一次チェック）の結果を、サンプルデータに置き換えます。よろしいですか？')) return false;
     try { localStorage.removeItem(FIXED_KEY); } catch { /* 固定費は、初期の登録に戻らないだけ（モック） */ }
     seedSample(Date.now(), true); st.selUser = null; st.selDay = null; st.fix = blank.fix();
     return true;
@@ -205,9 +176,9 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = ['led', 'pay', 'fix', 'pu', 'ret', 'rej', 'chat'];
+const FORMS = ['led', 'pay', 'fix', 'ret', 'chat'];
 const MONEY = ['amount', 'cost'];
-const SLOT = { ret: 'returning', rej: 'pettyReject' }; // 入力欄の名前と、状態の名前が違うもの
+const SLOT = { ret: 'returning' }; // 入力欄の名前と、状態の名前が違うもの
 const setForm = (name, value) => { st[SLOT[name] ?? name] = value; };
 const getForm = (name) => st[SLOT[name] ?? name];
 function onField(e, isInput) {
@@ -236,7 +207,7 @@ document.addEventListener('change', (e) => {
 // 鑑定士側（タブレット）などの更新を即時反映。入力中なら、入力欄から離れたときに反映する
 const isEditing = () => Boolean(document.activeElement?.dataset?.f);
 window.addEventListener('storage', (e) => {
-  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY].includes(e.key)) return;
+  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;
   else render();
 });

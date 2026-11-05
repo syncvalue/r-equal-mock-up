@@ -10,7 +10,7 @@ const { todayRows, loadDays, dateKey } = await import('../src/workday.js');
 const { loadLedger, dailyBalances } = await import('../src/ledger.js');
 const { recentWeeks } = await import('../src/weekly.js');
 const { checkRows, checkCounts, loadChecks, shiftDate } = await import('../src/dailyCheck.js');
-const { monthlyFixed, pettyRows, loadFixed, loadPettyUses, fieldStaff } = await import('../src/fixedCosts.js');
+const { monthlyFixed, loadFixed } = await import('../src/fixedCosts.js');
 
 const NOW = Date.now(); // 画面（todayRows）は実際の今日を使うため、固定の日付にしない
 
@@ -51,14 +51,13 @@ test('サンプル: 帳簿が約4週間ぶんあり、日次残高が続き、�
   assert.ok(today);
 });
 
-test('サンプル: 固定費は、先月分が払い済みで今月分に未払いがあり、鑑定士の小口金に「補充が必要」と「十分」がいる', () => {
+test('サンプル: 固定費は、先月分が払い済みで今月分に未払いがある。小口金の記録は、もうない', () => {
   const today = dateKey(new Date(NOW));
   const month = today.slice(0, 7);
   const last = dateKey(new Date(new Date(`${month}-01T00:00:00`).getTime() - 86400000)).slice(0, 7);
   assert.ok(monthlyFixed(loadFixed(), loadLedger(), last, today).some((r) => r.paid));
   assert.ok(monthlyFixed(loadFixed(), loadLedger(), month, today).some((r) => !r.paid));
-  const petty = pettyRows(loadLedger(), loadPettyUses(), fieldStaff());
-  assert.ok(petty.some((r) => r.low) && petty.some((r) => !r.low));
+  assert.ok(!loadLedger().some((e) => e.category === 'petty') && !localStorage.getItem('rq-mock-petty-uses'));
 });
 
 test('サンプル: 一度入れたら、データがある限り自動では入れ直さない。強制のときだけ入れ直す', () => {
