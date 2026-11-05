@@ -2,10 +2,14 @@
 import { esc, yen, fmtTime } from './format.js';
 import { moneyInputHtml } from './moneyInput.js';
 import { EXPENSE_TYPES, typeOf, expenseReady, summaryOf } from './workday.js';
+import { threadOf, unreadCount } from './expenseChat.js';
+import { chatView } from './expenseChatView.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const mdw = (date) => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}（${WEEK[new Date(`${date}T00:00:00`).getDay()]}）`;
 const returnedOf = (s) => (s.fixable ?? []).filter((r) => r.status === 'returned');
+
+const newChat = (s, date) => { const n = unreadCount(s.chats ?? {}, s.user, date, 'sales'); return n ? `<span class="rounded-full bg-rose-600 text-white text-xs font-bold px-2 py-0.5">💬 新着 ${n}</span>` : ''; };
 
 // ダッシュボード上部: 差戻しのお知らせ（理由つき）
 export function reviseBanner(s) {
@@ -14,7 +18,7 @@ export function reviseBanner(s) {
   return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2" role="alert">
     <div class="font-bold text-rose-800">⚠ 経費精算が差し戻されました（${list.length}日分）。内容を直してください</div>
     ${list.map((r) => `<div class="flex flex-wrap items-center gap-2 bg-white rounded-lg border border-rose-200 p-2"><b>${mdw(r.date)}</b><span class="flex-1 min-w-[12rem] text-sm text-rose-800">理由：${esc(r.review?.reason)}</span>
-      <button class="btn btn-primary !min-h-[44px] !py-1 !px-4" data-action="rv-open" data-date="${r.date}">経費を修正する</button></div>`).join('')}</div>`;
+      ${newChat(s, r.date)}<button class="btn btn-primary !min-h-[44px] !py-1 !px-4" data-action="rv-open" data-date="${r.date}">経費を修正する</button></div>`).join('')}</div>`;
 }
 
 // 経費管理: 直せる日の一覧（差戻し・確認前）
@@ -25,7 +29,7 @@ export function reviseSection(s) {
     <div class="text-xs text-slate-500">営業サポートが確認するまでは、直せます。確認が済む（チェック済み）と、直せなくなります。差戻しになった日は、直すと、もう一度確認してもらえます。</div>
     ${list.map((r) => `<div class="flex flex-wrap items-center gap-2 rounded-lg border p-2 ${r.status === 'returned' ? 'border-rose-300 bg-rose-50' : ''}"><b>${mdw(r.date)}</b>
       ${r.status === 'returned' ? `<span class="rounded bg-rose-100 text-rose-700 text-xs font-bold px-2 py-0.5">差戻し</span><span class="flex-1 min-w-[10rem] text-sm text-rose-800">理由：${esc(r.review?.reason)}</span>` : '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5">確認待ち</span><span class="flex-1 text-sm text-slate-500">営業サポートの確認前です</span>'}
-      <button class="btn btn-secondary !min-h-[40px] !py-1 !px-4 text-sm" data-action="rv-open" data-date="${r.date}">修正する</button></div>`).join('')}</div>`;
+      ${newChat(s, r.date)}<button class="btn btn-secondary !min-h-[40px] !py-1 !px-4 text-sm" data-action="rv-open" data-date="${r.date}">修正する・経理部とやり取り</button></div>`).join('')}</div>`;
 }
 
 // 入力のたびに差し替える、保存ボタン
@@ -79,6 +83,8 @@ export function reviseModalView(s) {
           <label class="flex items-center gap-2 rounded-lg border p-2 cursor-pointer"><input type="checkbox" class="w-6 h-6" data-action="rv-invoice" ${d.invoice ? 'checked' : ''} /><span class="font-bold text-sm">インボイス対応のレシート</span></label>
           <label class="block"><span class="font-bold text-sm">内容・メモ${d.type === 'other' ? '<span class="text-rose-600 ml-1">必須</span>' : '<span class="font-normal text-xs text-slate-500">（任意）</span>'}</span><input class="field !py-2 mt-1" data-wd="rv-memo" value="${esc(d.memo)}" placeholder="例: 大阪→堺 往復分" /></label>
           <div id="rv-live">${rvLiveView(s)}</div></div>`}
+        <div class="md:col-span-2"><div class="font-bold text-sm mb-1">💬 経理部とのやり取り${locked ? '' : ''}</div>
+          ${chatView(threadOf(s.chats ?? {}, s.user, date), { inputAttrs: 'data-wd="rv-chat"', sendAttrs: 'data-action="rv-chat-send"', draft: s.rvChat ?? '', cls: 'field !py-2' })}</div>
       </div>
     </div>
   </div>`;

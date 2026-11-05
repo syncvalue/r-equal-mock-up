@@ -4,7 +4,7 @@ import { estimateByPhotos, RECEIPT_SAMPLES, receiptSampleFor } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
   sendMessage,
-  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, PETTY_KEY, LEDGER_KEY, DAILY_CHECK_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
+  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, PETTY_KEY, LEDGER_KEY, DAILY_CHECK_KEY, CHAT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import { addPhoto, removePhoto } from './itemPhotos.js';
@@ -24,6 +24,7 @@ import {
   accountFor, passwordProblem, issueCode, checkCode, loadSession, saveSession, clearSession, RESEND_WAIT, MAX_CODE_TRIES,
 } from './auth.js';
 import { formatMoneyInput } from './moneyInput.js';
+import { loadChats, saveChats, post as postChat, markRead as markChatRead, unreadCount } from './expenseChat.js';
 import { revisableDays, loadChecks, saveChecks, loadItemChecks, saveItemChecks, afterRevise, canRevise } from './dailyCheck.js';
 import { blankPettyForm, sendPettyRequest, withdrawPetty, pettyReady } from './pettyRequest.js';
 import {
@@ -55,6 +56,8 @@ const initialState = () => ({
   startForm: blankStartForm(),
   closeForm: blankCloseForm(),
   expDraft: blankExpenseDraft(),
+  rvChat: '', // 経理部とのやり取りの入力中の文章
+  chats: {},
   rvDraft: blankExpenseDraft(), // 提出済みの経費の修正の入力中データ
   fixable: [], // 鑑定士が経費を直せる日（差戻し・確認待ち）
   withdrawDraft: { amount: 0 },
@@ -199,7 +202,9 @@ function render() {
   if (!state.user) { $('#app').innerHTML = V.authView(state); return; } // 未ログイン
   const day = loadDay(state.user);
   const phase = phaseOf(day);
-  set({ day, phase, units: loadUnits(), fixable: revisableDays(Object.values(loadDays()), loadChecks(), state.user) });
+  // 経費精算の修正の画面を開いている間は、経理部のメッセージを読んだことにする
+  if (state.modal?.type === 'revise') saveChats(markChatRead(loadChats(), state.user, state.modal.date, 'sales'));
+  set({ chats: loadChats(), day, phase, units: loadUnits(), fixable: revisableDays(Object.values(loadDays()), loadChecks(), state.user) });
   // 始業するまで（終業後も）、現地買取だけは使えない
   if (phase !== 'open' && state.view === 'visit') set({ view: 'workday', modal: null });
   readOpenThread();
@@ -218,6 +223,7 @@ function render() {
     V.scanView(state) +
     V.menuView(state);
   document.querySelectorAll('[data-scroll]').forEach((e) => { e.scrollTop = scrolls[e.dataset.scroll] ?? 0; });
+  document.querySelectorAll('[data-chat]').forEach((e) => { e.scrollTop = e.scrollHeight; }); // チャットは、いちばん新しい発言が見えるように
   document.querySelectorAll('[data-msgs]').forEach((e) => e.dispatchEvent(new Event('scroll', { bubbles: true }))); // 「他○件あります」の表示を、スクロール位置に合わせる
   publish();
   if (state.modal?.type === 'item') {
@@ -235,6 +241,7 @@ function reviseDay(fn, changedIds, message) {
   const next = afterRevise({ checks: loadChecks(), items: loadItemChecks() }, state.user, date, changedIds);
   saveChecks(next.checks);
   saveItemChecks(next.items);
+  saveChats(postChat(loadChats(), state.user, date, { from: 'sales', by: userById(state.user).name, kind: 'revised', text: message }));
   set({ rvDraft: blankExpenseDraft() });
   showToast(target.status === 'returned' ? `${message}。営業サポートが、もう一度確認します` : message);
 }
@@ -689,6 +696,11 @@ const actions = {
     const e = state.fixable.find((r) => r.date === state.modal?.date)?.day.expenses.find((x) => x.id === el.dataset.id);
     if (e && !e.auto) set({ rvDraft: { ...blankExpenseDraft(), id: e.id, type: e.type, amount: e.amount, memo: e.memo ?? '', photo: e.photo ?? null, invoice: Boolean(e.invoice) } });
   },
+  'rv-chat-send': () => {
+    if (state.modal?.type !== 'revise' || !state.rvChat.trim()) return;
+    saveChats(postChat(loadChats(), state.user, state.modal.date, { from: 'sales', by: userById(state.user).name, text: state.rvChat }));
+    set({ rvChat: '' });
+  },
   'rv-new': () => set({ rvDraft: blankExpenseDraft() }),
   'rv-type': (el) => set({ rvDraft: { ...state.rvDraft, type: el.dataset.value } }),
   'rv-invoice': () => set({ rvDraft: { ...state.rvDraft, invoice: !state.rvDraft.invoice } }),
@@ -897,6 +909,7 @@ document.addEventListener('input', (e) => {
       'exp-amount': { expDraft: { ...state.expDraft, amount } },
       'exp-memo': { expDraft: { ...state.expDraft, memo: el.value } },
       'rv-amount': { rvDraft: { ...state.rvDraft, amount } },
+      'rv-chat': { rvChat: el.value },
       'rv-memo': { rvDraft: { ...state.rvDraft, memo: el.value } },
       'petty-amount': { petty: { ...state.petty, amount } },
       'petty-date': { petty: { ...state.petty, date: el.value } },
@@ -961,6 +974,12 @@ window.addEventListener('storage', (e) => {
     const before = state.fixable.filter((r) => r.status === 'returned').length;
     const after = revisableDays(Object.values(loadDays()), loadChecks(), state.user).filter((r) => r.status === 'returned').length;
     if (after > before) showToast('⚠ 経費精算が差し戻されました。理由を確認して、経費を直してください');
+    rerenderKeepScroll();
+    return;
+  }
+  if (e.key === CHAT_KEY) { // 経費精算のやり取り（経理部からのメッセージ）
+    const unread = (list) => list.reduce((n, r) => n + unreadCount(loadChats(), state.user, r.date, 'sales'), 0);
+    if (unread(state.fixable) > 0 && state.modal?.type !== 'revise') showToast('💬 経理部から、経費精算のメッセージが届きました');
     rerenderKeepScroll();
     return;
   }

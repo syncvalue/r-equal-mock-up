@@ -75,3 +75,18 @@ test('タブレットの表示: 差戻しのお知らせ（理由つき）・修
   assert.ok(locked.includes('直せません') && !locked.includes('rv-save') && !locked.includes('rv-edit') && !locked.includes('data-wd="rv-amount"'));
   assert.ok(R.rvLiveView(s).includes('種別を選んでください') && R.rvLiveView({ rvDraft: { id: 'e1', type: 'gas', amount: 5, memo: '', photo: 'x', invoice: false } }).includes('修正を保存する'));
 });
+
+test('タブレットの表示: 修正の画面に、経理部とのやり取り（チャット）と送る欄が出る。経理部のメッセージが新着なら、一覧・お知らせに出る', async () => {
+  const R = await import('../src/reviseView.js');
+  const Ch = await import('../src/expenseChat.js');
+  const days = [closed({ date: '2026-11-03' })];
+  const checks = { 'u01:2026-11-03': { status: 'returned', reason: '領収書' } };
+  const chats = Ch.post({}, 'u01', '2026-11-03', { from: 'accounting', by: '経理部', text: '撮り直してください', now: 5 });
+  const s = { user: 'u01', fixable: D.revisableDays(days, checks, 'u01'), chats, rvChat: '了解です', modal: { type: 'revise', date: '2026-11-03' }, rvDraft: { id: null, type: '', amount: 0, memo: '', photo: null, invoice: false } };
+  const modal = R.reviseModalView(s);
+  for (const w of ['経理部とのやり取り', '撮り直してください', 'data-wd="rv-chat"', 'data-action="rv-chat-send"', 'value="了解です"']) assert.ok(modal.includes(w), w);
+  assert.ok(R.reviseBanner(s).includes('新着 1') && R.reviseSection(s).includes('新着 1'));
+  assert.ok(!R.reviseBanner({ ...s, chats: Ch.markRead(chats, 'u01', '2026-11-03', 'sales', 9) }).includes('新着'));
+  const locked = R.reviseModalView({ ...s, fixable: [], modal: { type: 'revise', date: '2026-11-03', day: days[0] } });
+  assert.ok(locked.includes('data-wd="rv-chat"')); // チェック済みの日も、やり取りは続けられる
+});

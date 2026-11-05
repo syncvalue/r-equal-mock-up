@@ -1,5 +1,5 @@
 // 経理部デスク画面（ダミー・PC想定）。経費精算／残高・入出金管理／週間収支。（固定費・小口金管理は、メニューから外している）
-import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY } from '../src/store.js';
+import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY } from '../src/store.js';
 import { USERS } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser } from '../src/dispatch.js';
 import { dateKey } from '../src/workday.js';
@@ -11,7 +11,8 @@ import { weekStart, shiftWeek } from '../src/weekly.js';
 import { tabLabel, menuView } from './menu.js';
 import { zoomView } from './ui.js';
 import { balanceTab } from './balanceTab.js';
-import { claimsTab, dayRows, pendingBefore, bulkTargets } from './claimsTab.js';
+import { claimsTab, dayRows, pendingBefore, bulkTargets, markPickedRead, pickedOf } from './claimsTab.js';
+import { loadChats, saveChats, post } from '../src/expenseChat.js';
 import { fixedTab, shiftMonth, fixedRows } from './fixedTab.js';
 import { weeklyTab } from './weeklyTab.js';
 import { seedSample } from '../src/accountingSample.js';
@@ -38,7 +39,7 @@ const st = {
   office: AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : '', // 絞り込み中の営業所（空は全営業所）
   ledger: loadLedger(), selDay: null, selUser: null,
   led: blank.led(), pay: blank.pay(), fix: blank.fix(), pu: blank.pu(), returning: null, pettyReject: null,
-  claimFilter: 'pending', claimUser: null, calOpen: false, zoom: null, openPurchase: [], calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
+  claimFilter: 'pending', claimUser: null, chat: { text: '' }, calOpen: false, zoom: null, openPurchase: [], calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
 };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
@@ -51,6 +52,7 @@ const FILTERED_TABS = ['claims', 'balance']; // 営業所での絞り込みが�
 const VIEWS = { balance: balanceTab, claims: claimsTab, fixed: fixedTab, weekly: weeklyTab };
 
 function render() {
+  if (st.tab === 'claims') markPickedRead(ctx); // 開いている鑑定士のやり取りは、読んだことにする
   st.ledger = loadLedger();
   if (!scopedIds().includes(st.led.userId)) st.led = { ...st.led, userId: scopedIds()[0] ?? '' };
   if (st.pay.userId && !scopedIds().includes(st.pay.userId)) st.pay = { ...st.pay, userId: '' };
@@ -65,6 +67,7 @@ function render() {
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${filter}<button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${VIEWS[st.tab](ctx)}</main>${st.menuOpen ? menuView({ tab: st.tab, badges }) : ''}${st.zoom ? zoomView(st.zoom) : ''}</div>`;
+  document.querySelectorAll('[data-chat]').forEach((e) => { e.scrollTop = e.scrollHeight; }); // チャットは、いちばん新しい発言が見えるように
 }
 
 // ---- 操作 -----------------------------------------------------------------------
@@ -117,6 +120,8 @@ function rejectPetty() {
   st.pettyReject = null;
 }
 const review = (fn) => saveChecks(fn(loadChecks()));
+// 差戻し・チェック済みの記録を、その鑑定士とのやり取りに残す
+const event = (userId, kind, text) => saveChats(post(loadChats(), userId, st.checkDate, { from: 'accounting', by: BY, kind, text }));
 
 const ACTIONS = {
   tab: (d) => { st.tab = d.tab; st.menuOpen = false; st.calOpen = false; },
@@ -131,7 +136,13 @@ const ACTIONS = {
   payAdd: addPay,
   payDone: (d) => markPaid(d.payDone),
   claimFilter: (d) => { st.claimFilter = d.claimFilter; },
-  claimUser: (d) => { st.claimUser = d.claimUser; st.returning = null; },
+  claimUser: (d) => { st.claimUser = d.claimUser; st.returning = null; st.chat = { text: '' }; },
+  chatSend: () => {
+    const row = pickedOf(ctx);
+    if (!row || !st.chat.text.trim()) return false;
+    saveChats(post(loadChats(), row.userId, st.checkDate, { from: 'accounting', by: BY, text: st.chat.text }));
+    st.chat = { text: '' };
+  },
   calToggle: () => { st.calOpen = !st.calOpen; st.calMonth = st.checkDate.slice(0, 7); },
   calShift: (d) => { st.calMonth = shiftMonth(st.calMonth, Number(d.calShift)); },
   calPick: (d) => { st.checkDate = d.calPick; st.claimUser = null; st.returning = null; st.calOpen = false; },
@@ -139,12 +150,13 @@ const ACTIONS = {
   checkYesterday: () => { st.checkDate = shiftDate(today(), -1); st.claimUser = null; st.returning = null; st.calOpen = false; },
   purchaseToggle: (d) => { st.openPurchase = st.openPurchase.includes(d.purchaseToggle) ? st.openPurchase.filter((x) => x !== d.purchaseToggle) : [...st.openPurchase, d.purchaseToggle]; },
   itemToggle: (d) => { saveItemChecks(toggleItem(loadItemChecks(), d.itemToggle, { by: BY })); },
-  claimOk: (d) => review((c) => markOk(c, d.claimOk, st.checkDate, { by: BY })),
+  claimOk: (d) => { review((c) => markOk(c, d.claimOk, st.checkDate, { by: BY })); event(d.claimOk, 'ok', 'チェック済みにしました'); },
   claimRet: (d) => { st.returning = { id: d.claimRet, reason: '' }; },
   claimRetCancel: () => { st.returning = null; },
   claimRetSend: () => {
     if (!st.returning?.reason.trim()) return alert('差戻しの理由を入力してください');
     review((c) => markReturned(c, st.returning.id, st.checkDate, st.returning.reason, { by: BY }));
+    event(st.returning.id, 'returned', st.returning.reason.trim());
     st.returning = null;
   },
   claimReopen: (d) => review((c) => reopen(c, d.claimReopen, st.checkDate)),
@@ -153,6 +165,7 @@ const ACTIONS = {
     if (targets.length && confirm(`指摘のない未チェックの鑑定士 ${targets.length}人を、まとめてチェック済みにします（経費・お客様への支払・現金も、すべて確認済みにします）。よろしいですか？`)) {
       saveItemChecks(targets.reduce((acc, r) => markAllItems(acc, r, { by: BY }), loadItemChecks()));
       review((c) => targets.reduce((acc, r) => markOk(acc, r.userId, st.checkDate, { by: BY }), c));
+      targets.forEach((r) => event(r.userId, 'ok', 'チェック済みにしました'));
     }
   },
   month: (d) => { st.month = shiftMonth(st.month, Number(d.month)); },
@@ -188,7 +201,7 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = ['led', 'pay', 'fix', 'pu', 'ret', 'rej'];
+const FORMS = ['led', 'pay', 'fix', 'pu', 'ret', 'rej', 'chat'];
 const MONEY = ['amount', 'cost'];
 const SLOT = { ret: 'returning', rej: 'pettyReject' }; // 入力欄の名前と、状態の名前が違うもの
 const setForm = (name, value) => { st[SLOT[name] ?? name] = value; };
@@ -219,7 +232,7 @@ document.addEventListener('change', (e) => {
 // 鑑定士側（タブレット）などの更新を即時反映。入力中なら、入力欄から離れたときに反映する
 const isEditing = () => Boolean(document.activeElement?.dataset?.f);
 window.addEventListener('storage', (e) => {
-  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY].includes(e.key)) return;
+  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;
   else render();
 });

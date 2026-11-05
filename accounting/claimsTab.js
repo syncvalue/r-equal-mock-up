@@ -3,6 +3,8 @@ import { loadDays, typeOf, summaryOf } from '../src/workday.js';
 import { onlyOffice } from '../src/accounting.js';
 import { checkRows, checkCounts, loadChecks, loadItemChecks, dayBadges, monthGrid, bulkTargets as bulkOf, CHECK_STATUS, shiftDate } from '../src/dailyCheck.js';
 import { userById } from '../src/dashboard.js';
+import { loadChats, threadOf, unreadCount, markRead as markChatRead, saveChats } from '../src/expenseChat.js';
+import { chatView } from '../src/expenseChatView.js';
 import { helpIcon } from '../src/help.js';
 import { fmtTime, esc } from '../src/format.js';
 import { LEVEL, badge, card, signed, signedYen as yen, mdw, thumb } from './ui.js';
@@ -123,7 +125,7 @@ function actions(c, r) {
     ${returning ? `<div class="flex flex-wrap items-end gap-2 mt-2 bg-rose-50 rounded p-2"><label class="text-sm font-bold flex-1 min-w-[16rem]">差戻しの理由（必須・鑑定士に伝える内容）<input class="inp mt-1 font-normal" data-f="ret.reason" value="${esc(c.st.returning.reason)}" placeholder="例: ガソリン代の領収書がありません。撮影して再提出してください" /></label><button class="b b-pri" data-claim-ret-send>差戻す</button><button class="b b-sec" data-claim-ret-cancel>やめる</button></div>` : ''}`;
 }
 
-function detail(c, r) {
+function detail(c, r, chats) {
   const s = summaryOf(r.day, r.userId);
   const st = CHECK_STATUS[r.status];
   const by = r.review ? `<span class="text-xs text-slate-500">${esc(r.review.by)}・${r.review.date}</span>` : '';
@@ -134,10 +136,14 @@ function detail(c, r) {
     <div class="max-w-3xl overflow-x-auto">${reconcileTable(r, s)}</div>
     <div class="overflow-x-auto space-y-6"><div><div class="font-bold text-sm mb-1">経費（ガソリン代など）</div>${expenseTable(c, r)}</div><div><div class="font-bold text-sm mb-1">お客様への支払</div>${purchaseTable(c, r)}</div></div>
     ${cashCheck(c, r)}
+    <div><div class="font-bold text-sm mb-1">💬 ${esc(userById(r.userId).name)} さんとのやり取り${helpIcon('この日の経費精算について、鑑定士とやり取りします。差戻し・チェック済みにした記録も、ここに残ります。鑑定士のタブレットにも表示されます。')}</div>
+      <div class="max-w-3xl">${chatView(threadOf(chats, r.userId, r.date), { inputAttrs: 'data-f="chat.text"', sendAttrs: 'data-chat-send', draft: c.st.chat?.text ?? '' })}</div></div>
     ${actions(c, r)}</section>`;
 }
 
-function listRow(c, r, selected) {
+function listRow(c, r, selected, chats) {
+  const talk = threadOf(chats, r.userId, r.date).messages.length;
+  const unread = unreadCount(chats, r.userId, r.date, 'accounting');
   const st = CHECK_STATUS[r.status];
   const x = r.rec;
   const danger = r.issues.filter((i) => i.level === 'danger').length;
@@ -146,14 +152,27 @@ function listRow(c, r, selected) {
     <td class="text-right">${yen(x.carryover)}</td><td class="text-right">${x.closeCounted === null ? '<span class="text-rose-600 font-bold">未提出</span>' : yen(x.closeCounted)}</td>
     <td class="text-right ${x.closeDiff ? 'text-rose-600 font-bold' : ''}">${x.closeDiff === null ? '－' : signed(x.closeDiff)}</td>
     <td class="text-right">${yen(x.expenses)}</td><td class="text-right">${yen(x.customerPaid)}</td>
-    <td>${danger ? badge(LEVEL.danger, `要対応 ${danger}`) : ''} ${warn ? badge(LEVEL.warn, `確認 ${warn}`) : ''} ${!r.issues.length ? '<span class="text-emerald-700 text-xs font-bold">問題なし</span>' : ''}</td><td>${badge(st.cls, st.label)}</td></tr>`;
+    <td>${danger ? badge(LEVEL.danger, `要対応 ${danger}`) : ''} ${warn ? badge(LEVEL.warn, `確認 ${warn}`) : ''} ${!r.issues.length ? '<span class="text-emerald-700 text-xs font-bold">問題なし</span>' : ''}</td><td>${badge(st.cls, st.label)}</td>
+    <td class="whitespace-nowrap">${talk ? `<span class="text-xs">💬 ${talk}</span>` : '<span class="text-slate-300">－</span>'}${unread ? ` <span class="rounded-full bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5">新着 ${unread}</span>` : ''}</td></tr>`;
+}
+
+const listOf = (c, all) => (c.st.claimFilter === 'all' ? all : all.filter((r) => r.status === c.st.claimFilter));
+export const pickedOf = (c, all = rowsOf(c)) => { const list = listOf(c, all); return list.find((r) => r.userId === c.st.claimUser) ?? list[0]; };
+// 開いている鑑定士のやり取りを、読んだことにする（画面を描く前に呼ぶ）
+export function markPickedRead(c) {
+  const picked = pickedOf(c);
+  if (!picked) return;
+  const chats = loadChats();
+  const next = markChatRead(chats, picked.userId, picked.date, 'accounting');
+  if (next !== chats) saveChats(next);
 }
 
 export function claimsTab(c) {
   const all = rowsOf(c);
   const n = checkCounts(all);
-  const list = c.st.claimFilter === 'all' ? all : all.filter((r) => r.status === c.st.claimFilter);
-  const picked = list.find((r) => r.userId === c.st.claimUser) ?? list[0];
+  const list = listOf(c, all);
+  const picked = pickedOf(c, all);
+  const chats = loadChats();
   const bulk = bulkOf(all);
   const today = c.today();
   return `
@@ -172,8 +191,8 @@ export function claimsTab(c) {
     ${FILTERS.map(([k, l]) => `<button class="b b-sec ${c.st.claimFilter === k ? 'on' : ''}" data-claim-filter="${k}">${l}</button>`).join('')}
     <button class="b b-sec ml-auto" data-claim-bulk ${bulk.length ? '' : 'disabled'}>指摘のない未チェック ${bulk.length}人を一括でチェック済み</button>
   </div>
-  <div class="overflow-x-auto"><table class="w-full text-sm bg-white rounded-xl border border-slate-300 overflow-hidden"><thead><tr class="${TH}"><th>鑑定士</th><th class="text-right">前日繰越金</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th class="text-right">経費</th><th class="text-right">お客様への支払</th><th>指摘</th><th>状況</th></tr></thead><tbody class="${ZEBRA}">
-    ${list.length ? list.map((r) => listRow(c, r, r === picked)).join('') : `<tr><td colspan="8" class="text-slate-400">${all.length ? '該当する鑑定士はいません。' : 'この日に提出された記録はありません。'}</td></tr>`}
+  <div class="overflow-x-auto"><table class="w-full text-sm bg-white rounded-xl border border-slate-300 overflow-hidden"><thead><tr class="${TH}"><th>鑑定士</th><th class="text-right">前日繰越金</th><th class="text-right">終業時の所持金</th><th class="text-right">過不足</th><th class="text-right">経費</th><th class="text-right">お客様への支払</th><th>指摘</th><th>状況</th><th>やり取り</th></tr></thead><tbody class="${ZEBRA}">
+    ${list.length ? list.map((r) => listRow(c, r, r === picked, chats)).join('') : `<tr><td colspan="9" class="text-slate-400">${all.length ? '該当する鑑定士はいません。' : 'この日に提出された記録はありません。'}</td></tr>`}
   </tbody></table></div>
-  ${picked ? detail(c, picked) : ''}`;
+  ${picked ? detail(c, picked, chats) : ''}`;
 }

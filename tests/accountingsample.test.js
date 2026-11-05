@@ -82,3 +82,17 @@ test('サンプル: 買取代金には買取の内訳があり、商品ごとの
     assert.equal(e.items.reduce((n, i) => n + i.price, 0), e.amount);
   }
 });
+
+test('サンプル: 経費精算のやり取りがある（差戻しの日・経理部からの質問は鑑定士が未読・鑑定士からの連絡は経理部が未読）', async () => {
+  seedSample(NOW, true);
+  const { loadChats, threadOf, unreadCount } = await import('../src/expenseChat.js');
+  const chats = loadChats();
+  const keys = Object.keys(chats);
+  assert.equal(keys.length, 3);
+  const returned = Object.entries(loadChecks()).find(([, v]) => v.status === 'returned')[0];
+  assert.ok(chats[returned].messages.some((m) => m.kind === 'returned') && chats[returned].messages.some((m) => m.from === 'sales'));
+  const yesterday = shiftDate(dateKey(new Date(NOW)), -1);
+  assert.equal(unreadCount(chats, 'u02', yesterday, 'sales'), 1);
+  assert.equal(unreadCount(chats, 'u04', yesterday, 'accounting'), 1);
+  assert.equal(threadOf(chats, 'u01', yesterday).messages.length, 0);
+});
