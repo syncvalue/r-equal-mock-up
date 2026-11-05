@@ -86,7 +86,7 @@ test('サンプル: 経費精算のやり取りがある（差戻しの日・経
   seedSample(NOW, true);
   const { loadChats, threadOf, unreadCount } = await import('../src/expenseChat.js');
   const chats = loadChats();
-  const keys = Object.keys(chats);
+  const keys = Object.keys(chats).filter((k) => !k.startsWith('adv:')); // 補充の依頼のチャットは、別のテスト
   assert.equal(keys.length, 3);
   const returned = Object.entries(loadChecks()).find(([, v]) => v.status === 'returned')[0];
   assert.ok(chats[returned].messages.some((m) => m.kind === 'returned') && chats[returned].messages.some((m) => m.from === 'sales'));
@@ -103,4 +103,12 @@ test('サンプル: 補充の依頼に、対応待ち・振込済み・却下が
   assert.equal(pendingRequests(list).length, 2);
   assert.ok(list.some((r) => r.status === 'done' && r.paidAmount === r.amount) && list.some((r) => r.status === 'rejected' && r.reason));
   assert.equal(new Set(list.map((r) => r.id)).size, list.length);
+  const { advThread, advUnread } = await import('../src/advanceRequest.js');
+  const { loadChats } = await import('../src/expenseChat.js');
+  const chats = loadChats();
+  assert.ok(list.every((r) => advThread(chats, r.id).messages.length >= 1));
+  assert.ok(advThread(chats, 'SAR-1').messages.some((m) => m.from === 'accounting')); // 経理部の相談
+  assert.ok(advThread(chats, 'SAR-3').messages.some((m) => m.kind === 'rejected') && advThread(chats, 'SAR-4').messages.some((m) => m.kind === 'paid'));
+  assert.equal(advUnread(chats, 'SAR-3', 'sales'), 1); // 鑑定士は、却下の通知が新着
+  assert.equal(advUnread(chats, 'SAR-2', 'accounting'), 1); // 経理部は、まだ見ていない依頼が新着
 });

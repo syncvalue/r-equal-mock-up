@@ -92,7 +92,7 @@ export function buildSample(now = Date.now()) {
     { id: 'SP-3', customerName: '井上 和夫', amount: 95000, reason: 'highvalue', userId: 'u03', memo: '□□銀行 難波支店 普通 1112223', status: 'done', at: at(now, ago(1), 16), paidAt: at(now, ago(1), 17, 30) },
   ];
   const storedDeposits = [...deposits, ...past.flatMap((d) => (d.closedAt ? [] : [{ id: `SD-${d.userId}-${d.date}`, userId: d.userId, amount: d.withdrawals.reduce((n, w) => n + w.amount, 0), memo: '買取資金', by: '経理部', at: at(now, d.date, 9) }]))];
-  return { days, deposits: storedDeposits, payments, ...buildLedger(now, today, ago, deposits, payments), checks: buildChecks(earlier), items: buildItemChecks(earlier), chats: buildChats(now, earlier, yesterday), advRequests: buildAdvRequests(now, today, ago) };
+  return { days, deposits: storedDeposits, payments, ...buildLedger(now, today, ago, deposits, payments), checks: buildChecks(earlier), items: buildItemChecks(earlier), chats: { ...buildChats(now, earlier, yesterday), ...buildAdvChats(buildAdvRequests(now, today, ago)) }, advRequests: buildAdvRequests(now, today, ago) };
 }
 
 // 経費精算（一次チェック）の見本: 2日前・3日前の分はチェック済み（1人だけ差戻し）。前日の分は、すべて未チェック
@@ -120,6 +120,24 @@ function buildAdvRequests(now, today, ago) {
     r('SAR-3', 'u01', ago(1), 10, 300000, '午後に2件、大きな買取の予定', { status: 'rejected', decidedAt: at(now, ago(1), 11), by: '経理部', reason: 'まだ前日の補充金のうち10万円が、未引き出しです。先に引き出してください' }),
     r('SAR-4', 'u01', ago(4), 9, 150000, '', { status: 'done', decidedAt: at(now, ago(4), 10), by: '経理部', paidAmount: 150000 }),
   ];
+}
+
+// 補充の依頼ごとのチャットの見本（キーは「adv:依頼のID」）。依頼を出したときの鑑定士の発言から始まる
+function buildAdvChats(reqs) {
+  const line = (r, from, text, min, kind = '') => ({ id: '', from, by: from === 'accounting' ? '経理部' : USERS.find((u) => u.id === r.userId)?.name ?? '', text, kind, at: r.at + min * 60000 });
+  const yen = (n) => `${n.toLocaleString('ja-JP')}円`;
+  const talk = {
+    'SAR-1': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}（${r.memo}）`, 0), line(r, 'accounting', '20万円は大きいので、まず10万円ではどうですか？ 足りなければ、午後にもう一度、振り込みます。', 20)],
+    'SAR-2': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}`, 0)],
+    'SAR-3': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}（${r.memo}）`, 0), line(r, 'accounting', r.reason, 60, 'rejected')],
+    'SAR-4': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}`, 0), line(r, 'accounting', `${yen(r.paidAmount)}を振り込みました（補充金）`, 55, 'paid')],
+  };
+  return Object.fromEntries(reqs.map((r) => {
+    const messages = talk[r.id](r).map((m, i) => ({ ...m, id: `adv:${r.id}-${i}` }));
+    const last = messages.at(-1).at;
+    // 経理部は、全部読み済み（鑑定士の依頼の発言は、経理部が見た）。鑑定士は、却下・振込の通知が新着のまま、それ以外は読み済み
+    return [`adv:${r.id}`, { messages, accountingReadAt: r.status === 'pending' && r.id === 'SAR-2' ? 0 : last, salesReadAt: r.status === 'done' || r.id === 'SAR-1' ? last : 0 }];
+  }));
 }
 
 // 経費精算のやり取り（チャット）の見本: 差戻しの日（鑑定士と経理部のやり取り）、前日の経理部からの質問（鑑定士は未読）、前日の鑑定士からの連絡（経理部は未読）

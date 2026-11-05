@@ -6,7 +6,9 @@ import { userById } from '../src/dashboard.js';
 import { moneyInputHtml } from '../src/moneyInput.js';
 import { helpIcon } from '../src/help.js';
 import { yen, fmtTime, esc } from '../src/format.js';
-import { loadRequests, pendingRequests, requestsOf, REQUEST_STATUS } from '../src/advanceRequest.js';
+import { loadRequests, pendingRequests, REQUEST_STATUS, advThread, advUnread } from '../src/advanceRequest.js';
+import { loadChats } from '../src/expenseChat.js';
+import { chatView } from '../src/expenseChatView.js';
 import { LEVEL, signed, signedYen, badge, card, mdw } from './ui.js';
 
 const PHASE = { before: ['未始業', 'bg-slate-200 text-slate-600'], open: ['業務中', 'bg-emerald-100 text-emerald-800'], closed: ['終業済み', 'bg-indigo-100 text-indigo-800'] };
@@ -97,22 +99,37 @@ function customerPayments(c) {
   </section>`;
 }
 
-// 鑑定士からの補充の依頼: 振り込む（補充金を入力する）か、却下する
+// 鑑定士からの補充の依頼: 鑑定士とチャットで相談して、振り込む（補充金を入力する。金額は変えてよい）か、却下する
+function advancePanel(c, r, chats) {
+  const pay = c.st.advPay?.id === r.id ? c.st.advPay.amount : r.amount;
+  const rejecting = c.st.advReject?.id === r.id ? c.st.advReject : null;
+  return `<tr class="bg-slate-50"><td colspan="6"><div class="grid lg:grid-cols-2 gap-3 p-2 items-start">
+    <div><div class="font-bold text-sm mb-1">💬 ${esc(userById(r.userId).name)} さんとのやり取り${helpIcon('この依頼について、鑑定士とチャットで相談します（金額の確認など）。振り込む・却下した記録も、ここに残ります。鑑定士のタブレットにも表示されます。')}</div>
+      ${chatView(advThread(chats, r.id), { inputAttrs: 'data-f="chat.text"', sendAttrs: 'data-adv-chat-send', draft: c.st.chat?.text ?? '' })}</div>
+    <div class="space-y-2"><div class="rounded-lg border bg-white p-3 space-y-2"><div class="font-bold text-sm">振り込む</div>
+        <label class="text-sm font-bold block">振り込む金額（依頼は ${yen(r.amount)}。相談して、変えてもかまいません）${moneyInputHtml({ attrs: 'data-f="advpay.amount"', value: pay, cls: 'inp mt-1 font-normal' })}</label>
+        <button class="b b-pri" data-adv-ok="${r.id}">この金額で振り込む</button></div>
+      <div class="rounded-lg border bg-white p-3 space-y-2"><div class="font-bold text-sm">却下する</div>
+        ${rejecting ? `<label class="text-sm font-bold block">却下の理由（必須・鑑定士に伝える内容）<input class="inp mt-1 font-normal" data-f="adv.reason" value="${esc(rejecting.reason)}" placeholder="例: まだ30万円が未引き出しです。先に引き出してください" /></label><div class="flex gap-2"><button class="b b-pri" data-adv-rej-send>却下する</button><button class="b b-sec" data-adv-rej-cancel>やめる</button></div>`
+          : `<button class="b b-sec" data-adv-rej="${r.id}">却下する…</button>`}</div></div></div></td></tr>`;
+}
+
 function advanceRequests(c) {
   const ids = c.scopedIds();
   const all = loadRequests().filter((r) => ids.includes(r.userId));
   const pending = pendingRequests(all);
+  const chats = loadChats();
   const recent = all.filter((r) => r.status !== 'pending').sort((a, b) => b.decidedAt - a.decidedAt).slice(0, 5);
-  const rejecting = c.st.advReject;
   return `
   <section class="rounded-xl border-2 ${pending.length ? 'border-amber-400' : 'border-slate-200'} bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">🙋 鑑定士からの補充の依頼${pending.length ? ` ${badge('bg-amber-400 text-slate-900', `対応待ち ${pending.length}`)}` : ''}${helpIcon('鑑定士が、鑑定士タブレットから、補充金の振込を依頼します。「振り込む」と、鑑定士の補充金と、帳簿の支払（鑑定士への補充金）に、依頼の金額で記録します（日付は今日）。鑑定士の所持金に入るのは、鑑定士が引き出し金額を登録してからです。却下は理由が必要で、鑑定士のタブレットに表示されます。')}</h2>
-    <table class="w-full text-sm"><thead><tr class="${'text-left text-slate-700 bg-slate-200 border-b-2 border-slate-300'}"><th>依頼</th><th>鑑定士</th><th class="text-right">金額</th><th>理由・用途</th><th>操作</th></tr></thead><tbody class="[&>tr:nth-child(even)]:bg-slate-50">
-      ${pending.map((r) => `<tr class="border-b"><td>${fmtTime(r.at).slice(0, 5)}</td><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td><td class="text-right font-bold">${yen(r.amount)}</td><td class="!whitespace-normal">${esc(r.memo) || '<span class="text-slate-400">（記入なし）</span>'}</td>
-        <td class="space-x-1"><button class="b b-pri !min-h-0 !py-1 !px-2 text-xs" data-adv-ok="${r.id}">${yen(r.amount)} を振り込む</button><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-adv-rej="${r.id}">却下する</button></td></tr>
-        ${rejecting?.id === r.id ? `<tr class="bg-rose-50"><td colspan="5"><div class="flex flex-wrap items-end gap-2 p-1"><label class="text-sm font-bold flex-1 min-w-[16rem]">却下の理由（必須・鑑定士に伝える内容）<input class="inp mt-1 font-normal" data-f="adv.reason" value="${esc(rejecting.reason)}" placeholder="例: まだ30万円が未引き出しです。先に引き出してください" /></label><button class="b b-pri" data-adv-rej-send>却下する</button><button class="b b-sec" data-adv-rej-cancel>やめる</button></div></td></tr>` : ''}`).join('') || '<tr><td colspan="5" class="text-slate-400">対応待ちの依頼はありません。</td></tr>'}
+    <h2 class="font-bold text-lg">🙋 鑑定士からの補充の依頼${pending.length ? ` ${badge('bg-amber-400 text-slate-900', `対応待ち ${pending.length}`)}` : ''}${helpIcon('鑑定士が、鑑定士タブレットから、補充金の振込を依頼します。「開く」で、鑑定士とチャットで相談し、「振り込む」と、鑑定士の補充金と、帳簿の支払（鑑定士への補充金）に、その金額で記録します（日付は今日）。鑑定士の所持金に入るのは、鑑定士が引き出し金額を登録してからです。却下は理由が必要です。')}</h2>
+    <table class="w-full text-sm"><thead><tr class="text-left text-slate-700 bg-slate-200 border-b-2 border-slate-300"><th>依頼</th><th>鑑定士</th><th class="text-right">金額</th><th>理由・用途</th><th>やり取り</th><th>操作</th></tr></thead><tbody>
+      ${pending.map((r) => { const open = c.st.advOpen === r.id; const talk = advThread(chats, r.id).messages.length; const unread = advUnread(chats, r.id, 'accounting');
+        return `<tr class="border-b ${open ? '!bg-teal-100' : ''}"><td>${fmtTime(r.at).slice(0, 5)}</td><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td><td class="text-right font-bold">${yen(r.amount)}</td><td class="!whitespace-normal">${esc(r.memo) || '<span class="text-slate-400">（記入なし）</span>'}</td>
+          <td class="whitespace-nowrap">${talk ? `<span class="text-xs">💬 ${talk}</span>` : '<span class="text-slate-300">－</span>'}${unread ? ` <span class="rounded-full bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5">新着 ${unread}</span>` : ''}</td>
+          <td><button class="b ${open ? 'b-sec' : 'b-pri'} !min-h-0 !py-1 !px-3 text-xs" data-adv-open="${r.id}">${open ? '閉じる' : '開く（相談・対応）'}</button></td></tr>${open ? advancePanel(c, r, chats) : ''}`; }).join('') || '<tr><td colspan="6" class="text-slate-400">対応待ちの依頼はありません。</td></tr>'}
     </tbody></table>
-    ${recent.length ? `<div class="text-sm font-bold">最近の対応</div><table class="w-full text-sm"><tbody>${recent.map((r) => `<tr class="border-b"><td>${mdw(dateKey(new Date(r.decidedAt)))} ${fmtTime(r.decidedAt).slice(0, 5)}</td><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td><td class="text-right">${yen(r.amount)}</td><td>${badge(REQUEST_STATUS[r.status].cls, REQUEST_STATUS[r.status].label)}</td><td class="!whitespace-normal text-xs">${r.status === 'rejected' ? esc(r.reason) : esc(r.memo)}</td></tr>`).join('')}</tbody></table>` : ''}
+    ${recent.length ? `<div class="text-sm font-bold">最近の対応</div><table class="w-full text-sm"><tbody>${recent.map((r) => `<tr class="border-b"><td>${mdw(dateKey(new Date(r.decidedAt)))} ${fmtTime(r.decidedAt).slice(0, 5)}</td><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td><td class="text-right">${yen(r.status === 'done' ? r.paidAmount : r.amount)}</td><td>${badge(REQUEST_STATUS[r.status].cls, REQUEST_STATUS[r.status].label)}</td><td class="!whitespace-normal text-xs">${r.status === 'rejected' ? esc(r.reason) : esc(r.memo)}</td></tr>`).join('')}</tbody></table>` : ''}
   </section>`;
 }
 

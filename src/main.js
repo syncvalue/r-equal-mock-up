@@ -26,7 +26,7 @@ import {
 import { formatMoneyInput } from './moneyInput.js';
 import { loadChats, saveChats, post as postChat, markRead as markChatRead, unreadCount } from './expenseChat.js';
 import { ballList } from './ball.js';
-import { loadRequests, saveRequests, blankRequestForm, requestReady, makeRequest, addRequest, withdrawRequest, requestsOf } from './advanceRequest.js';
+import { loadRequests, saveRequests, blankRequestForm, requestReady, makeRequest, addRequest, withdrawRequest, requestsOf, postAdv, advUnread, markAdvRead } from './advanceRequest.js';
 import { revisableDays, loadChecks, saveChecks, loadItemChecks, saveItemChecks, afterRevise, canRevise } from './dailyCheck.js';
 import {
   START_CHECKS, END_CHECKS, cashTotal, breakdownOf, loadDay, loadDays, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, reviseExpense, reviseRemove, recordVisit, summaryOf, carryoverFor,
@@ -60,6 +60,8 @@ const initialState = () => ({
   rvChat: '', // 経理部とのやり取りの入力中の文章
   chats: {},
   advForm: blankRequestForm(), // 補充の依頼の入力中データ
+  advSel: null, // 補充の依頼の画面で、チャットを開いている依頼
+  advChat: '', // 補充の依頼のチャットの入力中の文章
   advRequests: [], // 自分の補充の依頼
   undrawn: 0, // 補充金の未引き出し
   balls: [], // 経費精算で、鑑定士が対応待ちの日（差戻し・経理部の質問）
@@ -209,6 +211,11 @@ function render() {
   const phase = phaseOf(day);
   // 経費精算の修正の画面を開いている間は、経理部のメッセージを読んだことにする
   if (state.modal?.type === 'revise') saveChats(markChatRead(loadChats(), state.user, state.modal.date, 'sales'));
+  if (state.modal?.type === 'advance') { // 補充の依頼の画面を開いている間は、開いている依頼の経理部のメッセージを読んだことにする
+    const mine = requestsOf(loadRequests(), state.user);
+    const open = mine.find((r) => r.id === state.advSel) ?? mine[0];
+    if (open) saveChats(markAdvRead(loadChats(), open.id, 'sales'));
+  }
   const allDays = Object.values(loadDays());
   const undrawn = phase === 'open' ? Math.max(0, summaryOf(day, state.user).undrawn) : 0; // 補充金のうち、まだ引き出していない金額
   set({ advRequests: requestsOf(loadRequests(), state.user), undrawn, chats: loadChats(), balls: ballList(allDays, loadChecks(), loadChats(), dateKey(), 'sales', state.user), day, phase, units: loadUnits(), fixable: revisableDays(Object.values(loadDays()), loadChecks(), state.user) });
@@ -227,6 +234,7 @@ function render() {
     V.modalView(state) +
     V.receiptModalView(state) +
     V.reviseModalView(state) +
+    V.advanceModalView(state) +
     V.outcomeModalView(state) +
     V.scanView(state) +
     V.menuView(state);
@@ -700,11 +708,22 @@ const actions = {
   },
   // 提出済みの経費の修正（営業サポートがチェック済みにするまで。差戻し・確認待ちの日）
   // 補充の依頼（経理部が、振り込む／却下する）
+  'adv-open': () => set({ modal: { type: 'advance' }, advSel: null, advChat: '' }),
+  'adv-pick': (el) => set({ advSel: el.dataset.id, advChat: '' }),
   'adv-send': () => {
     if (!requestReady(state.advForm)) return;
-    if (!saveRequests(addRequest(loadRequests(), makeRequest(state.user, state.advForm)))) { showToast('保存できませんでした'); return; }
-    set({ advForm: blankRequestForm() });
-    showToast('補充を依頼しました（経理部が対応します）');
+    const r = makeRequest(state.user, state.advForm);
+    if (!saveRequests(addRequest(loadRequests(), r))) { showToast('保存できませんでした'); return; }
+    const text = `補充を依頼します：${r.amount.toLocaleString('ja-JP')}円${r.memo ? `（${r.memo}）` : ''}`;
+    saveChats(postAdv(loadChats(), r.id, { from: 'sales', by: userById(state.user).name, text }));
+    set({ advForm: blankRequestForm(), advSel: r.id });
+    showToast('補充を依頼しました。経理部とは、ここでチャットできます');
+  },
+  'adv-chat-send': () => {
+    const target = requestsOf(loadRequests(), state.user).find((r) => r.id === state.advSel) ?? requestsOf(loadRequests(), state.user)[0];
+    if (!target || !state.advChat.trim()) return;
+    saveChats(postAdv(loadChats(), target.id, { from: 'sales', by: userById(state.user).name, text: state.advChat }));
+    set({ advChat: '' });
   },
   'adv-withdraw': (el) => { if (confirm('この補充の依頼を取り下げます。よろしいですか？')) saveRequests(withdrawRequest(loadRequests(), el.dataset.id, state.user)); },
   'rv-open': (el) => set({ modal: { type: 'revise', date: el.dataset.date, day: loadDays()[`${state.user}:${el.dataset.date}`] }, rvDraft: blankExpenseDraft() }),
@@ -919,6 +938,7 @@ document.addEventListener('input', (e) => {
       'exp-memo': { expDraft: { ...state.expDraft, memo: el.value } },
       'rv-amount': { rvDraft: { ...state.rvDraft, amount } },
       'rv-chat': { rvChat: el.value },
+      'adv-chat': { advChat: el.value },
       'adv-amount': { advForm: { ...state.advForm, amount } },
       'adv-memo': { advForm: { ...state.advForm, memo: el.value } },
       'rv-memo': { rvDraft: { ...state.rvDraft, memo: el.value } },
@@ -983,7 +1003,8 @@ window.addEventListener('storage', (e) => {
   }
   if (e.key === CHAT_KEY) { // 経費精算のやり取り（経理部からのメッセージ）
     const unread = (list) => list.reduce((n, r) => n + unreadCount(loadChats(), state.user, r.date, 'sales'), 0);
-    if (unread(state.fixable) > 0 && state.modal?.type !== 'revise') showToast('💬 経理部から、経費精算のメッセージが届きました');
+    const advUnreadN = requestsOf(loadRequests(), state.user).reduce((n, r) => n + advUnread(loadChats(), r.id, 'sales'), 0);
+    if ((unread(state.fixable) > 0 && state.modal?.type !== 'revise') || (advUnreadN > 0 && state.modal?.type !== 'advance')) showToast('💬 経理部から、メッセージが届きました');
     rerenderKeepScroll();
     return;
   }

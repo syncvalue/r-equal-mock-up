@@ -29,6 +29,7 @@ test('経理部の対応: 振り込んだ記録（依頼中だけ）・却下（
   const ok = A.approveRequest(list, a.id, { by: '経理部', now: 9 });
   assert.deepEqual([ok[0].status, ok[0].paidAmount, ok[0].by, ok[0].decidedAt, list[0].status], ['done', 100000, '経理部', 9, 'pending']);
   assert.equal(A.approveRequest(ok, a.id)[0].decidedAt, 9); // 決まった依頼は、変えない
+  assert.equal(A.approveRequest(list, a.id, { paidAmount: 80000 })[0].paidAmount, 80000); // 相談して、依頼と違う金額で振り込める
   assert.equal(A.rejectRequest(list, a.id, '  '), list);
   const rej = A.rejectRequest(list, a.id, ' すでに30万円あります ', { now: 7 });
   assert.deepEqual([rej[0].status, rej[0].reason, rej[0].decidedAt], ['rejected', 'すでに30万円あります', 7]);
@@ -46,4 +47,15 @@ test('一覧: 依頼中は古い順（経理部の対応待ち）。自分の依
   assert.deepEqual(A.loadRequests(), []);
   assert.equal(A.saveRequests(list), true);
   assert.equal(A.loadRequests().length, 3);
+});
+
+test('依頼ごとのチャット: 依頼のIDで分かれる。相手の発言が未読になり、読むと0になる。経費精算のチャットとは混ざらない', async () => {
+  const C = await import('../src/expenseChat.js');
+  let c = A.postAdv({}, 'AR-1', { from: 'sales', by: '鈴木', text: '補充を依頼します', now: 1 });
+  c = A.postAdv(c, 'AR-1', { from: 'accounting', by: '経理部', text: '10万円ではどうですか？', now: 2 });
+  c = A.postAdv(c, 'AR-2', { from: 'sales', text: '別の依頼', now: 3 });
+  assert.deepEqual([A.advThread(c, 'AR-1').messages.length, A.advThread(c, 'AR-2').messages.length], [2, 1]);
+  assert.deepEqual([A.advUnread(c, 'AR-1', 'sales'), A.advUnread(c, 'AR-1', 'accounting')], [1, 1]);
+  assert.equal(A.advUnread(A.markAdvRead(c, 'AR-1', 'sales', 9), 'AR-1', 'sales'), 0);
+  assert.equal(C.threadOf(c, 'u01', '2026-11-04').messages.length, 0);
 });

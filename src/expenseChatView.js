@@ -2,7 +2,8 @@
 import { esc, fmtTime } from './format.js';
 
 const SIDE_LABEL = { accounting: '経理部', sales: '鑑定士' };
-const KIND = { returned: ['bg-rose-50 border-rose-300 text-rose-800', '↩ 差戻し'], ok: ['bg-emerald-50 border-emerald-300 text-emerald-800', '✓ チェック済み'], revised: ['bg-sky-50 border-sky-300 text-sky-800', '✎ 修正'] };
+const KIND = { returned: ['bg-rose-50 border-rose-300 text-rose-800', '↩ 差戻し'], ok: ['bg-emerald-50 border-emerald-300 text-emerald-800', '✓ チェック済み'], revised: ['bg-sky-50 border-sky-300 text-sky-800', '✎ 修正'],
+  paid: ['bg-emerald-50 border-emerald-300 text-emerald-800', '🏦 振込'], rejected: ['bg-rose-50 border-rose-300 text-rose-800', '✕ 却下'] };
 const clock = (at) => fmtTime(at).slice(0, 5);
 
 function bubble(m) {

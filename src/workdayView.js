@@ -11,7 +11,7 @@ import {
   START_CHECKS, END_CHECKS, EXPENSE_TYPES, DENOMINATIONS, withdrawalReady, cashTotal, expensesToReview, VISIT_OUTCOMES, outcomeOf, outcomeReady, typeOf, carryoverFor, summaryOf, closeDiff, startReady, closeReady, expenseReady, dateKey,
 } from './workday.js';
 import { reviseSection } from './reviseView.js';
-import { advanceRequestView } from './advanceView.js';
+import { advanceButton } from './advanceView.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const SEC = 'h-full min-h-0 p-3';
@@ -343,7 +343,7 @@ export function expenseView(s) {
       <div class="card !p-3 flex-1 min-w-0 flex flex-col min-h-0"><h2 class="font-bold text-lg mb-2">📒 今日の入出金</h2>
         <div class="rounded-xl border-2 p-2 mb-2 space-y-1.5"><div class="font-bold text-sm">🏧 引き出し金額（補充金を引き出して、所持金に加える）${helpIcon('経理部から振り込まれた補充金のうち、いくら引き出したかを入力します。通常は、補充金と同じ金額です。引き出した分が、所持金になります。')}</div>
           <div id="wdr-live" class="space-y-1.5">${withdrawLiveView(s)}</div></div>
-        ${advanceRequestView(s)}
+        ${advanceButton(s)}
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="expLedger">${ledgerRows(s)}</div></div>
       <div class="card !p-3 w-[26rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[55%] flex flex-col gap-2 min-h-0 overflow-y-auto" data-scroll="expForm">
         <h2 class="font-bold text-lg">➕ 経費を計上する</h2>

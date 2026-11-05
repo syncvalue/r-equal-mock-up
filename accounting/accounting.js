@@ -13,7 +13,7 @@ import { zoomView } from './ui.js';
 import { balanceTab } from './balanceTab.js';
 import { claimsTab, dayRows, acctBalls, bulkTargets, markPickedRead, pickedOf } from './claimsTab.js';
 import { loadChats, saveChats, post } from '../src/expenseChat.js';
-import { loadRequests, saveRequests, approveRequest, rejectRequest, pendingRequests } from '../src/advanceRequest.js';
+import { loadRequests, saveRequests, approveRequest, rejectRequest, pendingRequests, postAdv, markAdvRead } from '../src/advanceRequest.js';
 import { fixedTab, shiftMonth, fixedRows } from './fixedTab.js';
 import { weeklyTab } from './weeklyTab.js';
 import { seedSample } from '../src/accountingSample.js';
@@ -38,7 +38,7 @@ const st = {
   tab: 'claims', menuOpen: false,
   office: AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : '', // 絞り込み中の営業所（空は全営業所）
   ledger: loadLedger(), selDay: null, selUser: null,
-  led: blank.led(), pay: blank.pay(), fix: blank.fix(), returning: null, advReject: null,
+  led: blank.led(), pay: blank.pay(), fix: blank.fix(), returning: null, advReject: null, advOpen: null, advPay: null,
   claimFilter: 'pending', claimUser: null, chat: { text: '' }, calOpen: false, zoom: null, openPurchase: [], calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
 };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
@@ -53,6 +53,7 @@ const VIEWS = { balance: balanceTab, claims: claimsTab, fixed: fixedTab, weekly:
 
 function render() {
   if (st.tab === 'claims') markPickedRead(ctx); // 開いている鑑定士のやり取りは、読んだことにする
+  if (st.tab === 'balance' && st.advOpen) { const chats = loadChats(); const next = markAdvRead(chats, st.advOpen, 'accounting'); if (next !== chats) saveChats(next); }
   st.ledger = loadLedger();
   if (!scopedIds().includes(st.led.userId)) st.led = { ...st.led, userId: scopedIds()[0] ?? '' };
   if (st.pay.userId && !scopedIds().includes(st.pay.userId)) st.pay = { ...st.pay, userId: '' };
@@ -118,19 +119,34 @@ const ACTIONS = {
   ledAdd: addLedger,
   payAdd: addPay,
   payDone: (d) => markPaid(d.payDone),
+  advOpen: (d) => {
+    const r = loadRequests().find((x) => x.id === d.advOpen);
+    st.advOpen = st.advOpen === d.advOpen ? null : d.advOpen;
+    st.advPay = r ? { id: r.id, amount: r.amount } : null;
+    st.advReject = null; st.chat = { text: '' };
+  },
+  advChatSend: () => {
+    if (!st.advOpen || !st.chat.text.trim()) return false;
+    saveChats(postAdv(loadChats(), st.advOpen, { from: 'accounting', by: BY, text: st.chat.text }));
+    st.chat = { text: '' };
+  },
   advOk: (d) => {
     const r = loadRequests().find((x) => x.id === d.advOk && x.status === 'pending');
     if (!r) return;
-    if (!confirm(`${userById(r.userId).name} さんへ、補充金 ${r.amount.toLocaleString('ja-JP')}円 を振り込みます（補充金として記録します）。よろしいですか？`)) return false;
-    if (!giveAdvance({ userId: r.userId, amount: r.amount, memo: `補充の依頼に対応${r.memo ? `（${r.memo}）` : ''}` }, { by: BY })) return alert('保存できませんでした（容量超過）');
-    saveRequests(approveRequest(loadRequests(), r.id, { by: BY }));
+    const amount = st.advPay?.id === r.id && st.advPay.amount > 0 ? st.advPay.amount : r.amount;
+    if (!confirm(`${userById(r.userId).name} さんへ、補充金 ${amount.toLocaleString('ja-JP')}円 を振り込みます（補充金として記録します）。よろしいですか？`)) return false;
+    if (!giveAdvance({ userId: r.userId, amount, memo: `補充の依頼に対応${r.memo ? `（${r.memo}）` : ''}` }, { by: BY })) return alert('保存できませんでした（容量超過）');
+    saveRequests(approveRequest(loadRequests(), r.id, { by: BY, paidAmount: amount }));
+    saveChats(postAdv(loadChats(), r.id, { from: 'accounting', by: BY, kind: 'paid', text: `${amount.toLocaleString('ja-JP')}円を振り込みました（補充金）` }));
+    st.advOpen = null; st.advPay = null;
   },
   advRej: (d) => { st.advReject = { id: d.advRej, reason: '' }; },
   advRejCancel: () => { st.advReject = null; },
   advRejSend: () => {
     if (!st.advReject?.reason.trim()) return alert('却下の理由を入力してください');
     saveRequests(rejectRequest(loadRequests(), st.advReject.id, st.advReject.reason, { by: BY }));
-    st.advReject = null;
+    saveChats(postAdv(loadChats(), st.advReject.id, { from: 'accounting', by: BY, kind: 'rejected', text: st.advReject.reason.trim() }));
+    st.advReject = null; st.advOpen = null;
   },
   claimFilter: (d) => { st.claimFilter = d.claimFilter; },
   claimUser: (d) => { st.claimUser = d.claimUser; st.returning = null; st.chat = { text: '' }; },
@@ -193,9 +209,9 @@ document.addEventListener('click', (e) => {
   render();
 });
 
-const FORMS = ['led', 'pay', 'fix', 'ret', 'chat', 'adv'];
+const FORMS = ['led', 'pay', 'fix', 'ret', 'chat', 'adv', 'advpay'];
 const MONEY = ['amount', 'cost'];
-const SLOT = { ret: 'returning', adv: 'advReject' }; // 入力欄の名前と、状態の名前が違うもの
+const SLOT = { ret: 'returning', adv: 'advReject', advpay: 'advPay' }; // 入力欄の名前と、状態の名前が違うもの
 const setForm = (name, value) => { st[SLOT[name] ?? name] = value; };
 const getForm = (name) => st[SLOT[name] ?? name];
 function onField(e, isInput) {
