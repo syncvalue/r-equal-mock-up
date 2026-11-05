@@ -9,6 +9,7 @@ import { loadFixed, saveFixed, fixedReady, saveFixedCost, setFixedActive, loadPe
 import { loadChecks, saveChecks, loadItemChecks, saveItemChecks, toggleItem, markAllItems, markOk, markReturned, reopen, shiftDate } from '../src/dailyCheck.js';
 import { weekStart, shiftWeek } from '../src/weekly.js';
 import { tabLabel, menuView } from './menu.js';
+import { zoomView } from './ui.js';
 import { balanceTab } from './balanceTab.js';
 import { claimsTab, dayRows, pendingBefore, bulkTargets } from './claimsTab.js';
 import { fixedTab, shiftMonth, fixedRows } from './fixedTab.js';
@@ -37,7 +38,7 @@ const st = {
   office: AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : '', // 絞り込み中の営業所（空は全営業所）
   ledger: loadLedger(), selDay: null, selUser: null,
   led: blank.led(), pay: blank.pay(), fix: blank.fix(), pu: blank.pu(), returning: null, pettyReject: null,
-  claimFilter: 'pending', claimUser: null, calOpen: false, openPurchase: [], calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
+  claimFilter: 'pending', claimUser: null, calOpen: false, zoom: null, openPurchase: [], calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
 };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
@@ -63,7 +64,7 @@ function render() {
       <span class="font-bold text-xl">経理部</span><span class="text-teal-200">›</span><span class="font-bold">${tabLabel(st.tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${filter}<button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
-  <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${VIEWS[st.tab](ctx)}</main>${st.menuOpen ? menuView({ tab: st.tab, badges }) : ''}</div>`;
+  <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${VIEWS[st.tab](ctx)}</main>${st.menuOpen ? menuView({ tab: st.tab, badges }) : ''}${st.zoom ? zoomView(st.zoom) : ''}</div>`;
 }
 
 // ---- 操作 -----------------------------------------------------------------------
@@ -121,6 +122,8 @@ const ACTIONS = {
   tab: (d) => { st.tab = d.tab; st.menuOpen = false; st.calOpen = false; },
   menuOpen: () => { st.menuOpen = true; },
   menuClose: () => { st.menuOpen = false; },
+  zoom: (d, el) => { const img = el.querySelector('img'); if (img) st.zoom = { src: img.getAttribute('src'), alt: img.alt }; },
+  zoomClose: () => { st.zoom = null; },
   selUser: (d) => { st.selUser = st.selUser === d.selUser ? null : d.selUser; },
   selDay: (d) => { st.selDay = st.selDay === d.selDay ? null : d.selDay; },
   ledKind: (d) => { st.led = { ...st.led, kind: d.ledKind, category: d.ledKind === 'in' ? 'sales' : 'advance' }; },
@@ -181,7 +184,7 @@ document.addEventListener('click', (e) => {
   if (!t || t.disabled) return;
   const key = toKey(t.dataset);
   if (!key) return;
-  if (ACTIONS[key](t.dataset) === false) return;
+  if (ACTIONS[key](t.dataset, t) === false) return;
   render();
 });
 
@@ -200,6 +203,7 @@ function onField(e, isInput) {
   setForm(form, { ...getForm(form), [key]: value });
   return true;
 }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && st.zoom) { st.zoom = null; render(); } });
 document.addEventListener('input', (e) => { onField(e, true); });
 document.addEventListener('change', (e) => {
   if (e.target.matches('[data-office]')) {

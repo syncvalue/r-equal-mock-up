@@ -38,8 +38,11 @@ test('経理部の画面（経費精算／残高・入出金管理／週間収�
   const c = { st, scoped: () => USERS, scopedIds: () => USERS.map((u) => u.id), officeOf: () => '大阪', withOffice: (u) => `${u.name}（大阪）`, today: () => day };
   assert.ok(balanceTab(c).includes('入金・支払の登録') && balanceTab(c).includes('鑑定士の補充金') && balanceTab(c).includes('お客様への支払'));
   const claims = claimsTab(c);
-  for (const w of ['前日繰越金', '終業時に数えた金額', '経費（ガソリン代など）', 'お客様への支払', '領収書', 'チェック済みにする', '差戻しの理由', '終業・日報が未提出', 'data-item-toggle', '写真と金額が一致していることを確認', '1件ずつの確認', 'インボイス', 'data-purchase-toggle', 'data-cal-pick', 'すべてチェック済み', '要対応の未チェック']) assert.ok(claims.includes(w) || claimsTab({ ...c, st: { ...st, claimUser: 'u06', returning: null } }).includes(w), w);
+  for (const w of ['前日繰越金', '終業時に数えた金額', '経費（ガソリン代など）', 'お客様への支払', '領収書', 'チェック済みにする', '差戻しの理由', '終業・日報が未提出', 'data-item-toggle', '写真と金額が一致していることを確認', '1件ずつの確認', 'インボイス', 'data-purchase-toggle', 'data-zoom', 'cursor-zoom-in', 'data-cal-pick', 'すべてチェック済み', '要対応の未チェック']) assert.ok(claims.includes(w) || claimsTab({ ...c, st: { ...st, claimUser: 'u06', returning: null } }).includes(w), w);
   assert.ok(claimsTab({ ...c, st: { ...st, claimUser: 'u07', returning: null } }).includes('数えた現金の写真がない'));
+  const { zoomView } = await import('../accounting/ui.js');
+  const zv = zoomView({ src: 'data:x', alt: '領収書' });
+  assert.ok(zv.includes('data-zoom-close') && zv.includes('領収書の拡大表示') && zv.includes('src="data:x"'));
   const { loadDays } = await import('../src/workday.js');
   const buyId = Object.values(loadDays()).find((d) => d.userId === 'u02' && d.date === yesterday).expenses.find((e) => e.type === 'purchase').id;
   assert.ok(!claims.includes('買取の内訳</div>') && claims.includes('＋'));

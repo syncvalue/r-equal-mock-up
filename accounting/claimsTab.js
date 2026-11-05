@@ -5,7 +5,7 @@ import { checkRows, checkCounts, loadChecks, loadItemChecks, dayBadges, monthGri
 import { userById } from '../src/dashboard.js';
 import { helpIcon } from '../src/help.js';
 import { fmtTime, esc } from '../src/format.js';
-import { LEVEL, badge, card, signed, signedYen as yen, mdw } from './ui.js';
+import { LEVEL, badge, card, signed, signedYen as yen, mdw, thumb } from './ui.js';
 
 const TH = 'text-left text-slate-700 bg-slate-200 border-b-2 border-slate-300'; // 表の見出し行
 const ZEBRA = '[&>tr:nth-child(even)]:bg-slate-50'; // 1行おきに薄い背景
@@ -84,7 +84,7 @@ const cell = 'align-middle';
 function expenseTable(c, r) {
   const body = r.expenses.map((e) => `<tr class="border-b"><td class="${cell}">${checkBtn(c, r, e)}</td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).icon} ${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
     <td class="${cell} pl-4 !whitespace-normal">${esc(e.memo) || '<span class="text-slate-400">（記入なし）</span>'}</td>
-    <td class="${cell}">${e.photo ? `<img src="${e.photo}" alt="領収書" class="h-12 rounded border" />` : e.proxy ? '<span class="text-teal-700 text-xs">経理代行</span>' : '<span class="text-rose-600 font-bold">なし</span>'}</td>
+    <td class="${cell}">${e.photo ? thumb(e.photo, '領収書') : e.proxy ? '<span class="text-teal-700 text-xs">経理代行</span>' : '<span class="text-rose-600 font-bold">なし</span>'}</td>
     <td class="${cell}">${e.invoice ? '<span class="text-xs font-bold rounded bg-sky-100 text-sky-800 px-2 py-0.5">インボイス</span>' : '<span class="text-xs text-slate-500">対象外</span>'}</td>
     <td class="${cell} !whitespace-normal">${chips(e.flags) || '<span class="text-emerald-700 text-xs font-bold">問題なし</span>'}</td></tr>`).join('');
   return itemTable(ITEM_HEAD, body, '経費の記録はありません。');
@@ -110,7 +110,7 @@ function cashCheck(c, r) {
   const x = r.rec;
   const photo = r.day.close?.cashPhoto;
   if (!photo) return '';
-  return `<div class="flex flex-wrap items-center gap-4 rounded border border-slate-200 p-3"><div><div class="font-bold text-sm mb-1">終業時に数えた現金の写真</div><img src="${photo}" alt="数えた現金" class="h-24 rounded border" /></div>
+  return `<div class="flex flex-wrap items-center gap-4 rounded border border-slate-200 p-3"><div><div class="font-bold text-sm mb-1">終業時に数えた現金の写真</div>${thumb(photo, '数えた現金', 'h-24')}</div>
     <div class="space-y-2"><div class="text-sm">終業時に数えた金額 <span class="font-bold text-lg">${yen(x.closeCounted)}</span></div>${checkBtn(c, r, r.cash, '写真と金額が一致していることを確認')}
     ${r.cash.checked ? `<div class="text-xs text-slate-500">${esc(r.cash.checked.by)}が確認</div>` : ''}</div></div>`;
 }
