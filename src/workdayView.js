@@ -157,11 +157,12 @@ function reportCard(s, day) {
         ${day.start.diff ? `<div class="text-xs rounded bg-amber-50 p-2 mt-1">始業時の繰越金の差異 ${signed(day.start.diff)}: ${esc(day.start.note)}</div>` : ''}
       </div>
       <div class="rounded-xl border p-3"><div class="font-bold mb-1">🧾 経費の内訳</div>
-        <div class="text-sm divide-y">
-          ${sm.byType.length ? sm.byType.map((t) => row(`${t.icon} ${t.label}（${t.count}件）`, yen(t.amount))).join('') : '<div class="text-slate-400 py-2">経費の計上はありません</div>'}
+        ${expenseDetailView(day)}
+        <div class="text-sm divide-y mt-2">
+          ${sm.byType.length ? '' : '<div class="text-slate-400 py-2">経費の計上はありません</div>'}
+          ${sm.byType.filter((t) => t.key === 'purchase').map((t) => row(`${t.icon} ${t.label}（${t.count}件）`, yen(t.amount))).join('')}
           ${row('合計', yen(sm.expenseTotal), 'text-base')}
         </div>
-        ${expenseDetailView(day)}
       </div>
     </div>
 
@@ -206,7 +207,7 @@ function expenseDetailView(day) {
   const list = expensesToReview(day);
   const noPhoto = list.filter((e) => !e.photo).length;
   if (!list.length) return '';
-  return `<div class="mt-2 pt-2 border-t space-y-1">
+  return `<div class="space-y-1">
     <div class="text-xs font-bold text-slate-500">明細（レシートと照らして、金額・種別に間違いがないか確認）</div>
     ${noPhoto ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-2 py-1 text-xs font-bold text-rose-700">⚠ レシートのない経費が ${noPhoto}件あります</div>` : ''}
     ${list.map((e) => { const t = typeOf(e.type); return `
