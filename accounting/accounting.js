@@ -1,17 +1,17 @@
-// 経理部デスク画面（ダミー・PC想定）。残高・入出金管理／経費精算／固定費・小口金管理／週間収支。
-import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, REVIEW_KEY } from '../src/store.js';
+// 経理部デスク画面（ダミー・PC想定）。経費精算／残高・入出金管理／週間収支。（固定費・小口金管理は、メニューから外している）
+import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY } from '../src/store.js';
 import { USERS } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser } from '../src/dispatch.js';
 import { dateKey } from '../src/workday.js';
 import { officeUsers, giveAdvance, advanceReady, addCustomerPayment, paymentReady, markPaid, loadCustomerPayments, onlyOffice } from '../src/accounting.js';
 import { loadLedger, saveLedger, makeEntry, addEntry, entryReady, kindOf } from '../src/ledger.js';
 import { loadFixed, saveFixed, fixedReady, saveFixedCost, setFixedActive, loadPettyUses, savePettyUses, pettyUseReady, makePettyUse, addPettyUse, decidePettyUse, pettyRows, fieldStaff } from '../src/fixedCosts.js';
-import { loadReviews, saveReviews, approve, returnClaim, reopen } from '../src/expenseReview.js';
+import { loadChecks, saveChecks, markOk, markReturned, reopen, shiftDate } from '../src/dailyCheck.js';
 import { weekStart, shiftWeek } from '../src/weekly.js';
 import { tabLabel, menuView } from './menu.js';
 import { balanceTab } from './balanceTab.js';
-import { claimsTab, officeClaims, bulkTargets } from './claimsTab.js';
-import { fixedTab, shiftMonth, fixedRows, pettyAlerts } from './fixedTab.js';
+import { claimsTab, dayRows, pendingBefore, bulkTargets } from './claimsTab.js';
+import { fixedTab, shiftMonth, fixedRows } from './fixedTab.js';
 import { weeklyTab } from './weeklyTab.js';
 import { seedSample } from '../src/accountingSample.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -33,11 +33,11 @@ const blank = {
 };
 
 const st = {
-  tab: 'balance', menuOpen: false,
+  tab: 'claims', menuOpen: false,
   office: AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : '', // 絞り込み中の営業所（空は全営業所）
   ledger: loadLedger(), selDay: null, selUser: null,
   led: blank.led(), pay: blank.pay(), fix: blank.fix(), pu: blank.pu(), returning: null, pettyReject: null,
-  claimFilter: 'pending', month: today().slice(0, 7), week: weekStart(today()),
+  claimFilter: 'pending', claimUser: null, checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
 };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
@@ -45,8 +45,8 @@ const scoped = () => officeUsers(USERS, st.office, areaOfUser);
 const scopedIds = () => scoped().map((u) => u.id);
 const officeOf = (userId) => areaById(areaOfUser(userId))?.name.replace('エリア', '') ?? '所属不明';
 const withOffice = (u) => `${u.name}（${officeOf(u.id)}）`;
-const ctx = { st, scoped, scopedIds, officeOf, withOffice };
-const FILTERED_TABS = ['balance', 'claims', 'fixed']; // 営業所での絞り込みが効く画面（鑑定士の記録がある画面。固定費・小口金管理は小口金だけ）
+const ctx = { st, scoped, scopedIds, officeOf, withOffice, today };
+const FILTERED_TABS = ['claims', 'balance']; // 営業所での絞り込みが効く画面（鑑定士の記録がある画面）
 const VIEWS = { balance: balanceTab, claims: claimsTab, fixed: fixedTab, weekly: weeklyTab };
 
 function render() {
@@ -54,9 +54,7 @@ function render() {
   if (!scopedIds().includes(st.led.userId)) st.led = { ...st.led, userId: scopedIds()[0] ?? '' };
   if (st.pay.userId && !scopedIds().includes(st.pay.userId)) st.pay = { ...st.pay, userId: '' };
   const pending = onlyOffice(loadCustomerPayments(), scopedIds(), Boolean(st.office)).filter((p) => p.status === 'pending').length;
-  const unreviewed = officeClaims(ctx).filter((x) => x.status === 'pending').length;
-  const fixedTodo = fixedRows(st).filter((r) => !r.paid && r.overdue).length + pettyAlerts();
-  const badges = { balance: pending, claims: unreviewed, fixed: fixedTodo };
+  const badges = { balance: pending, claims: pendingBefore(ctx, today()) };
   const filter = FILTERED_TABS.includes(st.tab)
     ? `<label class="text-xs font-bold">営業所 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-office><option class="text-slate-800" value="">全営業所（${USERS.length}人）</option>${AREAS.map((a) => `<option class="text-slate-800" value="${a.id}" ${st.office === a.id ? 'selected' : ''}>${esc(a.name.replace('エリア', ''))}（${officeUsers(USERS, a.id, areaOfUser).length}人）</option>`).join('')}</select></label>` : '';
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
@@ -117,7 +115,7 @@ function rejectPetty() {
   savePettyUses(decidePettyUse(loadPettyUses(), st.pettyReject.id, 'rejected', { reason: st.pettyReject.reason, by: BY }));
   st.pettyReject = null;
 }
-const review = (fn) => saveReviews(fn(loadReviews()));
+const review = (fn) => saveChecks(fn(loadChecks()));
 
 const ACTIONS = {
   tab: (d) => { st.tab = d.tab; st.menuOpen = false; },
@@ -130,18 +128,21 @@ const ACTIONS = {
   payAdd: addPay,
   payDone: (d) => markPaid(d.payDone),
   claimFilter: (d) => { st.claimFilter = d.claimFilter; },
-  claimOk: (d) => review((r) => approve(r, d.claimOk, { by: BY })),
+  claimUser: (d) => { st.claimUser = d.claimUser; st.returning = null; },
+  checkShift: (d) => { st.checkDate = shiftDate(st.checkDate, Number(d.checkShift)); st.claimUser = null; st.returning = null; },
+  checkYesterday: () => { st.checkDate = shiftDate(today(), -1); st.claimUser = null; st.returning = null; },
+  claimOk: (d) => review((c) => markOk(c, d.claimOk, st.checkDate, { by: BY })),
   claimRet: (d) => { st.returning = { id: d.claimRet, reason: '' }; },
   claimRetCancel: () => { st.returning = null; },
   claimRetSend: () => {
     if (!st.returning?.reason.trim()) return alert('差戻しの理由を入力してください');
-    review((r) => returnClaim(r, st.returning.id, st.returning.reason, { by: BY }));
+    review((c) => markReturned(c, st.returning.id, st.checkDate, st.returning.reason, { by: BY }));
     st.returning = null;
   },
-  claimReopen: (d) => review((r) => reopen(r, d.claimReopen)),
+  claimReopen: (d) => review((c) => reopen(c, d.claimReopen, st.checkDate)),
   claimBulk: () => {
-    const targets = bulkTargets(officeClaims(ctx));
-    if (targets.length && confirm(`領収書があり、問題のない未確認の経費 ${targets.length}件を、まとめて精算します。よろしいですか？`)) review((r) => targets.reduce((acc, x) => approve(acc, x.id, { by: BY }), r));
+    const targets = bulkTargets(dayRows(ctx));
+    if (targets.length && confirm(`指摘のない未チェックの鑑定士 ${targets.length}人を、まとめてチェック済みにします。よろしいですか？`)) review((c) => targets.reduce((acc, r) => markOk(acc, r.userId, st.checkDate, { by: BY }), c));
   },
   month: (d) => { st.month = shiftMonth(st.month, Number(d.month)); },
   fixPay: (d) => payFixed(d.fixPay),
@@ -158,7 +159,7 @@ const ACTIONS = {
   week: (d) => { st.week = shiftWeek(st.week, Number(d.week)); },
   pickWeek: (d) => { st.week = d.pickWeek; },
   sample: () => {
-    if (!confirm('鑑定士の始業・経費・補充金、入出金の帳簿、固定費、小口金、経費精算の確認結果を、サンプルデータに置き換えます。よろしいですか？')) return false;
+    if (!confirm('鑑定士の始業・経費・補充金、入出金の帳簿、固定費、小口金、経費精算（一次チェック）の結果を、サンプルデータに置き換えます。よろしいですか？')) return false;
     try { localStorage.removeItem(FIXED_KEY); } catch { /* 固定費は、初期の登録に戻らないだけ（モック） */ }
     seedSample(Date.now(), true); st.selUser = null; st.selDay = null; st.fix = blank.fix();
     return true;
@@ -168,7 +169,7 @@ const ACTIONS = {
 const toKey = (d) => Object.keys(d).find((k) => ACTIONS[k]);
 
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('button, tr[data-sel-user], tr[data-sel-day], tr[data-pick-week]');
+  const t = e.target.closest('button, tr[data-sel-user], tr[data-sel-day], tr[data-pick-week], tr[data-claim-user]');
   if (!t || t.disabled) return;
   const key = toKey(t.dataset);
   if (!key) return;
@@ -193,6 +194,10 @@ function onField(e, isInput) {
 }
 document.addEventListener('input', (e) => { onField(e, true); });
 document.addEventListener('change', (e) => {
+  if (e.target.matches('[data-check-date]')) {
+    if (e.target.value && e.target.value <= today()) { st.checkDate = e.target.value; st.claimUser = null; st.returning = null; }
+    render(); return;
+  }
   if (e.target.matches('[data-office]')) {
     st.office = e.target.value;
     try { localStorage.setItem('rq-mock-acc-office', st.office); } catch { /* 保存できなくても動作は継続（モック） */ }
@@ -206,7 +211,7 @@ document.addEventListener('change', (e) => {
 // 鑑定士側（タブレット）などの更新を即時反映。入力中なら、入力欄から離れたときに反映する
 const isEditing = () => Boolean(document.activeElement?.dataset?.f);
 window.addEventListener('storage', (e) => {
-  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, REVIEW_KEY].includes(e.key)) return;
+  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;
   else render();
 });

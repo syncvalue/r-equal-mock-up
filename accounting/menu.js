@@ -1,15 +1,14 @@
 // 左側の開閉式メニュー（鑑定士のタブレット・倉庫・物流と同じ。☰ で開き、項目を選ぶか、外側・✕で閉じる）
 export const TABS = [
+  { key: 'claims', icon: '🧾', label: '経費精算', sub: '営業サポートの一次チェック（日ごと・鑑定士ごと）' },
   { key: 'balance', icon: '🏦', label: '残高・入出金管理', sub: '鑑定士の補充金・支払・入金・日次残高' },
-  { key: 'claims', icon: '🧾', label: '経費精算', sub: '鑑定士の経費と領収書を確認し、精算・差戻し' },
-  { key: 'fixed', icon: '🏢', label: '固定費・小口金管理', sub: '家賃・人件費などと、鑑定士の小口金' },
   { key: 'weekly', icon: '📊', label: '週間収支', sub: '週の入出金・粗利・固定費・残高' },
 ];
 export const tabLabel = (key) => TABS.find((t) => t.key === key)?.label ?? '';
 
-// badges: { balance: 振込待ちの件数, claims: 未確認の経費の件数, fixed: 未払いの固定費＋補充が必要な鑑定士の数 }
+// badges: { balance: 振込待ちの件数, claims: 前日までの未チェックの鑑定士の数 }
 export function menuView({ tab, badges }) {
-  const badge = { balance: ['bg-amber-500', '振込待ち'], claims: ['bg-rose-600', '未確認'], fixed: ['bg-amber-500', '要対応'] };
+  const badge = { balance: ['bg-amber-500', '振込待ち'], claims: ['bg-rose-600', '未チェック'] };
   return `
   <div class="fixed inset-0 z-[55]">
     <button class="absolute inset-0 bg-black/50 cursor-default" data-menu-close aria-label="メニューを閉じる"></button>

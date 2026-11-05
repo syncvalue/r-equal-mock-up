@@ -9,7 +9,7 @@ const { flagsOf, loadCustomerPayments } = await import('../src/accounting.js');
 const { todayRows, loadDays, dateKey } = await import('../src/workday.js');
 const { loadLedger, dailyBalances } = await import('../src/ledger.js');
 const { recentWeeks } = await import('../src/weekly.js');
-const { claimsFrom, loadReviews, claimCounts } = await import('../src/expenseReview.js');
+const { checkRows, checkCounts, loadChecks, shiftDate } = await import('../src/dailyCheck.js');
 const { monthlyFixed, pettyRows, loadFixed, loadPettyUses, fieldStaff } = await import('../src/fixedCosts.js');
 
 const NOW = Date.now(); // 画面（todayRows）は実際の今日を使うため、固定の日付にしない
@@ -24,12 +24,17 @@ test('サンプル: 今日の鑑定士に、問題なし・差異・高額・マ
   assert.ok(rows.some((r) => r.phase === 'closed') && rows.some((r) => r.phase === 'open'));
 });
 
-test('サンプル: 経費精算に、未確認・精算済み・差戻しがあり、経費のIDは重ならない。お客様への支払に未払い・済みがある', () => {
-  const claims = claimsFrom(Object.values(loadDays()), loadReviews());
-  assert.equal(new Set(claims.map((c) => c.id)).size, claims.length);
-  const n = claimCounts(claims);
-  assert.ok(n.pending >= 3 && n.approved >= 3 && n.returned === 1);
-  assert.ok(claims.some((c) => c.status === 'pending' && !c.photo) && claims.some((c) => c.status === 'pending' && c.flags.length === 0));
+test('サンプル: 経費精算の前日分に、問題なし・領収書なし・過不足・日報未提出などの見本が揃い、前日繰越金が続く。お客様への支払に未払い・済みがある', () => {
+  const days = Object.values(loadDays());
+  const yesterday = shiftDate(dateKey(new Date(NOW)), -1);
+  const rows = checkRows(days, yesterday, loadChecks());
+  assert.ok(rows.length >= 7 && rows.every((r) => r.status === 'pending'));
+  const texts = rows.flatMap((r) => r.issues.map((i) => i.text)).join('\n');
+  for (const w of ['領収書の写真がない', '内容の記入がない', '始業時に前日の繰越金と差異', '終業時の過不足', 'まだ引き出されていません', '日報が未提出', '数えた現金の写真がない', '高額']) assert.ok(texts.includes(w), w);
+  assert.ok(rows.some((r) => !r.issues.length) && rows.some((r) => r.purchases.length));
+  assert.ok(!texts.includes('前日繰越金')); // 前日の終業時の所持金から、前日繰越金が続いている
+  const older = checkCounts(checkRows(days, shiftDate(yesterday, -1), loadChecks()));
+  assert.ok(older.ok >= 1 && older.returned === 1);
   const pays = loadCustomerPayments();
   assert.ok(pays.some((p) => p.status === 'pending') && pays.some((p) => p.status === 'done'));
 });
@@ -65,5 +70,5 @@ test('サンプル: 一度入れたら、データがある限り自動では入
   assert.equal(seedSample(NOW), false);
   assert.equal(seedSample(NOW, true), true);
   assert.ok(Object.keys(buildSample(NOW).days).length > 7);
-  assert.ok(localStorage.getItem('rq-mock-ledger') && localStorage.getItem('rq-mock-expense-reviews'));
+  assert.ok(localStorage.getItem('rq-mock-ledger') && localStorage.getItem('rq-mock-daily-checks'));
 });

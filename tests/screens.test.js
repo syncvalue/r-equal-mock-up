@@ -19,10 +19,10 @@ test('査定部の画面は、描画できる。入金・日報のボタンは�
 test('経理部の画面は、描画できる（サンプルデータ入り）', async () => {
   root.innerHTML = '';
   await import('../accounting/accounting.js');
-  assert.ok(root.innerHTML.includes('経理部') && root.innerHTML.includes('残高・入出金管理') && root.innerHTML.includes('日次残高') && root.innerHTML.includes('鈴木 一郎'));
+  assert.ok(root.innerHTML.includes('経理部') && root.innerHTML.includes('経費精算') && root.innerHTML.includes('前日繰越金') && root.innerHTML.includes('現金の照合') && root.innerHTML.includes('チェック済みにする'));
 });
 
-test('経理部の4つの画面（残高・入出金管理／経費精算／固定費・小口金管理／週間収支）は、サンプルデータで描画できる', async () => {
+test('経理部の画面（経費精算／残高・入出金管理／週間収支）は、サンプルデータで描画できる。固定費・小口金管理の画面も、まだ描画できる', async () => {
   const { balanceTab } = await import('../accounting/balanceTab.js');
   const { claimsTab } = await import('../accounting/claimsTab.js');
   const { fixedTab } = await import('../accounting/fixedTab.js');
@@ -30,11 +30,16 @@ test('経理部の4つの画面（残高・入出金管理／経費精算／固�
   const { weekStart } = await import('../src/weekly.js');
   const { loadLedger } = await import('../src/ledger.js');
   const { USERS } = await import('../src/dashboard.js');
-  const day = new Date().toISOString().slice(0, 10);
-  const st = { office: '', ledger: loadLedger(), selDay: null, selUser: null, led: { kind: 'in', category: 'sales', date: day, amount: 0, cost: 0, userId: '', memo: '' }, pay: { customerName: '', amount: 0, reason: '', userId: '', memo: '' }, fix: { id: '', type: 'rent', name: '', amount: 0, payDay: 25 }, pu: { appraiserId: 'a1', date: day, amount: 0, memo: '' }, returning: { id: 'x', reason: '' }, claimFilter: 'all', month: day.slice(0, 7), week: weekStart(day) };
-  const c = { st, scoped: () => USERS, scopedIds: () => USERS.map((u) => u.id), officeOf: () => '大阪', withOffice: (u) => `${u.name}（大阪）` };
+  const { dateKey } = await import('../src/workday.js');
+  const { shiftDate } = await import('../src/dailyCheck.js');
+  const day = dateKey();
+  const yesterday = shiftDate(day, -1);
+  const st = { office: '', ledger: loadLedger(), selDay: null, selUser: null, led: { kind: 'in', category: 'sales', date: day, amount: 0, cost: 0, userId: '', memo: '' }, pay: { customerName: '', amount: 0, reason: '', userId: '', memo: '' }, fix: { id: '', type: 'rent', name: '', amount: 0, payDay: 25 }, pu: { appraiserId: 'a1', date: day, amount: 0, memo: '' }, returning: { id: 'u02', reason: '' }, claimFilter: 'all', claimUser: 'u02', checkDate: yesterday, month: day.slice(0, 7), week: weekStart(day) };
+  const c = { st, scoped: () => USERS, scopedIds: () => USERS.map((u) => u.id), officeOf: () => '大阪', withOffice: (u) => `${u.name}（大阪）`, today: () => day };
   assert.ok(balanceTab(c).includes('入金・支払の登録') && balanceTab(c).includes('鑑定士の補充金') && balanceTab(c).includes('お客様への支払'));
-  assert.ok(claimsTab(c).includes('領収書') && claimsTab(c).includes('精算する') && claimsTab(c).includes('差戻し'));
+  const claims = claimsTab(c);
+  for (const w of ['前日繰越金', '終業時に数えた金額', '経費（ガソリン代など）', 'お客様への支払', '領収書', 'チェック済みにする', '差戻しの理由', '終業・日報が未提出']) assert.ok(claims.includes(w) || claimsTab({ ...c, st: { ...st, claimUser: 'u06', returning: null } }).includes(w), w);
+  assert.ok(claimsTab({ ...c, st: { ...st, claimUser: 'u07', returning: null } }).includes('数えた現金の写真がない'));
   assert.ok(fixedTab(c).includes('本社 家賃') && fixedTab(c).includes('鑑定士の小口金') && fixedTab(c).includes('補充が必要'));
   const w = weeklyTab(c);
   assert.ok(w.includes('粗利') && w.includes('直近8週の推移') && !w.includes('NaN') && !w.includes('undefined'));
