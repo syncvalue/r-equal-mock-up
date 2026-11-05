@@ -228,7 +228,7 @@ function reportFor(user, date, now) {
   return {
     userId: user.id, date, source: 'real', closed: Boolean(day.closedAt),
     startTime: new Date(day.startedAt).toTimeString().slice(0, 5), closeTime: day.closedAt ? new Date(day.closedAt).toTimeString().slice(0, 5) : '',
-    opening: sm.opening, depositTotal: sm.depositTotal, expenseTotal: sm.expenseTotal, balance: sm.balance,
+    opening: sm.opening, depositTotal: sm.depositTotal, withdrawalTotal: sm.withdrawalTotal, expenseTotal: sm.expenseTotal, balance: sm.balance,
     expenses: sm.expenses.map((e) => ({ type: e.type, label: typeOf(e.type).label, amount: e.amount, memo: e.memo })),
     counted: day.closedAt ? day.close.counted : null, diff: day.closedAt ? day.close.diff : 0, diffNote: day.closedAt ? day.close.note : '', comment: day.closedAt ? day.close.comment : '',
     visits: day.visits.map((v) => ({ date, time: new Date(v.at).toTimeString().slice(0, 5), userId: user.id, customer: v.customerName, items: `${v.itemCount}点`, result: v.outcome ? v.outcome.type : v.total > 0 ? 'won' : 'lost', amount: v.total, note: v.outcome?.memo ?? '' })),
@@ -248,7 +248,7 @@ function reportDetail(r) {
     <span class="text-slate-500">勤務 ${r.startTime}〜${r.closed ? r.closeTime : '（業務中）'}</span></div>
   <div class="grid md:grid-cols-2 gap-3">
     <div class="rounded-xl border p-3"><div class="font-bold mb-1">現金の収支</div><div class="text-sm divide-y">
-      ${row('前日繰越金', yen(r.opening))}${row('入金', `+${yen(r.depositTotal)}`)}${row('経費（買取代金を含む）', `−${yen(r.expenseTotal)}`)}${row('帳簿上の残高', yen(r.balance), 'text-base')}
+      ${row('前日繰越金', yen(r.opening))}${row('補充金（経理部から振込）', yen(r.depositTotal))}${row('引き出し金額', `+${yen(r.withdrawalTotal)}`)}${row('経費（買取代金を含む）', `−${yen(r.expenseTotal)}`)}${row('帳簿上の残高', yen(r.balance), 'text-base')}
       ${r.closed ? `${row('実際の所持金', yen(r.counted))}${row('過不足', `<span class="${r.diff ? 'text-rose-600' : 'text-emerald-700'}">${signedYen(r.diff)}</span>`)}` : ''}</div>
       ${r.closed && r.diff ? `<div class="text-xs rounded bg-rose-50 p-2 mt-1">差異の理由: ${esc(r.diffNote)}</div>` : ''}</div>
     <div class="rounded-xl border p-3"><div class="font-bold mb-1">経費の内訳</div><div class="text-sm divide-y">

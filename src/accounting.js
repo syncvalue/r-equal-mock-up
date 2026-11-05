@@ -1,4 +1,4 @@
-// 経理部のロジック。鑑定士の立替金（所持金）の確認事項、鑑定士への立替金、お客様への支払、営業所での絞り込み。
+// 経理部のロジック。鑑定士の所持金の確認事項、鑑定士への補充金、お客様への支払、営業所での絞り込み。
 import { CUSTOMER_PAY_KEY } from './store.js';
 import { addDeposit, newId, dateKey } from './workday.js';
 import { loadLedger, saveLedger, makeEntry, addEntry } from './ledger.js';
@@ -16,12 +16,14 @@ export function flagsOf(day, summary) {
   const { start, close } = day;
   if (start?.diff) flags.push({ level: 'warn', text: `始業時に前日の繰越金と差異 ${signed(start.diff)}（理由: ${start.note || '未記入'}）` });
   if (day.closedAt && close?.diff) flags.push({ level: 'danger', text: `終業時の過不足 ${signed(close.diff)}（理由: ${close.note || '未記入'}）` });
-  if (summary.balance < 0) flags.push({ level: 'danger', text: `立替金の残高がマイナス（${signed(summary.balance)}）` });
+  if (summary.withdrawalTotal !== undefined && summary.undrawn > 0) flags.push({ level: 'warn', text: `補充金のうち ${yen(summary.undrawn)} が、まだ引き出されていません（補充金 ${yen(summary.depositTotal)}／引き出し ${yen(summary.withdrawalTotal)}）` });
+  if (summary.withdrawalTotal !== undefined && summary.undrawn < 0) flags.push({ level: 'danger', text: `引き出し金額が補充金を ${yen(-summary.undrawn)} 上回っています（補充金 ${yen(summary.depositTotal)}／引き出し ${yen(summary.withdrawalTotal)}）` });
+  if (summary.balance < 0) flags.push({ level: 'danger', text: `所持金の残高がマイナス（${signed(summary.balance)}）` });
   else if (summary.balance > CASH_LIMIT) flags.push({ level: 'warn', text: `所持金が多い（${yen(summary.balance)}）` });
   return flags;
 }
 
-// ---- 鑑定士への立替金（買取資金を渡す）: 鑑定士の所持金に入り、帳簿にも支払として残る --------------
+// ---- 鑑定士への補充金（買取資金を振り込む）: 鑑定士の補充金に記録し、帳簿にも支払として残る --------------
 export const advanceReady = (d) => Boolean(d.userId && d.amount > 0);
 export function giveAdvance(d, { by = '経理部', now = Date.now() } = {}) {
   const memo = (d.memo ?? '').trim();

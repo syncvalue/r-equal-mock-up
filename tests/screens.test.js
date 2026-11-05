@@ -33,7 +33,7 @@ test('経理部の4つの画面（残高・入出金管理／経費精算／固�
   const day = new Date().toISOString().slice(0, 10);
   const st = { office: '', ledger: loadLedger(), selDay: null, selUser: null, led: { kind: 'in', category: 'sales', date: day, amount: 0, cost: 0, userId: '', memo: '' }, pay: { customerName: '', amount: 0, reason: '', userId: '', memo: '' }, fix: { id: '', type: 'rent', name: '', amount: 0, payDay: 25 }, pu: { appraiserId: 'a1', date: day, amount: 0, memo: '' }, returning: { id: 'x', reason: '' }, claimFilter: 'all', month: day.slice(0, 7), week: weekStart(day) };
   const c = { st, scoped: () => USERS, scopedIds: () => USERS.map((u) => u.id), officeOf: () => '大阪', withOffice: (u) => `${u.name}（大阪）` };
-  assert.ok(balanceTab(c).includes('入金・支払の登録') && balanceTab(c).includes('鑑定士の立替金') && balanceTab(c).includes('お客様への支払'));
+  assert.ok(balanceTab(c).includes('入金・支払の登録') && balanceTab(c).includes('鑑定士の補充金') && balanceTab(c).includes('お客様への支払'));
   assert.ok(claimsTab(c).includes('領収書') && claimsTab(c).includes('精算する') && claimsTab(c).includes('差戻し'));
   assert.ok(fixedTab(c).includes('本社 家賃') && fixedTab(c).includes('鑑定士の小口金') && fixedTab(c).includes('補充が必要'));
   const w = weeklyTab(c);

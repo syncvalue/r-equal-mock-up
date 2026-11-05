@@ -1,4 +1,4 @@
-// 残高・入出金管理: 日次残高、入金・支払の登録、鑑定士の立替金、お客様への支払
+// 残高・入出金管理: 日次残高、入金・支払の登録、鑑定士の補充金、お客様への支払
 import { todayRows, carryoverFor, depositsOf, dateKey } from '../src/workday.js';
 import { flagsOf, PAY_REASONS, reasonOf, loadCustomerPayments, onlyOffice } from '../src/accounting.js';
 import { IN_CATEGORIES, OUT_CATEGORIES, categoryOf, dailyBalances, totals } from '../src/ledger.js';
@@ -52,22 +52,22 @@ export function advanceTable(c) {
   const rows = todayRows().filter((r) => c.scopedIds().includes(r.user.id)).map((r) => {
     const opening = carryoverFor(r.user.id).amount;
     const depositTotal = depositsOf(r.user.id).reduce((n, d) => n + d.amount, 0);
-    const cash = r.summary ?? { opening, depositTotal, expenseTotal: 0, balance: opening + depositTotal };
+    const cash = r.summary ?? { opening, depositTotal, withdrawalTotal: 0, expenseTotal: 0, balance: opening };
     return { ...r, cash, flags: r.summary ? flagsOf(r.day, r.summary) : [] };
   });
   return `
   <section class="rounded-xl border bg-white p-4 space-y-2">
-    <h2 class="font-bold text-lg">👤 鑑定士の立替金（今日）${helpIcon('立替金の残高 ＝ 始業時の金額（未始業は前日繰越）＋ 立替金の入金 − 経費（買取代金を含む）。終業時に鑑定士が数えた金額との差異は、理由と一緒に出します。')}</h2>
-    <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>鑑定士</th><th>営業所</th><th>状況</th><th class="text-right">始業時</th><th class="text-right">立替金の入金</th><th class="text-right">経費</th><th class="text-right">残高</th><th class="text-right">過不足</th><th>確認事項</th></tr></thead><tbody>
+    <h2 class="font-bold text-lg">👤 鑑定士の補充金（今日）${helpIcon('補充金 ＝ 経理部が振り込んだ金額。引き出し金額 ＝ そのうち鑑定士が引き出した金額（鑑定士が入力。通常は補充金と一致）。所持金 ＝ 始業時の金額（未始業は前日繰越）＋ 引き出し金額 − 経費（買取代金を含む）。終業時に鑑定士が数えた金額との差異は、理由と一緒に出します。')}</h2>
+    <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>鑑定士</th><th>営業所</th><th>状況</th><th class="text-right">始業時</th><th class="text-right">補充金</th><th class="text-right">引き出し金額</th><th class="text-right">経費</th><th class="text-right">所持金</th><th class="text-right">過不足</th><th>確認事項</th></tr></thead><tbody>
     ${rows.map((r) => {
       const { user, day, phase, summary: sm, cash } = r;
       return `<tr class="border-b ${sm ? 'cursor-pointer hover:bg-slate-50' : ''}" ${sm ? `data-sel-user="${user.id}"` : ''}>
         <td class="font-bold">${esc(user.name)}</td><td>${esc(c.officeOf(user.id))}</td><td>${badge(PHASE[phase][1], PHASE[phase][0])}</td>
-        <td class="text-right">${yen(cash.opening)}${sm ? '' : '<div class="text-xs text-slate-400">前日繰越</div>'}</td><td class="text-right">${yen(cash.depositTotal)}</td><td class="text-right">${yen(cash.expenseTotal)}</td>
+        <td class="text-right">${yen(cash.opening)}${sm ? '' : '<div class="text-xs text-slate-400">前日繰越</div>'}</td><td class="text-right">${yen(cash.depositTotal)}</td><td class="text-right ${cash.depositTotal !== cash.withdrawalTotal ? 'text-amber-700 font-bold' : ''}">${yen(cash.withdrawalTotal)}</td><td class="text-right">${yen(cash.expenseTotal)}</td>
         <td class="text-right font-bold ${cash.balance < 0 ? 'text-rose-600' : ''}">${signedYen(cash.balance)}</td>
         <td class="text-right font-bold ${day?.close?.diff ? 'text-rose-600' : 'text-emerald-700'}">${day?.closedAt ? signed(day.close.diff) : '-'}</td>
         <td class="!whitespace-normal">${r.flags.length ? badge(r.flags.some((f) => f.level === 'danger') ? LEVEL.danger : LEVEL.warn, `${r.flags.length}件`) : sm ? '<span class="text-emerald-700 text-xs font-bold">問題なし</span>' : '-'}</td></tr>
-        ${c.st.selUser === user.id && sm ? `<tr class="bg-slate-50"><td colspan="9" class="!whitespace-normal text-sm">${r.flags.length ? r.flags.map((f) => badge(LEVEL[f.level], esc(f.text))).join(' ') : '確認が必要な事項はありません。'}<div class="text-xs text-slate-500 mt-1">経費の明細は、経費精算で確認します。</div></td></tr>` : ''}`;
+        ${c.st.selUser === user.id && sm ? `<tr class="bg-slate-50"><td colspan="10" class="!whitespace-normal text-sm">${r.flags.length ? r.flags.map((f) => badge(LEVEL[f.level], esc(f.text))).join(' ') : '確認が必要な事項はありません。'}<div class="text-xs text-slate-500 mt-1">経費の明細は、経費精算で確認します。</div></td></tr>` : ''}`;
     }).join('')}
     </tbody></table>
   </section>`;

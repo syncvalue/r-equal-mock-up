@@ -27,7 +27,7 @@ import { formatMoneyInput } from './moneyInput.js';
 import { blankPettyForm, sendPettyRequest, withdrawPetty, pettyReady } from './pettyRequest.js';
 import {
   START_CHECKS, END_CHECKS, cashTotal, breakdownOf, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
-  newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, invoiceAfterRead, startReady, closeReady,
+  newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, withdrawalReady, addWithdrawal, removeWithdrawal, invoiceAfterRead, startReady, closeReady,
 } from './workday.js';
 import {
   loadUnits, saveUnits, unitsFromVisit, addUnits, byUser, inScope, pendingOf, receive, markMissing, resultMessage, demoUnits, sealColorOfCode, newSealNo,
@@ -54,6 +54,7 @@ const initialState = () => ({
   startForm: blankStartForm(),
   closeForm: blankCloseForm(),
   expDraft: blankExpenseDraft(),
+  withdrawDraft: { amount: 0 },
   petty: blankPettyForm(), // 小口金の申請の入力中データ
   outcome: null,
   outcomeDraft: blankOutcomeDraft(),
@@ -639,6 +640,20 @@ const actions = {
   'exp-photo-clear': () => { receiptToken += 1; set({ expDraft: { ...state.expDraft, photo: null, ai: null } }); },
   'exp-invoice': () => set({ expDraft: { ...state.expDraft, invoice: !state.expDraft.invoice } }),
   'exp-ai-retry': () => { if (state.expDraft.photo) readReceiptAi(state.expDraft.ai?.sample ?? receiptSampleFor(state.expDraft.photo.length), { overwrite: true }); },
+  'wdr-add': () => {
+    const d = state.withdrawDraft;
+    if (!withdrawalReady(d) || state.day?.closedAt || !state.day) return;
+    if (!saveDay(addWithdrawal(state.day, { id: newId('WD'), at: Date.now(), amount: d.amount, memo: '' }))) { showToast('保存できませんでした'); return; }
+    set({ withdrawDraft: { amount: 0 } });
+    showToast('引き出し金額を登録しました');
+  },
+  'wdr-rest': () => {
+    const rest = summaryOf(state.day, state.user).undrawn;
+    if (!(rest > 0) || state.day?.closedAt) return;
+    if (!saveDay(addWithdrawal(state.day, { id: newId('WD'), at: Date.now(), amount: rest, memo: '補充金の未引き出し分' }))) { showToast('保存できませんでした'); return; }
+    showToast('引き出し金額を登録しました');
+  },
+  'wdr-remove': (el) => { if (state.day && !state.day.closedAt) saveDay(removeWithdrawal(state.day, el.dataset.id)); },
   'exp-submit': () => {
     const d = state.expDraft;
     if (!expenseReady(d) || !state.day) return;
@@ -830,13 +845,14 @@ document.addEventListener('input', (e) => {
   if (el.dataset.wd) {
     // 始業・終業・経費の入力。再描画せず state だけ更新し、差異の表示とボタンだけ差し替える（フォーカス維持）
     const filled = el.value.trim() !== '';
-    const amount = el.dataset.wd.endsWith('counted') || ['exp-amount', 'petty-amount'].includes(el.dataset.wd) ? formatMoneyInput(el) : 0;
+    const amount = el.dataset.wd.endsWith('counted') || ['exp-amount', 'petty-amount', 'wdr-amount'].includes(el.dataset.wd) ? formatMoneyInput(el) : 0;
     const patch = {
       'start-counted': { startForm: { ...state.startForm, counted: amount, countedSet: filled } },
       'start-note': { startForm: { ...state.startForm, note: el.value } },
       'close-counted': { closeForm: { ...state.closeForm, counted: amount, countedSet: filled } },
       'close-note': { closeForm: { ...state.closeForm, note: el.value } },
       'close-comment': { closeForm: { ...state.closeForm, comment: el.value } },
+      'wdr-amount': { withdrawDraft: { amount } },
       'exp-amount': { expDraft: { ...state.expDraft, amount } },
       'exp-memo': { expDraft: { ...state.expDraft, memo: el.value } },
       'petty-amount': { petty: { ...state.petty, amount } },
@@ -850,6 +866,7 @@ document.addEventListener('input', (e) => {
     if ($('#wd-live')) $('#wd-live').innerHTML = V.wdLiveView(state);
     if ($('#wd-start-bottom')) $('#wd-start-bottom').innerHTML = V.wdStartBottomView(state);
     if ($('#exp-live')) $('#exp-live').innerHTML = V.expLiveView(state);
+    if (el.dataset.wd === 'wdr-amount') { const b = $('[data-action="wdr-add"]'); if (b) b.disabled = !withdrawalReady(state.withdrawDraft); }
     if ($('#oc-live')) $('#oc-live').innerHTML = V.ocLiveView(state);
     if (el.dataset.wd.startsWith('petty')) { const b = $('[data-action="petty-send"]'); if (b) b.disabled = !pettyReady(state.petty); }
     return;
@@ -897,7 +914,7 @@ window.addEventListener('storage', (e) => {
     return;
   }
   if (e.key === DEPOSIT_KEY) {
-    showToast('🏦 本社から入金がありました');
+    showToast('🏦 経理部から補充金が振り込まれました');
     rerenderKeepScroll();
     return;
   }

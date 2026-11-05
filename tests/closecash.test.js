@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 
 const mem = new Map();
 globalThis.localStorage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
-const { DENOMINATIONS, cashTotal, breakdownOf, blankCloseForm, closeReady, closeDay, END_CHECKS, expensesToReview } = await import('../src/workday.js');
+const { addWithdrawal, DENOMINATIONS, cashTotal, breakdownOf, blankCloseForm, closeReady, closeDay, END_CHECKS, expensesToReview } = await import('../src/workday.js');
 
-const day = { date: '2026-11-05', userId: 'u01', startedAt: 1, closedAt: null, start: { counted: 50000 }, expenses: [], deposits: [], visits: [], close: null, report: null };
+const day0 = { date: new Date().toLocaleDateString('sv'), userId: 'u01', startedAt: 1, closedAt: null, start: { counted: 50000 }, expenses: [], deposits: [], visits: [], close: null, report: null };
+const day = addWithdrawal(day0, { id: 'W1', at: 2, amount: 300000 });
 const allChecked = Object.fromEntries(END_CHECKS.map((c) => [c.key, true]));
 
 test('紙幣と硬貨の種類は、1万円札から1円玉まで', () => {

@@ -1,10 +1,11 @@
 // 始業・終業と経費管理のデータとロジック。鑑定士ごと・日付ごとに「1日の記録」を localStorage に保存する。
-// 所持金 ＝ 前日繰越金（始業時に実際に数えた金額）＋ 本社からの入金 − 経費（買取代金・ガソリン代など）
+// 所持金 ＝ 前日繰越金（始業時に実際に数えた金額）＋ 引き出し金額 − 経費（買取代金・ガソリン代など）
+// 補充金 ＝ 経理部が鑑定士に振り込んだ金額（経理部が入力）。引き出し金額 ＝ そのうち、鑑定士が実際に引き出した金額（鑑定士が入力）。通常は一致する
 import { USERS } from './dashboard.js';
 import { WORKDAY_KEY, DEPOSIT_KEY } from './store.js';
 
 const SEED_CARRYOVER = 50000; // 初回（前日の記録がない場合）の繰越金（ダミー）
-const SEED_DEPOSIT = 300000; // 毎日 朝に入る定例入金（ダミー）
+const SEED_DEPOSIT = 300000; // 毎日 朝に振り込まれる定例の補充金（ダミー）
 
 export const EXPENSE_TYPES = [
   { key: 'gas', icon: '⛽', label: 'ガソリン代' },
@@ -90,14 +91,14 @@ export function saveDay(record) {
   }
 }
 
-// 本社からの入金（本社画面から登録）。定例入金のダミーは、今日の分だけ常に入っているものとして扱う
+// 補充金（経理部の画面から登録）。定例の補充金のダミーは、今日の分だけ常に入っているものとして扱う
 export const loadStoredDeposits = () => readJson(DEPOSIT_KEY, []);
 export const addDeposit = (d) => localStorage.setItem(DEPOSIT_KEY, JSON.stringify([d, ...loadStoredDeposits()]));
 
 export function depositsOf(userId, date = dateKey()) {
   const stored = loadStoredDeposits().filter((d) => d.userId === userId && dateKey(new Date(d.at)) === date);
   const seed = date === dateKey()
-    ? [{ id: `seed-${userId}-${date}`, userId, amount: SEED_DEPOSIT, memo: '定例入金', by: '経理部', at: new Date(`${date}T09:00:00`).getTime() }]
+    ? [{ id: `seed-${userId}-${date}`, userId, amount: SEED_DEPOSIT, memo: '定例の補充金', by: '経理部', at: new Date(`${date}T09:00:00`).getTime() }]
     : [];
   return [...seed, ...stored].sort((a, b) => a.at - b.at);
 }
@@ -109,11 +110,17 @@ export function carryoverFor(userId, date = dateKey()) {
     .filter((r) => r.userId === userId && r.date < date)
     .sort((a, b) => b.date.localeCompare(a.date))[0];
   if (!prev) return { amount: SEED_CARRYOVER, from: null };
-  return { amount: prev.closedAt ? prev.close.counted : balanceOf(prev, depositsOf(userId, prev.date)), from: prev.date };
+  return { amount: prev.closedAt ? prev.close.counted : balanceOf(prev), from: prev.date };
 }
 
 export const expenseTotal = (day) => sum(day?.expenses ?? []);
-export const balanceOf = (day, deposits) => (day?.start?.counted ?? 0) + sum(deposits) - expenseTotal(day);
+export const withdrawalsOf = (day) => day?.withdrawals ?? [];
+export const balanceOf = (day) => (day?.start?.counted ?? 0) + sum(withdrawalsOf(day)) - expenseTotal(day);
+
+// 引き出し金額（鑑定士が、補充金のうち実際に引き出した金額を記録する）
+export const withdrawalReady = (d) => Number(d?.amount) > 0;
+export const addWithdrawal = (day, w) => ({ ...day, withdrawals: [...withdrawalsOf(day), w] });
+export const removeWithdrawal = (day, id) => ({ ...day, withdrawals: withdrawalsOf(day).filter((w) => w.id !== id) });
 
 // 画面で使う集計
 export function summaryOf(day, userId) {
@@ -122,9 +129,11 @@ export function summaryOf(day, userId) {
   const byType = EXPENSE_TYPES.concat(PURCHASE_TYPE)
     .map((t) => ({ ...t, amount: sum(expenses.filter((e) => e.type === t.key)), count: expenses.filter((e) => e.type === t.key).length }))
     .filter((t) => t.count);
+  const withdrawals = withdrawalsOf(day);
   return {
-    opening: day?.start?.counted ?? 0, deposits, depositTotal: sum(deposits),
-    expenses, expenseTotal: sum(expenses), byType, balance: balanceOf(day, deposits),
+    opening: day?.start?.counted ?? 0, deposits, depositTotal: sum(deposits), withdrawals, withdrawalTotal: sum(withdrawals),
+    undrawn: sum(deposits) - sum(withdrawals), // 補充金のうち、まだ引き出していない金額（マイナスは、補充金を超えて引き出した）
+    expenses, expenseTotal: sum(expenses), byType, balance: balanceOf(day),
   };
 }
 
@@ -138,7 +147,7 @@ export function startDay(userId, form, now = Date.now()) {
   return {
     userId, date: dateKey(new Date(now)), startedAt: now,
     start: { expected: carry.amount, counted: form.counted, diff: form.counted - carry.amount, note: form.note.trim(), checks: { ...form.checks } },
-    expenses: [], visits: [], closedAt: null, close: null, report: null,
+    expenses: [], withdrawals: [], visits: [], closedAt: null, close: null, report: null,
   };
 }
 
@@ -166,7 +175,7 @@ export function closeDay(day, userId, form, now = Date.now()) {
   return {
     ...day, closedAt: now, close,
     report: {
-      deposits: s.deposits, opening: s.opening, depositTotal: s.depositTotal, expenseTotal: s.expenseTotal,
+      deposits: s.deposits, opening: s.opening, depositTotal: s.depositTotal, withdrawalTotal: s.withdrawalTotal, expenseTotal: s.expenseTotal,
       byType: s.byType.map(({ key, label, amount, count }) => ({ key, label, amount, count })),
       visitCount: day.visits.length, purchaseTotal: day.visits.reduce((n, v) => n + v.total, 0), itemCount: day.visits.reduce((n, v) => n + v.itemCount, 0),
     },

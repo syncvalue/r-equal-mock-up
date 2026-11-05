@@ -111,7 +111,7 @@ function dummyDay(user, date, isToday) {
   return { visits: v.filter((x) => !RESULTS[x.result].excluded).length, contracts: v.filter((x) => x.result === 'won').length, amount: v.reduce((n, x) => n + x.amount, 0) };
 }
 
-// その日の日報（ダミー）。訪問の結果は、業績の集計と同じもの。現金は、買取代金を含む経費・入金から、鑑定士×日付で固定の値を作る
+// その日の日報（ダミー）。訪問の結果は、業績の集計と同じもの。現金は、買取代金を含む経費・補充金から、鑑定士×日付で固定の値を作る
 const EXPENSE_LABELS = { purchase: '買取代金', gas: 'ガソリン代', lunch: '昼食代', toll: '高速・駐車場', supply: '備品購入' };
 const DIFF_NOTES = ['小銭の数え間違い', '駐車場代のレシートを紛失', '釣り銭の渡し間違い'];
 const REPORT_COMMENTS = ['', '', '午後の訪問で、次回のご提案につながるお話ができた。', '渋滞で移動に時間がかかった。明日は早めに出発する。', 'お客様から、知人の紹介の話をいただいた。'];
@@ -138,7 +138,7 @@ export function dummyReport(user, date, now = new Date()) {
   return {
     userId: user.id, date, source: 'dummy', closed: !isToday,
     startTime: `08:${pad(40 + Math.floor(rnd() * 30) % 20)}`, closeTime: `${17 + Math.floor(rnd() * 2)}:${pad(Math.floor(rnd() * 6) * 10)}`,
-    opening, depositTotal: deposit, expenses, expenseTotal: spent, balance,
+    opening, depositTotal: deposit, withdrawalTotal: deposit, expenses, expenseTotal: spent, balance,
     counted: isToday ? null : balance + diff, diff: isToday ? 0 : diff, diffNote: !isToday && diff ? DIFF_NOTES[Math.floor(rnd() * DIFF_NOTES.length)] : '',
     comment: isToday ? '' : REPORT_COMMENTS[Math.floor(rnd() * REPORT_COMMENTS.length)], visits,
   };

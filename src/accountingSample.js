@@ -1,4 +1,4 @@
-// 経理部画面の見本データ。鑑定士の始業・経費・日報、鑑定士への立替金、お客様への支払、入出金の帳簿（約4週間）、
+// 経理部画面の見本データ。鑑定士の始業・経費・日報、鑑定士への補充金、お客様への支払、入出金の帳簿（約4週間）、
 // 鑑定士の小口金、経費精算の確認結果を、今日を基準に作る。
 import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, PETTY_KEY, REVIEW_KEY } from './store.js';
 import { makeEntry } from './ledger.js';
@@ -12,24 +12,28 @@ const at = (now, date, h, m = 0) => new Date(`${date}T${String(h).padStart(2, '0
 const ex = (now, date, i, h, type, amount, memo, photo = true) => ({ id: `SX-${date}-${i}`, at: at(now, date, h), type, amount, memo, photo: photo ? dummyPhoto(memo.slice(0, 8) || 'receipt') : null });
 const buy = (now, date, i, h, amount, name, n) => ({ ...ex(now, date, i, h, 'purchase', amount, `${name} 様 買取代金（${n}点）`, false), auto: true, visitId: `SV-${date}-${i}` });
 
-// 1日の記録。balance（帳簿残高）は、未終業なら始業時の金額＋入金−経費、終業済みなら counted が実際に数えた金額
+// 1日の記録。balance（帳簿残高）は、未終業なら始業時の金額＋引き出し金額−経費、終業済みなら counted が実際に数えた金額
 function day(userId, date, now, { start, expected = start, startNote = '', expenses, close, deposits = [], visits = 0 }) {
+  // 引き出し金額（鑑定士の入力）。補充金と一致させる。今日の未終業の日は、定例の補充金（30万円）も引き出し済み
+  const drawn = [...(close ? [] : [{ amount: 300000, memo: '定例の補充金' }]), ...deposits.map((d) => ({ amount: d.amount, memo: d.memo }))];
+  const withdrawals = drawn.map((w, i) => ({ id: `SW-${date}-${userId}-${i}`, at: at(now, date, 10), amount: w.amount, memo: w.memo }));
   const startedAt = at(now, date, 9, 30);
   expenses = expenses.map((e) => ({ ...e, id: `${e.id}-${userId}` })); // 鑑定士ごとに、経費のIDを分ける（経費精算の確認結果をIDで結びつけるため）
   const expenseTotal = expenses.reduce((n, e) => n + e.amount, 0);
   const depositTotal = deposits.reduce((n, d) => n + d.amount, 0);
+  const withdrawalTotal = withdrawals.reduce((n, w) => n + w.amount, 0);
   const base = {
     userId, date, startedAt, start: { expected, counted: start, diff: start - expected, note: startNote, checks: {} },
-    expenses, visits: [], closedAt: null, close: null, report: null,
+    expenses, withdrawals, visits: [], closedAt: null, close: null, report: null,
   };
   if (!close) return base;
-  const balance = start + depositTotal - expenseTotal;
+  const balance = start + withdrawalTotal - expenseTotal;
   const purchases = expenses.filter((e) => e.type === 'purchase');
   return {
     ...base, closedAt: at(now, date, 18, 20),
     close: { counted: close.counted ?? balance, expected: balance, diff: (close.counted ?? balance) - balance, note: close.note ?? '', checks: {}, comment: close.comment ?? '' },
     report: {
-      deposits, opening: start, depositTotal, expenseTotal, byType: [], visitCount: visits || purchases.length,
+      deposits, opening: start, depositTotal, withdrawalTotal, expenseTotal, byType: [], visitCount: visits || purchases.length,
       purchaseTotal: purchases.reduce((n, e) => n + e.amount, 0), itemCount: purchases.length * 3,
     },
   };
@@ -75,7 +79,7 @@ function buildReviews(past) {
   return reviews;
 }
 
-// 入出金の帳簿の見本: 28日分の販売代金・立替金・お客様への支払・固定費、鑑定士の小口金の補充と使用
+// 入出金の帳簿の見本: 28日分の販売代金・補充金・お客様への支払・固定費、鑑定士の小口金の補充と使用
 function buildLedger(now, today, ago, deposits, payments) {
   const L = [];
   const push = (date, d, h = 10) => L.push({ ...makeEntry({ ...d, date }, { now: at(now, date, h) }), id: `SL-${L.length + 1}` });
@@ -101,7 +105,7 @@ function buildLedger(now, today, ago, deposits, payments) {
   }
   // 鑑定士の小口金: 全員に5万円を補充（u02 だけ6万円）。u01 は残りが十分、u02 は使って残りが少ない（補充が必要）
   for (const u of USERS) push(ago(14), { category: 'petty', amount: u.id === 'u02' ? 60000 : 50000, memo: '小口金の補充', userId: u.id }, 10);
-  // 今日: 鑑定士への立替金・お客様への支払は、見本の入金・振込済みから
+  // 今日: 鑑定士への補充金・お客様への支払は、見本の補充金・振込済みから
   for (const d of deposits) push(today, { category: 'advance', amount: d.amount, memo: d.memo, userId: d.userId }, 10);
   for (const p of payments.filter((x) => x.status === 'done')) push(dateKey(new Date(p.paidAt)), { category: 'customer', amount: p.amount, memo: `${p.customerName} 様 高額のため、後日 銀行振込`, userId: p.userId }, 17);
   push(today, { category: 'sales', amount: 240000, cost: 160000, memo: '業者への販売' }, 14);

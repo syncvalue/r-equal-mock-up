@@ -75,7 +75,7 @@ function addLedger() {
   if (f.category === 'advance') {
     if (!advanceReady(f)) return alert('鑑定士を選んでください');
     if (!giveAdvance(f, { by: BY })) return alert('保存できませんでした（容量超過）');
-    if (f.date !== today()) alert('鑑定士への立替金は、今日の日付で記録しました（鑑定士の所持金に今日入るため）');
+    if (f.date !== today()) alert('鑑定士への補充金は、今日の日付で記録しました（鑑定士に今日振り込まれるため）');
   } else if (!saveLedger(addEntry(loadLedger(), makeEntry(f, { by: BY })))) return alert('保存できませんでした（容量超過）');
   st.led = { ...blank.led(), kind: f.kind, category: f.category, userId: f.userId };
 }
@@ -158,7 +158,7 @@ const ACTIONS = {
   week: (d) => { st.week = shiftWeek(st.week, Number(d.week)); },
   pickWeek: (d) => { st.week = d.pickWeek; },
   sample: () => {
-    if (!confirm('鑑定士の始業・経費・立替金、入出金の帳簿、固定費、小口金、経費精算の確認結果を、サンプルデータに置き換えます。よろしいですか？')) return false;
+    if (!confirm('鑑定士の始業・経費・補充金、入出金の帳簿、固定費、小口金、経費精算の確認結果を、サンプルデータに置き換えます。よろしいですか？')) return false;
     try { localStorage.removeItem(FIXED_KEY); } catch { /* 固定費は、初期の登録に戻らないだけ（モック） */ }
     seedSample(Date.now(), true); st.selUser = null; st.selDay = null; st.fix = blank.fix();
     return true;

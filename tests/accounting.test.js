@@ -20,7 +20,7 @@ test('問題のない日は、確認事項なし。未始業は判定しない',
   assert.deepEqual(flagsOf(null, null), []);
 });
 
-test('始業時・終業時の差異、立替金の残高マイナス、所持金過多を検知する', () => {
+test('始業時・終業時の差異、所持金の残高マイナス、所持金過多を検知する', () => {
   const a = flagsOf(day({ start: { counted: 49000, expected: 50000, diff: -1000, note: '財布に入れ忘れ' } }), summary());
   assert.ok(a.some((f) => f.level === 'warn' && f.text.includes('始業時') && f.text.includes('財布に入れ忘れ')));
   const b = flagsOf(day({ closedAt: 9, close: { counted: 90000, expected: 100000, diff: -10000, note: '不明' } }), summary());
@@ -29,7 +29,7 @@ test('始業時・終業時の差異、立替金の残高マイナス、所持�
   assert.ok(flagsOf(day(), summary(CASH_LIMIT + 1)).some((f) => f.text.includes('所持金が多い')));
 });
 
-test('鑑定士への立替金: 鑑定士の所持金（入金）と帳簿の支払に、同時に記録する', () => {
+test('鑑定士への補充金: 鑑定士の補充金（振込）と帳簿の支払に、同時に記録する', () => {
   assert.equal(advanceReady({ userId: '', amount: 1000 }), false);
   assert.equal(advanceReady({ userId: 'u01', amount: 0 }), false);
   assert.equal(giveAdvance({ userId: 'u01', amount: 300000, memo: '買取資金' }, { now: 100 }), true);

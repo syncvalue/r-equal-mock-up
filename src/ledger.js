@@ -10,7 +10,7 @@ export const IN_CATEGORIES = [
   { key: 'other_in', label: 'その他の入金', hint: '内容をメモに記入' },
 ];
 export const OUT_CATEGORIES = [
-  { key: 'advance', label: '鑑定士への立替金', hint: '買取資金として、鑑定士に渡した現金' },
+  { key: 'advance', label: '鑑定士への補充金', hint: '買取資金として、鑑定士に振り込んだお金（鑑定士が引き出して使う）' },
   { key: 'customer', label: 'お客様への支払', hint: '銀行振込など、お客様への買取代金のお支払い' },
   { key: 'fixed', label: '固定費', hint: '家賃・人件費など（固定費・小口金管理から支払う）' },
   { key: 'petty', label: '鑑定士の小口金', hint: '鑑定士への小口金の補充（固定費・小口金管理から渡す）' },
