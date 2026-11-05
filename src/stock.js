@@ -23,7 +23,7 @@ export const newSealNo = (color = RANDOM_COLORS[Math.floor(Math.random() * RANDO
   `RQ-${SEAL_LETTERS[color]}${Math.random().toString(36).slice(2, 9).toUpperCase().padEnd(7, '0')}`;
 export const sealColorOf = (key) => [...SEAL_COLORS, ...LEGACY_SEAL_COLORS].find((c) => c.key === key) ?? null;
 
-// 営業が入庫した商品は、商品ごとに分けず、クーリングオフ期間中の専用の棚にまとめて保管する（5.2）
+// 鑑定士が入庫した商品は、商品ごとに分けず、クーリングオフ期間中の専用の棚にまとめて保管する（5.2）
 export const COOLING_OFF_SHELF = 'クーリングオフ保管棚';
 // 倉庫担当の入庫の保管場所。訪問買取はクーリングオフ保管棚、店頭買取（クーリング・オフの対象外）は選んだ棚。receive / receiveCodes の location に渡す
 export const shelfFor = (chosen) => (unit) => (unit.channel === 'store' ? chosen : COOLING_OFF_SHELF);
@@ -94,8 +94,8 @@ export const inScope = (list, scope) => (scope === 'all' ? list : list.filter((u
 export const pendingOf = (list) => list.filter((u) => u.status !== 'stored');
 export const dateKeys = (list) => [...new Set(list.map((u) => u.date))].sort();
 
-// 読み取った（入力した）シールNo.を入庫する。userId を指定すると、その営業の商品だけ入庫できる（営業のタブレット）。
-// userId が null のときは、誰の商品でも入庫できる（倉庫担当。契約書とともに商品一式を渡された場合など）。結果: ok／dup（入庫済み）／other（他の営業の商品）／unknown（未登録）
+// 読み取った（入力した）シールNo.を入庫する。userId を指定すると、その鑑定士の商品だけ入庫できる（鑑定士のタブレット）。
+// userId が null のときは、誰の商品でも入庫できる（倉庫担当。契約書とともに商品一式を渡された場合など）。結果: ok／dup（入庫済み）／other（他の鑑定士の商品）／unknown（未登録）
 export function receive(list, userId, raw, { location, by, at = Date.now(), method = null, warehouseId = null }) {
   const code = String(raw ?? '').trim().toUpperCase();
   const unit = list.find((u) => u.code === code);
@@ -106,7 +106,7 @@ export function receive(list, userId, raw, { location, by, at = Date.now(), meth
   }
   if (userId != null && unit.userId !== userId) return { list, result: { type: 'other', code, unit } };
   if (unit.status === 'stored') return { list, result: { type: 'dup', code, unit } };
-  // method（scan＝シール読取／manual＝明細と実物を見比べて☑）は、倉庫での照合の記録。営業のタブレットからの入庫は null
+  // method（scan＝シール読取／manual＝明細と実物を見比べて☑）は、倉庫での照合の記録。鑑定士のタブレットからの入庫は null
   const stored = { ...unit, status: 'stored', storedAt: at, location: typeof location === 'function' ? location(unit) : location, by, check: method ? { by, at, method } : null, ...(warehouseId ? { warehouseId } : {}) }; // warehouseId: 入庫した倉庫
   return { list: list.map((u) => (u.code === code ? stored : u)), result: { type: 'ok', code, unit: stored } };
 }
@@ -126,7 +126,7 @@ export function resultMessage(r) {
   switch (r.type) {
     case 'ok': return { ok: true, text: `${r.unit.name}（${r.code}）を ${r.unit.location} に入庫しました` };
     case 'dup': return { ok: false, text: `${r.code} は入庫済みです（${r.unit.location}）` };
-    case 'other': return { ok: false, text: `${r.code} は、他の営業の買取商品です` };
+    case 'other': return { ok: false, text: `${r.code} は、他の鑑定士の買取商品です` };
     case 'replaced': return { ok: false, text: `${r.code} は、貼り替え済みの古いシールです。新しいシール（${r.newCode}）を読み取ってください` };
     case 'unknown': return { ok: false, text: `${r.code} は、買取商品として登録されていません` };
     default: return { ok: false, text: 'シールNo.を入力してください' };

@@ -1,7 +1,7 @@
-// コールセンターが確定した訪問予約。営業アプリ・本社画面と共有するため localStorage に保存する。
+// コールセンターが確定した訪問予約。鑑定士アプリ・本社画面と共有するため localStorage に保存する。
 // schedule.js から読み込まれるため、他のモジュールには依存しない（循環を避ける）。
 export const RESERVATION_KEY = 'rq-mock-reservations';
-// 配車係が動かして、予約として取り込んだ元の予定（営業のスケジュールに元からあった予定）の識別子
+// 配車係が動かして、予約として取り込んだ元の予定（鑑定士のスケジュールに元からあった予定）の識別子
 export const MOVED_KEY = 'rq-mock-moved-blocks';
 export const loadMovedIds = () => {
   try {
@@ -38,7 +38,7 @@ export const isReverted = (r) => isTentative(r) && Boolean(r.everConfirmed || r.
 
 const stamp = () => new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
 
-// 取消。記録は残す（誰が・いつ・なぜ）。取り消した予約は、営業の空き・担当件数・営業のタブレットの予定から外れる
+// 取消。記録は残す（誰が・いつ・なぜ）。取り消した予約は、鑑定士の空き・担当件数・鑑定士のタブレットの予定から外れる
 export const cancelReservation = (id, reason, by) => updateReservation(id, { status: 'cancelled', needsReview: false, cancelReason: reason, cancelledAt: stamp(), cancelledBy: by });
 
 // 受付済みの予約の変更（どの項目でも）。変更の履歴（変更前後の差分）を残す。
@@ -91,7 +91,7 @@ export function dayOffset(dateStr, now = new Date()) {
   return Math.round((new Date(y, m - 1, d) - today) / 86400000);
 }
 
-// 予約 → 営業アプリの「予定」の形式。訪問先の座標は、エリアの中心で代用する（モック）
+// 予約 → 鑑定士アプリの「予定」の形式。訪問先の座標は、エリアの中心で代用する（モック）
 export function reservationToEvent(r, now = new Date()) {
   return {
     id: r.id, userId: r.userId, day: dayOffset(r.date, now), start: r.start, end: r.end,
@@ -101,5 +101,5 @@ export function reservationToEvent(r, now = new Date()) {
   };
 }
 
-// 営業のタブレットに出すのは、配車係が確定した訪問だけ（仮確定は、担当が決まっていないため出さない）
+// 鑑定士のタブレットに出すのは、配車係が確定した訪問だけ（仮確定は、担当が決まっていないため出さない）
 export const reservationEvents = (now = new Date()) => loadReservations().filter((r) => !isTentative(r) && !isCancelled(r)).map((r) => reservationToEvent(r, now));

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
 const { customerModalHtml } = await import('../callcenter/dispatcherView.js');
-const KEY = 'rq-mock-contracts'; // 営業のタブレットで保存した契約
+const KEY = 'rq-mock-contracts'; // 鑑定士のタブレットで保存した契約
 
 const NOW = new Date(2026, 9, 24, 9, 0);
 const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
@@ -26,7 +26,7 @@ test('お客様の詳細: 履歴が多いときは、直近5回を出し、そ�
   store.set(KEY, JSON.stringify(contracts));
   const html = customerModalHtml({ rid: 'r1', reservations: [rec('080-2345-6789')], now: NOW });
   const t = text(html);
-  assert.match(t, /さらに以前の 2回分を表示/); // 計7回（営業のタブレットで保存した5回＋元の2回）のうち、5回を先に出す
+  assert.match(t, /さらに以前の 2回分を表示/); // 計7回（鑑定士のタブレットで保存した5回＋元の2回）のうち、5回を先に出す
   assert.ok(t.includes('品目5-A') && t.includes('品目1-B')); // まとめた中にも、全品目がある
   assert.match(html, /max-h-44 overflow-y-auto/); // 品目が多くても、枠の中でスクロール
 });
@@ -39,9 +39,9 @@ test('お客様の詳細: 実績のないお客様は、新規と出す', () => 
 test('お客様の詳細: 評価・メモは、訪問ごとに出る（訪問が複数なら、評価・メモも複数）', () => {
   const html = customerModalHtml({ rid: 'r1', reservations: [rec('090-5050-6060')], now: NOW });
   const t = text(html);
-  assert.equal((html.match(/営業の評価<\/b>/g) || []).length, 3); // 3回の訪問に、それぞれ、評価・メモ
+  assert.equal((html.match(/鑑定士の評価<\/b>/g) || []).length, 3); // 3回の訪問に、それぞれ、評価・メモ
   assert.ok(['バーキンの査定額に不満が強く', '査定額への不満を繰り返し言われた', '骨董を中心に売却'].every((k) => t.includes(k))); // 回ごとに、別のメモ
-  assert.ok(t.includes('営業の評価 営業 田中 健') && t.includes('営業の評価 営業 佐藤 大輔')); // 回ごとに、担当した営業も違う
+  assert.ok(t.includes('鑑定士の評価 鑑定士 田中 健') && t.includes('鑑定士の評価 鑑定士 佐藤 大輔')); // 回ごとに、担当した鑑定士も違う
   assert.ok(t.includes('田中 健：バーキンの査定額')); // 折りたたんだ状態でも、メモの冒頭が見える
   const none = text(customerModalHtml({ rid: 'r1', reservations: [rec('090-2468-1357')], now: NOW }));
   assert.ok(none.includes('初回。金の相場を気にされていた'));
@@ -50,6 +50,6 @@ test('お客様の詳細: 評価・メモは、訪問ごとに出る（訪問が
 test('お客様の詳細: 評価のない回は、その旨を出す', () => {
   store.set('rq-mock-contracts', JSON.stringify([{ customer: { phone: '090-7777-0000' }, sentAt: Date.UTC(2026, 8, 1), total: 5000, items: [{ name: 'テスト品', qty: 1, price: 5000 }] }]));
   const t = text(customerModalHtml({ rid: 'r1', reservations: [rec('090-7777-0000')], now: NOW }));
-  assert.ok(t.includes('この回の営業の評価・メモは、まだありません') && t.includes('テスト品'));
+  assert.ok(t.includes('この回の鑑定士の評価・メモは、まだありません') && t.includes('テスト品'));
   store.delete('rq-mock-contracts');
 });

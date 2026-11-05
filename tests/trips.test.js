@@ -51,7 +51,7 @@ test('出張の日: 期間の両端を含む。無効な出張は含まない', 
   assert.equal(T.tripsOn(T.setTripActive(a, a[0].id, false).trips, '2026-11-03').length, 0);
 });
 
-test('出張中の営業: その日に出張メンバーである出張を返す', () => {
+test('出張中の鑑定士: その日に出張メンバーである出張を返す', () => {
   const a = make().trips;
   assert.deepEqual(T.tripsOfUser(a, 'u01', '2026-11-03').map((t) => t.name), ['福岡出張']);
   assert.deepEqual(T.tripsOfUser(a, 'u03', '2026-11-03'), []);

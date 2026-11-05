@@ -5,12 +5,12 @@ import { salesCustomerCard, customerMarks } from '../src/customerProfileView.js'
 const profile = (o = {}) => ({ rank: 'A', rankAuto: false, known: true, purchase: { count: 3, total: 680000 }, trouble: { level: 'caution', tags: ['家族の同意が必要'], memo: '事前にご在宅を確認する' }, cooloff: [{ at: Date.UTC(2026, 0, 30), items: 'ブランドバッグ', memo: 'ご家族の反対で' }], ...o });
 const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
-test('営業のタブレット: 訪問前に、お客様のランク・厄介度・クーリングオフ歴を理解するカード', () => {
+test('鑑定士のタブレット: 訪問前に、お客様のランク・厄介度・クーリングオフ歴を理解するカード', () => {
   const t = text(salesCustomerCard(profile()));
   assert.ok(['お客様の評価', '顧客A', '注意', '家族の同意が必要', '事前にご在宅を確認する', 'クーリングオフ 1回', 'ブランドバッグ', '買取 3回', '¥680,000'].every((k) => t.includes(k)), t);
 });
 
-test('営業のタブレット: 要注意・クーリングオフ2回以上は赤い枠。新規のお客様は、新規と出す', () => {
+test('鑑定士のタブレット: 要注意・クーリングオフ2回以上は赤い枠。新規のお客様は、新規と出す', () => {
   assert.match(salesCustomerCard(profile({ trouble: { level: 'alert', tags: ['クレームが多い'], memo: '' } })), /border-rose-300/);
   assert.match(salesCustomerCard(profile({ cooloff: [{ at: 1, items: 'a' }, { at: 2, items: 'b' }] })), /border-rose-300/);
   assert.match(salesCustomerCard(profile()), /border-fuchsia-300/);

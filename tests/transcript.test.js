@@ -103,7 +103,7 @@ test('デモ台本: マップでのエリア確認が住所のあとにあり、
   assert.ok(iAddr >= 0 && iArea > iAddr);
   assert.equal(DEMO_SCRIPT.at(-1).action, 'hangup');
   assert.ok(DEMO_SCRIPT.some((l) => l.who === 'op' && l.text.includes('{when}'))); // 電話を切る前に、日時を読み上げて確認する
-  assert.ok(DEMO_SCRIPT.every((l) => !l.text.includes('{sales}'))); // 担当は仮決定なので、お客様には営業の名前を伝えない
+  assert.ok(DEMO_SCRIPT.every((l) => !l.text.includes('{sales}'))); // 担当は仮決定なので、お客様には鑑定士の名前を伝えない
   assert.ok(DEMO_SCRIPT.filter((l) => l.who === 'cu').every((l) => !/[{}]/.test(l.text)));
 });
 

@@ -23,7 +23,7 @@ test('サンプルの受付: 今日から3日後までの見本が、全種類�
   assert.deepEqual([...new Set(list.map((r) => r.areaId))].sort(), ['hyogo', 'kanto', 'osaka', 'tokai']);
 });
 
-test('サンプルの受付: 営業の予定が重ならず、欠勤の営業も割り当てない', () => {
+test('サンプルの受付: 鑑定士の予定が重ならず、欠勤の鑑定士も割り当てない', () => {
   const live = list.filter((r) => !isCancelled(r));
   live.forEach((r) => assert.equal(isAbsent(r.userId, r.date, NOW), false));
   for (const a of live) for (const b of live) {
@@ -53,7 +53,7 @@ test('サンプルの受付: 休みの時間（欠勤の日・午前休・午後
   });
 });
 
-test('元からの予定（ダミー）も、休みの時間に入らない。欠勤の日は、予定なし（営業の実際の予定がある日を除く）', () => {
+test('元からの予定（ダミー）も、休みの時間に入らない。欠勤の日は、予定なし（鑑定士の実際の予定がある日を除く）', () => {
   const dates = Array.from({ length: 45 }, (_, i) => ymd(i - 3));
   let checked = 0;
   for (const u of USERS) for (const date of dates) {

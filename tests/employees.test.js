@@ -16,13 +16,13 @@ const opts = { warehouseIds: WH, storeIds: ST, departmentIds: DEPTS.map((d) => d
 const save = (list, input, o = opts) => U.saveEmployee(list, { departmentId: defaultDepartmentOf(input.role), ...input }, o);
 const roleCount = (list, role) => list.filter((u) => u.role === role).length;
 
-test('役割: 営業・オペレーター・配車係・査定員・経理担当・倉庫担当・店舗スタッフの7つ。表示名は用語集のとおり', () => {
-  assert.deepEqual(U.ROLES.map((r) => r.label), ['営業', 'オペレーター', '配車係', '査定員', '経理担当', '倉庫担当', '店舗スタッフ']);
+test('役割: 鑑定士・オペレーター・配車係・査定員・経理担当・倉庫担当・店舗スタッフの7つ。表示名は用語集のとおり', () => {
+  assert.deepEqual(U.ROLES.map((r) => r.label), ['鑑定士', 'オペレーター', '配車係', '査定員', '経理担当', '倉庫担当', '店舗スタッフ']);
   assert.equal(U.roleLabel('appraiser'), '査定員');
   assert.equal(U.roleLabel('nope'), '');
 });
 
-test('初期の社員: 営業は既存の16名と同じ。どの役割にも有効な社員がいる。IDは重複しない', () => {
+test('初期の社員: 鑑定士は既存の16名と同じ。どの役割にも有効な社員がいる。IDは重複しない', () => {
   const list = U.DEFAULT_EMPLOYEES;
   assert.deepEqual(list.filter((u) => u.role === 'sales').map((u) => u.id), SALES.map((u) => u.id));
   assert.ok(U.ROLES.every((r) => list.some((u) => u.role === r.key && u.active)));
@@ -30,7 +30,7 @@ test('初期の社員: 営業は既存の16名と同じ。どの役割にも有�
   assert.equal(new Set(list.map((u) => u.id)).size, list.length);
   const leader = list.find((u) => u.id === 'u02');
   assert.deepEqual([leader.leader, leader.groups], [true, ['A']]); // グループリーダー・グループは既存のとおり
-  assert.equal(list.find((u) => u.id === 'u01').loginId, 'sales01'); // 営業のログインIDは、営業タブレットのログインと同じ
+  assert.equal(list.find((u) => u.id === 'u01').loginId, 'sales01'); // 鑑定士のログインIDは、鑑定士タブレットのログインと同じ
 });
 
 test('保存と読み込み: 保存した社員を読み戻せる。保存がない・壊れていれば初期値', () => {
@@ -60,7 +60,7 @@ test('登録: 氏名・ログインID・役割が必要。IDは小文字にそ�
   assert.equal(save(base, { id: 'nope', loginId: 'op10', name: 'x', role: 'operator' }, opts).reason, 'notFound');
 });
 
-test('役割ごとの項目: 倉庫担当は所属倉庫、査定員は担当グループが必要。営業は、ここでは登録・変更できない', () => {
+test('役割ごとの項目: 倉庫担当は所属倉庫、査定員は担当グループが必要。鑑定士は、ここでは登録・変更できない', () => {
   const base = U.DEFAULT_EMPLOYEES;
   assert.equal(save(base, { loginId: 'wh09', name: 'x', role: 'warehouse' }, opts).reason, 'noWarehouse');
   assert.equal(save(base, { loginId: 'wh09', name: 'x', role: 'warehouse', warehouseId: 'nope' }, opts).reason, 'noWarehouse');
@@ -93,7 +93,7 @@ test('更新: 役割は変えられない（別の役割にするときは、新
   assert.equal(save(base, { ...op }, opts).ok, true); // 自分自身のIDは重複ではない
 });
 
-test('有効・無効: 無効にした社員は使えなくなる。役割ごとに、有効な社員を最低1人は残す。営業はここでは変えられない', () => {
+test('有効・無効: 無効にした社員は使えなくなる。役割ごとに、有効な社員を最低1人は残す。鑑定士はここでは変えられない', () => {
   let list = U.DEFAULT_EMPLOYEES;
   const ops = list.filter((u) => u.role === 'operator');
   assert.ok(ops.length >= 2);

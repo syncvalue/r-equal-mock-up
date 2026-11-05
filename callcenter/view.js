@@ -19,10 +19,10 @@ export const mapUrl = (address) => `https://www.google.com/maps/search/?api=1&qu
 const pct = (m) => Math.min(100, Math.max(0, ((m - WORK_START) / (WORK_END - WORK_START)) * 100));
 const GENDER = { f: '女性', m: '男性' };
 export const genderLabel = (g) => GENDER[g] ?? '';
-export const genderParen = (g) => (GENDER[g] ? `（${GENDER[g]}）` : ''); // 性別が分からない予約（営業の元からの予定）は、かっこごと出さない
+export const genderParen = (g) => (GENDER[g] ? `（${GENDER[g]}）` : ''); // 性別が分からない予約（鑑定士の元からの予定）は、かっこごと出さない
 
 // ---- 時間帯のバー ------------------------------------------------------------------
-// 訪問の帯の色は、仮確定が薄い青、確定済みが濃い青。営業の元からの予定も、確定済みの訪問として、濃い青で出す（訪問は、基本的にすべて電話でオペレーターが入れるため、出どころの区別はしない）
+// 訪問の帯の色は、仮確定が薄い青、確定済みが濃い青。鑑定士の元からの予定も、確定済みの訪問として、濃い青で出す（訪問は、基本的にすべて電話でオペレーターが入れるため、出どころの区別はしない）
 // まだ一度も確定していない仮確定は薄い青、一度確定して仮確定に戻されたものは橙、確定済みは濃い青
 export const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? (b.reverted ? 'bg-amber-600' : 'bg-indigo-400') : 'bg-indigo-700');
 export const isTentativeBlock = (b) => b.source === 'reservation' && b.status === 'tentative';
@@ -34,11 +34,11 @@ export const legendHtml = ({ want = true } = {}) => `<span class="font-normal te
   <span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-400 align-middle"></i> 薄い青：仮確定（未確定）</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-amber-600 align-middle"></i> 橙：確定から仮確定に戻った</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-700 align-middle"></i> 濃い青：確定済み</span>
   ${want ? '<span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-emerald-600 bg-emerald-400/25 align-middle"></i> 緑：希望時間帯（空き）</span><span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-rose-500 bg-rose-400/25 align-middle"></i> 赤：予定と重なる</span>' : ''}</span>`;
 
-// 営業のランク（S が最上位）
+// 鑑定士のランク（S が最上位）
 const RANK_CLS = { S: 'bg-amber-400 text-slate-900', A: 'bg-indigo-600 text-white', B: 'bg-slate-500 text-white', C: 'bg-slate-300 text-slate-800' };
-export const rankBadge = (rank) => (rank ? `<span class="inline-block rounded px-1.5 text-[10px] font-bold leading-4 ${RANK_CLS[rank] ?? 'bg-slate-200'}" title="営業のランク">${esc(rank)}</span>` : '');
+export const rankBadge = (rank) => (rank ? `<span class="inline-block rounded px-1.5 text-[10px] font-bold leading-4 ${RANK_CLS[rank] ?? 'bg-slate-200'}" title="鑑定士のランク">${esc(rank)}</span>` : '');
 
-// 前後の訪問から、今回のお客様の住所までの距離（概算）。prev=直前の訪問（なければ営業所から）／next=直後の訪問。short=営業ごとの列の見出し用の短い表記
+// 前後の訪問から、今回のお客様の住所までの距離（概算）。prev=直前の訪問（なければ営業所から）／next=直後の訪問。short=鑑定士ごとの列の見出し用の短い表記
 const distText = (l) => `${l.km}km・約${l.min}分`;
 const legText = (l, dir, short = false) => {
   if (!l) return dir === 'prev' ? '前の訪問なし' : '';
@@ -151,7 +151,7 @@ export function formHtml(f, today, list = []) {
       ${lbl(`姓${b('name')}`, inp('lastName', f.lastName, { ph: '山田' }), { req: true })}${lbl('名', inp('firstName', f.firstName, { ph: '太郎' }), { req: true })}
       ${lbl(`セイ${b('kana')}`, inp('lastKana', f.lastKana, { ph: 'ヤマダ' }), { req: true })}${lbl('メイ', inp('firstKana', f.firstKana, { ph: 'タロウ' }), { req: true })}
     </div>
-    <div class="flex items-center gap-2" title="担当営業の公平な配分に使います（女性のお客様は、特定の営業に偏らないようにします）">
+    <div class="flex items-center gap-2" title="担当鑑定士の公平な配分に使います（女性のお客様は、特定の鑑定士に偏らないようにします）">
       <span class="text-xs font-bold shrink-0">性別<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>${b('gender')}</span>
       <div class="flex gap-2 flex-1">${Object.entries(GENDER).map(([k, v]) => `<button class="b b-sec flex-1 ${f.gender === k ? 'on' : ''}" data-gender="${k}">${v}</button>`).join('')}</div>
       <button class="chip ${f.genderEst ? 'on' : ''}" data-genderest title="聞けず、声から推測した場合">推測</button></div>
@@ -210,9 +210,9 @@ export function hintHtml(found, applied, summary = null, profile = null) {
 // ---- 配車（候補・空き状況） ----------------------------------------------------------
 // 今月の担当件数。女性のお客様なら女性の件数、男性のお客様なら全体の件数が、配分の基準なので太字にする
 const statText = (st, gender) => (gender === 'f' ? `今月 女性<b class="text-slate-900">${st.female}</b>件・計${st.total}件` : `今月 計<b class="text-slate-900">${st.total}</b>件・女性${st.female}件`);
-const starTitle = (gender) => (gender === 'f' ? '空いている営業のうち、女性のお客様の担当が今月最も少ない人（公平な配分）' : '空いている営業のうち、担当が今月最も少ない人（公平な配分）');
+const starTitle = (gender) => (gender === 'f' ? '空いている鑑定士のうち、女性のお客様の担当が今月最も少ない人（公平な配分）' : '空いている鑑定士のうち、担当が今月最も少ない人（公平な配分）');
 // 午後出社・午後半休の表示。働けない時間帯を、斜線で塗る
-// 出張中の印（出張メンバーの営業。本来の営業所は変わらない）。trips: [{ name, start, end }]
+// 出張中の印（出張メンバーの鑑定士。本来の営業所は変わらない）。trips: [{ name, start, end }]
 export const tripTag = (trips) => (trips?.length ? trips.map((t) => `<span class="rounded bg-orange-100 px-1 text-[10px] font-bold text-orange-800" title="${esc(`${t.name}（${t.start}〜${t.end}）の出張メンバー`)}">🧳 出張中 ${esc(t.name)}</span>`).join(' ') : '');
 // 受付の担当エリアの名前（出張エリアを含む）
 export const areaNameOf = (areaId) => areaById(areaId, tripAreas(loadCurrentTrips()))?.name ?? '例外対応';
@@ -232,7 +232,7 @@ export const specTags = (userId, form) => {
 };
 const leaderTag = (u) => (isLeader(u) ? '<span class="ml-0.5 text-[9px] rounded bg-slate-200 px-1">L</span>' : '');
 
-// 担当候補の1行（週表示用）。日別表示では、同じ情報を営業ごとの列の見出しに出すので、この一覧は出さない
+// 担当候補の1行（週表示用）。日別表示では、同じ情報を鑑定士ごとの列の見出しに出すので、この一覧は出さない
 function candidateRow(c, { selectedId, gender, form, showArea = false }) {
   const on = c.user.id === selectedId;
   const tag = (cls, t, title = '') => `<span class="rounded ${cls} text-[11px] font-bold px-1.5 py-0.5" ${title ? `title="${esc(title)}"` : ''}>${t}</span>`;
@@ -252,11 +252,11 @@ function candidateRow(c, { selectedId, gender, form, showArea = false }) {
 const WEEK_DAYS = ['日', '月', '火', '水', '木', '金', '土'];
 const dayHead = (date) => { const [y, m, d] = date.split('-').map(Number); const w = new Date(y, m - 1, d).getDay(); return { md: `${m}/${d}`, w: WEEK_DAYS[w], cls: w === 0 ? 'text-rose-600' : w === 6 ? 'text-sky-600' : '' }; };
 
-// 1週間の空きカレンダー。縦=開始時刻、横=日付、セル=空いている営業の人数。タップで希望日時に反映する。◀▶で1週間ずつ動かす
+// 1週間の空きカレンダー。縦=開始時刻、横=日付、セル=空いている鑑定士の人数。タップで希望日時に反映する。◀▶で1週間ずつ動かす
 export function weekCalendarHtml({ week, form, today, names, canPrev }) {
   const first = dayHead(week[0].date);
   const last = dayHead(week[week.length - 1].date);
-  const head = week.map((d) => { const h = dayHead(d.date); return `<th class="px-0.5 py-0.5 text-center text-xs font-bold leading-tight ${h.cls} ${d.date === form.date ? 'bg-teal-100' : ''}"><button class="w-full rounded hover:bg-slate-100 ${d.date < today ? 'opacity-40 cursor-not-allowed' : 'underline decoration-dotted'}" data-gotoday="${d.date}" ${d.date < today ? 'disabled' : ''} title="この日の予定を、営業ごとに見る">${h.md}<div class="text-[10px] font-normal leading-none">${h.w}${d.date === today ? '・今日' : ''}</div></button></th>`; }).join('');
+  const head = week.map((d) => { const h = dayHead(d.date); return `<th class="px-0.5 py-0.5 text-center text-xs font-bold leading-tight ${h.cls} ${d.date === form.date ? 'bg-teal-100' : ''}"><button class="w-full rounded hover:bg-slate-100 ${d.date < today ? 'opacity-40 cursor-not-allowed' : 'underline decoration-dotted'}" data-gotoday="${d.date}" ${d.date < today ? 'disabled' : ''} title="この日の予定を、鑑定士ごとに見る">${h.md}<div class="text-[10px] font-normal leading-none">${h.w}${d.date === today ? '・今日' : ''}</div></button></th>`; }).join('');
   const rows = week[0].slots.map((_, i) => `<tr><th class="pr-1 text-right text-[11px] font-normal text-slate-500 whitespace-nowrap">${minToHHMM(week[0].slots[i].start)}</th>${week.map((d) => {
     const s = d.slots[i];
     const n = s.freeIds.length;
@@ -279,7 +279,7 @@ export function weekCalendarHtml({ week, form, today, names, canPrev }) {
 </div>`;
 }
 
-// 日別の表示。営業ごとの列に、その日の予定を時間軸で並べる。空いている枠を押すと、その営業・その時刻を選ぶ
+// 日別の表示。鑑定士ごとの列に、その日の予定を時間軸で並べる。空いている枠を押すと、その鑑定士・その時刻を選ぶ
 const DAY_ROW = 26; // 30分あたりの高さ（px）
 const DAY_SLOTS = (WORK_END - WORK_START) / SLOT_STEP;
 const topOf = (m) => ((m - WORK_START) / SLOT_STEP) * DAY_ROW;
@@ -292,7 +292,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
   const end = form.start + form.dur;
   const head = cols.map((c) => {
     const tag = c.free ? 'button' : 'div';
-    return `<${tag} class="block w-full px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'} ${c.free ? 'cursor-pointer hover:bg-teal-50' : c.absent ? 'opacity-70' : 'opacity-80'}" ${c.free ? `data-pick="${c.user.id}" title="この営業を担当にする"` : `title="${esc(conflictText(c.conflict))}"`}>
+    return `<${tag} class="block w-full px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'} ${c.free ? 'cursor-pointer hover:bg-teal-50' : c.absent ? 'opacity-70' : 'opacity-80'}" ${c.free ? `data-pick="${c.user.id}" title="この鑑定士を担当にする"` : `title="${esc(conflictText(c.conflict))}"`}>
       <div>${avatarHtml(c.user, 28)}</div><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)}${c.recommended ? `<span class="ml-0.5 rounded bg-amber-400 px-1 text-[10px] font-bold" title="${esc(starTitle(form.gender))}">⭐</span>` : ''}
       ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}${c.trips?.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] font-bold ${c.absent ? 'text-slate-600' : c.free ? 'text-emerald-700' : 'text-rose-600'}">${c.absent ? '欠勤' : `${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}`}</div></${tag}>`;
   }).join('');
@@ -312,11 +312,11 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
   return `<div class="rounded-lg border bg-white p-1.5">
     <div class="flex items-center justify-between gap-2 mb-1">
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="-1" ${canPrev ? '' : 'disabled'} title="前の日">◀</button>
-      <div class="text-sm font-bold">${dh.md}（${dh.w}）<span class="font-normal text-xs text-slate-500 ml-2">${form.dur}分 ${minToHHMM(form.start)}〜${minToHHMM(end)}</span>${helpIcon('空いている枠を押すと、その営業・その時刻を選べます')}</div>
+      <div class="text-sm font-bold">${dh.md}（${dh.w}）<span class="font-normal text-xs text-slate-500 ml-2">${form.dur}分 ${minToHHMM(form.start)}〜${minToHHMM(end)}</span>${helpIcon('空いている枠を押すと、その鑑定士・その時刻を選べます')}</div>
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="1" title="次の日">▶</button>
-      <button class="chip ${onlyFree ? 'on' : ''}" data-onlyfree title="希望の時間に空いている営業だけを表示">空きのみ</button></div>
+      <button class="chip ${onlyFree ? 'on' : ''}" data-onlyfree title="希望の時間に空いている鑑定士だけを表示">空きのみ</button></div>
  ${travelStripHtml(cols.find((c) => c.user.id === selectedId && !c.absent), form)}
-    ${cols.length ? `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axisCol}${body}</div></div>` : '<div class="py-6 text-center text-sm text-slate-400">この時間に空いている営業がいません</div>'}
+    ${cols.length ? `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axisCol}${body}</div></div>` : '<div class="py-6 text-center text-sm text-slate-400">この時間に空いている鑑定士がいません</div>'}
     <div class="mt-0.5">${legendHtml()}</div>
   </div>`;
 }
@@ -332,19 +332,19 @@ const areaBanner = ({ proposal, confirmed, hasAddress, extraAreas = [] }) => {
     <div class="flex flex-wrap items-center gap-1.5"><span class="text-sm font-bold">${confirmed ? '✔ エリア確定：' : 'エリア確定：'}</span>${btns}${differ}</div></div>`;
 };
 
-// 営業の絞り込み。この案件に適任の営業（たとえば、AさんとBさん）だけを選んで、その人たちだけを表示する
+// 鑑定士の絞り込み。この案件に適任の鑑定士（たとえば、AさんとBさん）だけを選んで、その人たちだけを表示する
 function staffFilterHtml({ staff, staffSel, staffOpen }) {
   const names = staff.filter((c) => staffSel.includes(c.user.id)).map((c) => c.user.name);
   return `<div class="mb-1">
     <div class="flex flex-wrap items-center gap-2">
-      <button class="chip ${staffSel.length ? 'on' : ''}" data-staffpanel>👥 営業を絞る ${staffOpen ? '▲' : '▼'}</button>
+      <button class="chip ${staffSel.length ? 'on' : ''}" data-staffpanel>👥 鑑定士を絞る ${staffOpen ? '▲' : '▼'}</button>
       <span class="text-xs ${staffSel.length ? 'font-bold text-teal-800' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${names.map(esc).join('・')}` : `全員（${staff.length}名）を表示`}</span>
-      ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-staffclear>解除</button>' : ''}${helpIcon('表示したい営業を選びます（複数可）。選んだ営業だけが、カレンダー・担当候補に出ます。')}</div>
+      ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-staffclear>解除</button>' : ''}${helpIcon('表示したい鑑定士を選びます（複数可）。選んだ鑑定士だけが、カレンダー・担当候補に出ます。')}</div>
     ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((c) => `<button class="chip ${staffSel.includes(c.user.id) ? 'on' : ''} ${c.absent ? 'opacity-60' : ''}" data-staff="${c.user.id}" title="${c.absent ? 'この日は欠勤（担当には選べません）' : ''}">${esc(c.user.name)} ${esc(c.rank ?? '')}${c.att && c.att.kind !== 'present' ? `　${c.att.label}` : ''}</button>`).join('')}</div>` : ''}
   </div>`;
 }
 
-// 営業の詳細（日別表示で、営業の枠を選んだときに出す）
+// 鑑定士の詳細（日別表示で、鑑定士の枠を選んだときに出す）
 const wan = (n) => `${Math.round(n / 10000).toLocaleString('ja-JP')}万円`;
 const pctText = (x) => `${Math.round(x * 100)}%`;
 
@@ -367,7 +367,7 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
         <div>売上 <b>${wan(month.amount)}</b> ／ 目標 ${wan(month.target)}</div>${bar(month.achieve, month.pace)}
         <div class="text-slate-500">達成 ${pctText(month.achieve)}（今月の経過 ${pctText(month.pace)}）　平均単価 ${wan(month.avg)}</div>`)}
       ${box('今月の担当件数', `<div>計 <b>${f.total}</b>件 ／ 女性 <b>${f.female}</b>件（${pctText(f.femaleShare)}）／ 男性 ${f.male}件</div>
-        ${fairIndex ? `<div>空いている営業 ${freeCount}人のうち、${form.gender === 'f' ? '女性の' : ''}担当が <b>${fairIndex}番目に少ない</b></div>` : '<div class="text-slate-500">この時間は空きがないため、配分の順位なし</div>'}`)}
+        ${fairIndex ? `<div>空いている鑑定士 ${freeCount}人のうち、${form.gender === 'f' ? '女性の' : ''}担当が <b>${fairIndex}番目に少ない</b></div>` : '<div class="text-slate-500">この時間は空きがないため、配分の順位なし</div>'}`)}
       ${box(`${dateLabel(form.date)}の予定`, `${plans}
         <div class="pt-0.5"><span class="text-slate-500">${form.dur}分で開始できる時刻：</span>${d.windows.length ? d.windows.map((w) => `<b>${minToHHMM(w.from)}${w.to > w.from ? `〜${minToHHMM(w.to)}` : ''}</b>`).join('、') : '<span class="text-rose-600">なし</span>'}</div>
         ${d.travel ? `<div class="text-[11px] leading-tight">${legHtml(d.travel.prev, 'prev')}${d.travel.next ? `<br />${legHtml(d.travel.next, 'next')}` : ''}</div>` : ''}`)}
@@ -378,7 +378,7 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
 export function dispatchHtml(x) {
   const { area, proposal, confirmed, extraAreas, hasAddress, ranking, calendar, form, selectedId, alt, missing, unasked, showOthers, detail, staff, staffSel, staffOpen } = x;
   const card = (c) => candidateRow(c, { selectedId, gender: form.gender, form });
-  const freeList = ranking.inArea.filter((c) => c.free); // 空いている営業（担当が少ない順）。選んだ人が、その何番目か
+  const freeList = ranking.inArea.filter((c) => c.free); // 空いている鑑定士（担当が少ない順）。選んだ人が、その何番目か
   const freeCount = freeList.length;
   const fairIndex = freeList.findIndex((c) => c.user.id === selectedId) + 1;
   const sel = [...ranking.inArea, ...ranking.others].find((c) => c.user.id === selectedId);
@@ -414,15 +414,15 @@ export function doneHtml(r) {
   const u = USERS.find((x) => x.id === r.userId);
   return `
   <div class="rounded-lg border-2 border-emerald-500 bg-white p-5 space-y-3">
-    <div class="text-2xl font-bold text-emerald-700">✅ 仮確定しました${helpIcon('担当営業は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、営業のタブレットの予定に追加されます。')}</div>
+    <div class="text-2xl font-bold text-emerald-700">✅ 仮確定しました${helpIcon('担当鑑定士は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、鑑定士のタブレットの予定に追加されます。')}</div>
     <dl class="text-sm grid grid-cols-[7rem_1fr] gap-y-1">
       <dt class="text-slate-500">受付番号</dt><dd class="font-bold">${esc(r.receptionNo)}</dd>
       <dt class="text-slate-500">訪問日時</dt><dd class="font-bold">${esc(r.date)} ${esc(r.start)}〜${esc(r.end)}</dd>
       <dt class="text-slate-500">お客様</dt><dd class="font-bold">${esc(r.customer.name)} 様${genderParen(r.gender)}　${esc(r.customer.phone)}${r.customer.phone2 ? ` ／ ${esc(r.customer.phone2)}` : ''}</dd>
       <dt class="text-slate-500">訪問先</dt><dd>${esc(r.customer.address)}</dd>
-      <dt class="text-slate-500">担当営業（仮）</dt><dd class="font-bold">${esc(u?.name)}（${esc(areaNameOf(r.areaId))}）</dd>
+      <dt class="text-slate-500">担当鑑定士（仮）</dt><dd class="font-bold">${esc(u?.name)}（${esc(areaNameOf(r.areaId))}）</dd>
     </dl>
-    <p class="text-sm text-slate-600">お客様には、<b>訪問日時だけ</b>お伝えください（担当営業のお名前は伝えません）。</p>
+    <p class="text-sm text-slate-600">お客様には、<b>訪問日時だけ</b>お伝えください（担当鑑定士のお名前は伝えません）。</p>
     <div class="flex gap-2"><button class="b b-pri" data-new>次の受付へ</button><button class="b b-sec" data-map>🗺 訪問先をGoogleマップで開く</button></div>
   </div>`;
 }
@@ -462,7 +462,7 @@ export function cancelModalHtml(r, reason) {
   return `<div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"><div class="w-[28rem] max-w-[calc(100vw-2rem)] space-y-3 rounded-lg bg-white p-4 shadow-2xl">
     <b>受付を取り消します</b>
     <div class="text-sm"><b>${esc(r.customer.name)}</b> 様　${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</div>
-    ${isTentative(r) ? '' : '<p class="rounded bg-rose-50 px-2 py-1 text-xs text-rose-700">配車係が確定済みです。営業のタブレットの予定からも消えます。担当営業への連絡が必要な場合があります。</p>'}
+    ${isTentative(r) ? '' : '<p class="rounded bg-rose-50 px-2 py-1 text-xs text-rose-700">配車係が確定済みです。鑑定士のタブレットの予定からも消えます。担当鑑定士への連絡が必要な場合があります。</p>'}
     <label class="block text-sm font-bold">理由<select class="inp mt-1 font-normal" data-cancelreason>${CANCEL_REASONS.map((x) => `<option ${x === reason ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
     <div class="flex justify-end gap-2"><button class="b b-sec" data-cancelclose>戻る</button><button class="b b-pri !bg-rose-600" data-cancelgo>取り消す</button></div></div></div>`;
 }

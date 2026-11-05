@@ -1,5 +1,5 @@
 // サンプルの受付データ（ダミー）。配車確定の画面などを、最初から見られるように、今日を起点に、仮確定・確定済み・確定→変更・取消の見本を作る。
-// 営業は、空いている人（欠勤・予定の重なりを避けた、担当が少ない順の先頭）を自動で割り当てる
+// 鑑定士は、空いている人（欠勤・予定の重なりを避けた、担当が少ない順の先頭）を自動で割り当てる
 import { areaById, locateAddress, rankCandidates } from '../src/dispatch.js';
 import { ymdOf } from '../src/reservations.js';
 import { blankForm } from './form.js';

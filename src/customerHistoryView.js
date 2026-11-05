@@ -8,7 +8,7 @@ export const repeatBadge = (h, { small = false } = {}) => h.isRepeat
   ? `<span class="inline-block rounded-full bg-indigo-600 text-white font-bold ${small ? 'text-[11px] px-2 py-0' : 'text-sm px-3 py-0.5'}">🔁 リピーター ${h.ordinal}回目</span>`
   : `<span class="inline-block rounded-full bg-sky-100 text-sky-800 font-bold ${small ? 'text-[11px] px-2 py-0' : 'text-sm px-3 py-0.5'}">🆕 初めてのお客様</span>`;
 
-// 訪問ごとの評価と、ご利用履歴（営業の内部情報。お客様には見せない）。評価は、訪問ごとに営業が入力したもの。お客様情報に紐づく評価（ランク・厄介度）は、別のカードで出す
+// 訪問ごとの評価と、ご利用履歴（鑑定士の内部情報。お客様には見せない）。評価は、訪問ごとに鑑定士が入力したもの。お客様情報に紐づく評価（ランク・厄介度）は、別のカードで出す
 const row = (k, v) => (v && v.length ? `<div><span class="text-xs text-slate-500">${k}</span> <b>${Array.isArray(v) ? v.map(esc).join('・') : esc(v)}</b></div>` : '');
 const starsHtml = (n) => `<span class="text-amber-400 tracking-tight">${'★'.repeat(n)}<span class="text-slate-300">${'★'.repeat(5 - n)}</span></span>`;
 
@@ -28,7 +28,7 @@ export function pastEvalView(h) {
     const lines = visitLines(v);
     return `<details class="group rounded-lg border bg-white" ${open ? 'open' : ''}>
       <summary class="cursor-pointer px-2 py-1.5 text-sm"><div class="flex items-center gap-2"><span class="shrink-0 text-slate-500">${dateStr(v.at)}</span><span class="min-w-0 flex-1 truncate">${esc(lines[0].name)}${lines.length > 1 ? `<span class="text-slate-500"> ほか${lines.length - 1}品目</span>` : ''}</span>${v.eval ? `<span class="group-open:hidden">${starsHtml(v.eval.overall)}</span>` : ''}<b class="shrink-0">${yen(v.total)}</b></div>
-        ${v.eval?.memo ? `<div class="truncate text-xs text-slate-500 group-open:hidden">${esc(String(v.eval.by).replace(/^営業\s*/, ''))}：${esc(v.eval.memo)}</div>` : ''}</summary>
+        ${v.eval?.memo ? `<div class="truncate text-xs text-slate-500 group-open:hidden">${esc(String(v.eval.by).replace(/^(営業|鑑定士)\s*/, ''))}：${esc(v.eval.memo)}</div>` : ''}</summary>
       <div class="space-y-2 border-t px-2 py-1.5"><div class="max-h-40 overflow-y-auto"><table class="w-full text-sm"><tbody>${lines.map((l) => `<tr class="border-t first:border-t-0"><td class="py-0.5">${esc(l.name)}</td><td class="w-10 text-right text-slate-500">${(l.qty ?? 1) > 1 ? `×${l.qty}` : ''}</td><td class="w-24 text-right">${yen(lineTotal(l))}</td></tr>`).join('')}</tbody></table></div>
         ${visitEvalHtml(v.eval)}</div></details>`;
   };

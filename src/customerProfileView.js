@@ -1,9 +1,9 @@
-// 顧客ランク・厄介度・クーリングオフ歴の表示（コールセンターの配車係の画面と、営業のタブレットで共通）。
+// 顧客ランク・厄介度・クーリングオフ歴の表示（コールセンターの配車係の画面と、鑑定士のタブレットで共通）。
 // 顧客ランク＝資産・売却の見込み（S〜C）。厄介度＝ランクとは別の軸（金があっても売らない・文句が多い など）。
 import { esc, yen } from "./format.js";
 import { helpIcon } from "./help.js";
 
-// 顧客ランクは、営業のランクと見分けがつくよう、紫で「顧客S」のように出す。厄介度は、ランクとは別の軸（注意＝橙、要注意＝赤）
+// 顧客ランクは、鑑定士のランクと見分けがつくよう、紫で「顧客S」のように出す。厄介度は、ランクとは別の軸（注意＝橙、要注意＝赤）
 export const CRANK_CLS = {
   S: "bg-fuchsia-700 text-white",
   A: "bg-fuchsia-500 text-white",
@@ -42,7 +42,7 @@ export function assignAdvice(p) {
   if (!p) return "";
   const hot = p.trouble.level === "alert" || p.cooloff.length >= 2;
   if (!hot && p.rank !== "S") return "";
-  return `<div class="font-bold text-fuchsia-800">${hot ? "要注意のお客様です。リーダーなど、経験のある上位ランクの営業の担当をおすすめします" : "資産の多いお客様です。上位ランクの営業の担当をおすすめします"}</div>`;
+  return `<div class="font-bold text-fuchsia-800">${hot ? "要注意のお客様です。リーダーなど、経験のある上位ランクの鑑定士の担当をおすすめします" : "資産の多いお客様です。上位ランクの鑑定士の担当をおすすめします"}</div>`;
 }
 
 export function customerProfileHtml(p, { advice = false } = {}) {
@@ -56,16 +56,16 @@ export function customerProfileHtml(p, { advice = false } = {}) {
     ${advice ? assignAdvice(p) : ""}</div>`;
 }
 
-// 営業のタブレット用: 訪問前に、お客様の評価（お客様情報に紐づくもの）を理解しておくためのカード（お客様には見せない、営業用の画面にだけ出す）
+// 鑑定士のタブレット用: 訪問前に、お客様の評価（お客様情報に紐づくもの）を理解しておくためのカード（お客様には見せない、鑑定士用の画面にだけ出す）
 export function salesCustomerCard(p) {
   if (!p) return "";
   if (!p.known)
     return '<div class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm"><span class="font-bold text-sky-800">新規のお客様</span><span class="ml-2 text-xs text-slate-500">買取の実績はありません</span></div>';
   const alert = p.trouble.level === "alert" || p.cooloff.length >= 2;
-  return `<div class="space-y-1 rounded-xl border ${alert ? "border-rose-300 bg-rose-50/60" : "border-fuchsia-300 bg-fuchsia-50/40"} px-3 py-2"><div class="text-sm font-bold ${alert ? "text-rose-800" : "text-fuchsia-900"}">👤 お客様の評価${helpIcon("お客様情報に紐づく評価です。訪問前にご確認ください。営業用の画面にだけ出ます（お客様には見せません）。")}</div>${customerProfileHtml(p)}</div>`;
+  return `<div class="space-y-1 rounded-xl border ${alert ? "border-rose-300 bg-rose-50/60" : "border-fuchsia-300 bg-fuchsia-50/40"} px-3 py-2"><div class="text-sm font-bold ${alert ? "text-rose-800" : "text-fuchsia-900"}">👤 お客様の評価${helpIcon("お客様情報に紐づく評価です。訪問前にご確認ください。鑑定士用の画面にだけ出ます（お客様には見せません）。")}</div>${customerProfileHtml(p)}</div>`;
 }
 
-// 査定したが、売らなかったもの（見送り品）。お客様が手元に持っている可能性がある、有力な情報（営業の訪問前の把握・配車係の当てはめの判断用。お客様には見せない）
+// 査定したが、売らなかったもの（見送り品）。お客様が手元に持っている可能性がある、有力な情報（鑑定士の訪問前の把握・配車係の当てはめの判断用。お客様には見せない）
 export function declinedCardHtml(items, { empty = false } = {}) {
   if (!items?.length)
     return empty
@@ -86,7 +86,7 @@ export function declinedCardHtml(items, { empty = false } = {}) {
     <div class="max-h-48 space-y-1 overflow-y-auto rounded border bg-white p-1.5">${byDate.map((g) => `<div><div class="font-bold text-slate-500">${dateYmd(g.at)}の訪問</div>${g.items.map((i) => `<div class="flex items-start gap-2 border-t py-0.5 first:border-t-0"><span class="min-w-0 flex-1">${esc(i.name)}${(i.qty ?? 1) > 1 ? ` ×${i.qty}` : ""}</span><b class="shrink-0">${yen(i.price * (i.qty ?? 1))}</b></div>`).join("")}</div>`).join("")}</div></div>`;
 }
 
-// 営業のタブレット用のカード
+// 鑑定士のタブレット用のカード
 export function salesDeclinedCard(items) {
   if (!items?.length) return "";
   return `<div class="space-y-1 rounded-xl border border-violet-300 bg-violet-50/50 px-3 py-2"><div class="text-sm font-bold text-violet-900">📦 前に査定したが、売らなかったもの${helpIcon("手元に持っている可能性があります。")}</div>${declinedCardHtml(items)}</div>`;

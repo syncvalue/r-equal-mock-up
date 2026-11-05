@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 const mem = new Map();
 globalThis.localStorage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 
-const { flagsOf, expenseStats, proxyExpense, canProxy, addCustomerPayment, loadCustomerPayments, markPaid, paymentReady, HIGH_EXPENSE, CASH_LIMIT } = await import('../src/accounting.js');
+const { flagsOf, giveAdvance, advanceReady, addCustomerPayment, loadCustomerPayments, markPaid, paymentReady, CASH_LIMIT } = await import('../src/accounting.js');
+const { loadLedger } = await import('../src/ledger.js');
+const { loadStoredDeposits } = await import('../src/workday.js');
 
 const ex = (o) => ({ id: 'e', at: 1, type: 'gas', amount: 1000, memo: '', photo: 'data:x', ...o });
 const day = (o = {}) => ({
@@ -18,7 +20,7 @@ test('問題のない日は、確認事項なし。未始業は判定しない',
   assert.deepEqual(flagsOf(null, null), []);
 });
 
-test('始業時・終業時の差異、残高マイナス、所持金過多を検知する', () => {
+test('始業時・終業時の差異、立替金の残高マイナス、所持金過多を検知する', () => {
   const a = flagsOf(day({ start: { counted: 49000, expected: 50000, diff: -1000, note: '財布に入れ忘れ' } }), summary());
   assert.ok(a.some((f) => f.level === 'warn' && f.text.includes('始業時') && f.text.includes('財布に入れ忘れ')));
   const b = flagsOf(day({ closedAt: 9, close: { counted: 90000, expected: 100000, diff: -10000, note: '不明' } }), summary());
@@ -27,49 +29,17 @@ test('始業時・終業時の差異、残高マイナス、所持金過多を�
   assert.ok(flagsOf(day(), summary(CASH_LIMIT + 1)).some((f) => f.text.includes('所持金が多い')));
 });
 
-test('経費の使い方: 高額・その他・レシートなしを検知。買取代金（自動計上）は対象外', () => {
-  const f = flagsOf(day({ expenses: [
-    ex({ id: 'a', type: 'supply', amount: HIGH_EXPENSE }),
-    ex({ id: 'b', type: 'other', memo: '手土産' }),
-    ex({ id: 'c', photo: null }),
-    ex({ id: 'd', type: 'purchase', amount: 900000, photo: null, auto: true }),
-    ex({ id: 'e2', photo: null, proxy: true }),
-  ] }), summary());
-  assert.equal(f.length, 3);
-  assert.ok(f.some((x) => x.text.includes('高額')));
-  assert.ok(f.some((x) => x.text.includes('その他') && x.text.includes('手土産')));
-  assert.ok(f.some((x) => x.text.includes('レシート')));
+test('鑑定士への立替金: 鑑定士の所持金（入金）と帳簿の支払に、同時に記録する', () => {
+  assert.equal(advanceReady({ userId: '', amount: 1000 }), false);
+  assert.equal(advanceReady({ userId: 'u01', amount: 0 }), false);
+  assert.equal(giveAdvance({ userId: 'u01', amount: 300000, memo: '買取資金' }, { now: 100 }), true);
+  const dep = loadStoredDeposits();
+  assert.deepEqual([dep[0].userId, dep[0].amount, dep[0].by], ['u01', 300000, '経理部']);
+  const led = loadLedger();
+  assert.deepEqual([led[0].kind, led[0].category, led[0].amount, led[0].userId], ['out', 'advance', 300000, 'u01']);
 });
 
-test('経費の集計: 期間・種類別・営業別。買取代金は経費に含めず別に出す', () => {
-  const days = [
-    day({ userId: 'u01', date: '2026-10-24', expenses: [ex({ amount: 3000 }), ex({ type: 'lunch', amount: 800 }), ex({ type: 'purchase', amount: 50000 })] }),
-    day({ userId: 'u02', date: '2026-10-24', expenses: [ex({ amount: 2000 })] }),
-    day({ userId: 'u01', date: '2026-10-02', expenses: [ex({ amount: 1000 })] }),
-    day({ userId: 'u01', date: '2026-09-30', expenses: [ex({ amount: 9999 })] }),
-  ];
-  const today = expenseStats(days, '2026-10-24');
-  assert.equal(today.total, 5800);
-  assert.equal(today.purchaseTotal, 50000);
-  assert.deepEqual(today.byType.map((t) => [t.key, t.amount, t.count]), [['gas', 5000, 2], ['lunch', 800, 1]]);
-  assert.deepEqual(today.byUser.map((u) => [u.userId, u.amount]), [['u01', 3800], ['u02', 2000]]);
-  const month = expenseStats(days, '2026-10');
-  assert.equal(month.total, 6800);
-  assert.equal(expenseStats([], '2026-10').total, 0);
-});
-
-test('経費の入力代行: 業務中の日だけ。代行の印・入力者が残り、元の記録は変えない', () => {
-  const d = day();
-  assert.equal(canProxy(d), true);
-  assert.equal(canProxy(day({ closedAt: 5 })), false);
-  assert.equal(canProxy(null), false);
-  const next = proxyExpense(d, { type: 'gas', amount: 4200, memo: 'レシート紛失', by: '経理部', at: 99 });
-  assert.equal(d.expenses.length, 0);
-  assert.equal(next.expenses.length, 1);
-  assert.deepEqual([next.expenses[0].proxy, next.expenses[0].by, next.expenses[0].photo, next.expenses[0].amount], [true, '経理部', null, 4200]);
-});
-
-test('お客様への入金: 入力チェック、登録、振込済みへの更新', () => {
+test('お客様への支払: 入力チェック、登録、振込済みへの更新', () => {
   assert.equal(paymentReady({ customerName: '', amount: 1000, reason: 'shortage' }), false);
   assert.equal(paymentReady({ customerName: '山田', amount: 0, reason: 'shortage' }), false);
   assert.equal(paymentReady({ customerName: '山田', amount: 1000, reason: '' }), false);
@@ -78,11 +48,15 @@ test('お客様への入金: 入力チェック、登録、振込済みへの更
   const p = addCustomerPayment({ customerName: '山田 花子', amount: 120000, reason: 'highvalue', userId: 'u01', memo: '' }, 100);
   assert.equal(p.status, 'pending');
   assert.equal(loadCustomerPayments().length, 1);
-  markPaid(p.id, 200);
+  assert.equal(markPaid(p.id, 200), true);
   assert.deepEqual([loadCustomerPayments()[0].status, loadCustomerPayments()[0].paidAt], ['done', 200]);
+  const led = loadLedger().filter((e) => e.category === 'customer'); // 振込済みにすると、帳簿に支払として載る（二重には載せない）
+  assert.deepEqual([led.length, led[0].amount, led[0].kind], [1, 120000, 'out']);
+  assert.equal(markPaid(p.id, 300), false);
+  assert.equal(loadLedger().filter((e) => e.category === 'customer').length, 1);
 });
 
-test('営業所での絞り込み: 空なら全員。指定すれば、その営業所の営業だけ', async () => {
+test('営業所での絞り込み: 空なら全員。指定すれば、その営業所の鑑定士だけ', async () => {
   const { officeUsers, onlyOffice } = await import('../src/accounting.js');
   const users = [{ id: 'u01' }, { id: 'u04' }, { id: 'u08' }];
   const areaOf = (id) => ({ u01: 'osaka', u04: 'kanto', u08: 'tokai' })[id];

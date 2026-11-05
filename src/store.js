@@ -26,7 +26,7 @@ export const newContractId = () => {
 
 export const GMO_URL = '/gmosign/index.html';
 
-// 本社査定依頼（営業 → 査定部 → 回答）
+// 本社査定依頼（鑑定士 → 査定部 → 回答）
 const AP_KEY = 'rq-mock-appraisals';
 export const AP_STORAGE_KEY = AP_KEY;
 
@@ -72,7 +72,7 @@ export const clearEndedLive = () => {
   localStorage.setItem(LIVE_KEY, JSON.stringify(next));
 };
 
-// 査定部 → 営業へのコメント（査定額への意見など）。営業側で確認チェックができる
+// 査定部 → 鑑定士へのコメント（査定額への意見など）。鑑定士側で確認チェックができる
 export const COMMENT_KEY = 'rq-mock-comments';
 
 export const loadComments = () => {
@@ -93,11 +93,16 @@ export const newCommentId = () => `CM-${Date.now().toString(36).toUpperCase()}${
 
 export const COMMENT_TAGS = ['安すぎる', '高すぎる', '要再確認', 'その他'];
 
-// 始業・終業の記録（営業×日付）と、本社からの入金
+// 始業・終業の記録（鑑定士×日付）と、本社からの入金
 export const WORKDAY_KEY = 'rq-mock-workdays';
 export const DEPOSIT_KEY = 'rq-mock-deposits';
 // 経理部から、お客様への入金（銀行振込）の記録
 export const CUSTOMER_PAY_KEY = 'rq-mock-customer-payments';
+// 経理部: 入出金の帳簿、固定費の登録、査定員の小口金の使用記録、経費精算の確認結果
+export const LEDGER_KEY = 'rq-mock-ledger';
+export const FIXED_KEY = 'rq-mock-fixed-costs';
+export const PETTY_KEY = 'rq-mock-petty-uses';
+export const REVIEW_KEY = 'rq-mock-expense-reviews';
 
 // ログイン（モック）の状態
 export const SESSION_KEY = 'rq-mock-session';
@@ -119,7 +124,7 @@ export { RESERVATION_KEY };
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY, STORE_VISITS_KEY, STORE_DRAFT_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, REVIEW_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY, STORE_VISITS_KEY, STORE_DRAFT_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
   sessionStorage.removeItem('rq-mock-wh-session'); // 倉庫担当のログイン状態も
@@ -161,7 +166,7 @@ export const approvalState = (rec, item) => {
   return { 承認: 'ok', 差戻し: 'ng' }[rec.status] ?? 'none';
 };
 
-// 営業が記録する、お客様の評価（次の営業活動に生かすための生情報）
+// 鑑定士が記録する、お客様の評価（次の営業活動に生かすための生情報）
 export const EVAL_KEY = 'rq-mock-customer-evals';
 
 export const loadEvals = () => {
@@ -177,7 +182,7 @@ export const upsertEval = (record) => {
   localStorage.setItem(EVAL_KEY, JSON.stringify(list.some((e) => e.visitId === record.visitId) ? list.map((e) => (e.visitId === record.visitId ? record : e)) : [record, ...list]));
 };
 
-// 本社からのメッセージ（お知らせ）。本社画面から送信し、営業のダッシュボードに表示する
+// 本社からのメッセージ（お知らせ）。本社画面から送信し、鑑定士のダッシュボードに表示する
 export const MSG_KEY = 'rq-mock-messages';
 const READ_KEY = 'rq-mock-messages-read';
 
@@ -190,7 +195,7 @@ export const loadMessages = () => {
 };
 export const sendMessage = (m) => localStorage.setItem(MSG_KEY, JSON.stringify([m, ...loadMessages()]));
 
-// 既読は、営業ごとに保存する
+// 既読は、鑑定士ごとに保存する
 export const loadReadIds = (userId) => {
   try {
     return (JSON.parse(localStorage.getItem(READ_KEY)) ?? {})[userId] ?? [];

@@ -1,4 +1,4 @@
-// 始業・終業と経費管理のデータとロジック。営業ごと・日付ごとに「1日の記録」を localStorage に保存する。
+// 始業・終業と経費管理のデータとロジック。鑑定士ごと・日付ごとに「1日の記録」を localStorage に保存する。
 // 所持金 ＝ 前日繰越金（始業時に実際に数えた金額）＋ 本社からの入金 − 経費（買取代金・ガソリン代など）
 import { USERS } from './dashboard.js';
 import { WORKDAY_KEY, DEPOSIT_KEY } from './store.js';
@@ -17,7 +17,7 @@ export const EXPENSE_TYPES = [
 export const PURCHASE_TYPE = { key: 'purchase', icon: '💰', label: '買取代金' };
 export const typeOf = (key) => [...EXPENSE_TYPES, PURCHASE_TYPE].find((t) => t.key === key) ?? EXPENSE_TYPES.at(-1);
 
-// 訪問したが、買取の手続きに進めなかった場合の記録。訪問実績には数え、営業の業績（成約率など）には影響させない
+// 訪問したが、買取の手続きに進めなかった場合の記録。訪問実績には数え、鑑定士の業績（成約率など）には影響させない
 export const VISIT_OUTCOMES = [
   { key: 'absent', icon: '🚪', label: '不在', hint: 'インターホンや電話でも応答がなかった' },
   { key: 'resched', icon: '📅', label: '日程変更の依頼', hint: '玄関口で、別の日時での訪問を希望された' },
@@ -174,7 +174,7 @@ export const blankStartForm = () => ({ counted: 0, countedSet: false, note: '', 
 export const blankCloseForm = () => ({ counted: 0, countedSet: false, note: '', checks: {}, comment: '' });
 export const blankExpenseDraft = () => ({ type: '', amount: 0, memo: '', photo: null, ai: null }); // ai: レシートのAI読み取りの状態
 
-// 本社画面の一覧用: 全営業の「今日」の状況
+// 本社画面の一覧用: 全鑑定士の「今日」の状況
 export const todayRows = () => USERS.map((u) => {
   const day = loadDay(u.id);
   return { user: u, day, phase: phaseOf(day), summary: day?.startedAt ? summaryOf(day, u.id) : null };

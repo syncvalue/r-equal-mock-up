@@ -24,7 +24,7 @@ test('出張の一覧: 出張メンバーの本来の営業所は変わらず、
   assert.ok(t.includes('本来の営業所') && t.includes('候補'));
 });
 
-test('出張のフォーム: 営業を、出張メンバーとして選べる。編集では、いまの値が入る', () => {
+test('出張のフォーム: 鑑定士を、出張メンバーとして選べる。編集では、いまの値が入る', () => {
   const html = tripsPanelHtml({ trips, users, today, ui: { mt: formFromTrip(trips[0]) } });
   assert.equal((html.match(/data-trip-member=/g) || []).length, 6);
   assert.match(html, /data-trip-member="u01"[^>]*checked/);

@@ -26,7 +26,7 @@ test('週の表: 明日の訪問で前日確認が未の件数を、日付の下
   assert.ok(text(calendarHtml({ ...base, reservations: list })).includes('前日確認 未2'));
 });
 
-test('日別: 営業ごとの列。営業の名前と、その日の訪問の帯。週に戻れる', () => {
+test('日別: 鑑定士ごとの列。鑑定士の名前と、その日の訪問の帯。週に戻れる', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
   const h = calendarHtml({ ...base, mode: 'day', reservations: [rec({ userId: u.id })] });
@@ -56,7 +56,7 @@ test('メモの文字は、HTMLとして解釈しない', () => {
   assert.ok(!h.includes('<b>x</b>') && h.includes('&lt;b&gt;x&lt;/b&gt;'));
 });
 
-test('日別: 受付の帯と、営業の元からの予定の帯は、同じ色（確定の濃い青）で出す。色で区別しない', () => {
+test('日別: 受付の帯と、鑑定士の元からの予定の帯は、同じ色（確定の濃い青）で出す。色で区別しない', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const withPlan = cols.find((c) => c.blocks.length);
   assert.ok(withPlan);
@@ -101,7 +101,7 @@ test('週の表: 同じ時間にかぶる訪問は、日の列の中で横に並
   assert.ok(style('乙川 次郎').includes('left:calc(50% + 1px);width:calc(50% - 2px)'));
 });
 
-test('営業で絞り込む: ボタン・営業の選択肢・絞り込み中の表示。選んだ営業の訪問だけが残る（週・日別とも）', () => {
+test('鑑定士で絞り込む: ボタン・鑑定士の選択肢・絞り込み中の表示。選んだ鑑定士の訪問だけが残る（週・日別とも）', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const [a, b] = cols.filter((c) => !c.absent && c.att.kind === 'present').map((c) => c.user);
   const list = [rec({ id: 'A', userId: a.id, customer: { name: '甲野 太郎', address: '大阪府A' } }), rec({ id: 'B', userId: b.id, customer: { name: '乙川 次郎', address: '大阪府B' } })];
@@ -123,7 +123,7 @@ test('週の表: 日表示に切り替えるのは、見出しの日付だけ。
   assert.ok(h.includes('data-calblock="R1"'));
 });
 
-test('週の表: 訪問を押すと、右側に詳細（日時・住所・電話・担当営業・ヒアリング）と、前日確認の記録が出る', () => {
+test('週の表: 訪問を押すと、右側に詳細（日時・住所・電話・担当鑑定士・ヒアリング）と、前日確認の記録が出る', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
   const r = rec({ userId: u.id, receptionNo: 'CC-777', customer: { name: '山田 花子', phone: '090-1111-2222', phone2: '06-1234-5678', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3' }, hearing: { contact: '17:00〜19:00', wants: '時計・指輪', parking: 'なし', nameplate: 'あり', notes: '駐車場なし' }, confirmCalls: [{ result: 'noanswer', memo: '留守電に入れた', by: '佐藤', at: 1 }] });
@@ -137,7 +137,7 @@ test('週の表: 訪問を押すと、右側に詳細（日時・住所・電話
   assert.ok(!h.includes('class="b b-sec !min-h-0 !py-1" data-calweek')); // 週の表のまま（日別に切り替えない）
 });
 
-test('週の表: 営業の元からの予定を押すと、詳細は出るが、前日確認の記録はない', () => {
+test('週の表: 鑑定士の元からの予定を押すと、詳細は出るが、前日確認の記録はない', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const c = cols.find((x) => x.blocks.length);
   const b = c.blocks[0];

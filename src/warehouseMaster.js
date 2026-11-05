@@ -1,4 +1,4 @@
-// 倉庫のマスタ。倉庫は営業所とは独立した施設で、営業所と一体の倉庫・倉庫のみ・倉庫のない営業所（営業のみ）がある。
+// 倉庫のマスタ。倉庫は営業所とは独立した施設で、営業所と一体の倉庫・倉庫のみ・倉庫のない営業所（鑑定士のみ）がある。
 // 倉庫担当（master.staff）は、マスタ管理の社員（倉庫担当）から読み込む（登録・所属変更・有効/無効は社員管理）。商品は、入庫した倉庫に保管される。操作はすべて新しいマスタを返す。
 import { loadOffices, officeName as officeNameOf } from './offices.js';
 import { LOCATIONS, sealColorOf } from './stock.js';
@@ -7,7 +7,7 @@ import { DEFAULT_EMPLOYEES, loadEmployees, warehouseStaffOf } from './employees.
 export const MASTER_KEY = 'rq-mock-warehouse-master';
 
 // 本社も、倉庫と同じ保管場所の1つ（highValue: 高額品の保管先）。貴金属などの高額品は、いったん倉庫に入庫し、倉庫間移動で本社へ移す（本社には、入庫ではなく移動でだけ入る）。
-// 初期値（ダミー）。大阪・関東は営業所と一体、福岡は倉庫のみ。兵庫・京都、東海の営業所には倉庫がない（営業のみ）
+// 初期値（ダミー）。大阪・関東は営業所と一体、福岡は倉庫のみ。兵庫・京都、東海の営業所には倉庫がない（鑑定士のみ）
 export const DEFAULT_MASTER = {
   warehouses: [
     { id: 'W-OSAKA', name: '大阪倉庫', zip: '559-0034', address: '大阪府大阪市住之江区南港北1-1-1', phone: '06-0000-0001', officeId: 'osaka', locations: LOCATIONS, active: true },
@@ -50,12 +50,12 @@ export const activeWarehouses = (master) => master.warehouses.filter((w) => w.ac
 export const staffOf = (master, warehouseId) => master.staff.filter((s) => s.warehouseId === warehouseId);
 export const officeName = (officeId) => officeNameOf(officeId); // 営業所マスタから引く
 
-// 営業所に併設の倉庫を優先し、なければ先頭の有効な倉庫（営業が入庫するときの、納入先の初期値）
+// 営業所に併設の倉庫を優先し、なければ先頭の有効な倉庫（鑑定士が入庫するときの、納入先の初期値）
 export const defaultWarehouseFor = (master, officeId) => {
   const list = activeWarehouses(master).filter((w) => !w.highValue); // 本社は、通常の納入先ではない
   return list.find((w) => officeId && w.officeId === officeId) ?? list[0] ?? null;
 };
-// 営業が入庫するときの、納入先の倉庫と保管場所。選択が未指定・無効なら、営業所に併設の倉庫（なければ先頭）の先頭の棚
+// 鑑定士が入庫するときの、納入先の倉庫と保管場所。選択が未指定・無効なら、営業所に併設の倉庫（なければ先頭）の先頭の棚
 export function receiveTarget(master, officeId, { warehouseId, location } = {}) {
   const warehouse = activeWarehouses(master).find((w) => w.id === warehouseId && !w.highValue) ?? defaultWarehouseFor(master, officeId);
   return { warehouse, location: warehouse?.locations.includes(location) ? location : warehouse?.locations[0] };

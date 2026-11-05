@@ -27,7 +27,7 @@ test('予約にならなかった問い合わせも、受電履歴に出る（�
   assert.ok(list.every((x, i) => i === 0 || list[i - 1].at >= x.at));
 });
 
-test('営業の得意分野と、顔写真（ダミーの似顔絵は営業ごとに決まる）', () => {
+test('鑑定士の得意分野と、顔写真（ダミーの似顔絵は鑑定士ごとに決まる）', () => {
   assert.ok(USERS.every((u) => specialtiesOf(u.id).length >= 1));
   assert.equal(avatarSvg('u01'), avatarSvg('u01'));
   assert.notEqual(avatarSvg('u01'), avatarSvg('u02'));
@@ -36,7 +36,7 @@ test('営業の得意分野と、顔写真（ダミーの似顔絵は営業ご�
   assert.match(avatarHtml({ id: 'u01', name: '鈴木 一郎', photo: '/p/u01.jpg' }, 32), /src="\/p\/u01\.jpg"/); // 写真があれば、写真を使う
 });
 
-test('お客様の売りたいものと、営業の得意分野が合うか', () => {
+test('お客様の売りたいものと、鑑定士の得意分野が合うか', () => {
   const form = { cats: ['腕時計'], mainItems: { ...blankMain(), 背広: 6 }, wants: 'ヴィトンのバッグ 2点' };
   assert.deepEqual(wantedCategories(form).sort(), ['ブランドバッグ', '背広', '腕時計'].sort());
   assert.deepEqual(matchedSpecialties(['腕時計', '貴金属・ジュエリー'], form), ['腕時計']);

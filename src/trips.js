@@ -1,4 +1,4 @@
-// 出張のマスタ。営業所のないエリアへ、期間を決めて出張する営業（出張メンバー）と、そのエリア（担当の都道府県）。操作はすべて新しい配列を返す。
+// 出張のマスタ。営業所のないエリアへ、期間を決めて出張する鑑定士（出張メンバー）と、そのエリア（担当の都道府県）。操作はすべて新しい配列を返す。
 // 出張メンバーの本来の営業所は変えない。期間中だけ、出張エリアの候補にも加わる（配車・エリア判定は src/dispatch.js の extraAreas で受け取る）。
 import { AREAS, PREFS } from './dispatch.js';
 import { USERS } from './dashboard.js';
@@ -31,7 +31,7 @@ export function sampleTrips(now = new Date(), userIds = []) {
   ];
 }
 
-// 画面で使う出張。保存がなければ、今日を基準にした見本（営業の ID は USERS から）
+// 画面で使う出張。保存がなければ、今日を基準にした見本（鑑定士の ID は USERS から）
 export const loadCurrentTrips = (now = new Date()) => loadTrips(now, USERS.map((u) => u.id));
 
 // 保存がなければ、now があるときだけ見本（now なし＝空）
@@ -57,7 +57,7 @@ const fail = (trips, reason) => ({ ok: false, trips, reason });
 const toList = (v) => [...new Set((Array.isArray(v) ? v : String(v ?? '').split(/[,、\s　]+/)).map((x) => String(x).trim()).filter(Boolean))];
 const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s ?? ''));
 
-// 登録・更新（id があれば更新）。userIds: 出張メンバーに選べる営業の ID。
+// 登録・更新（id があれば更新）。userIds: 出張メンバーに選べる鑑定士の ID。
 // reason: notFound／noName／dupName／noPref／badPref／inOffice／badPeriod／noMember／badMember
 export function saveTrip(trips, { id, name, prefs, start, end, memberIds }, { userIds = [] } = {}) {
   const old = id ? trips.find((t) => t.id === id) : null;
@@ -85,7 +85,7 @@ export function setTripActive(trips, id, active) {
 // その日（YYYY-MM-DD。期間の両端を含む）に行われる、有効な出張
 export const tripsOn = (trips, date) => trips.filter((t) => t.active && t.start <= date && date <= t.end);
 
-// その日に、その営業が出張メンバーである出張
+// その日に、その鑑定士が出張メンバーである出張
 export const tripsOfUser = (trips, userId, date) => tripsOn(trips, date).filter((t) => t.memberIds.includes(userId));
 
 // 営業所のエリア（AREAS）と同じ形の出張エリア。date があればその日の有効な出張だけ、なければ出張すべて（過去の受付の表示用）

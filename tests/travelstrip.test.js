@@ -25,7 +25,7 @@ test('前の訪問がなければ、その旨だけ（営業所からの距離�
   assert.match(travelStripHtml({ user: { name: '佐々木 美咲' }, travel: { prev: null, next: null } }, form), /前の訪問なし/);
 });
 
-test('住所が未入力、または営業を選んでいないときは、案内だけ・何も出さない', () => {
+test('住所が未入力、または鑑定士を選んでいないときは、案内だけ・何も出さない', () => {
   assert.match(travelStripHtml({ user: { name: '佐々木 美咲' }, travel: null }, { address: '', start: 780 }), /住所を入力/);
   assert.equal(travelStripHtml(null, form), '');
 });

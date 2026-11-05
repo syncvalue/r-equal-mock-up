@@ -1,5 +1,5 @@
 // 訪問カレンダー（オペレーター向け）。エリアごとに、縦=時間・横=日付の週の表（訪問が集中している時間は濃く、空いている時間は薄く）。
-// 日を選ぶと、その日だけを、営業ごとの列で出す。日別では、訪問を選んで、前日確認の連絡を記録する。
+// 日を選ぶと、その日だけを、鑑定士ごとの列で出す。日別では、訪問を選んで、前日確認の連絡を記録する。
 import { esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
 import { AREAS, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
@@ -33,18 +33,18 @@ function barHtml({ areaId, mode, weekStart, date, staff = [], staffSel = [], sta
     : `<button class="b b-sec !min-h-0 !py-1" data-calshift="-1" title="前の日">◀</button><b class="text-sm">${dateLabel(date)}</b><button class="b b-sec !min-h-0 !py-1" data-calshift="1" title="次の日">▶</button><button class="b b-sec !min-h-0 !py-1 text-xs" data-calweek>週の表に戻る</button>`;
   return `<div class="flex flex-wrap items-center gap-2"><span class="flex flex-wrap items-center gap-1"><span class="text-xs font-bold text-slate-500">エリア</span>${areas}</span>
     <span class="flex items-center gap-2">${nav}<button class="b b-sec !min-h-0 !py-1 text-xs" data-caltoday>今日</button></span></div>
-    <div><div class="flex flex-wrap items-center gap-2"><button class="chip ${staffSel.length ? 'on' : ''}" data-calstaffpanel>👥 営業を絞る ${staffOpen ? '▲' : '▼'}</button>
+    <div><div class="flex flex-wrap items-center gap-2"><button class="chip ${staffSel.length ? 'on' : ''}" data-calstaffpanel>👥 鑑定士を絞る ${staffOpen ? '▲' : '▼'}</button>
       <span class="text-xs ${staffSel.length ? 'font-bold text-teal-800' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${staff.filter((u) => staffSel.includes(u.id)).map((u) => esc(u.name)).join('・')}` : `全員（${staff.length}名）を表示`}</span>
       ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-calstaffclear>解除</button>' : ''}</div>
       ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((u) => `<button class="chip ${staffSel.includes(u.id) ? 'on' : ''}" data-calstaff="${u.id}">${esc(u.name)}</button>`).join('')}</div>` : ''}</div>`;
 }
 
-const legendHtml = () => `<span class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">濃さ（訪問が入っている営業の割合）
+const legendHtml = () => `<span class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">濃さ（訪問が入っている鑑定士の割合）
   <span class="inline-flex items-center gap-0.5">薄い（空き）${[0, 0.25, 0.5, 0.75, 1].map((r) => `<i class="inline-block h-3 w-5 rounded-sm" style="background:${heatStyle(r).bg}"></i>`).join('')}濃い（埋まっている）</span>
   <span>ブロック＝訪問（お客様のお名前と、住所の先頭10文字）。同じ時間にかぶる訪問は、横に並びます</span></span>`;
 
 // 週の表（Googleカレンダー風）: 縦=時間、横=日付。訪問は、開始から終了までの1つのブロック。同じ時間にかぶる訪問は、日の列の中で横に並べる。
-// 背景は、訪問が入っている営業の割合に応じた濃さ（集中は濃く、空きは薄く）。ブロックや枠を押すと、その日だけ（営業ごとの列）
+// 背景は、訪問が入っている鑑定士の割合に応じた濃さ（集中は濃く、空きは薄く）。ブロックや枠を押すと、その日だけ（鑑定士ごとの列）
 const WEEK_ROW = 36; // 30分あたりの高さ（px）
 const weekTop = (m) => ((m - WORK_START) / SLOT_STEP) * WEEK_ROW;
 
@@ -56,10 +56,10 @@ function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], 
   const h = ((WORK_END - WORK_START) / SLOT_STEP) * WEEK_ROW;
   const grid = `grid-template-columns:3rem repeat(7,minmax(9rem,1fr));min-width:${3 + 7 * 9}rem`;
   const head = heat.map((d) => { const p = parts(d.date); const n = pending.filter((r) => r.date === d.date).length;
-    return `<div class="border-b px-0.5 py-0.5 text-center text-xs font-bold leading-tight ${headCls(p.w)} ${d.date === today ? 'bg-teal-100' : ''}"><button class="w-full rounded hover:bg-slate-100" data-calday="${d.date}" title="この日だけを、営業ごとに見る">${p.m}/${p.d}<br /><span class="text-[10px]">${WEEK[p.w]}${d.total ? '' : '（営業なし）'}</span></button>${n ? `<div class="text-[10px] font-bold text-rose-600" title="今日、前日確認の連絡をする訪問（まだつながっていない）">前日確認 未${n}</div>` : ''}</div>`; }).join('');
+    return `<div class="border-b px-0.5 py-0.5 text-center text-xs font-bold leading-tight ${headCls(p.w)} ${d.date === today ? 'bg-teal-100' : ''}"><button class="w-full rounded hover:bg-slate-100" data-calday="${d.date}" title="この日だけを、鑑定士ごとに見る">${p.m}/${p.d}<br /><span class="text-[10px]">${WEEK[p.w]}${d.total ? '' : '（鑑定士なし）'}</span></button>${n ? `<div class="text-[10px] font-bold text-rose-600" title="今日、前日確認の連絡をする訪問（まだつながっていない）">前日確認 未${n}</div>` : ''}</div>`; }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${slotStarts().map((m, i) => `<span class="absolute right-1 text-[10px] text-slate-400" style="top:${i * WEEK_ROW + 1}px">${minToHHMM(m)}</span>`).join('')}</div>`;
   const body = heat.map((d) => {
-    const bg = d.slots.map((s, i) => `<div class="absolute inset-x-0" style="top:${i * WEEK_ROW}px;height:${WEEK_ROW - 1}px;background:${heatStyle(s.ratio).bg}" title="${esc(`${dateLabel(d.date)} ${minToHHMM(s.start)}〜　訪問中 ${s.busy}名／働く営業 ${s.total}名（空き ${s.total - s.busy}名）`)}"></div>`).join('');
+    const bg = d.slots.map((s, i) => `<div class="absolute inset-x-0" style="top:${i * WEEK_ROW}px;height:${WEEK_ROW - 1}px;background:${heatStyle(s.ratio).bg}" title="${esc(`${dateLabel(d.date)} ${minToHHMM(s.start)}〜　訪問中 ${s.busy}名／働く鑑定士 ${s.total}名（空き ${s.total - s.busy}名）`)}"></div>`).join('');
     const blocks = d.blocks.map((b) => {
       const r = b.rid ? reservations.find((x) => x.id === b.rid) : null;
       const w = 100 / b.cols;
@@ -84,18 +84,18 @@ function visitDetailHtml(b, r, draft) {
   const h = r?.hearing ?? {};
   const rows = [
     row('日時', `${dateLabel(b.date)} ${minToHHMM(b.start)}〜${minToHHMM(b.end)}`), row('住所', r?.customer.address ?? b.place),
-    row('電話番号', r ? [r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ ') : ''), row('担当営業', staff), row('受付番号', r?.receptionNo),
+    row('電話番号', r ? [r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ ') : ''), row('担当鑑定士', staff), row('受付番号', r?.receptionNo),
     row('売りたいもの', h.wants), row('前日確認の連絡時間', h.contact), row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('訪問時の注意', h.notes && h.notes !== '未確認' ? h.notes : ''),
   ].join('');
   return `<div class="space-y-2 rounded-lg border-2 border-teal-600 bg-white p-3 text-sm">
     <div class="flex flex-wrap items-center gap-2"><b class="text-base">${esc(b.name)} 様</b>${r ? `${statusBadge(r)}${statusChip(r)}` : ''}
       <button class="ml-auto text-lg leading-none text-slate-500 hover:text-slate-800" data-calblockclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
     <dl class="space-y-1 text-xs">${rows}</dl>
-    <button class="b b-sec !min-h-0 !py-1 text-xs" data-calday="${b.date}">この日だけを、営業ごとに見る</button>
+    <button class="b b-sec !min-h-0 !py-1 text-xs" data-calday="${b.date}">この日だけを、鑑定士ごとに見る</button>
     ${r ? `<div><div class="mt-1 text-xs font-bold text-teal-800">前日確認</div>${callPanelHtml(r, draft)}</div>` : '<div class="rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">この予定には、受付の記録がありません（前日確認の記録はできません）</div>'}</div>`;
 }
 
-// 日別の表: 縦=時間、横=営業。訪問の帯を押すと、右の一覧でその訪問が開く
+// 日別の表: 縦=時間、横=鑑定士。訪問の帯を押すと、右の一覧でその訪問が開く
 function dayGridHtml({ cols, date, calSel }) {
   const h = ((WORK_END - WORK_START) / SLOT_STEP) * DAY_ROW;
   const grid = `grid-template-columns:2.5rem repeat(${cols.length},minmax(6.5rem,1fr));min-width:${2.5 + cols.length * 6.5}rem`;

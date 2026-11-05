@@ -27,7 +27,7 @@ export function salesTab(full, master, { period, salesScope }, me, now = Date.no
   const chip = (value, label) => `<button class="b b-sec ${scope === value ? 'on' : ''}" data-sales-scope="${esc(value)}">${esc(label)}</button>`;
   return `
   <div class="flex flex-wrap items-center gap-2"><span class="text-sm font-bold">集計の対象</span>${chip('all', '🏢 会社全体')}${master.warehouses.map((w) => chip(w.id, `${w.name}${w.id === me.warehouseId ? '（自分の倉庫）' : ''}`)).join('')}</div>
-  <div class="flex items-center gap-2">${PERIODS.map(([k, l]) => `<button class="b b-sec ${period === k ? 'on' : ''}" data-period="${k}">${l}</button>`).join('')}${helpIcon('利益 ＝ 売価 − 原価（お客様への買取額）− 手数料 − 送料。\n返品（クーリングオフ）になった商品は、売上に含まれません。営業の経費・人件費などは含めていません。')}</div>
+  <div class="flex items-center gap-2">${PERIODS.map(([k, l]) => `<button class="b b-sec ${period === k ? 'on' : ''}" data-period="${k}">${l}</button>`).join('')}${helpIcon('利益 ＝ 売価 − 原価（お客様への買取額）− 手数料 − 送料。\n返品（クーリングオフ）になった商品は、売上に含まれません。鑑定士の経費・人件費などは含めていません。')}</div>
   <div class="flex flex-wrap gap-3">
     ${card('売上', yen(st.revenue))}${card('原価（買取額）', yen(st.cost), 'text-slate-600')}${card('手数料・送料', yen(st.fee + st.shipping), 'text-slate-600')}
     ${card('利益', yenS(st.profit), profitCls(st.profit))}${card('利益率', pct(st.margin))}${card('販売点数', `${st.count} 点`)}

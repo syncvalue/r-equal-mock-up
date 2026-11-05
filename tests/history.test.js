@@ -46,7 +46,7 @@ test('顧客のランク: 登録がなければ、総買取額から自動で決
   assert.deepEqual([auto.rank, auto.rankAuto], ['B', false]);
 });
 
-test('厄介度は、人が登録したものだけ。営業の評価のフラグから、自動では上げない', async () => {
+test('厄介度は、人が登録したものだけ。鑑定士の評価のフラグから、自動では上げない', async () => {
   const { customerProfile } = await import('../src/customerHistory.js');
   // 登録のない番号は、評価のフラグがあっても、厄介度は「なし」
   assert.deepEqual([customerProfile(['090-0000-0000']).trouble.level, customerProfile(['090-0000-0000']).trouble.tags], ['none', []]);

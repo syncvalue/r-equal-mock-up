@@ -3,7 +3,7 @@ import { MAIN_ITEMS, qtyLabel, joinName } from './master.js';
 
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
-// 確定に足りない項目の名前を返す（空なら確定できる）。areaConfirmed=Googleマップで確認して営業エリアを確定済み／selected=担当の営業が決まっている
+// 確定に足りない項目の名前を返す（空なら確定できる）。areaConfirmed=Googleマップで確認して営業エリアを確定済み／selected=担当の鑑定士が決まっている
 export function missingFields(form, { areaConfirmed, selected, today }) {
   const missing = [];
   if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
@@ -16,7 +16,7 @@ export function missingFields(form, { areaConfirmed, selected, today }) {
   if (form.chirashi === null) missing.push(form.flyerId.trim() ? 'チラシのID（該当なし）' : '来電のきっかけ（チラシのID）');
   if (!hasWants(form)) missing.push('売りたいもの');
   if (!form.date || form.date < today) missing.push('希望日（今日以降）');
-  if (!selected) missing.push('担当の営業');
+  if (!selected) missing.push('担当の鑑定士');
   return missing;
 }
 
@@ -26,7 +26,7 @@ export const companionText = (form) => (form.companion === 'あり' && form.comp
 // 売りたいもの: メイン商材の数量・その他の商材・自由記入のどれかがあればよい
 export const mainSummary = (form) => MAIN_ITEMS.filter((k) => form.mainItems?.[k] > 0).map((k) => `${k} ${qtyLabel(form.mainItems[k])}`);
 export const hasWants = (form) => mainSummary(form).length > 0 || form.cats.length > 0 || form.wants.trim() !== '';
-// 営業のタブレットに出す文字: メイン商材（数量）／その他の商材／詳細
+// 鑑定士のタブレットに出す文字: メイン商材（数量）／その他の商材／詳細
 export const wantsText = (form) => [mainSummary(form).join('、'), form.cats.join('・'), form.wants.trim()].filter(Boolean).join(' ／ ');
 
 // ---- 聞き取りの確認（聞き忘れ防止） ---------------------------------------------------------
@@ -51,7 +51,7 @@ export function hearingChecklist(form) {
   return CHECK_ITEMS.map(([key, label]) => ({ key, label, asked: asked[key], estimated: Boolean(estimated[key]), required: REQUIRED_CHECKS.has(key) }));
 }
 
-// お客様の売りたいものの分野（その他の商材・メイン商材・詳細の書き込みから）。営業の得意分野と合うかを見るのに使う
+// お客様の売りたいものの分野（その他の商材・メイン商材・詳細の書き込みから）。鑑定士の得意分野と合うかを見るのに使う
 const WANT_WORDS = [[/ヴィトン|シャネル|エルメス|グッチ|バッグ/, 'ブランドバッグ'], [/ロレックス|オメガ|時計/, '腕時計'], [/金|プラチナ|ネックレス|指輪|ダイヤ|ジュエリー/, '貴金属・ジュエリー'], [/カメラ|家電/, 'カメラ・家電'], [/ゲーム|フィギュア/, 'ゲーム・ホビー'], [/着物|骨董|掛け軸/, '着物・骨董']];
 export function wantedCategories(form) {
   const fromText = WANT_WORDS.filter(([re]) => re.test(form.wants ?? '')).map(([, c]) => c);
@@ -62,7 +62,7 @@ export const matchedSpecialties = (specialties, form) => { const w = wantedCateg
 export const fullName = (form) => joinName(form.lastName, form.firstName);
 export const fullKana = (form) => joinName(form.lastKana, form.firstKana);
 
-// 営業のタブレットに出す、お客様の性別・年齢（聞けずに声色から推測した場合は、その旨）
+// 鑑定士のタブレットに出す、お客様の性別・年齢（聞けずに声色から推測した場合は、その旨）
 export function profileText(form, genderLabel) {
   const g = form.gender ? `${genderLabel(form.gender)}${form.genderEst ? '（推測）' : ''}` : '性別未確認';
   const age = String(form.age ?? '').trim();

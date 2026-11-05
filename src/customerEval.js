@@ -1,5 +1,5 @@
 // お客様情報に紐づく評価（顧客ランク・厄介度・メモ）。訪問ごとの評価とは別に管理する。
-// 訪問ごとの評価は、営業が訪問ごとに入力する（store.js の EVAL_KEY）。お客様の評価は、それを受けて、誰かが登録する（いまは配車係）。
+// 訪問ごとの評価は、鑑定士が訪問ごとに入力する（store.js の EVAL_KEY）。お客様の評価は、それを受けて、誰かが登録する（いまは配車係）。
 // 最初の訪問のときは、その訪問の評価を、そのままお客様の評価として設定してよい（あとから、登録し直せる）。
 export const CUSTOMER_EVAL_KEY = 'rq-mock-customer-profiles';
 
@@ -32,7 +32,7 @@ export function saveCustomerEval(phone, data, { by, source = 'manual', now = Dat
   localStorage.setItem(CUSTOMER_EVAL_KEY, JSON.stringify(all));
 }
 
-// 営業が入力した訪問の評価から、お客様の評価の初期値を作る（初回の訪問のとき）
+// 鑑定士が入力した訪問の評価から、お客様の評価の初期値を作る（初回の訪問のとき）
 export function customerEvalFromVisit(e) {
   const rank = { 高そう: 'A', 普通: 'B', 低そう: 'C' }[e.wealth] ?? null; // 資力 → 顧客ランク
   const flags = (e.flags ?? []).filter((f) => f !== '紹介が見込める');

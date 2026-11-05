@@ -8,7 +8,7 @@ import { helpIcon } from '../src/help.js';
 import { warehousesPanelHtml, vendorsPanelHtml } from './warehousesPanel.js';
 
 export const MASTERS = [
-  { key: 'employees', icon: '👥', label: '社員', sub: '営業・オペレーター・査定員・倉庫担当・店舗スタッフなど' },
+  { key: 'employees', icon: '👥', label: '社員', sub: '鑑定士・オペレーター・査定員・倉庫担当・店舗スタッフなど' },
   { key: 'departments', icon: '🧩', label: '部署', sub: '会社「REqual」の部署' },
   { key: 'offices', icon: '🏢', label: '営業所', sub: '営業所と、担当の都道府県' },
   { key: 'trips', icon: '🧳', label: '出張', sub: '営業所のないエリアへの出張と、出張メンバー' },
@@ -18,7 +18,7 @@ export const MASTERS = [
 ];
 export const masterLabel = (key) => MASTERS.find((m) => m.key === key)?.label ?? '';
 
-// 左側の開閉式メニュー（倉庫・物流、営業のタブレットと同じ。☰ で開き、項目を選ぶか、外側・✕で閉じる）
+// 左側の開閉式メニュー（倉庫・物流、鑑定士のタブレットと同じ。☰ で開き、項目を選ぶか、外側・✕で閉じる）
 export function menuHtml(tab) {
   return `<div class="fixed inset-0 z-[55]">
     <button class="absolute inset-0 bg-black/50 cursor-default" data-menu-close aria-label="メニューを閉じる"></button>

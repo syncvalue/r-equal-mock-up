@@ -13,24 +13,24 @@ test('時間の行は、営業時間（9:00〜19:00）を30分刻みで、開始
   assert.deepEqual([s[0], s.at(-1)], [540, 1110]);
 });
 
-test('エリアの営業は、そのエリアの営業所の営業（その日に別エリアから訪問が入った営業も含む）', () => {
+test('エリアの鑑定士は、そのエリアの営業所の鑑定士（その日に別エリアから訪問が入った鑑定士も含む）', () => {
   const staff = areaStaff('osaka', dates[0], [], NOW);
   assert.ok(staff.length >= 5 && staff.every((u) => areaOfUser(u.id) === 'osaka'));
 });
 
-test('週の濃さ: 日ごと・時間ごとに、訪問が入っている営業の人数と割合を出す（0〜1）', () => {
+test('週の濃さ: 日ごと・時間ごとに、訪問が入っている鑑定士の人数と割合を出す（0〜1）', () => {
   const heat = weekHeat({ areaId: 'osaka', dates, reservations: [], now: NOW });
   assert.equal(heat.length, 7);
   for (const d of heat) {
     assert.equal(d.slots.length, 20);
-    assert.ok(d.total > 0 && d.total <= areaStaff('osaka', d.date, [], NOW).length); // 欠勤の営業は数えない
+    assert.ok(d.total > 0 && d.total <= areaStaff('osaka', d.date, [], NOW).length); // 欠勤の鑑定士は数えない
     for (const s of d.slots) assert.ok(s.busy >= 0 && s.busy <= s.total && s.ratio >= 0 && s.ratio <= 1);
   }
 });
 
 test('訪問が入ると、その時間の人数が増える（訪問の時間と重なる枠だけ）。取消は数えない', () => {
   const base = weekHeat({ areaId: 'osaka', dates, reservations: [], now: NOW });
-  // 欠勤でなく、10:00〜11:30 に予定のない営業と日を探す
+  // 欠勤でなく、10:00〜11:30 に予定のない鑑定士と日を探す
   let hit = null;
   for (const date of dates) for (const c of dayColumns({ areaId: 'osaka', date, reservations: [], now: NOW })) {
     if (!hit && !c.absent && c.att.kind === 'present' && !c.blocks.some((b) => b.start < 690 && b.end > 600)) hit = { date, userId: c.user.id };
@@ -47,7 +47,7 @@ test('訪問が入ると、その時間の人数が増える（訪問の時間�
   assert.equal(cancelled[idx(600)].busy, b[idx(600)].busy);
 });
 
-test('日別の列は営業ごと。その営業の訪問（予約）が入る', () => {
+test('日別の列は鑑定士ごと。その鑑定士の訪問（予約）が入る', () => {
   const cols = dayColumns({ areaId: 'osaka', date: dates[0], reservations: [], now: NOW });
   const u = cols.find((c) => !c.absent).user;
   const cols2 = dayColumns({ areaId: 'osaka', date: dates[0], reservations: [rez(u.id, dates[0], '13:00', '14:00')], now: NOW });
@@ -91,7 +91,7 @@ test('かぶりが終わったあとの列は、再び使う（a→cの順に、
   assert.deepEqual([by.a, by.b, by.c], [[0, 2], [1, 2], [0, 2]]);
 });
 
-test('営業で絞り込む: 選んだ営業だけの列・人数・訪問になる（空なら全員）', () => {
+test('鑑定士で絞り込む: 選んだ鑑定士だけの列・人数・訪問になる（空なら全員）', () => {
   const all = dayColumns({ areaId: 'osaka', date: dates[0], reservations: [], now: NOW });
   const pick = all.slice(0, 2).map((c) => c.user.id);
   const some = dayColumns({ areaId: 'osaka', date: dates[0], reservations: [], now: NOW, userIds: pick });

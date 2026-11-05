@@ -19,7 +19,7 @@ test('商品ごとに、同じ訪問の最新の依頼を1つのやり取りと�
   assert.equal(threadFor(list, 'V1', 'I9'), null);
 });
 
-test('営業が話すと「依頼中」、査定員が話すと「回答済み」。完結後に営業が話すと再開する', () => {
+test('鑑定士が話すと「依頼中」、査定員が話すと「回答済み」。完結後に鑑定士が話すと再開する', () => {
   let t = addMessage(base, { from: 'hq', text: '型番は？', at: 2000 });
   assert.equal(t.status, '回答済み');
   t = addMessage(t, { from: 'sales', text: 'AB123です', at: 3000 });
@@ -51,7 +51,7 @@ test('承認の条件: 査定依頼がなければ承認できる。依頼があ
 test('未読: 相手の最後の発言が、自分の既読より新しいとき', () => {
   let t = addMessage(base, { from: 'hq', text: 'a', at: 2000 });
   assert.equal(hasUnread(t, 'sales'), true);
-  assert.equal(hasUnread(t, 'hq'), true); // 営業の最初の依頼を、まだ読んでいない
+  assert.equal(hasUnread(t, 'hq'), true); // 鑑定士の最初の依頼を、まだ読んでいない
   t = markRead(t, 'sales', 2500);
   assert.equal(hasUnread(t, 'sales'), false);
   t = markRead(t, 'hq', 2500);

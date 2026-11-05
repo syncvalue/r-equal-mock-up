@@ -59,7 +59,7 @@ test('サンプル: 商品No.は重複しない。一度入れたら自動では
   assert.equal(seedSample(NOW, true), true);
 });
 
-test('サンプル: 既存の入庫データ（営業が登録したもの）がある場合、自動投入では消さずに追加する', () => {
+test('サンプル: 既存の入庫データ（鑑定士が登録したもの）がある場合、自動投入では消さずに追加する', () => {
   mem.clear();
   mem.set('rq-mock-stock', JSON.stringify([{ code: 'RQ-MINE', visitId: 'V1', userId: 'u01', customerName: 'テスト', at: NOW, date: W.dateOf(NOW), itemId: 'x', name: 'x', category: 'バッグ', rank: 'A', n: 1, qty: 1, price: 1, status: 'pending', storedAt: null, location: null, by: null }]));
   assert.equal(seedSample(NOW), true);

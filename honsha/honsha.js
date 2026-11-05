@@ -1,4 +1,4 @@
-// 査定部デスク画面（ダミー・PC想定）。営業の買取明細をリアルタイムで見て、依頼への回答や提案を行う。
+// 査定部デスク画面（ダミー・PC想定）。鑑定士の買取明細をリアルタイムで見て、依頼への回答や提案を行う。
 import {
   AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, LIVE_KEY, loadAppraisals, loadComments, loadLive, newAppraisalId,
   newCommentId, upsertAppraisal, upsertComment,
@@ -15,7 +15,7 @@ import { yen, fmtTime, fmtElapsed, esc } from '../src/format.js';
 const $ = (s) => document.querySelector(s);
 let visitId = null;
 let sel = null; // { type: 'item' | 'req', id }
-let draft = { tag: '', text: '', price: '', rank: null, reason: '' }; // 営業への送信内容（コメント＋任意で提案査定額）
+let draft = { tag: '', text: '', price: '', rank: null, reason: '' }; // 鑑定士への送信内容（コメント＋任意で提案査定額）
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 保存できなくても動作は継続（モック） */ } };
 const appraisers = () => appraisersOf(loadEmployees()); // 査定員は、社員管理から読み込む（有効な人だけ）
@@ -23,7 +23,7 @@ let appraiserId = pref('rq-mock-hq-appraiser', appraisers()[0]?.id ?? ''); // �
 let hideDone = pref('rq-mock-hq-hidedone', '0') === '1'; // 訪問完了した予定を一覧から隠す
 const appraiser = () => appraisers().find((a) => a.id === appraiserId) ?? appraisers()[0] ?? { id: '', name: '', groups: [] };
 const scopeUsers = () => USERS.filter((u) => appraiser().groups.includes(u.group));
-let compose = null; // 営業へのお知らせ（本社からのメッセージ）の作成中データ
+let compose = null; // 鑑定士へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
 const sum = (items) => items.filter((i) => i.sell).reduce((n, i) => n + i.price, 0);
@@ -50,7 +50,7 @@ const AP_BADGE = { 依頼中: 'bg-amber-100 text-amber-800', 回答済み: 'bg-s
 const approvable = (v, approvals, aps) => pendingApprovals(v, approvals).filter((i) => canApprove(aps, v.visitId, i.id).ok);
 
 const apStatus = (t) => (t ? `<span class="rounded px-2 py-0.5 text-xs font-bold ${AP_BADGE[t.status]}">${t.status === '依頼中' ? '返信待ち' : t.status}</span>` : '<span class="text-slate-400">依頼なし</span>');
-// 担当する営業の、今日の予定（時系列）と訪問状況。ダミーの営業は、予定ごとの見本の状況（demoStatus）を使う
+// 担当する鑑定士の、今日の予定（時系列）と訪問状況。ダミーの鑑定士は、予定ごとの見本の状況（demoStatus）を使う
 const ST = {
   done: ['完了', 'bg-slate-200 text-slate-600'], visiting: ['訪問中', 'bg-emerald-100 text-emerald-800'], notyet: ['まだ訪問していない', 'bg-white border border-dashed border-slate-300 text-slate-400'],
 };
@@ -84,7 +84,7 @@ function sidebar(visits, aps, approvals) {
     const inner = `
       <div class="flex justify-between items-center gap-2"><span class="font-bold">${e.start}–${e.end}　${esc(e.customer.name)} 様</span>
         <span class="text-xs rounded px-2 py-0.5 shrink-0 ${badge}">${now ? '● ' : ''}${esc(label)}</span></div>
-      <div class="text-xs text-slate-500">営業 ${esc(USERS.find((u) => u.id === e.userId)?.name ?? '')} ／ ${esc(e.items)}${v ? ` ／ 開始 ${fmtTime(v.startedAt)}` : ''}</div>
+      <div class="text-xs text-slate-500">鑑定士 ${esc(USERS.find((u) => u.id === e.userId)?.name ?? '')} ／ ${esc(e.items)}${v ? ` ／ 開始 ${fmtTime(v.startedAt)}` : ''}</div>
       ${v ? visitCard(v) : ''}`;
     const nowCls = now ? 'bg-emerald-100 border-l-8 border-l-emerald-600' : 'border-l-8 border-l-transparent';
     return v
@@ -92,17 +92,17 @@ function sidebar(visits, aps, approvals) {
       : `<div class="p-3 border-b ${nowCls} ${key === 'done' ? 'opacity-60' : ''}">${inner}</div>`;
   };
   const extra = extras.filter((v) => !(hideDone && v.endedAt)).map((v) => row({ e: { start: fmtTime(v.startedAt).slice(0, 5), end: '', customer: { name: v.customerName }, userId: v.userId ?? 'u01', items: '予定外・別日の訪問' }, v, key: v.endedAt ? 'done' : 'visiting', label: v.outcome ? v.outcome.label : v.endedAt ? '完了' : '訪問中' }));
-  if (!shown.length && !extra.length) return `<p class="p-6 text-slate-400">${rows.length ? '表示する予定はありません（完了分を隠しています）' : '担当する営業の、今日の予定はありません'}</p>`;
+  if (!shown.length && !extra.length) return `<p class="p-6 text-slate-400">${rows.length ? '表示する予定はありません（完了分を隠しています）' : '担当する鑑定士の、今日の予定はありません'}</p>`;
   return shown.map(row).join('') + (extra.length ? `<div class="px-3 py-1 text-xs font-bold text-slate-500 bg-slate-50 border-b">予定外・別日の訪問</div>${extra.join('')}` : '');
 }
 
-// 営業が記録した、お客様の評価（次の営業活動用の記録）
+// 鑑定士が記録した、お客様の評価（次の営業活動用の記録）
 function evalCard(e) {
   if (!e) return '';
   const row = (k, v) => (v && v.length ? `<div><span class="text-xs text-slate-500">${k}</span> <b>${Array.isArray(v) ? v.map(esc).join('・') : esc(v)}</b></div>` : '');
   return `
   <div class="rounded-lg border bg-white p-3 space-y-1">
-    <div class="flex justify-between items-center"><b>⭐ お客様の評価（営業の記録）</b>
+    <div class="flex justify-between items-center"><b>⭐ お客様の評価（鑑定士の記録）</b>
       <span class="text-amber-400 text-xl tracking-tight">${'★'.repeat(e.overall)}<span class="text-slate-300">${'★'.repeat(5 - e.overall)}</span></span></div>
     <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm">
       ${row('態度', e.attitude)}${row('リピート見込み', e.repeat)}${row('資力', e.wealth)}${row('次回時期', e.timing)}
@@ -144,12 +144,12 @@ function itemsTable(v, aps, cs, approvals) {
 
 const emptyDraft = () => ({ tag: '', text: '', price: '', rank: null, reason: '' });
 
-// 営業への送信フォーム（PC想定。タグ・定型文はなく、キーボードで入力する。Ctrl+Enter でも送信）
-// 提案査定額は任意（入れると、営業が買取金額に反映できる。ランクは営業の入力のまま）
+// 鑑定士への送信フォーム（PC想定。タグ・定型文はなく、キーボードで入力する。Ctrl+Enter でも送信）
+// 提案査定額は任意（入れると、鑑定士が買取金額に反映できる。ランクは鑑定士の入力のまま）
 function sendForm(itemId, item, hasThread = false) {
   return `
   <div class="rounded-lg border bg-white p-3 space-y-2">
-    <div class="font-bold">${hasThread ? '返信' : '営業へコメント'} ${itemId ? '' : `（訪問全体）${helpIcon('明細の商品を選ぶと、その商品について営業とやり取りできます。')}`}</div>
+    <div class="font-bold">${hasThread ? '返信' : '鑑定士へコメント'} ${itemId ? '' : `（訪問全体）${helpIcon('明細の商品を選ぶと、その商品について鑑定士とやり取りできます。')}`}</div>
     <textarea class="w-full border rounded px-3 py-2" rows="3" data-f="text" placeholder="メッセージ（Ctrl+Enter で送信）">${esc(draft.text)}</textarea>
     <div class="flex items-center gap-2">
       ${item ? `<div class="flex-1 text-sm font-bold flex items-center gap-2 whitespace-nowrap">提案額（任意）
@@ -159,7 +159,7 @@ function sendForm(itemId, item, hasThread = false) {
   </div>`;
 }
 
-// 営業とのやり取り履歴（時系列）
+// 鑑定士とのやり取り履歴（時系列）
 function thread(cs, itemId) {
   const list = cs.filter((c) => c.itemId === itemId).sort((a, b) => a.createdAt - b.createdAt);
   if (!list.length) return '';
@@ -167,17 +167,17 @@ function thread(cs, itemId) {
     <div class="text-sm rounded-lg p-2 ${c.ack ? 'bg-white border' : 'bg-rose-50 border border-rose-200'}">
       <div class="flex justify-between"><b>${c.tag ? esc(c.tag) : '査定部'}</b><span class="text-xs text-slate-500">${fmtTime(c.createdAt)}</span></div>
       <div class="whitespace-pre-wrap">${esc(c.text)}</div>
-      ${c.price ? `<div class="mt-1 font-bold text-indigo-800">提案査定額 ${yen(c.price)}（ランク${c.rank}）${c.adopted ? '<span class="text-emerald-700">／ 営業が買取金額に反映済み</span>' : ''}</div>` : ''}
-      <div class="text-xs mt-1 font-bold ${c.ack ? 'text-emerald-700' : 'text-rose-600'}">${c.ack ? `✓ 営業が確認済み（${fmtTime(c.ackAt)}）` : '⏳ 営業は未確認'}</div>
+      ${c.price ? `<div class="mt-1 font-bold text-indigo-800">提案査定額 ${yen(c.price)}（ランク${c.rank}）${c.adopted ? '<span class="text-emerald-700">／ 鑑定士が買取金額に反映済み</span>' : ''}</div>` : ''}
+      <div class="text-xs mt-1 font-bold ${c.ack ? 'text-emerald-700' : 'text-rose-600'}">${c.ack ? `✓ 鑑定士が確認済み（${fmtTime(c.ackAt)}）` : '⏳ 鑑定士は未確認'}</div>
     </div>`).join('')}</div>`;
 }
 
-// 営業とのチャット（査定依頼）。営業は左、査定員（自分）は右
+// 鑑定士とのチャット（査定依頼）。鑑定士は左、査定員（自分）は右
 function chatPanel(t) {
   const bubbles = messagesOf(t).map((m) => {
     const mine = m.from === 'hq';
     return `<div class="flex ${mine ? 'justify-end' : 'justify-start'}"><div class="max-w-[88%] rounded-2xl px-3 py-2 space-y-1 ${mine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-900 rounded-bl-sm'}">
-      <div class="text-xs ${mine ? 'text-indigo-100' : 'text-slate-500'}">${mine ? '査定部' : esc(t.sender ?? '営業')} ${fmtTime(m.at)}${mine ? (t.salesReadAt >= m.at ? '　既読' : '　未読') : ''}</div>
+      <div class="text-xs ${mine ? 'text-indigo-100' : 'text-slate-500'}">${mine ? '査定部' : esc(t.sender ?? '鑑定士')} ${fmtTime(m.at)}${mine ? (t.salesReadAt >= m.at ? '　既読' : '　未読') : ''}</div>
       ${m.tag ? `<span class="rounded bg-white/90 text-indigo-800 px-2 py-0.5 text-xs font-bold">${esc(m.tag)}</span>` : ''}
       ${m.text ? `<div class="whitespace-pre-wrap ${mine ? '' : 'font-bold'}">${esc(m.text)}</div>` : ''}
       ${m.photos?.length ? `<div class="grid grid-cols-2 gap-1">${m.photos.map((p, i) => `<img src="${p}" alt="写真${i + 1}" class="w-full rounded border" />`).join('')}</div>` : ''}
@@ -187,7 +187,7 @@ function chatPanel(t) {
   const done = t.status === '完結';
   return `
   <div class="border-2 ${t.status === '依頼中' ? 'border-amber-400 shadow-md' : 'border-slate-200'} rounded-lg p-3 space-y-2 bg-white">
-    <div class="flex justify-between items-center"><span class="font-bold">📨 査定依頼</span><span class="flex items-center gap-2">${apStatus(t)}${done ? '' : `<button class="rounded border border-emerald-600 text-emerald-700 text-sm font-bold px-3 py-1 hover:bg-emerald-50" data-close-thread="${t.id}">完結する</button>${helpIcon('完結すると、この商品を承認できます。営業が続けて送ると、再開します。')}`}</span></div>
+    <div class="flex justify-between items-center"><span class="font-bold">📨 査定依頼</span><span class="flex items-center gap-2">${apStatus(t)}${done ? '' : `<button class="rounded border border-emerald-600 text-emerald-700 text-sm font-bold px-3 py-1 hover:bg-emerald-50" data-close-thread="${t.id}">完結する</button>${helpIcon('完結すると、この商品を承認できます。鑑定士が続けて送ると、再開します。')}`}</span></div>
     <div class="space-y-2">${bubbles}</div>
     ${done ? `<div class="text-sm font-bold text-emerald-700">✓ 完結しました（${fmtTime(t.closedAt)}）。続きを送ると再開します。</div>` : ''}
   </div>`;
@@ -197,7 +197,7 @@ function aiCard(item) {
   const r = item?.aiAppraisal;
   if (!r) return '';
   return `<div class="rounded-lg border-2 border-violet-300 bg-violet-50 p-3 text-sm space-y-1">
-    <div class="font-bold">🤖 営業が実行したAI査定</div>
+    <div class="font-bold">🤖 鑑定士が実行したAI査定</div>
     <div>推定 <b class="text-lg text-violet-800">${yen(r.price)}</b>（目安 ${yen(r.min)}〜${yen(r.max)}）／ ランク${r.rank} ／ 信頼度 <b>${r.confidence}%</b></div>
     <div class="text-slate-700">${esc(r.reason)}</div></div>`;
 }
@@ -213,10 +213,10 @@ function approvalBlock(v, item, approvals, aps) {
   <div class="sticky top-0 z-10 rounded-lg border-2 ${canDecide ? 'border-amber-400' : 'border-slate-200'} bg-white shadow-md">
     <div class="p-3 space-y-2 ${masked ? 'opacity-40 pointer-events-none select-none' : ''}" ${masked ? 'aria-disabled="true"' : ''}>
     <div class="flex justify-between items-center"><b>✅ 買取の承認</b>${item.price > 0 ? apvBadge(st) : '<span class="text-xs text-slate-400">金額未入力</span>'}</div>
-    <div class="text-sm">営業の査定：<b>${item.price > 0 ? yen(item.price) : '未入力'}</b>（${item.qty}点分の合計） ／ ランク${item.rank}${item.sell ? '' : '<span class="ml-2 text-slate-500">（売らない）</span>'}</div>
+    <div class="text-sm">鑑定士の査定：<b>${item.price > 0 ? yen(item.price) : '未入力'}</b>（${item.qty}点分の合計） ／ ランク${item.rank}${item.sell ? '' : '<span class="ml-2 text-slate-500">（売らない）</span>'}</div>
     ${st === 'stale' ? `<div class="text-sm text-orange-700 font-bold">前回の判断（${yen(rec.price)}・ランク${rec.rank}・${rec.qty}点）から変更されています。</div>` : ''}
     ${st === 'ok' ? `<div class="text-sm text-emerald-700 font-bold">承認済み（${fmtTime(rec.decidedAt)}）</div>` : ''}
-    ${st === 'ng' ? `<div class="text-sm text-rose-700"><b>差戻し済み：</b>${esc(rec.comment)}（営業の見直しを待っています）</div>` : ''}
+    ${st === 'ng' ? `<div class="text-sm text-rose-700"><b>差戻し済み：</b>${esc(rec.comment)}（鑑定士の見直しを待っています）</div>` : ''}
     ${canDecide ? `
       <textarea class="w-full border rounded px-3 py-2 text-sm" rows="2" data-f="reason" placeholder="差戻しの場合は理由を入力（必須）">${esc(draft.reason)}</textarea>
       <div class="grid grid-cols-2 gap-2">
@@ -239,7 +239,7 @@ function detailPanel(v, aps, cs, approvals) {
   <div class="space-y-3">
     ${item ? approvalBlock(v, item, approvals, aps) : ''}
     <div><div class="text-xl font-bold">${esc(item?.name ?? orphan?.name ?? '')}</div>
-      ${item ? `<div class="text-sm text-slate-500">ランク${item.rank} ／ ${item.qty}点 ／ 営業の査定（合計） ${yen(item.price)}</div>` : ''}</div>
+      ${item ? `<div class="text-sm text-slate-500">ランク${item.rank} ／ ${item.qty}点 ／ 鑑定士の査定（合計） ${yen(item.price)}</div>` : ''}</div>
     ${t ? chatPanel(t) : ''}
     ${item ? aiCard(item) : ''}
     ${t ? sendForm(item?.id ?? t.itemId, item, true) : ''}
@@ -248,13 +248,13 @@ function detailPanel(v, aps, cs, approvals) {
   </div>`;
 }
 
-// 本社からのメッセージ（営業のダッシュボードに表示される）
+// 本社からのメッセージ（鑑定士のダッシュボードに表示される）
 function composeModal() {
   if (!compose) return '';
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4" data-compose-backdrop>
     <div class="bg-white rounded-2xl w-full max-w-xl p-5 space-y-3">
-      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">📢 営業へのお知らせを送る${helpIcon('営業のダッシュボードの「本社からのメッセージ」に表示されます。')}</h2>
+      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">📢 鑑定士へのお知らせを送る${helpIcon('鑑定士のダッシュボードの「本社からのメッセージ」に表示されます。')}</h2>
         <button class="px-3 py-1 rounded border font-bold" data-compose-close>閉じる</button></div>
             <label class="block font-bold text-sm">タイトル<input class="w-full border rounded px-3 py-2 mt-1 font-normal" data-m="title" value="${esc(compose.title)}" placeholder="例: 今月の買取強化商材について" /></label>
       <label class="block font-bold text-sm">本文<textarea class="w-full border rounded px-3 py-2 mt-1 font-normal" rows="4" data-m="body" placeholder="お知らせの内容">${esc(compose.body)}</textarea></label>
@@ -269,7 +269,7 @@ function composeModal() {
   </div>`;
 }
 
-// 開いている商品のやり取りは、読んだことにする（営業に「既読」が出る）
+// 開いている商品のやり取りは、読んだことにする（鑑定士に「既読」が出る）
 function readSelected() {
   if (!sel || !visitId) return;
   const itemId = sel.type === 'req' ? loadAppraisals().find((x) => x.id === sel.id)?.itemId : sel.id;
@@ -306,7 +306,7 @@ function render() {
         <div class="text-right">${approvable(v, approvals, aps).length ? `<button class="mr-3 bg-emerald-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>承認できる${approvable(v, approvals, aps).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-600" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-indigo-800">${yen(sum(v.items))}</div></div>
       </div>
       ${v.briefing?.propose ? `<div class="text-sm rounded-lg bg-slate-50 border px-3 py-1.5">査定前の説明：<b>実施済み</b> ／ 他商品の提案：<b class="${v.briefing.propose === 'yes' ? 'text-teal-700' : 'text-slate-600'}">${v.briefing.propose === 'yes' ? '提案してよい' : '提案は不要（お客様の希望）'}</b></div>` : ''}
-      ${v.outcome ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3"><b>🚪 買取に至らず：${esc(v.outcome.label)}</b>${helpIcon('訪問実績として扱い、営業の業績には影響しません。')}${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}${v.outcome.memo ? `<div class="text-sm whitespace-pre-wrap">${esc(v.outcome.memo)}</div>` : ''}</div>` : ''}
+      ${v.outcome ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3"><b>🚪 買取に至らず：${esc(v.outcome.label)}</b>${helpIcon('訪問実績として扱い、鑑定士の業績には影響しません。')}${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}${v.outcome.memo ? `<div class="text-sm whitespace-pre-wrap">${esc(v.outcome.memo)}</div>` : ''}</div>` : ''}
       ${evalCard(loadEvals().find((e) => e.visitId === v.visitId))}
       ${itemsTable(v, aps, cs, approvals)}` : '<p class="text-slate-400 p-10 text-center">左の一覧から訪問を選択してください</p>'}
     </main>
@@ -315,8 +315,8 @@ function render() {
   dirty = false;
 }
 
-// 承認／差戻し（営業の申請は不要。商品が登録された時点から、いつでも実行できる）。
-// 差戻しは理由必須で、営業にはコメント（❗）としても届く
+// 承認／差戻し（鑑定士の申請は不要。商品が登録された時点から、いつでも実行できる）。
+// 差戻しは理由必須で、鑑定士にはコメント（❗）としても届く
 function decideItem(itemId, ok) {
   const v = loadLive()[visitId];
   const item = v?.items.find((i) => i.id === itemId);
@@ -349,7 +349,7 @@ function send(itemId) {
   const now = Date.now();
   const t = itemId ? threadFor(loadAppraisals(), visitId, itemId) : null;
   if (t) {
-    // 営業からの査定依頼があれば、そのチャットに返信する
+    // 鑑定士からの査定依頼があれば、そのチャットに返信する
     upsertAppraisal(addMessage(t, { from: 'hq', tag: '', text, price: price || null, rank: price ? rank : null, at: now }));
   } else {
     upsertComment({
@@ -411,7 +411,7 @@ document.addEventListener('input', (e) => {
   } else if (e.target.dataset.f) draft = { ...draft, [e.target.dataset.f]: e.target.value };
 });
 
-// 営業側の更新を即時反映。入力中なら、入力欄から離れたときに反映する
+// 鑑定士側の更新を即時反映。入力中なら、入力欄から離れたときに反映する
 window.addEventListener('storage', (e) => {
   if (![LIVE_KEY, AP_STORAGE_KEY, COMMENT_KEY, APPROVAL_KEY, EVAL_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;

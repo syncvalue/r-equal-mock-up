@@ -10,13 +10,13 @@ const { DEFAULT_MASTER } = await import('../src/warehouseMaster.js');
 const text = (h) => h.replace(/data-help="([^"]*)"/g, '> $1 <').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const base = { employees: DEFAULT_EMPLOYEES, warehouses: DEFAULT_MASTER.warehouses, departments: DEFAULT_DEPARTMENTS, ui: { role: '', q: '', status: '', departmentId: '', form: null } };
 
-test('一覧: 役割の見出しに人数が出る。すべて・営業・オペレーター・配車係・査定員・経理担当・倉庫担当', () => {
+test('一覧: 役割の見出しに人数が出る。すべて・鑑定士・オペレーター・配車係・査定員・経理担当・倉庫担当', () => {
   const t = text(usersHtml(base));
-  for (const label of ['すべて', '営業', 'オペレーター', '配車係', '査定員', '経理担当', '倉庫担当']) assert.ok(t.includes(label), label);
-  assert.ok(t.includes(`すべて ${DEFAULT_EMPLOYEES.length}`) && t.includes('営業 16'));
+  for (const label of ['すべて', '鑑定士', 'オペレーター', '配車係', '査定員', '経理担当', '倉庫担当']) assert.ok(t.includes(label), label);
+  assert.ok(t.includes(`すべて ${DEFAULT_EMPLOYEES.length}`) && t.includes('鑑定士 16'));
 });
 
-test('一覧: 営業は参照のみ（編集・無効化のボタンがない）。所属の営業所とグループ、グループリーダーが分かる', () => {
+test('一覧: 鑑定士は参照のみ（編集・無効化のボタンがない）。所属の営業所とグループ、グループリーダーが分かる', () => {
   const html = listHtml({ ...base, ui: { ...base.ui, role: 'sales' } });
   assert.ok(!html.includes('data-edit') && !html.includes('data-toggle'));
   const t = text(html);
@@ -46,12 +46,12 @@ test('一覧: 氏名・ログインIDで検索、状態で絞り込める。該�
   assert.ok(inactive.includes('該当する社員はいません'));
 });
 
-test('フォーム: 新規は、役割に応じた入力欄が出る。営業は選べない。編集では、役割を変えられない', () => {
+test('フォーム: 新規は、役割に応じた入力欄が出る。鑑定士は選べない。編集では、役割を変えられない', () => {
   const op = usersHtml({ ...base, ui: { ...base.ui, form: blankForm('operator') } });
   assert.ok(op.includes('data-f="name"') && op.includes('data-f="loginId"') && op.includes('data-f="role"'));
   assert.ok(!op.includes('data-f="warehouseId"') && !op.includes('data-group'));
   const roleOptions = op.match(/data-f="role"[\s\S]*?<\/select>/)[0];
-  assert.ok(!roleOptions.includes('>営業<') && roleOptions.includes('倉庫担当'));
+  assert.ok(!roleOptions.includes('>鑑定士<') && roleOptions.includes('倉庫担当'));
   const wh = usersHtml({ ...base, ui: { ...base.ui, form: blankForm('warehouse') } });
   assert.ok(wh.includes('data-f="warehouseId"') && wh.includes('大阪倉庫') && wh.includes('本社'));
   const ap = usersHtml({ ...base, ui: { ...base.ui, form: blankForm('appraiser') } });
@@ -96,5 +96,5 @@ test('エラーの文言: 保存・無効化で返る理由すべてに、利用
 
 test('パネル: 描画できる。役割ごとの使う画面の説明がある', () => {
   const t = text(usersHtml(base));
-  assert.ok(t.includes('社員') && t.includes('営業タブレット') && t.includes('査定部') && t.includes('倉庫・物流'));
+  assert.ok(t.includes('社員') && t.includes('鑑定士タブレット') && t.includes('査定部') && t.includes('倉庫・物流'));
 });

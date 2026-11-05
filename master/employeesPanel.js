@@ -8,7 +8,7 @@ import { helpIcon } from '../src/help.js';
 import { storeLabel, storeNameOf } from '../src/stores.js';
 
 export const EMPLOYEE_REASON_TEXT = {
-  badRole: '役割を選んでください', readOnly: '営業は、ここでは登録・変更できません（参照のみです）', notFound: '対象の社員が見つかりません', roleLocked: '役割は、登録したあとは変えられません（別の役割にするときは、新しく登録してください）',
+  badRole: '役割を選んでください', readOnly: '鑑定士は、ここでは登録・変更できません（参照のみです）', notFound: '対象の社員が見つかりません', roleLocked: '役割は、登録したあとは変えられません（別の役割にするときは、新しく登録してください）',
   noName: '氏名を入力してください', badLoginId: 'ログインIDは、英数字・ハイフン・アンダースコアの3〜20文字にしてください', dupLoginId: '同じログインIDの社員がすでにいます',
   noWarehouse: '所属する倉庫を選んでください', noStore: '所属する店舗を選んでください', noDepartment: '部署を選んでください', noGroup: '担当するグループを、1つ以上選んでください', lastActive: 'この役割で有効な社員が、いなくなってしまうため、無効にできません（先に、別の社員を登録してください）',
 };
@@ -84,7 +84,7 @@ export function employeesPanelHtml(ctx) {
         <select class="inp !w-36" data-status><option value="">すべての状態</option><option value="active" ${ui.status === 'active' ? 'selected' : ''}>有効</option><option value="inactive" ${ui.status === 'inactive' ? 'selected' : ''}>無効</option></select>
         <button class="b b-pri ml-auto" data-new>＋ 新規登録</button>
       </div>
-      ${ui.role === 'sales' ? `<p class="rounded bg-amber-50 border border-amber-300 text-amber-900 text-xs p-2">営業は、ここでは参照のみです。${helpIcon('営業は、業績・担当エリア・始業終業などの記録が、各画面に固定されていて、まだこの名簿とつながっていないためです（登録・変更は、各画面とつなぐときに対応します）。')}</p>` : ''}
+      ${ui.role === 'sales' ? `<p class="rounded bg-amber-50 border border-amber-300 text-amber-900 text-xs p-2">鑑定士は、ここでは参照のみです。${helpIcon('鑑定士は、業績・担当エリア・始業終業などの記録が、各画面に固定されていて、まだこの名簿とつながっていないためです（登録・変更は、各画面とつなぐときに対応します）。')}</p>` : ''}
       <div data-list>${listHtml(ctx)}</div>
     </section>
     ${formHtml(ctx)}`;

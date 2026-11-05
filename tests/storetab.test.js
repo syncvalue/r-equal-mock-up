@@ -14,11 +14,11 @@ const NOW = Date.now();
 const tomorrow = new Date(new Date(NOW).getFullYear(), new Date(NOW).getMonth(), new Date(NOW).getDate() + 1);
 const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-test('来店予約の画面: 店舗・日・時刻・お名前・電話番号・売りたいものの入力欄。エリア・担当営業・仮確定の項目はない', () => {
+test('来店予約の画面: 店舗・日・時刻・お名前・電話番号・売りたいものの入力欄。エリア・担当鑑定士・仮確定の項目はない', () => {
   const html = storeTabHtml({ form: blankStoreForm('S-NAMBA', ymd(tomorrow)), stores: DEFAULT_STORES, upcoming: [] });
   for (const k of ['storeId', 'date', 'time', 'phone', 'name', 'kana', 'wants']) assert.ok(html.includes(`data-st="${k}"`), k);
   assert.ok(html.includes('data-st-save') && text(html).includes('なんば店') && text(html).includes('新宿店'));
-  assert.ok(!/エリア|担当営業|仮確定/.test(text(html).replace(/仮確定・確定の区別はありません|仮確定・確定|配車はありません/g, '')));
+  assert.ok(!/エリア|担当鑑定士|仮確定/.test(text(html).replace(/仮確定・確定の区別はありません|仮確定・確定|配車はありません/g, '')));
   assert.ok(text(html).includes('来店予約は、ありません'));
 });
 

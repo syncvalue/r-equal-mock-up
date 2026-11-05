@@ -1,4 +1,4 @@
-// 業績ダッシュボードの画面。リーダーはグループ全員、一般の営業は自分の業績のみ閲覧できる。
+// 業績ダッシュボードの画面。リーダーはグループ全員、一般の鑑定士は自分の業績のみ閲覧できる。
 import { yen, esc, fmtDateTime } from './format.js';
 import { helpIcon } from './help.js';
 import { hqMessagesFor, leaderMessagesFor } from './messages.js';
@@ -197,7 +197,7 @@ export function dashVisitsModal(s) {
       <span class="rounded-lg bg-slate-200 text-slate-700 px-3 py-1">不成約 <b>${count('lost')}</b></span>
       <span class="rounded-lg bg-amber-100 text-amber-800 px-3 py-1">業績対象外 <b>${excluded}</b>（不在・日程変更）</span>${helpIcon('不在・日程変更は訪問実績に数え、訪問数・成約率には含みません。')}</div>
     ${recs.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm">
-      <thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">日時</th>${showWho ? '<th class="text-left">営業</th>' : ''}<th class="text-left">お客様</th><th class="text-left">商材</th><th class="text-left">結果</th><th class="text-right pr-3">買取金額</th></tr></thead>
+      <thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">日時</th>${showWho ? '<th class="text-left">鑑定士</th>' : ''}<th class="text-left">お客様</th><th class="text-left">商材</th><th class="text-left">結果</th><th class="text-right pr-3">買取金額</th></tr></thead>
       <tbody>${recs.map((r) => `<tr class="border-t align-top">
         <td class="p-2 whitespace-nowrap">${r.date.getMonth() + 1}/${r.date.getDate()} ${r.time}</td>${showWho ? `<td class="whitespace-nowrap">${esc(userById(r.userId).name)}</td>` : ''}
         <td class="whitespace-nowrap">${esc(r.customer)} 様</td><td>${esc(r.items)}</td>

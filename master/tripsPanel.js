@@ -36,14 +36,14 @@ function form(mt, users) {
       <label class="text-sm font-bold">開始日<input type="date" class="inp mt-1 font-normal" data-f="mt.start" value="${esc(mt.start)}" /></label>
       <label class="text-sm font-bold">終了日<input type="date" class="inp mt-1 font-normal" data-f="mt.end" value="${esc(mt.end)}" /></label>
     </div>
-    <fieldset class="text-sm"><legend class="font-bold">出張メンバー<span class="font-normal text-xs text-slate-500">（営業）</span></legend>
+    <fieldset class="text-sm"><legend class="font-bold">出張メンバー<span class="font-normal text-xs text-slate-500">（鑑定士）</span></legend>
       <div class="mt-1 grid grid-cols-2 sm:grid-cols-4 gap-1">${users.map((u) => `<label class="flex items-center gap-1.5"><input type="checkbox" data-trip-member="${esc(u.id)}" ${mt.memberIds.includes(u.id) ? 'checked' : ''} />${esc(u.name)}</label>`).join('')}</div>
     </fieldset>
     <div class="flex gap-2"><button class="b b-pri" data-mt-save>${mt.id ? '更新する' : '登録する'}</button>${mt.id ? '<button class="b b-sec" data-mt-cancel>やめる</button>' : ''}</div>
   </div>`;
 }
 
-// ctx: { trips, users: 出張メンバーに選べる営業 [{ id, name }], today: YYYY-MM-DD, ui: { mt } }
+// ctx: { trips, users: 出張メンバーに選べる鑑定士 [{ id, name }], today: YYYY-MM-DD, ui: { mt } }
 export function tripsPanelHtml({ trips, users, today, ui }) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
       <h2 class="font-bold text-lg">🧳 出張（${trips.filter((t) => t.active).length}件）${helpIcon('営業所のないエリアへ、チラシを配って、期間を決めて訪問買取をする営業方法です。\n出張メンバーの本来の営業所は変わりません。期間中だけ、出張エリアの候補にも加わり（本来の営業所のエリアの候補にも残ります）、コールセンターでは「出張中」と分かるように出ます。')}</h2>

@@ -432,7 +432,7 @@ test('シールNo.で探す: 前後の空白・小文字を無視して、1点�
 });
 
 test('商品の履歴: 買取 → 入庫 → 出品 → 売却、返品の受付 → 返送 → 完了を、時系列に並べる', () => {
-  const u = unit('A', 20, { storedAt: day(20) + 3600000, by: '営業', check: { by: '小川 直樹', at: day(20) + 3600000, method: 'manual' } });
+  const u = unit('A', 20, { storedAt: day(20) + 3600000, by: '鑑定士', check: { by: '小川 直樹', at: day(20) + 3600000, method: 'manual' } });
   let s = W.listItem(state([u]), 'A', { channel: 'mercari', price: 15000, at: day(5), by: '中島 里奈' }).state;
   s = W.sell(s, 'A', { price: 14000, at: day(2) }).state;
   const h = W.historyOf(s, 'A');

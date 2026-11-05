@@ -9,12 +9,12 @@ const { receive, receiveCodes } = await import('../src/stock.js');
 const u = (code, userId, visitId, over = {}) => ({ code, userId, visitId, customerName: '山田 花子', date: '2026-10-25', name: code, status: 'pending', storedAt: null, location: null, by: null, ...over });
 const list = () => [u('A', 'u01', 'V1'), u('B', 'u01', 'V1'), u('C', 'u01', 'V1', { status: 'missing' }), u('D', 'u01', 'V1', { status: 'stored', location: 'A棚（バッグ・小物）' }), u('E', 'u02', 'V2')];
 
-test('入庫: 営業は自分の商品だけ入庫できる（他の営業の商品はエラー）', () => {
-  assert.equal(receive(list(), 'u02', 'A', { location: 'A棚', by: '営業' }).result.type, 'other');
-  assert.equal(receive(list(), 'u01', 'A', { location: 'A棚', by: '営業' }).result.type, 'ok');
+test('入庫: 鑑定士は自分の商品だけ入庫できる（他の鑑定士の商品はエラー）', () => {
+  assert.equal(receive(list(), 'u02', 'A', { location: 'A棚', by: '鑑定士' }).result.type, 'other');
+  assert.equal(receive(list(), 'u01', 'A', { location: 'A棚', by: '鑑定士' }).result.type, 'ok');
 });
 
-test('入庫: 倉庫担当（営業を指定しない）は、誰が買い取った商品でも入庫でき、誰が受け取ったかを記録する', () => {
+test('入庫: 倉庫担当（鑑定士を指定しない）は、誰が買い取った商品でも入庫でき、誰が受け取ったかを記録する', () => {
   const r = receive(list(), null, 'e', { location: 'B棚', by: '倉庫担当', at: 1000 }); // 小文字でも読み取れる
   assert.equal(r.result.type, 'ok');
   const e = r.list.find((x) => x.code === 'E');
@@ -23,7 +23,7 @@ test('入庫: 倉庫担当（営業を指定しない）は、誰が買い取っ
   assert.equal(receive(list(), null, 'ZZZ', { location: 'B棚', by: '倉庫担当' }).result.type, 'unknown');
 });
 
-test('照合の記録: 倉庫で入庫すると、誰が・いつ・どの方法で明細と実物を照合したかが残る。営業のタブレットからの入庫には残らない', () => {
+test('照合の記録: 倉庫で入庫すると、誰が・いつ・どの方法で明細と実物を照合したかが残る。鑑定士のタブレットからの入庫には残らない', () => {
   const scan = receive(list(), null, 'A', { location: 'A棚', by: '小川 直樹', at: 1000, method: 'scan' });
   assert.deepEqual(scan.list[0].check, { by: '小川 直樹', at: 1000, method: 'scan' });
   const mine = receive(list(), 'u01', 'A', { location: 'A棚', by: '鈴木 一郎', at: 1000 });
@@ -67,14 +67,14 @@ test('シールのQR: シールNo.の「RQ-」のすぐ後ろの文字が色を�
   assert.ok(sealColorOfCode(newSealNo()), '色の指定がなければ、どれかの色');
 });
 
-test('営業のタブレットの入庫: 保管場所は選ばず、クーリングオフ保管棚に入る（納入先の倉庫だけ選ぶ）', async () => {
+test('鑑定士のタブレットの入庫: 保管場所は選ばず、クーリングオフ保管棚に入る（納入先の倉庫だけ選ぶ）', async () => {
   const { COOLING_OFF_SHELF } = await import('../src/stock.js');
   const { stockTarget, DEFAULT_STOCK } = await import('../src/stockView.js');
   assert.equal(COOLING_OFF_SHELF, 'クーリングオフ保管棚');
   const t = stockTarget({ user: 'u01', stock: { ...DEFAULT_STOCK, location: 'B棚（時計・ジュエリー）' } }); // 古い選択が残っていても無視する
   assert.equal(t.location, COOLING_OFF_SHELF);
   assert.ok(t.warehouse.id);
-  assert.equal(receive(list(), 'u01', 'A', { location: t.location, by: '営業' }).list[0].location, COOLING_OFF_SHELF);
+  assert.equal(receive(list(), 'u01', 'A', { location: t.location, by: '鑑定士' }).list[0].location, COOLING_OFF_SHELF);
 });
 
 test('倉庫担当の入庫: 訪問買取はクーリングオフ保管棚、店頭買取（クーリング・オフの対象外）は選んだ棚に入る', async () => {

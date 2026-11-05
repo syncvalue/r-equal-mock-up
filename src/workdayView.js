@@ -314,7 +314,7 @@ export function outcomeModalView(s) {
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl w-full max-w-2xl p-5 max-h-[96dvh] flex flex-col gap-3">
-      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">🚪 訪問できなかった場合の記録${helpIcon('訪問実績として記録します。営業の責任ではないため、業績には影響しません。')}</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
+      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">🚪 訪問できなかった場合の記録${helpIcon('訪問実績として記録します。鑑定士の責任ではないため、業績には影響しません。')}</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
       <div class="overflow-y-auto min-h-0 flex-1 space-y-3" data-scroll="outcome">
         <div class="grid grid-cols-2 gap-2">${VISIT_OUTCOMES.map((o) => `
           <button class="rounded-xl border-2 p-3 text-left ${d.type === o.key ? 'border-teal-600 bg-teal-50' : 'border-slate-200'}" data-action="oc-type" data-value="${o.key}">

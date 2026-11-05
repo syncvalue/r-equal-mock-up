@@ -33,8 +33,8 @@ export const EVENTS = [
     customer: c('木村 陽子', 'キムラ ヨウコ', '080-8901-2345', '554-0031', '大阪府大阪市此花区桜島2-1-33（ユニバーサル・スタジオ・ジャパン）', '自営', '1968-12-05') },
 ];
 
-// 他の営業の本日の予定（査定部の訪問一覧で見るためのダミー）。demoStatus は訪問状況の見本（done=完了／visiting=訪問中／notyet=まだ）で、
-// 営業ごとに「午前に完了 → 午後はまだ」と自然に並ぶようにしている。1件目を完了にし、鈴木 一郎の最初の予定（10:00）より前に収めている
+// 他の鑑定士の本日の予定（査定部の訪問一覧で見るためのダミー）。demoStatus は訪問状況の見本（done=完了／visiting=訪問中／notyet=まだ）で、
+// 鑑定士ごとに「午前に完了 → 午後はまだ」と自然に並ぶようにしている。1件目を完了にし、鈴木 一郎の最初の予定（10:00）より前に収めている
 const d0 = (id, userId, start, end, n, operator, apType, items, lat, lng, customer, demoStatus) => ({
   id, userId, dummy: true, demoStatus, day: 0, start, end, receptionNo: `CC-20261020-${String(n).padStart(4, '0')}`, receivedAt: '2026/10/20 10:00', operator, apType, items, memo: '', lat, lng, customer,
 });
@@ -68,7 +68,7 @@ EVENTS.push(
     items: [{ name: 'オメガ シーマスタ', rank: 'B', qty: 1, price: 420000, sell: true }, { name: 'セイコー プレザージュ', rank: 'C', qty: 1, price: 30000, sell: false }], propose: 'no' }), // 評価は未登録（予定表で、未登録の見た目を確認できるように）
 );
 
-// 受電時のヒアリング内容（コールセンターのオペレーターが、お客様から電話口で聞き取った内容）。営業が訪問前に確認する。
+// 受電時のヒアリング内容（コールセンターのオペレーターが、お客様から電話口で聞き取った内容）。鑑定士が訪問前に確認する。
 // trigger=来電のきっかけ／attendee=当日の立会い／wants=売りたいもの／large=大型品・その他の確認／notes=訪問時の注意
 const HEARING = {
   'ev-0-1': { trigger: 'チラシ（10/12 新聞折込）を見て', attendee: 'ご本人', wants: 'ブランドバッグ 3点（ヴィトン・シャネル）、腕時計 2本',

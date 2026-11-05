@@ -437,7 +437,7 @@ const ACTIONS = {
     commit(r.state);
   },
   sample: () => {
-    if (!confirm('倉庫の商品・出品・売上・返品のデータを、サンプルデータに置き換えます（営業が登録した入庫待ちの商品は残ります）。よろしいですか？')) return false;
+    if (!confirm('倉庫の商品・出品・売上・返品のデータを、サンプルデータに置き換えます（鑑定士が登録した入庫待ちの商品は残ります）。よろしいですか？')) return false;
     seedSample(Date.now(), true);
     ui.sf = blankSell();
     ui.lf = blankList();
@@ -615,7 +615,7 @@ document.addEventListener('change', (e) => {
   if (['lf.code', 'pk.toId'].includes(e.target.dataset.f)) render(); // 金額・商品の一覧が変わるもの
 });
 
-// 営業のタブレット（入庫）や、別タブでの更新を反映。入力中なら、入力欄から離れたときに反映する
+// 鑑定士のタブレット（入庫）や、別タブでの更新を反映。入力中なら、入力欄から離れたときに反映する
 const isEditing = () => Boolean(document.activeElement?.matches?.('input, select, textarea'));
 window.addEventListener('storage', (e) => {
   if (![STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, MASTER_KEY].includes(e.key)) return;

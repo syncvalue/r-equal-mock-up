@@ -98,6 +98,7 @@ export const MENU = [
   { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
   { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: '所持金・経費の計上（レシート撮影）' },
+  { key: 'petty', icon: '👜', label: '小口金', sub: '残りの確認と、使用の申請（経理部が承認）' },
   { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品のQR読取・倉庫への入庫' },
   { key: 'end', view: 'workday', icon: '🌙', label: '終業・日報', sub: '現金の締めと、日報の提出' },
 ];
@@ -262,7 +263,7 @@ export function customerView(s) {
         <span class="text-sm text-slate-500">受付 ${esc(call.receptionNo)} ／ ${esc(call.receivedAt)} ／ 担当 ${esc(call.operator)}</span>
       </div>
       <p class="text-slate-600">ご本人かどうか、確認してください。</p>
-      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 営業用の情報（過去の評価）を隠す' : '営業用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
+      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 鑑定士用の情報（過去の評価）を隠す' : '鑑定士用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
       <dl class="grid grid-cols-[8rem_1fr] gap-y-2 text-xl">
         ${row('氏名', c.name)}${row('フリガナ', c.kana)}${row('生年月日', c.birth)}
         ${row('電話番号', c.phone2 ? `${c.phone} ／ ${c.phone2}` : c.phone)}${row('住所', `${c.zip} ${c.address}`)}${row('職業', c.occupation)}
@@ -437,7 +438,7 @@ const confirmTag = (state) => state === 'ok'
   : '<span class="ml-2 rounded-full whitespace-nowrap inline-block text-sm font-bold px-3 py-0.5 bg-amber-200 text-amber-900 animate-pulse">⏳ 確認中</span>';
 
 // 買取商品の確認。お客様に画面を見せながら確定する画面。社内向けの情報（査定部の承認・AI査定・本社コメント）は、
-// 「営業用の情報」を開いたときだけ表示する
+// 「鑑定士用の情報」を開いたときだけ表示する
 export const isCustomerFacing = (s) => s.view === 'visit' && s.step === 4 && !s.showStaff;
 
 export function selectView(s) {
@@ -454,9 +455,9 @@ export function selectView(s) {
       <div class="flex items-start justify-between gap-3">
         <div><h2 class="text-2xl font-bold">買取商品のご確認</h2>
           <p class="text-slate-600">${esc(s.customer.name)} 様、以下の内容で買取いたします。</p></div>
-        <button class="shrink-0 text-xs underline ${staff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 営業用の情報を隠す' : '営業用の情報を表示'}</button>
+        <button class="shrink-0 text-xs underline ${staff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 鑑定士用の情報を隠す' : '鑑定士用の情報を表示'}</button>
       </div>
-      ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-900 font-bold">営業用（お客様には見せないでください）　承認 ${okCount} / ${chosen.length}点。</div>` : ''}
+      ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-900 font-bold">鑑定士用（お客様には見せないでください）　承認 ${okCount} / ${chosen.length}点。</div>` : ''}
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="select">
       ${s.items
         .map((i) => {
@@ -561,7 +562,7 @@ export function labelView(s) {
   </section>`;
 }
 
-// 訪問終了前（お客様宅を出る前）のチェックリスト。システムで確認できるものは自動、他は営業が確認してチェックする
+// 訪問終了前（お客様宅を出る前）のチェックリスト。システムで確認できるものは自動、他は鑑定士が確認してチェックする
 export const LEAVE_CHECKS = [
   { key: 'kyc', text: '本人確認書類を確認し、GMOサインで登録した' },
   { key: 'paper', text: '契約書を印刷し、お客様がチェック項目・署名を記入した' },
@@ -574,7 +575,7 @@ export const LEAVE_CHECKS = [
 ];
 export const leaveRemaining = (s) => LEAVE_CHECKS.filter((c) => !s.leaveChecks[c.key]).length;
 
-// ---- お客様の評価（営業の記録。お客様には見せない） ---------------------------------------
+// ---- お客様の評価（鑑定士の記録。お客様には見せない） ---------------------------------------
 export const EVAL_OPTIONS = {
   attitude: ['良好', '普通', '難あり'],
   repeat: ['高い', '普通', '低い'],
@@ -852,7 +853,7 @@ function commentsModalView(s) {
 
 const photosHtml = (photos) => (photos?.length ? `<div class="flex gap-1 flex-wrap mt-1">${photos.slice(0, 4).map((p) => `<img src="${p}" class="h-16 w-16 object-cover rounded border" alt="" />`).join('')}</div>` : '');
 
-// 査定部とのチャット。営業は右、査定員は左。査定員の提案額は、ここから買取金額に反映する
+// 査定部とのチャット。鑑定士は右、査定員は左。査定員の提案額は、ここから買取金額に反映する
 function chatView(t) {
   const msgs = messagesOf(t);
   const bubbles = msgs.map((m) => {
@@ -931,5 +932,6 @@ export { masterBodyView } from './masterView.js';
 export { dashboardView } from './dashboardView.js';
 export { scheduleView } from './scheduleView.js';
 export { authView } from './authView.js';
+export { pettyView } from './pettyView.js';
 export { workdayView, expenseView, receiptModalView, outcomeModalView, outcomeResultView, wdLiveView, wdStartBottomView, expLiveView, ocLiveView } from './workdayView.js';
 export { stockView } from './stockView.js';

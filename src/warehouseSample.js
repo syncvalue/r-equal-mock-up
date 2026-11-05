@@ -49,7 +49,7 @@ export function buildSample(now = Date.now()) {
       code: `${PREFIX}${String(seq).padStart(4, '0')}`, visitId: `V-WH-${daysAgo}-${userId}`, userId, customerName, at: at(daysAgo), date: W.dateOf(at(daysAgo)),
       itemId: `wh-${seq}`, name, category, rank, n: 1, qty: 1, price, sealColor, status, phones: phonesOf(customerName),
       storedAt: stored ? at(daysAgo, 17) : null, location: stored ? placeOf(category, price, wid) : null,
-      // 偶数日前の買取は倉庫担当が明細と照合して入庫、奇数日前は営業がタブレットから入庫
+      // 偶数日前の買取は倉庫担当が明細と照合して入庫、奇数日前は鑑定士がタブレットから入庫
       by: !stored ? null : daysAgo % 2 === 0 ? staffOfWh(wid) : userId,
       check: stored && daysAgo % 2 === 0 ? { by: staffOfWh(wid), at: at(daysAgo, 17), method: 'manual' } : null,
       ...(stored ? { warehouseId: wid } : {}),
@@ -269,7 +269,7 @@ export function buildSample(now = Date.now()) {
 }
 
 // 見本を保存する。force でないときは、まだ入れたことがなく、記録が空のときだけ入れる。入れたら true。
-// 営業が登録した入庫データ（見本以外）は消さずに残す
+// 鑑定士が登録した入庫データ（見本以外）は消さずに残す
 export function seedSample(now = Date.now(), force = false) {
   try {
     if (!force && (localStorage.getItem(WH_SAMPLE_KEY) || Object.keys(W.loadRecords()).length || W.loadReturns().length || W.loadTransfers().length)) return false;

@@ -12,7 +12,7 @@ const NOW = new Date(2026, 9, 21, 9, 0);
 const sync = () => { hiddenBlocks.clear(); loadMovedIds().forEach((id) => hiddenBlocks.add(id)); };
 beforeEach(() => { store.clear(); sync(); });
 
-test('営業の予定（灰色）を予約として取り込んで動かすと、元の位置から外れ、新しい位置に出る（営業アプリの予定も）', () => {
+test('鑑定士の予定（灰色）を予約として取り込んで動かすと、元の位置から外れ、新しい位置に出る（鑑定士アプリの予定も）', () => {
   const [first] = busyBlocks('u01', '2026-10-21', [], NOW); // u01 今日 10:00-11:30 山田 太郎
   assert.equal(first.source, 'event');
   assert.ok(first.gid);
@@ -26,7 +26,7 @@ test('営業の予定（灰色）を予約として取り込んで動かすと�
   assert.equal(busyBlocks('u01', '2026-10-21', loadReservations(), NOW).some((b) => b.gid === first.gid), false);
   const moved = busyBlocks('u09', '2026-10-21', loadReservations(), NOW).find((b) => b.source === 'reservation');
   assert.deepEqual([moved.start, moved.end, moved.status], [840, 930, 'confirmed']); // 配車係の移動は、確定のまま
-  // 営業アプリ側: 元の予定は外れ、新しい位置に出る
+  // 鑑定士アプリ側: 元の予定は外れ、新しい位置に出る
   assert.equal(eventsOfDay(0, 'u01').some((e) => e.id === first.gid), false);
   assert.deepEqual(reservationEvents(NOW).map((e) => [e.userId, e.start]), [['u09', '14:00']]);
 });
@@ -46,7 +46,7 @@ test('ダミーの他の訪問（灰色）も、予約として取り込める�
 test('取り込む前の予定を動かすときは、その予定自身を重なりに数えない', () => {
   const [first] = busyBlocks('u01', '2026-10-21', [], NOW); // 10:00-11:30
   const pseudo = { id: `AD-${first.gid}`, gid: first.gid, userId: 'u01', date: '2026-10-21', start: '10:00', end: '11:30' };
-  assert.equal(canPlace(pseudo, 'u01', 10 * 60 + 30, [], NOW).ok, true); // 同じ営業で、30分ずらす（自分自身とは重ならない）
+  assert.equal(canPlace(pseudo, 'u01', 10 * 60 + 30, [], NOW).ok, true); // 同じ鑑定士で、30分ずらす（自分自身とは重ならない）
   const other = busyBlocks('u01', '2026-10-21', [], NOW).find((b) => b.gid !== first.gid); // 13:00-14:00
   assert.equal(canPlace(pseudo, 'u01', other.start, [], NOW).ok, false); // 別の予定とは重なる
 });

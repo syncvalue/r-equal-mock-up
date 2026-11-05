@@ -53,7 +53,7 @@ function slotsHtml(f, cal) {
 
 function formHtml(f, stores, cal) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold">来店予約の受付${helpIcon('お客様が、店舗に買取希望品を持ち込む予約です。訪問買取と違い、エリアの判定・担当営業の割り当て・配車はありません。店舗と日時を決めると、店舗の画面の「来店」に出ます（仮確定・確定の区別はありません）。')}</h2>
+    <h2 class="font-bold">来店予約の受付${helpIcon('お客様が、店舗に買取希望品を持ち込む予約です。訪問買取と違い、エリアの判定・担当鑑定士の割り当て・配車はありません。店舗と日時を決めると、店舗の画面の「来店」に出ます（仮確定・確定の区別はありません）。')}</h2>
     <div class="grid sm:grid-cols-3 gap-3">
       <label class="text-sm font-bold">店舗<select class="inp mt-1 font-normal" data-st="storeId">${stores.map((s) => `<option value="${esc(s.id)}" ${s.id === f.storeId ? 'selected' : ''}>${esc(storeLabel(s))}</option>`).join('')}</select></label>
       <label class="text-sm font-bold">来店の日<input type="date" class="inp mt-1 font-normal" data-st="date" value="${esc(f.date)}" min="${esc(ymdOf(new Date()))}" /></label>

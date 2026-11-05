@@ -1,5 +1,5 @@
 // コールセンターの配車ロジック（画面に依存しない純関数）。
-// 訪問先の住所 → 担当エリア → そのエリアの営業のうち、希望日時に空いている人 → 女性のお客様の担当が偏らないように選ぶ。
+// 訪問先の住所 → 担当エリア → そのエリアの鑑定士のうち、希望日時に空いている人 → 女性のお客様の担当が偏らないように選ぶ。
 import { USERS, stats, monthProgress, rangeOf } from './dashboard.js';
 import { EVENTS, toMin } from './schedule.js';
 import { dayOffset, minToHHMM, ymdOf, isReverted } from './reservations.js';
@@ -15,7 +15,7 @@ export const AREAS = [
 // extraAreas: 出張エリア（src/trips.js の tripAreas）。営業所のエリア（AREAS）と同じ形で、memberIds（出張メンバー）を持つ
 export const areaById = (id, extraAreas = []) => AREAS.find((a) => a.id === id) ?? extraAreas.find((a) => a.id === id) ?? null;
 
-// 営業の担当エリア（ダミー）
+// 鑑定士の担当エリア（ダミー）
 const USER_AREA = { u01: 'osaka', u02: 'osaka', u03: 'osaka', u06: 'hyogo', u07: 'hyogo', u04: 'kanto', u05: 'kanto', u08: 'tokai', u09: 'osaka', u10: 'tokai', u11: 'osaka', u12: 'osaka', u13: 'osaka', u14: 'osaka', u15: 'osaka', u16: 'osaka' };
 export const areaOfUser = (userId) => USER_AREA[userId] ?? null;
 
@@ -46,8 +46,8 @@ const hash = (str) => {
   return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 10000) / 10000;
 };
 
-// ---- 営業の得意分野 ------------------------------------------------------------------
-// 営業ごとの得意分野（ダミー）。お客様の売りたいものと合う営業を選ぶ手がかりにする
+// ---- 鑑定士の得意分野 ------------------------------------------------------------------
+// 鑑定士ごとの得意分野（ダミー）。お客様の売りたいものと合う鑑定士を選ぶ手がかりにする
 const USER_SPECIALTY = {
   u01: ['腕時計', '貴金属・ジュエリー'], u02: ['腕時計', 'カメラ・家電', '貴金属・ジュエリー'], u03: ['ブランドバッグ', '着物・骨董'], u04: ['ゲーム・ホビー', 'カメラ・家電'],
   u05: ['ブランドバッグ', '婦人服'], u06: ['貴金属・ジュエリー', '腕時計'], u07: ['婦人服', '婦人靴', 'ブランドバッグ'], u08: ['背広', '紳士靴'], u09: ['ゲーム・ホビー'],
@@ -56,15 +56,15 @@ const USER_SPECIALTY = {
 };
 export const specialtiesOf = (userId) => USER_SPECIALTY[userId] ?? [];
 
-// ---- 営業のランク ------------------------------------------------------------------
-// 営業ごとのランク（ダミー。S が最上位）
+// ---- 鑑定士のランク ------------------------------------------------------------------
+// 鑑定士ごとのランク（ダミー。S が最上位）
 const USER_RANK = { u01: 'B', u02: 'S', u03: 'A', u04: 'C', u05: 'B', u06: 'S', u07: 'B', u08: 'C', u09: 'A', u10: 'B', u11: 'A', u12: 'B', u13: 'C', u14: 'B', u15: 'A', u16: 'C' };
 export const RANKS = ['S', 'A', 'B', 'C'];
 export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
 
 // ---- 出勤状況 ------------------------------------------------------------------------
-// 全員が1日中出勤しているとは限らない。欠勤の営業は担当に選べない。午後出社（午前休）・午後半休は、働く時間の中だけ選べる。
-// ダミー: 営業×日付で決まる。予定の入っている日は通常の出勤。見本として、日付を指定した勤怠も入れている
+// 全員が1日中出勤しているとは限らない。欠勤の鑑定士は担当に選べない。午後出社（午前休）・午後半休は、働く時間の中だけ選べる。
+// ダミー: 鑑定士×日付で決まる。予定の入っている日は通常の出勤。見本として、日付を指定した勤怠も入れている
 export const ATTENDANCE_LABEL = { absent: '欠勤', pm: '午後出社', am: '午後半休', present: '出勤' };
 const NOON = 13 * 60; // 午前と午後の境
 const FIXED_ATTENDANCE = { u03: { 2: 'am' }, u12: { 2: 'pm' }, u15: { 1: 'pm' }, u16: { 3: 'am' }, u14: { 2: 'absent' } }; // 今日からの日数 → 勤怠
@@ -150,11 +150,11 @@ const DUMMY_ADDRESS = {
   tokai: ['愛知県名古屋市中村区名駅1-1', '愛知県豊田市西町3-5', '静岡県浜松市中区砂山町2-1', '岐阜県岐阜市橋本町1-10'],
 };
 
-// 予定のない日は、営業ごとに日付で決まる「他の訪問」（ダミー）を入れて、空き状況が見本になるようにする
-// 予定が入っていない営業（入社間もなく、まだ訪問が少ない想定）。「前の訪問なし（営業所から）」の例として、常に空く
+// 予定のない日は、鑑定士ごとに日付で決まる「他の訪問」（ダミー）を入れて、空き状況が見本になるようにする
+// 予定が入っていない鑑定士（入社間もなく、まだ訪問が少ない想定）。「前の訪問なし（営業所から）」の例として、常に空く
 const LIGHT_SCHEDULE = new Set(['u09']);
 
-// 配車係が別の営業・時間に動かして、予約として取り込んだ元の予定（動かしたあとは、元の位置には出さない）。画面側が、保存先から入れる
+// 配車係が別の鑑定士・時間に動かして、予約として取り込んだ元の予定（動かしたあとは、元の位置には出さない）。画面側が、保存先から入れる
 export const hiddenBlocks = new Set();
 
 function fillerBlocks(userId, date, hidden, now) {
@@ -183,7 +183,7 @@ function fillerBlocks(userId, date, hidden, now) {
   return blocks;
 }
 
-// その日の、営業の埋まっている時間帯。既存の予定があればそれを、なければダミーを使い、コールセンターで確定済みの予約を加える
+// その日の、鑑定士の埋まっている時間帯。既存の予定があればそれを、なければダミーを使い、コールセンターで確定済みの予約を加える
 export function busyBlocks(userId, date, reservations, now = new Date(), extraHidden = null) {
   const day = dayOffset(date, now);
   const hidden = extraHidden ? new Set([...hiddenBlocks, ...extraHidden]) : hiddenBlocks;
@@ -215,7 +215,7 @@ export const conflictText = (c) => {
 };
 
 // ---- 公平性（女性のお客様の担当件数） ---------------------------------------------------
-// 女性のお客様は客単価が高いため、女性の担当が特定の営業に偏らないようにする。今月の件数＝実績（ダミー）＋コールセンターで確定した予約
+// 女性のお客様は客単価が高いため、女性の担当が特定の鑑定士に偏らないようにする。今月の件数＝実績（ダミー）＋コールセンターで確定した予約
 const SEED = {
   u01: [12, 5], u02: [14, 7], u03: [13, 4], u04: [10, 3], u05: [9, 5], u06: [15, 6], u07: [11, 2], u08: [8, 4], u09: [10, 4], u10: [9, 3], u11: [13, 6], u12: [11, 3], u13: [9, 2], u14: [14, 8], u15: [15, 4], u16: [10, 5],
 };
@@ -261,13 +261,13 @@ export function rankCandidates({ gender, areaId, date, start, dur, reservations,
   return { inArea, others };
 }
 
-// 担当を選んだときの公平性の注意: 選んだ人より、女性の担当が少ない空き営業がいれば、その人を返す
+// 担当を選んだときの公平性の注意: 選んだ人より、女性の担当が少ない空き鑑定士がいれば、その人を返す
 export function fairerAlternative(gender, picked, candidates) {
   if (gender !== 'f' || !picked) return null;
   return candidates.filter((c) => c.free && c.user.id !== picked.user.id && c.stats.female < picked.stats.female).sort(byFairness('f'))[0] ?? null;
 }
 
-// 空き枠の検索: 30分刻みの開始時刻ごとに、空いている営業の人数
+// 空き枠の検索: 30分刻みの開始時刻ごとに、空いている鑑定士の人数
 export function findSlots({ userIds, date, dur, reservations, now = new Date() }) {
   const blocks = userIds.map((id) => busyBlocks(id, date, reservations, now));
   const slots = [];
@@ -277,12 +277,12 @@ export function findSlots({ userIds, date, dur, reservations, now = new Date() }
   return slots;
 }
 
-// 1週間分の空き枠: 日付ごとに、30分刻みの開始時刻と、空いている営業（営業の id）。カレンダーで候補日を見比べるために使う
+// 1週間分の空き枠: 日付ごとに、30分刻みの開始時刻と、空いている鑑定士（鑑定士の id）。カレンダーで候補日を見比べるために使う
 export function findWeekSlots({ userIds, startDate, days = 7, dur, reservations, now = new Date() }) {
   const [y, m, d] = startDate.split('-').map(Number);
   return Array.from({ length: days }, (_, i) => {
     const date = ymdOf(new Date(y, m - 1, d + i));
-    const blocks = userIds.map((id) => ({ id, att: attendanceOf(id, date, now), blocks: busyBlocks(id, date, reservations, now) })).filter((b) => b.att.kind !== 'absent'); // 欠勤の営業は数えない
+    const blocks = userIds.map((id) => ({ id, att: attendanceOf(id, date, now), blocks: busyBlocks(id, date, reservations, now) })).filter((b) => b.att.kind !== 'absent'); // 欠勤の鑑定士は数えない
     const slots = [];
     for (let start = WORK_START; start + dur <= WORK_END; start += SLOT_STEP) {
       slots.push({ start, freeIds: blocks.filter((b) => !conflictOf(b.blocks, start, start + dur, b.att)).map((b) => b.id) });
@@ -291,7 +291,7 @@ export function findWeekSlots({ userIds, startDate, days = 7, dur, reservations,
   });
 }
 
-// 営業の詳細（日別表示で、営業の枠を選んだときに出す）。今月の実績・担当件数・その日の予定と空き枠
+// 鑑定士の詳細（日別表示で、鑑定士の枠を選んだときに出す）。今月の実績・担当件数・その日の予定と空き枠
 export function salesDetail({ userId, date, start, dur, reservations, here = null, now = new Date() }) {
   const user = USERS.find((u) => u.id === userId);
   if (!user) return null;
@@ -317,7 +317,7 @@ export function salesDetail({ userId, date, start, dur, reservations, here = nul
   };
 }
 
-// 配車係が、予約を別の営業・別の時刻に動かせるか。動かす予約自身は、重なりに数えない。同じ日の中で動かす
+// 配車係が、予約を別の鑑定士・別の時刻に動かせるか。動かす予約自身は、重なりに数えない。同じ日の中で動かす
 export function canPlace(rec, userId, start, reservations, now = new Date()) {
   const end = start + (toMin(rec.end) - toMin(rec.start));
   if (start < WORK_START || end > WORK_END) return { ok: false, reason: '営業時間外' };

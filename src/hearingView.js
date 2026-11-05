@@ -1,4 +1,4 @@
-// 受電時のヒアリング内容（コールセンターが電話口で聞き取った内容）。営業が訪問前に確認する情報。
+// 受電時のヒアリング内容（コールセンターが電話口で聞き取った内容）。鑑定士が訪問前に確認する情報。
 import { esc } from "./format.js";
 import { hearingOf } from "./schedule.js";
 import { helpIcon } from "./help.js";

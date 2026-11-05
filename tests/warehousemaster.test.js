@@ -13,7 +13,7 @@ test('初期のマスタ: 倉庫は営業所とは独立。営業所と一体の
   assert.ok(m.warehouses.some((w) => w.officeId)); // 営業所と一体
   assert.ok(m.warehouses.some((w) => !w.officeId)); // 倉庫のみ
   const withOffice = new Set(m.warehouses.map((w) => w.officeId).filter(Boolean));
-  assert.ok(AREAS.some((a) => !withOffice.has(a.id))); // 営業のみ（倉庫のない営業所）
+  assert.ok(AREAS.some((a) => !withOffice.has(a.id))); // 鑑定士のみ（倉庫のない営業所）
   assert.ok([...withOffice].every((id) => AREAS.some((a) => a.id === id))); // 併設先は、実在する営業所
   assert.ok(m.warehouses.every((w) => w.locations.length >= 1 && w.active));
   assert.ok(m.staff.every((s) => m.warehouses.some((w) => w.id === s.warehouseId))); // 倉庫担当は、いずれかの倉庫に所属
@@ -94,7 +94,7 @@ test('倉庫の引き当て: 営業所に併設の倉庫を優先し、なけれ
   assert.equal(M.warehouseIdOf({}, m), m.warehouses[0].id);
 });
 
-test('営業の納入先: 選んだ倉庫・保管場所を使う。未選択、または無効・存在しない倉庫なら、営業所に併設の倉庫（なければ先頭）。保管場所は、その倉庫の棚から選ぶ', () => {
+test('鑑定士の納入先: 選んだ倉庫・保管場所を使う。未選択、または無効・存在しない倉庫なら、営業所に併設の倉庫（なければ先頭）。保管場所は、その倉庫の棚から選ぶ', () => {
   const m = M.DEFAULT_MASTER;
   const [osaka, kanto] = m.warehouses;
   const noWh = AREAS.find((a) => !m.warehouses.some((w) => w.officeId === a.id)).id;

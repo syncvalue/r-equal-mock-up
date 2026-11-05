@@ -4,7 +4,7 @@ import { estimateByPhotos, RECEIPT_SAMPLES, receiptSampleFor } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
   sendMessage,
-  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
+  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, PETTY_KEY, LEDGER_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import { addPhoto, removePhoto } from './itemPhotos.js';
@@ -24,6 +24,7 @@ import {
   accountFor, passwordProblem, issueCode, checkCode, loadSession, saveSession, clearSession, RESEND_WAIT, MAX_CODE_TRIES,
 } from './auth.js';
 import { formatMoneyInput } from './moneyInput.js';
+import { blankPettyForm, sendPettyRequest, withdrawPetty, pettyReady } from './pettyRequest.js';
 import {
   START_CHECKS, END_CHECKS, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
   newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, startReady, closeReady,
@@ -40,7 +41,7 @@ function callInfoOf(ev, userId) {
 
 const blankAuth = (id = '') => ({ screen: 'login', id, pw: '', showPw: false, code: '', newPw: '', newPw2: '', error: '', info: '', pending: null, resetUserId: null });
 
-// ログイン中の営業の、最初の予定を、訪問・予定表の初期値にする
+// ログイン中の鑑定士の、最初の予定を、訪問・予定表の初期値にする
 const firstEventOf = (userId) => (userId && eventsOfDay(0, userId)[0]) || EVENTS[0];
 
 const initialState = () => ({
@@ -53,6 +54,7 @@ const initialState = () => ({
   startForm: blankStartForm(),
   closeForm: blankCloseForm(),
   expDraft: blankExpenseDraft(),
+  petty: blankPettyForm(), // 小口金の申請の入力中データ
   outcome: null,
   outcomeDraft: blankOutcomeDraft(),
   units: [],
@@ -165,7 +167,7 @@ function publish() {
   if (!state.visitStartedAt) return;
   publishLive({
     visitId: state.visitId,
-    staff: `営業 ${userById(state.user).name}`,
+    staff: `鑑定士 ${userById(state.user).name}`,
     startedAt: state.visitStartedAt,
     endedAt: state.visitEndedAt,
     userId: state.user,
@@ -202,7 +204,7 @@ function render() {
   const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
   $('#app').innerHTML =
     V.headerView(state) +
-    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : state.view === 'return' ? V.stockView(state) : V.placeholderView(state)}</main>` +
+    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : state.view === 'petty' ? V.pettyView(state) : state.view === 'return' ? V.stockView(state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
     V.modalView(state) +
     V.receiptModalView(state) +
@@ -529,7 +531,7 @@ const actions = {
     } else {
       upsertAppraisal(addMessage({
         id: newAppraisalId(), createdAt: Date.now(), visitId: state.visitId, itemId, name: d.name.trim() || '（名称未入力）',
-        note: d.note, photos: d.photos, sender: `営業 ${userById(state.user).name}`, customerName: state.customer.name,
+        note: d.note, photos: d.photos, sender: `鑑定士 ${userById(state.user).name}`, customerName: state.customer.name,
         status: '依頼中', reply: null, adopted: false, messages: [],
       }, msg));
     }
@@ -559,7 +561,7 @@ const actions = {
   finish: () => {
     if (V.leaveRemaining(state) !== 0) return;
     set({ visitEndedAt: Date.now(), modal: null });
-    // 査定はしたが売らなかったもの（見送り品）を、お客様ごとの記録に残す。次回の訪問や、営業の当てはめの判断に使う
+    // 査定はしたが売らなかったもの（見送り品）を、お客様ごとの記録に残す。次回の訪問や、鑑定士の当てはめの判断に使う
     recordDeclined({ visitId: state.visitId, phone: state.customer.phone, customerName: state.customer.name, at: Date.now(), items: state.items.filter((i) => !i.sell) });
     const sel = V.selectedItems(state);
     const day = loadDay(state.user);
@@ -645,8 +647,15 @@ const actions = {
     if (!confirm('この経費の計上を取り消します。よろしいですか？')) return;
     saveDay(removeExpense(state.day, el.dataset.id));
   },
+  // 小口金の申請（承認は経理部）
+  'petty-send': () => {
+    if (!sendPettyRequest(state.user, state.petty)) { showToast('金額と用途を入力してください'); return; }
+    set({ petty: blankPettyForm() });
+    showToast('小口金の使用を申請しました（経理部が承認します）');
+  },
+  'petty-withdraw': (el) => { if (confirm('この申請を取り下げます。よろしいですか？')) { withdrawPetty(state.user, el.dataset.id); set({}); } },
   'exp-view': (el) => set({ modal: { type: 'receipt', id: el.dataset.id } }),
-  // お客様の評価（営業の記録）。訪問が完了した予定から登録する。保存済みの内容があれば、それを下書きとして開く
+  // お客様の評価（鑑定士の記録）。訪問が完了した予定から登録する。保存済みの内容があれば、それを下書きとして開く
   'eval-open': (el) => {
     const target = el.dataset.visitId ? evalTargetOfVisit(el.dataset.visitId) : evalTargetOf(state, el.dataset.id);
     if (target) set({ modal: { type: 'eval', ...target }, evalDraft: target.existing ? { ...V.blankEval(), ...target.existing } : V.blankEval() });
@@ -663,8 +672,8 @@ const actions = {
   'eval-save': () => {
     const { visitId, startedAt, customer } = state.modal;
     const e = state.evalDraft;
-    const record = { visitId, customerName: customer.name, phone: customer.phone, savedAt: Date.now(), by: `営業 ${userById(state.user).name}`, ...e, memo: e.memo.trim() };
-    upsertEval(record); // 営業が入力するのは、訪問ごとの評価
+    const record = { visitId, customerName: customer.name, phone: customer.phone, savedAt: Date.now(), by: `鑑定士 ${userById(state.user).name}`, ...e, memo: e.memo.trim() };
+    upsertEval(record); // 鑑定士が入力するのは、訪問ごとの評価
     setFirstVisitCustomerEval(record, { before: startedAt ?? Infinity }); // 初めての訪問なら、お客様の評価の初期値にもなる（あとから登録し直せる）
     set({ modal: null });
     showToast('お客様の評価を保存しました');
@@ -802,7 +811,7 @@ document.addEventListener('input', (e) => {
   if (el.dataset.wd) {
     // 始業・終業・経費の入力。再描画せず state だけ更新し、差異の表示とボタンだけ差し替える（フォーカス維持）
     const filled = el.value.trim() !== '';
-    const amount = el.dataset.wd.endsWith('counted') || el.dataset.wd === 'exp-amount' ? formatMoneyInput(el) : 0;
+    const amount = el.dataset.wd.endsWith('counted') || ['exp-amount', 'petty-amount'].includes(el.dataset.wd) ? formatMoneyInput(el) : 0;
     const patch = {
       'start-counted': { startForm: { ...state.startForm, counted: amount, countedSet: filled } },
       'start-note': { startForm: { ...state.startForm, note: el.value } },
@@ -811,6 +820,9 @@ document.addEventListener('input', (e) => {
       'close-comment': { closeForm: { ...state.closeForm, comment: el.value } },
       'exp-amount': { expDraft: { ...state.expDraft, amount } },
       'exp-memo': { expDraft: { ...state.expDraft, memo: el.value } },
+      'petty-amount': { petty: { ...state.petty, amount } },
+      'petty-date': { petty: { ...state.petty, date: el.value } },
+      'petty-memo': { petty: { ...state.petty, memo: el.value } },
       'oc-memo': { outcomeDraft: { ...state.outcomeDraft, memo: el.value } },
       'oc-date': { outcomeDraft: { ...state.outcomeDraft, date: el.value } },
       'oc-time': { outcomeDraft: { ...state.outcomeDraft, time: el.value } },
@@ -820,6 +832,7 @@ document.addEventListener('input', (e) => {
     if ($('#wd-start-bottom')) $('#wd-start-bottom').innerHTML = V.wdStartBottomView(state);
     if ($('#exp-live')) $('#exp-live').innerHTML = V.expLiveView(state);
     if ($('#oc-live')) $('#oc-live').innerHTML = V.ocLiveView(state);
+    if (el.dataset.wd.startsWith('petty')) { const b = $('[data-action="petty-send"]'); if (b) b.disabled = !pettyReady(state.petty); }
     return;
   }
   if (el.dataset.evalmemo !== undefined) {
@@ -860,6 +873,10 @@ function rerenderKeepScroll() {
 
 // 本社(別タブ)からの回答を受信
 window.addEventListener('storage', (e) => {
+  if (e.key === PETTY_KEY || e.key === LEDGER_KEY) { // 小口金の承認・却下・補充（経理部）
+    if (state.view === 'petty') rerenderKeepScroll();
+    return;
+  }
   if (e.key === DEPOSIT_KEY) {
     showToast('🏦 本社から入金がありました');
     rerenderKeepScroll();

@@ -11,7 +11,7 @@ const { upsertEval } = await import('../src/store.js');
 const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 beforeEach(() => store.clear());
 
-const visitEval = (o = {}) => ({ visitId: 'V1', phone: '090-1111-2222', customerName: 'A', savedAt: Date.UTC(2026, 9, 20), by: '営業 鈴木 一郎', overall: 4, attitude: '良好', repeat: '高い', wealth: '高そう', timing: '3か月以内', cats: [], flags: [], memo: '初回。丁寧に対応', ...o });
+const visitEval = (o = {}) => ({ visitId: 'V1', phone: '090-1111-2222', customerName: 'A', savedAt: Date.UTC(2026, 9, 20), by: '鑑定士 鈴木 一郎', overall: 4, attitude: '良好', repeat: '高い', wealth: '高そう', timing: '3か月以内', cats: [], flags: [], memo: '初回。丁寧に対応', ...o });
 
 test('訪問の評価から、お客様の評価の初期値を作る（資力→ランク、フラグ・態度→厄介度）', () => {
   assert.deepEqual(customerEvalFromVisit(visitEval()), { rank: 'A', trouble: { level: 'none', tags: [], memo: '' }, memo: '初回。丁寧に対応' });
@@ -59,7 +59,7 @@ test('訪問の評価は、訪問ごとに別。お客様の評価とは別に�
   assert.equal(evalOfVisit({ at: 5, visitId: 'X' }, [{ visitId: 'X', savedAt: 999 }]).visitId, 'X'); // 識別子があれば、それで結びつく
 });
 
-test('営業のタブレット: 過去の訪問ごとの評価を、訪問の数だけ出す', () => {
+test('鑑定士のタブレット: 過去の訪問ごとの評価を、訪問の数だけ出す', () => {
   const h = { isRepeat: true, count: 3, visits: customerDossier(['090-5050-6060']).visits };
   const t = text(pastEvalView(h));
   assert.match(t, /過去の訪問ごとの評価（3回）/);

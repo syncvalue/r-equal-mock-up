@@ -18,7 +18,7 @@ test('手入力だけで、必須項目がそろえば確定できる（備考�
 
 test('足りない項目を、それぞれ指摘する', () => {
   const blank = { ...typed, phone: '', lastName: ' ', firstName: '', lastKana: '', firstKana: ' ', age: '', ageEst: '', gender: '', address: '', chirashi: null, flyerId: '', cats: [], wants: '', date: '' };
-  assert.deepEqual(missingFields(blank, { ...ready, areaConfirmed: false, selected: null }), ['電話番号', 'お名前（姓・名）', 'フリガナ（セイ・メイ）', '性別', '年齢（聞けない場合は、推測の年代）', '訪問先の住所', '来電のきっかけ（チラシのID）', '売りたいもの', '希望日（今日以降）', '担当の営業']);
+  assert.deepEqual(missingFields(blank, { ...ready, areaConfirmed: false, selected: null }), ['電話番号', 'お名前（姓・名）', 'フリガナ（セイ・メイ）', '性別', '年齢（聞けない場合は、推測の年代）', '訪問先の住所', '来電のきっかけ（チラシのID）', '売りたいもの', '希望日（今日以降）', '担当の鑑定士']);
 });
 
 test('エリア未確認・存在しないチラシID・過去の日付', () => {
@@ -70,7 +70,7 @@ test('性別・年齢: 聞けずに声から推測した場合は「推測」と
   assert.deepEqual([told.gender.estimated, told.age.estimated], [false, false]);
 });
 
-test('営業のタブレットに出す、性別・年齢と氏名', () => {
+test('鑑定士のタブレットに出す、性別・年齢と氏名', () => {
   const g = (k) => ({ f: '女性', m: '男性' })[k];
   assert.equal(profileText({ gender: 'f', genderEst: true, age: '', ageEst: '60代' }, g), '女性（推測）／60代（推測）');
   assert.equal(profileText({ gender: 'm', genderEst: false, age: '45', ageEst: '' }, g), '男性／45歳');

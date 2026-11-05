@@ -1,5 +1,5 @@
-// コールセンター 受付・配車画面（ダミー・PC想定）。受電内容を聞き取り、訪問先のエリアの営業から、
-// 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を仮確定する。担当の確定は配車係が行い（配車確定タブ）、確定した予約が営業アプリの予定に出る。
+// コールセンター 受付・配車画面（ダミー・PC想定）。受電内容を聞き取り、訪問先のエリアの鑑定士から、
+// 希望日時に空いていて、女性のお客様の担当が偏らない人を選んで、訪問を仮確定する。担当の確定は配車係が行い（配車確定タブ）、確定した予約が鑑定士アプリの予定に出る。
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
 import { loadEmployees, operatorNames } from '../src/employees.js';
@@ -52,10 +52,10 @@ const blankForm = () => makeBlankForm();
 
 let tab = 'new';
 let cvArea = 'osaka'; // 訪問カレンダーのエリア
-let cvMode = 'week'; // week=週の表（日 × 時間・濃さ）／day=その日だけ（営業ごとの列）
+let cvMode = 'week'; // week=週の表（日 × 時間・濃さ）／day=その日だけ（鑑定士ごとの列）
 let cvWeekStart = ymdOf(new Date()); // 週の表の先頭の日
 let cvDate = ymdOf(new Date()); // 日別で見ている日
-let cvStaff = []; // 営業で絞り込み（空なら全員）
+let cvStaff = []; // 鑑定士で絞り込み（空なら全員）
 let cvStaffOpen = false;
 let calSel = null; // 前日確認を記録している訪問
 let callDraft = { result: 'reached', memo: '' }; // 記録の入力途中
@@ -66,16 +66,16 @@ let form = blankForm();
 let done = null; // 確定した直後の予約（確定画面を表示している間）
 let quoted = false; // 過去のお客様情報を引用済みか
 let showOthers = false;
-let calStaff = []; // 営業を絞り込む（空なら全員）。「この案件はAさんかBさんが適任」のときに、その人たちだけを表示する
+let calStaff = []; // 鑑定士を絞り込む（空なら全員）。「この案件はAさんかBさんが適任」のときに、その人たちだけを表示する
 let staffOpen = false;
-let calOnlyFree = false; // 日別表示で、希望の時間に空いている営業だけを出す
-let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別（営業ごとの列）
+let calOnlyFree = false; // 日別表示で、希望の時間に空いている鑑定士だけを出す
+let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別（鑑定士ごとの列）
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
 let callLogOpen = false; // 受電履歴を開いているか
 let editBy = null; // 変更を始めた人（オペレーター／配車係）
 let editId = null; // 受付済みの予約の日時を変更しているとき、その予約
 let custInfoRid = null; // 配車係が、お客様の詳細をモーダルで見ている予約
-let staffInfoId = null; // 顔写真を押して、詳細をモーダルで見ている営業
+let staffInfoId = null; // 顔写真を押して、詳細をモーダルで見ている鑑定士
 let cancelId = null; // 取消の確認を出している予約
 let cancelReason = CANCEL_REASONS[0];
 let boardArea = 'osaka';
@@ -116,7 +116,7 @@ function compute() {
   const area = confirmed ?? proposal;
   const here = area?.lat != null ? locateAddress(form.address, area) : null; // 今回のお客様の住所の位置（概算）。前の訪問からの距離に使う
   const full = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here, extraAreas });
-  // 営業の絞り込み。絞ったときは、表示している営業の中で、おすすめ（担当が最も少ない人）を決め直す
+  // 鑑定士の絞り込み。絞ったときは、表示している鑑定士の中で、おすすめ（担当が最も少ない人）を決め直す
   const staffSel = calStaff.filter((id) => full.inArea.some((c) => c.user.id === id));
   const shownIn = full.inArea.filter((c) => !staffSel.length || staffSel.includes(c.user.id)).map((c) => ({ ...c, recommended: false }));
   const firstFree = shownIn.find((c) => c.free);
@@ -349,7 +349,7 @@ function render() {
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">オペレーター <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${ops.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
       ${tab === 'new' && !editId ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">🎙 音声入力デモ${demoOpen ? 'を閉じる' : '（今後の拡張）'}</button>` : ''}
-      <a class="underline text-white/80 text-xs" href="/tablet/" target="_blank" rel="noopener">営業アプリを開く</a>
+      <a class="underline text-white/80 text-xs" href="/tablet/" target="_blank" rel="noopener">鑑定士アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
   ${menuOpen ? menuView({ tab, badges: menuBadges() }) : ''}
@@ -566,7 +566,7 @@ document.addEventListener('click', (e) => {
   else if ('new' in d) { editId = null; stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
   else if ('calllog' in d) { callLogOpen = !callLogOpen; renderHint(); }
   else if (d.chg) startEdit(d.chg);
-  else if (d.calarea) { cvArea = d.calarea; cvStaff = []; calSel = null; render(); } // エリアを変えたら、営業の絞り込みは外す
+  else if (d.calarea) { cvArea = d.calarea; cvStaff = []; calSel = null; render(); } // エリアを変えたら、鑑定士の絞り込みは外す
   else if ('calstaffpanel' in d) { cvStaffOpen = !cvStaffOpen; render(); }
   else if ('calstaffclear' in d) { cvStaff = []; render(); }
   else if (d.calstaff) { cvStaff = cvStaff.includes(d.calstaff) ? cvStaff.filter((id) => id !== d.calstaff) : [...cvStaff, d.calstaff]; calSel = null; render(); }
@@ -623,7 +623,7 @@ document.addEventListener('click', (e) => {
   }
   else if ('fixall' in d) {
     const targets = loadReservations().filter((r) => r.date === dispDate && isTentative(r));
-    if (targets.length && confirm(`${dateLabel(dispDate)}の仮確定 ${targets.length}件を、すべて確定します。確定した訪問は、営業のタブレットの予定に出ます。`)) {
+    if (targets.length && confirm(`${dateLabel(dispDate)}の仮確定 ${targets.length}件を、すべて確定します。確定した訪問は、鑑定士のタブレットの予定に出ます。`)) {
       const at = new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
       targets.forEach((r) => updateReservation(r.id, { status: 'confirmed', needsReview: false, holdNote: null, confirmedAt: at, confirmedBy: '配車係' }));
       render();
@@ -632,7 +632,7 @@ document.addEventListener('click', (e) => {
   else if ('reset' in d) { if (confirm(RESET_CONFIRM)) { clearTransactions(); try { localStorage.removeItem(SAMPLE_KEY); } catch { /* 消せなくても動作は継続 */ } seedSamples(); stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; render(); } }
 });
 
-// カレンダーの帯を選ぶ。営業の元からの予定（予約の記録がないもの）は、選んだ時点で予約として取り込み、ほかの予約と同じように、詳細・変更・取消ができるようにする
+// カレンダーの帯を選ぶ。鑑定士の元からの予定（予約の記録がないもの）は、選んだ時点で予約として取り込み、ほかの予約と同じように、詳細・変更・取消ができるようにする
 function selectBlock(idOrGid, el) {
   if (loadReservations().some((r) => r.id === idOrGid)) { boardSel = boardSel === idOrGid ? null : idOrGid; return; }
   const userId = el.closest('[data-bcol]')?.dataset.bcol;
@@ -645,7 +645,7 @@ function selectBlock(idOrGid, el) {
   boardSel = rec.id;
 }
 
-// ---- 配車係のカレンダー: 予約の帯をドラッグして、別の営業・時間に動かす（パズルのように調整する） ------------------------------------
+// ---- 配車係のカレンダー: 予約の帯をドラッグして、別の鑑定士・時間に動かす（パズルのように調整する） ------------------------------------
 let dragging = null; // { id, rec, mins, grab, all }
 const colAt = (target) => target.closest?.('[data-bcol]');
 // 置こうとしている位置（列の中の縦の位置 → 30分刻みの開始時刻）
@@ -668,7 +668,7 @@ function showGhost(col, t) {
   col.appendChild(g);
 }
 document.addEventListener('dragstart', (e) => {
-  const gray = e.target.closest?.('[data-gid]'); // 営業の元からの予定
+  const gray = e.target.closest?.('[data-gid]'); // 鑑定士の元からの予定
   if (gray) {
     const col = gray.closest('[data-bcol]');
     const gid = gray.dataset.gid;
@@ -710,7 +710,7 @@ document.addEventListener('drop', (e) => {
   const nameOf = (id) => USERS.find((u) => u.id === id)?.name ?? id;
   const fields = { userId: t.userId, start: minToHHMM(v.start), end: minToHHMM(v.end) };
   let rec = before;
-  if (block) { // 営業の元からの予定を、予約として取り込む。元の位置からは外す
+  if (block) { // 鑑定士の元からの予定を、予約として取り込む。元の位置からは外す
     rec = reservationFromBlock(block, { userId: before.userId, date: before.date, seq: loadMovedIds().length + 1 });
     addReservation(rec);
     addMovedId(block.gid);
@@ -725,7 +725,7 @@ document.addEventListener('drop', (e) => {
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing && e.target.matches?.('[data-co-msg]')) { sendCooloffMessage(e.target.dataset.coMsg); return; } if (e.key === 'Escape' && coZoom) { coZoom = ''; renderCooloffParts(); return; } if (e.key === 'Escape' && (staffInfoId || custInfoRid)) { staffInfoId = null; custInfoRid = null; render(); } });
 
-// 他のタブ（営業アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
+// 他のタブ（鑑定士アプリ・本社）での変更を反映する。入力中は入力欄の内容を壊さないよう、配車の候補だけを更新する
 window.addEventListener('storage', (e) => {
   if ([RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY].includes(e.key)) { if (tab === 'cooloff' && !document.activeElement?.matches?.('[data-co-msg]')) renderCooloffParts(); return; } // 倉庫の回答・返送を反映
   if (e.key === STORE_VISITS_KEY) { if (tab === 'store' && !document.activeElement?.matches?.('input,select')) render(); return; } // 店舗での来店・取消を反映

@@ -123,7 +123,7 @@ export function stockTab(data, { filter, q, scan, view, rl, page, pageSize }) {
   </div>
   <div class="flex flex-wrap items-center gap-2">
     ${FILTERS.map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}
-    ${helpIcon('買い取った商品は、クーリングオフに備え、買取から10日間は保管し、出品・販売できません（お客様の通知は郵送で届くため、法定の8日間に余裕を足しています）。保管期間が過ぎた入庫済みの商品から出品できます。\n入庫は営業のタブレット（商品の持ち帰り）で、QRシールを読み取って行います。')}
+    ${helpIcon('買い取った商品は、クーリングオフに備え、買取から10日間は保管し、出品・販売できません（お客様の通知は郵送で届くため、法定の8日間に余裕を足しています）。保管期間が過ぎた入庫済みの商品から出品できます。\n入庫は鑑定士のタブレット（商品の持ち帰り）で、QRシールを読み取って行います。')}
   </div>
   <div class="flex gap-2 items-center"><span class="text-sm font-bold">表示</span>
     ${[['list', '☰ 一覧'], ['lot', '📅 買取日・お客様別']].map(([k, l]) => `<button class="b b-sec !min-h-[40px] !py-1 ${view === k ? 'on' : ''}" data-view="${k}">${l}</button>`).join('')}

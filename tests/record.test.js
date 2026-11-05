@@ -48,7 +48,7 @@ test('変更前後の差分: 変わった項目だけ、項目名つきで出る
   const after = rec({ ...filled, date: '2026-10-29', userId: 'u11', address: '大阪府堺市1-1', parking: 'あり' });
   const names = { u09: '松田 亮', u11: '西田 翼' };
   const d = diffRecords(before, after, (id) => names[id]);
-  assert.deepEqual(d.map((x) => x.label), ['訪問日時', '担当営業', '訪問先', '駐車スペース']);
+  assert.deepEqual(d.map((x) => x.label), ['訪問日時', '担当鑑定士', '訪問先', '駐車スペース']);
   assert.deepEqual([d[1].from, d[1].to], ['松田 亮', '西田 翼']);
   assert.deepEqual(diffRecords(before, rec(filled), (id) => names[id]), []); // 変更なしなら、差分なし
 });

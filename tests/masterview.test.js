@@ -42,7 +42,7 @@ test('営業所: 一覧に、担当の都道府県と、併設の倉庫が出る
   const html = masterHtml(ctx('offices'));
   const t = text(html);
   assert.ok(/大阪営業所 大阪府・奈良県・和歌山県 大阪倉庫/.test(t), t);
-  assert.ok(/東海営業所.*なし（営業のみ）/.test(t));
+  assert.ok(/東海営業所.*なし（鑑定士のみ）/.test(t));
   assert.ok(html.includes('data-mo-edit="osaka"') && html.includes('data-mo-toggle="osaka"') && html.includes('data-mo-save') && html.includes('data-f="mo.name"'));
   assert.ok(t.includes('営業所の新規登録'));
   const edit = masterHtml(ctx('offices', { ui: { ...ctx('offices').ui, offices: { mo: formFromOffice(DEFAULT_OFFICES[0]) } } }));

@@ -1,5 +1,5 @@
-// 配車係の画面（ダミー）。オペレーターが仮確定した訪問の、担当営業を確認・変更して、確定する。主に翌々日の予定を、毎日確定していく。
-// 確定した訪問だけが、営業のタブレットの予定に出る。
+// 配車係の画面（ダミー）。オペレーターが仮確定した訪問の、担当鑑定士を確認・変更して、確定する。主に翌々日の予定を、毎日確定していく。
+// 確定した訪問だけが、鑑定士のタブレットの予定に出る。
 import { esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
 import { USERS, isLeader } from '../src/dashboard.js';
@@ -17,8 +17,8 @@ const diffText = (r) => reviewDiffs(r).map((d) => `${esc(d.label)}：${esc(trunc
 
 const trunc = (s, n) => (String(s).length > n ? `${String(s).slice(0, n)}…` : String(s));
 
-// ---- カレンダー（営業ごとの列）。オペレーターの日別表示と同じ見た目。予約の帯をドラッグして、別の営業・時間に動かす ----------------------------
-// ---- 営業の詳細（顔写真を押すと、モーダルで出す） ---------------------------------------------------------
+// ---- カレンダー（鑑定士ごとの列）。オペレーターの日別表示と同じ見た目。予約の帯をドラッグして、別の鑑定士・時間に動かす ----------------------------
+// ---- 鑑定士の詳細（顔写真を押すと、モーダルで出す） ---------------------------------------------------------
 const wan = (n) => `${Math.round(n / 10000).toLocaleString('ja-JP')}万円`;
 const pct = (x) => `${Math.round(x * 100)}%`;
 
@@ -58,7 +58,7 @@ const ymd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${d.get
 const yenText = (n) => `¥${Number(n || 0).toLocaleString('ja-JP')}`;
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
 
-// お客様の評価の登録・変更（配車係）。営業が入力した、訪問ごとの評価（下の買取履歴の各回）を見て、お客様の評価を登録する
+// お客様の評価の登録・変更（配車係）。鑑定士が入力した、訪問ごとの評価（下の買取履歴の各回）を見て、お客様の評価を登録する
 function customerEvalEditor(p, phone) {
   if (!phone) return '';
   const sel = (key, opts, cur) => `<select class="inp !py-0.5" data-ce="${key}">${opts.map(([v, t]) => `<option value="${v}" ${v === (cur ?? '') ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
@@ -68,7 +68,7 @@ function customerEvalEditor(p, phone) {
       <label class="space-y-0.5"><span class="text-slate-500">厄介度</span>${sel('level', [['none', 'なし'], ['caution', '注意'], ['alert', '要注意']], p.trouble.level)}</label>
       <label class="col-span-2 space-y-0.5"><span class="text-slate-500">厄介な点（読点「、」で区切る）</span><input class="inp !py-0.5" data-ce="tags" value="${esc(p.trouble.tags.join('、'))}" placeholder="例: クレームが多い、売却に至らない" /></label>
       <label class="col-span-2 space-y-0.5"><span class="text-slate-500">お客様のメモ</span><textarea class="inp !py-0.5" rows="2" data-ce="memo" placeholder="例: 資産は多いが、成約まで時間がかかる">${esc(p.memo ?? '')}</textarea></label>
-      <div class="col-span-2 flex items-center gap-2"><button class="b b-pri !min-h-0 !py-1" data-custeval-save>保存</button>${helpIcon('訪問ごとの評価（営業が入力）を見て登録します。\n初めての訪問は、その訪問の評価が、初期値として設定されます。')}</div></div></details>`;
+      <div class="col-span-2 flex items-center gap-2"><button class="b b-pri !min-h-0 !py-1" data-custeval-save>保存</button>${helpIcon('訪問ごとの評価（鑑定士が入力）を見て登録します。\n初めての訪問は、その訪問の評価が、初期値として設定されます。')}</div></div></details>`;
 }
 
 export function customerModalHtml({ rid, reservations, now }) {
@@ -81,11 +81,11 @@ export function customerModalHtml({ rid, reservations, now }) {
   const h = r.hearing ?? {};
   const box = (title, body) => `<section class="space-y-1 rounded-lg border bg-slate-50 p-2"><h3 class="text-xs font-bold text-slate-500">${title}</h3>${body}</section>`;
   const row = (k, v) => `<div class="flex gap-2 text-xs"><span class="w-24 shrink-0 text-slate-500">${k}</span><span class="min-w-0">${v}</span></div>`;
-  // 買取の履歴: 訪問ごとに折りたたみ、1回ごとに、品目の内訳（品名・数量・金額）を全件と、その回の営業の評価・メモを出す。
+  // 買取の履歴: 訪問ごとに折りたたみ、1回ごとに、品目の内訳（品名・数量・金額）を全件と、その回の鑑定士の評価・メモを出す。
   // 評価・メモは、訪問ごとに登録されるので、訪問が複数あれば、評価・メモも複数ある。直近の5回を先に、それ以前は「さらに…」にまとめる。品目が多い回は、枠の中でスクロールする
-  const evalHtml = (e) => (e ? `<div class="rounded border border-slate-200 bg-slate-50 p-1.5 text-xs"><div class="flex flex-wrap items-center gap-x-2 gap-y-0.5"><b>営業の評価</b><span class="text-slate-500">${esc(e.by)}</span><span class="text-amber-500">${stars(e.overall)}</span>
+  const evalHtml = (e) => (e ? `<div class="rounded border border-slate-200 bg-slate-50 p-1.5 text-xs"><div class="flex flex-wrap items-center gap-x-2 gap-y-0.5"><b>鑑定士の評価</b><span class="text-slate-500">${esc(e.by)}</span><span class="text-amber-500">${stars(e.overall)}</span>
       <span>態度：${esc(e.attitude)}</span><span>再依頼：${esc(e.repeat)}</span><span>資産：${esc(e.wealth)}</span><span>売却の時期：${esc(e.timing)}</span></div>
-      ${e.flags?.length ? `<div class="mt-0.5">${e.flags.map((f) => `<span class="mr-1 rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-900">${esc(f)}</span>`).join('')}</div>` : ''}${e.memo ? `<div class="mt-0.5 text-slate-700">${esc(e.memo)}</div>` : ''}</div>` : '<div class="text-xs text-slate-400">この回の営業の評価・メモは、まだありません</div>');
+      ${e.flags?.length ? `<div class="mt-0.5">${e.flags.map((f) => `<span class="mr-1 rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-900">${esc(f)}</span>`).join('')}</div>` : ''}${e.memo ? `<div class="mt-0.5 text-slate-700">${esc(e.memo)}</div>` : ''}</div>` : '<div class="text-xs text-slate-400">この回の鑑定士の評価・メモは、まだありません</div>');
   const visitHtml = (v, open) => {
     const lines = visitLines(v);
     const count = lines.reduce((n, l) => n + (l.qty ?? 1), 0);
@@ -93,8 +93,8 @@ export function customerModalHtml({ rid, reservations, now }) {
     return `<details class="group rounded border bg-white" ${open ? 'open' : ''}>
       <summary class="cursor-pointer px-1.5 py-1 text-xs"><div class="flex items-center gap-2"><span class="w-20 shrink-0 text-slate-500">${ymd(v.at)}</span>
         <span class="min-w-0 flex-1 truncate" title="${esc(lines.map((l) => l.name).join('、'))}">${esc(lines[0].name)}${lines.length > 1 ? `<span class="text-slate-500"> ほか${lines.length - 1}品目</span>` : ''}</span>
-        ${e ? `<span class="shrink-0 text-amber-500 group-open:hidden" title="営業の評価">${stars(e.overall)}</span>` : ''}<span class="shrink-0 text-slate-500">${count}点</span><b class="shrink-0">${yenText(v.total)}</b></div>
-        ${e?.memo ? `<div class="ml-[5.5rem] truncate text-[11px] text-slate-500 group-open:hidden" title="${esc(e.memo)}">${esc(String(e.by).replace(/^営業\s*/, ''))}：${esc(e.memo)}</div>` : ''}</summary>
+        ${e ? `<span class="shrink-0 text-amber-500 group-open:hidden" title="鑑定士の評価">${stars(e.overall)}</span>` : ''}<span class="shrink-0 text-slate-500">${count}点</span><b class="shrink-0">${yenText(v.total)}</b></div>
+        ${e?.memo ? `<div class="ml-[5.5rem] truncate text-[11px] text-slate-500 group-open:hidden" title="${esc(e.memo)}">${esc(String(e.by).replace(/^(営業|鑑定士)\s*/, ''))}：${esc(e.memo)}</div>` : ''}</summary>
       <div class="space-y-1 border-t px-1.5 py-1"><div class="max-h-44 overflow-y-auto"><table class="w-full text-xs"><tbody>${lines.map((l) => `<tr class="border-t first:border-t-0"><td class="py-0.5">${esc(l.name)}</td><td class="w-10 text-right text-slate-500">${(l.qty ?? 1) > 1 ? `×${l.qty}` : ''}</td><td class="w-20 text-right">${yenText(lineTotal(l))}</td></tr>`).join('')}</tbody></table></div>
         ${evalHtml(e)}</div></details>`;
   };
@@ -117,7 +117,7 @@ export function customerModalHtml({ rid, reservations, now }) {
         ${declinedCardHtml(d.declined, { empty: true })}</section>
       ${box('誰を当てるかの判断の手がかり', `${assignAdvice(p) || '<div class="text-xs text-slate-500">特に注意する点はありません</div>'}
         <div class="text-xs"><span class="text-slate-500">これまでの担当：</span>${d.staff.length ? d.staff.map((n) => `<b>${esc(n)}</b>`).join('、') : '<span class="text-slate-500">なし（新規・担当の記録なし）</span>'}</div>`)}
-      ${box(`過去の買取履歴${helpIcon('訪問ごとの品目と、営業の評価・メモを出します。')}`, visits)}
+      ${box(`過去の買取履歴${helpIcon('訪問ごとの品目と、鑑定士の評価・メモを出します。')}`, visits)}
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-3">
           ${box('今回の予約', `${row('訪問', `${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}`)}${row('担当', `${isTentative(r) ? '（仮）' : ''}${esc(user?.name ?? '')}`)}${row('売りたいもの', esc(h.wants ?? ''))}
@@ -160,12 +160,12 @@ function blockHtml(b, selId, byId, att) {
   const offCls = off ? 'outline outline-2 outline-dashed outline-rose-500' : '';
   const top = topOf(b.start);
   const height = topOf(b.end) - top - 1;
-  if (b.source !== 'reservation') { // 営業のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
-    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の営業・時間に動かせます`)}"><b>確 ${esc(b.label)}</b>${customerMarks(profileOf(b.ev?.customer))} ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
+  if (b.source !== 'reservation') { // 鑑定士のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
+    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の鑑定士・時間に動かせます`)}"><b>確 ${esc(b.label)}</b>${customerMarks(profileOf(b.ev?.customer))} ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
-  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の営業・時間に動かせます`)}">
+  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
     <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b>${customerMarks(profileOf(r?.customer))} ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-indigo-800" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
@@ -201,7 +201,7 @@ function revertedHtml(r) {
 }
 
 function boardDetailHtml(r, reservations, now) {
-  if (!r) return `<p class="px-3 py-2 text-xs text-slate-500">予約の帯を押すと、詳細が出ます。${helpIcon('帯をドラッグして、別の営業・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</p>`;
+  if (!r) return `<p class="px-3 py-2 text-xs text-slate-500">予約の帯を押すと、詳細が出ます。${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</p>`;
   const user = USERS.find((u) => u.id === r.userId);
   const area = areaById(r.areaId, tripAreas(loadCurrentTrips())); // 出張エリアを含む
   const others = reservations.filter((x) => x.id !== r.id && !isCancelled(x));
@@ -225,7 +225,7 @@ export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka',
   return `
   <div class="p-4 space-y-3 h-[calc(100vh-52px)] overflow-y-auto">
     <section class="bg-white rounded-lg shadow">
-      <div class="p-3 flex items-center gap-2 flex-wrap"><b>配車確定（配車係）</b>${helpIcon('オペレーターが仮確定した訪問を、1日分を見ながら調整して確定します。\n確定した訪問だけが、営業のタブレットの予定に出ます（主に翌々日の予定を、毎日確定します）。\n帯は、どれもドラッグで動かせます。', 'mr-2')}
+      <div class="p-3 flex items-center gap-2 flex-wrap"><b>配車確定（配車係）</b>${helpIcon('オペレーターが仮確定した訪問を、1日分を見ながら調整して確定します。\n確定した訪問だけが、鑑定士のタブレットの予定に出ます（主に翌々日の予定を、毎日確定します）。\n帯は、どれもドラッグで動かせます。', 'mr-2')}
         ${chips.map((c) => `<button class="chip ${c.date === date ? 'on' : ''}" data-ddate="${c.date}">${esc(c.label)}　${dateLabel(c.date)}${c.tentative ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-[11px] text-amber-950">仮${c.tentative}</span>` : ''}${c.review ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-[11px] text-white">変更${c.review}</span>` : ''}</button>`).join('')}
         <input class="inp !w-auto" type="date" value="${date}" data-ddate-input />
         <button class="b b-pri ml-auto" data-fixall ${tent ? '' : 'disabled'}>この日の仮確定 ${tent}件を、すべて確定</button></div>

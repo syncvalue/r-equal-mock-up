@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { customerDossier } from '../src/customerHistory.js';
 
 globalThis.localStorage = { getItem: () => null, setItem() {} };
-test('お客様の詳細: 買取の履歴・評価・これまでの担当営業・ランクなど', () => {
+test('お客様の詳細: 買取の履歴・評価・これまでの担当鑑定士・ランクなど', () => {
   const d = customerDossier(['080-8901-2345']);
   assert.equal(d.count, 3);
   assert.equal(d.visits[0].total, 310000);

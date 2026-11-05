@@ -1,4 +1,4 @@
-// 営業のスケジュールに元から入っていた予定（確定済みとして出ている帯）を、配車係が動かせるように、予約として取り込む（画面に依存しない）。
+// 鑑定士のスケジュールに元から入っていた予定（確定済みとして出ている帯）を、配車係が動かせるように、予約として取り込む（画面に依存しない）。
 // 取り込んだ予約は、元の位置のまま「確定済み」で作り、そのあと動かす（動かすと、仮確定に戻る）。元の予定は、元の位置から外す
 import { areaOfUser } from '../src/dispatch.js';
 import { hearingOf } from '../src/schedule.js';
@@ -11,7 +11,7 @@ const UNKNOWN = '未確認';
 export function reservationFromBlock(block, { userId, date, now = new Date(), seq = 1 }) {
   const e = block.ev ?? null;
   const areaId = areaOfUser(userId);
-  const common = { id: `AD-${block.gid}`, status: 'confirmed', confirmedAt: stamp(now), confirmedBy: '（営業の予定を取り込み）', userId, date, start: minToHHMM(block.start), end: minToHHMM(block.end), gender: '', lat: block.lat ?? 0, lng: block.lng ?? 0, ...base(areaId) };
+  const common = { id: `AD-${block.gid}`, status: 'confirmed', confirmedAt: stamp(now), confirmedBy: '（鑑定士の予定を取り込み）', userId, date, start: minToHHMM(block.start), end: minToHHMM(block.end), gender: '', lat: block.lat ?? 0, lng: block.lng ?? 0, ...base(areaId) };
   if (e) {
     const h = hearingOf(e);
     return {

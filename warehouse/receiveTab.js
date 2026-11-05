@@ -1,6 +1,6 @@
-// 📥 入庫: 倉庫担当が、営業から渡された買取商品を入庫する。QRシール（シールNo.）を読み取るか、契約書（明細）と実物を見比べて☑を付けた商品を入庫する。
+// 📥 入庫: 倉庫担当が、鑑定士から渡された買取商品を入庫する。QRシール（シールNo.）を読み取るか、契約書（明細）と実物を見比べて☑を付けた商品を入庫する。
 // ☑（照合）は、誰がいつ付けたかが、入庫した商品に記録される。
-// 営業のタブレットでも入庫できる。倉庫では、誰が買い取った商品でも入庫できる。
+// 鑑定士のタブレットでも入庫できる。倉庫では、誰が買い取った商品でも入庫できる。
 import { handlerLabel } from '../src/unitHandler.js';
 import { receiveProblem } from '../src/warehouseMaster.js';
 import { yen, esc } from '../src/format.js';
@@ -13,7 +13,7 @@ const TAG = { pending: badge('bg-amber-100 text-amber-800', '入庫待ち'), mis
 function scanPanel(rc, todo, warehouse) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">📥 入庫する <span class="text-sm font-normal text-sky-700">入庫先: ${esc(warehouse.name)}</span>${helpIcon('営業から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。\nシールの色が紫・赤の高額品も、いったん倉庫で入庫し、そのあと「倉庫間移動」で本社へ移します（本社には、入庫ではなく移動で入ります）。\n営業が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。')}</h2>
+    <h2 class="font-bold text-lg">📥 入庫する <span class="text-sm font-normal text-sky-700">入庫先: ${esc(warehouse.name)}</span>${helpIcon('鑑定士から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。\nシールの色が紫・赤の高額品も、いったん倉庫で入庫し、そのあと「倉庫間移動」で本社へ移します（本社には、入庫ではなく移動で入ります）。\n鑑定士が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。')}</h2>
     <div class="text-sm rounded bg-teal-50 border border-teal-200 p-2">保管場所: <b>クーリングオフ保管棚</b>${helpIcon('訪問買取の商品は、クーリングオフ期間中、商品ごとに分けず、全てこの棚にまとめて保管します。')}</div>
     ${todo.some((u) => u.channel === 'store') ? `<div><div class="text-sm font-bold mb-1">店頭買取の保管場所${helpIcon('店頭買取はクーリング・オフの対象外なので、クーリングオフ保管棚には入れません。ここで選んだ棚に保管します。')}</div>
       <div class="flex flex-wrap gap-1.5">${warehouse.locations.map((l) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${rc.location === l ? 'on' : ''}" data-rc-loc="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>` : ''}
@@ -27,7 +27,7 @@ function scanPanel(rc, todo, warehouse) {
 
 const checkInfo = (u) => (u.check
   ? `☑ ${esc(u.check.by)} ${mdTime(u.check.at)}（${u.check.method === 'scan' ? 'シール読取' : '明細と照合'}）`
-  : '営業が入庫（倉庫での照合なし）');
+  : '鑑定士が入庫（倉庫での照合なし）');
 
 // 入庫の規則: 本社には入庫できない。高額品も倉庫で入庫し、倉庫間移動で本社へ移す
 const PROBLEM_TEXT = { toHonsha: '本社には入庫できません（倉庫で入庫）' };
@@ -49,7 +49,7 @@ function contractCard(units, rc, rl, warehouse, master) {
     ${actionable.length ? `<div class="flex flex-wrap items-center gap-2">
       <button class="b b-sec !min-h-0 !py-1.5 !px-3 text-sm" data-rc-all="${esc(first.visitId)}">${checked.length === actionable.length ? '☑をすべて外す' : '残りをすべて☑'}</button>
       <button class="b b-pri !min-h-0 !py-1.5 !px-3 text-sm" data-rc-visit="${esc(first.visitId)}" ${checked.length ? '' : 'disabled'}>☑した${checked.length}点を入庫（${first.channel === 'store' ? esc(rc.location.replace(/（.*/, '')) : 'クーリングオフ保管棚'}）</button>
-      ${helpIcon('明細にあるのに届いていない商品は、☑せずに残します（営業に確認してください）。')}</div>` : ''}
+      ${helpIcon('明細にあるのに届いていない商品は、☑せずに残します（鑑定士に確認してください）。')}</div>` : ''}
   </div>`;
 }
 

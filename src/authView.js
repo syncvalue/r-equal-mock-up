@@ -26,7 +26,7 @@ function loginScreen(a) {
     <button class="btn btn-primary w-full" data-action="auth-login">ログイン</button>
     <div class="text-center">${link('auth-forgot', 'パスワードをお忘れの方')}</div>
     <details class="rounded-xl bg-slate-50 border p-2 text-xs text-slate-500"><summary class="cursor-pointer">デモ用アカウント</summary>
-      <div class="mt-1">ID・パスワードは何でも可（モック）。下のIDならその営業、それ以外は鈴木 一郎としてログインします。</div>
+      <div class="mt-1">ID・パスワードは何でも可（モック）。下のIDならその鑑定士、それ以外は鈴木 一郎としてログインします。</div>
       <div class="mt-1 grid grid-cols-2 gap-x-3">${ACCOUNTS.map((x) => `<span><b class="font-mono">${x.loginId}</b> ${esc(userById(x.userId).name)}</span>`).join('')}</div></details>`;
 }
 

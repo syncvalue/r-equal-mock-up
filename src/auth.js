@@ -1,4 +1,4 @@
-// 営業アプリのログイン（モック）。ID・パスワード → SMS認証コード（2要素認証）。パスワード再設定もSMSコードで本人確認する。
+// 鑑定士アプリのログイン（モック）。ID・パスワード → SMS認証コード（2要素認証）。パスワード再設定もSMSコードで本人確認する。
 // モックのため、ID・パスワードは何でも通り、SMSは送らず画面に認証コードを表示する。実装時はサーバー側で、認証・パスワードのハッシュ化・SMS送信・試行回数制限を行う。
 import { USERS } from './dashboard.js';
 import { SESSION_KEY } from './store.js';
@@ -7,12 +7,12 @@ export const CODE_TTL = 5 * 60 * 1000; // 認証コードの有効期間
 export const RESEND_WAIT = 30 * 1000; // 再送までの待ち時間
 export const MAX_CODE_TRIES = 3; // コードの入力ミス上限
 
-// ログインID・登録電話番号は、営業ごとに固定のダミー
+// ログインID・登録電話番号は、鑑定士ごとに固定のダミー
 export const ACCOUNTS = USERS.map((u, i) => ({ userId: u.id, loginId: `sales${String(i + 1).padStart(2, '0')}`, phone: `090-5550-01${String(i + 1).padStart(2, '0')}` }));
 export const maskPhone = (p) => p.replace(/^(\d{3})-\d{4}-(\d{4})$/, '$1-****-$2');
 export const findAccount = (loginId) => ACCOUNTS.find((a) => a.loginId === String(loginId ?? '').trim().toLowerCase()) ?? null;
 
-// モックのため、ID・パスワードは何でもログインできる。既存のIDならその営業、それ以外は先頭の営業（鈴木 一郎）としてログインする
+// モックのため、ID・パスワードは何でもログインできる。既存のIDならその鑑定士、それ以外は先頭の鑑定士（鈴木 一郎）としてログインする
 export const accountFor = (loginId) => findAccount(loginId) ?? ACCOUNTS[0];
 
 // パスワードの条件: 8文字以上・英字と数字を含む・IDと同じでない

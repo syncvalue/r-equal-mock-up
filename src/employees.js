@@ -1,5 +1,5 @@
 // 社員（このシステムを使う社内の人）の名簿。社員は、いずれかの部署に属し（src/departments.js）、役割（システムでの立場）は1人にひとつ。
-// 営業・オペレーター・配車係・査定員・経理担当・倉庫担当を、ここで一元管理する（用語は docs/SPEC.md の用語集）。
+// 鑑定士・オペレーター・配車係・査定員・経理担当・倉庫担当を、ここで一元管理する（用語は docs/SPEC.md の用語集）。
 // 画面は、この名簿から必要な形（倉庫担当・オペレーター名・査定員）を受け取る。操作はすべて新しい配列を返す。
 import { USERS as SALES, GROUPS } from './dashboard.js';
 import { defaultDepartmentOf } from './departments.js';
@@ -9,7 +9,7 @@ const LEGACY_USERS_KEY = 'rq-mock-users'; // 「社員」と呼んでいたこ�
 const LEGACY_MASTER_KEY = 'rq-mock-warehouse-master'; // 倉庫担当を、倉庫マスタで登録していたころの保存先
 
 export const ROLES = [
-  { key: 'sales', label: '営業', where: '営業タブレット' },
+  { key: 'sales', label: '鑑定士', where: '鑑定士タブレット' },
   { key: 'operator', label: 'オペレーター', where: 'コールセンター' },
   { key: 'dispatcher', label: '配車係', where: 'コールセンター（配車確定）' },
   { key: 'appraiser', label: '査定員', where: '査定部' },
@@ -19,10 +19,10 @@ export const ROLES = [
 ];
 export const roleLabel = (role) => ROLES.find((r) => r.key === role)?.label ?? '';
 
-// 営業は、業績・担当エリア・始業終業などの記録が各画面に固定されていて、まだ名簿とつながっていない。ここでは参照だけ（モック）
+// 鑑定士は、業績・担当エリア・始業終業などの記録が各画面に固定されていて、まだ名簿とつながっていない。ここでは参照だけ（モック）
 export const isReadOnlyRole = (role) => role === 'sales';
 
-// 初期値（ダミー）。営業・査定員は、既存の画面のデータと同じ。配車係・経理担当は、画面で人を区別していないため、見本の1名ずつ
+// 初期値（ダミー）。鑑定士・査定員は、既存の画面のデータと同じ。配車係・経理担当は、画面で人を区別していないため、見本の1名ずつ
 const withDept = (e) => (e.departmentId ? e : { ...e, departmentId: defaultDepartmentOf(e.role) }); // 部署がなければ、役割ごとの初期の部署
 export const DEFAULT_EMPLOYEES = [
   ...SALES.map((u, i) => ({ id: u.id, loginId: `sales${String(i + 1).padStart(2, '0')}`, name: u.name, role: 'sales', active: true, groups: [u.group], leader: u.role === 'leader' })),

@@ -14,7 +14,7 @@ const rec = (o) => ({
 
 beforeEach(() => store.clear());
 
-test('仮確定の訪問は、営業のタブレットの予定に出ない。配車係が確定すると出る', () => {
+test('仮確定の訪問は、鑑定士のタブレットの予定に出ない。配車係が確定すると出る', () => {
   addReservation(rec({ status: 'tentative' }));
   assert.equal(isTentative(loadReservations()[0]), true);
   assert.equal(reservationEvents(NOW).length, 0);
@@ -37,7 +37,7 @@ test('担当の変更と、仮に戻す', () => {
   assert.equal(reservationEvents(NOW).length, 0);
 });
 
-test('取消: 記録は残し、営業のタブレットの予定からは外れる', () => {
+test('取消: 記録は残し、鑑定士のタブレットの予定からは外れる', () => {
   addReservation(rec({ status: 'confirmed' }));
   assert.equal(reservationEvents(NOW).length, 1);
   cancelReservation('r1', 'お客様のご都合（やめる）', '佐藤');
@@ -60,7 +60,7 @@ test('確定済みの変更: 仮確定に戻り、配車係が知れる（needsR
   amendReservation('r1', { date: '2026-10-28', userId: 'u02', customer: { name: 'A', phone: '', address: '大阪' } }, '渡辺', [{ label: '訪問日時', from: '10/26', to: '10/28' }]);
   const r = loadReservations()[0];
   assert.deepEqual([r.status, r.confirmedBy, r.confirmedAt, needsReview(r), r.changes[0].wasConfirmed, r.changes[0].by], ['tentative', null, null, true, true, '渡辺']);
-  assert.equal(reservationEvents(NOW).length, 0); // 再確定されるまで、営業の予定には出ない
+  assert.equal(reservationEvents(NOW).length, 0); // 再確定されるまで、鑑定士の予定には出ない
   amendReservation('r1', { start: '09:30' }, '佐藤', [{ label: '訪問日時', from: '13:00', to: '09:30' }]); // 戻った後の再変更でも、知らせは残る
   assert.equal(needsReview(loadReservations()[0]), true);
   assert.deepEqual(reviewDiffs(loadReservations()[0]).map((d) => d.to), ['10/28', '09:30']); // 仮確定に戻った時点からの差分
@@ -86,7 +86,7 @@ test('電話番号から、これから訪問する未取消の受付を探す�
   assert.deepEqual(openReservationsFor([a], ['090-12'], '2026-10-25'), []); // 短い番号では探さない
 });
 
-test('配車係の変更は、状態を変えない（確定済みは確定のまま、営業の予定にも新しい内容で出る）', () => {
+test('配車係の変更は、状態を変えない（確定済みは確定のまま、鑑定士の予定にも新しい内容で出る）', () => {
   addReservation(rec({ status: 'confirmed', confirmedBy: '配車係' }));
   amendReservation('r1', { start: '09:30', end: '11:00' }, '配車係', [{ label: '訪問日時', from: 'a', to: 'b' }], { byDispatcher: true });
   const r = loadReservations().find((x) => x.id === 'r1');
@@ -102,7 +102,7 @@ test('配車係が意図的に仮確定へ戻す（お客様に連絡して回�
   holdReservation('r1', 'お客様に連絡して、回答待ち');
   const r = loadReservations()[0];
   assert.deepEqual([r.status, r.confirmedBy, r.holdNote, needsReview(r)], ['tentative', null, 'お客様に連絡して、回答待ち', false]);
-  assert.equal(reservationEvents(NOW).length, 0); // 回答が出て確定するまで、営業の予定には出ない
+  assert.equal(reservationEvents(NOW).length, 0); // 回答が出て確定するまで、鑑定士の予定には出ない
   holdReservation('r1', '');
   assert.equal(loadReservations()[0].holdNote, 'お客様に確認中'); // メモが空なら、既定の文言
   updateReservation('r1', { status: 'confirmed', holdNote: null });

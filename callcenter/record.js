@@ -58,7 +58,7 @@ export function diffRecords(a, b, nameOf = (id) => id) {
   const out = [];
   const add = (label, x, y) => { if (String(x ?? '') !== String(y ?? '')) out.push({ label, from: String(x ?? '') || '（空）', to: String(y ?? '') || '（空）' }); };
   add('訪問日時', `${a.date} ${a.start}〜${a.end}`, `${b.date} ${b.start}〜${b.end}`);
-  add('担当営業', nameOf(a.userId), nameOf(b.userId));
+  add('担当鑑定士', nameOf(a.userId), nameOf(b.userId));
   add('お客様', a.customer.name, b.customer.name);
   add('電話番号', [a.customer.phone, a.customer.phone2].filter(Boolean).join(' / '), [b.customer.phone, b.customer.phone2].filter(Boolean).join(' / '));
   add('訪問先', a.customer.address, b.customer.address);
