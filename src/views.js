@@ -17,7 +17,7 @@ import { SEAL_COLORS } from './stock.js';
 import { fakeQr } from './fakeQr.js';
 import { yen, fmtTime, fmtDateTime, fmtElapsed, esc, total } from './format.js';
 import { helpIcon } from './help.js';
-import { hasPhoto, itemReady } from './itemPhotos.js';
+import { hasPhoto, itemReady, itemsBlocker } from './itemPhotos.js';
 import { evalFilled } from './visitEval.js';
 
 export const STEPS = ['訪問開始', 'お客様確認', '説明事項', '買取明細', '買取商品の確認', 'シール紐づけ', '送信・終了'];
@@ -195,7 +195,7 @@ export function footerView(s) {
   return `
   <footer class="shrink-0 bg-white border-t px-4 py-1.5 flex justify-between items-center">
     <button class="btn btn-secondary w-40" data-action="back">← 戻る</button>
-    <span class="text-slate-500">${ok ? '' : hint(s)}</span>
+    <span class="flex-1 min-w-0 px-3 text-center text-sm font-bold text-rose-600">${ok ? '' : hint(s)}</span>
     ${s.step === STEPS.length - 2
       ? `<button class="btn btn-primary" data-action="send-gmo" ${ok ? '' : 'disabled'}>確定してGMOサインに送信 →</button>`
       : `<button class="btn btn-primary w-40" data-action="next" ${ok ? '' : 'disabled'}>次へ →</button>`}
@@ -217,7 +217,7 @@ const hint = (s) =>
   ({
     1: 'お客様確認を済ませてください（氏名・電話は必須）',
     2: briefingHint(s),
-    3: '商品を1点以上追加し、全商品に写真（1枚以上）と査定金額を入力してください',
+    3: itemsBlocker(s.items),
     4: isCustomerFacing(s) ? '最終確認中です。少々お待ちください' : '全商品に査定部の承認が必要です',
     5: '全商品にシールを紐づけてください',
   })[s.step] ?? '';

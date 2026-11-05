@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { itemReady, hasPhoto, addPhoto, removePhoto, noPhotoCount } from '../src/itemPhotos.js';
+import { itemReady, hasPhoto, addPhoto, removePhoto, noPhotoCount, itemsBlocker } from '../src/itemPhotos.js';
 
 const base = { id: 'p1', price: 1000, photos: ['a'] };
 
@@ -23,4 +23,16 @@ test('写真は複数枚登録でき、1枚ずつ消せる（元の商品は変�
 
 test('写真のない商品の数を数える', () => {
   assert.equal(noPhotoCount([base, { id: 'p2' }, { id: 'p3', photos: [] }]), 2);
+});
+
+test('次へ進めない理由を、商品の状態に合わせて具体的に返す', () => {
+  const ok = { id: 'a', price: 1000, photos: ['x'] };
+  assert.equal(itemsBlocker([]), '商品を1点以上追加してください');
+  assert.equal(itemsBlocker([ok]), '');
+  assert.equal(itemsBlocker([ok, { ...ok, photos: [] }]), '写真が未登録の商品が1点あります。写真を1枚以上登録してください');
+  assert.equal(itemsBlocker([{ ...ok, price: 0 }]), '査定金額が未入力の商品が1点あります');
+  assert.equal(
+    itemsBlocker([{ ...ok, photos: [] }, { ...ok, price: 0 }]),
+    '写真が未登録の商品が1点あります。写真を1枚以上登録してください／査定金額が未入力の商品が1点あります',
+  );
 });
