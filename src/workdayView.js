@@ -161,6 +161,7 @@ function reportCard(s, day) {
           ${sm.byType.length ? sm.byType.map((t) => row(`${t.icon} ${t.label}（${t.count}件）`, yen(t.amount))).join('') : '<div class="text-slate-400 py-2">経費の計上はありません</div>'}
           ${row('合計', yen(sm.expenseTotal), 'text-base')}
         </div>
+        ${expenseDetailView(day)}
       </div>
     </div>
 
@@ -200,23 +201,23 @@ function cashCountView(form) {
             <button class="btn btn-secondary !min-h-[48px] !py-2 !px-2" data-action="close-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>`;
 }
 
-// 今日計上した経費の履歴とレシート画像（終業時に、間違いがないか見直す）
-function expenseReviewView(day) {
+// 今日計上した経費の明細とレシート画像（日報の経費の内訳に出す。終業時に、間違いがないか見直す）
+function expenseDetailView(day) {
   const list = expensesToReview(day);
-  const total = list.reduce((n, e) => n + e.amount, 0);
   const noPhoto = list.filter((e) => !e.photo).length;
-  return `<div class="rounded-xl border-2 p-3 space-y-1.5">
-    <div class="flex items-center justify-between"><b>🧾 今日の経費を見直す</b><span class="text-sm text-slate-500">${list.length}件　${yen(total)}</span></div>
+  if (!list.length) return '';
+  return `<div class="mt-2 pt-2 border-t space-y-1">
+    <div class="text-xs font-bold text-slate-500">明細（レシートと照らして、金額・種別に間違いがないか確認）</div>
     ${noPhoto ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-2 py-1 text-xs font-bold text-rose-700">⚠ レシートのない経費が ${noPhoto}件あります</div>` : ''}
-    ${list.length ? `<div class="space-y-1 max-h-64 overflow-y-auto" data-scroll="wdExpReview">${list.map((e) => { const t = typeOf(e.type); return `
+    ${list.map((e) => { const t = typeOf(e.type); return `
       <div class="flex items-center gap-2 rounded-lg border px-2 py-1.5">
         <span class="text-xs text-slate-500 w-10">${fmtTime(e.at).slice(0, 5)}</span><span class="text-xl">${t.icon}</span>
         <span class="flex-1 min-w-0 text-sm"><b>${t.label}</b>${e.invoice ? '<span class="ml-1 text-[11px] rounded bg-emerald-100 text-emerald-800 px-1.5">インボイス</span>' : ''}<span class="block text-xs text-slate-500 truncate">${esc(e.memo)}</span></span>
         ${e.photo ? `<button class="w-12 h-12 rounded-lg overflow-hidden border shrink-0" data-action="exp-view" data-id="${e.id}" aria-label="レシートを拡大"><img src="${e.photo}" alt="レシート" class="w-full h-full object-cover" /></button>` : '<span class="w-12 text-[11px] text-rose-600 font-bold text-center leading-tight">写真なし</span>'}
-        <b class="w-20 text-right text-rose-600 text-sm">−${yen(e.amount)}</b></div>`; }).join('')}</div>
-      <div class="text-xs text-slate-500">金額・種別・レシートの写真を見て、間違いがないか確認してください。違う経費は、経費管理で削除して計上し直せます。</div>`
-      : '<div class="text-sm text-slate-400 py-1">今日計上した経費はありません</div>'}</div>`;
+        <b class="w-20 text-right text-rose-600 text-sm">−${yen(e.amount)}</b></div>`; }).join('')}
+    ${closed(day) ? '' : '<div class="text-xs text-slate-500">違う経費は、経費管理で削除して計上し直せます。</div>'}</div>`;
 }
+const closed = (day) => Boolean(day.closedAt);
 
 // ---- 終業（日報のプレビュー ＋ 終業手続き） ---------------------------------------
 function closeScreen(s) {
@@ -242,7 +243,6 @@ function closeScreen(s) {
           <textarea class="field !py-2 mt-1" rows="2" data-wd="close-note" placeholder="例: 駐車場代のレシートを紛失">${esc(form.note)}</textarea></label>
       </div>
       ${stockNotice(s)}
-      ${expenseReviewView(day)}
       <div class="space-y-1.5">
         <div class="flex items-center justify-between"><b>終業点検</b><span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${END_CHECKS.length - left} / ${END_CHECKS.length}</span></div>
         ${END_CHECKS.map((c) => checkRow(form, c, false)).join('')}</div>
