@@ -172,10 +172,13 @@ export const expenseReady = (d) => Boolean(d.type && d.amount > 0 && d.photo && 
 
 export const blankStartForm = () => ({ counted: 0, countedSet: false, note: '', checks: {} });
 export const blankCloseForm = () => ({ counted: 0, countedSet: false, note: '', checks: {}, comment: '' });
-export const blankExpenseDraft = () => ({ type: '', amount: 0, memo: '', photo: null, ai: null }); // ai: レシートのAI読み取りの状態
+export const blankExpenseDraft = () => ({ type: '', amount: 0, memo: '', photo: null, invoice: false, ai: null }); // invoice: インボイス対応（適格請求書）のレシートか。ai: レシートのAI読み取りの状態
 
 // 本社画面の一覧用: 全鑑定士の「今日」の状況
 export const todayRows = () => USERS.map((u) => {
   const day = loadDay(u.id);
   return { user: u, day, phase: phaseOf(day), summary: day?.startedAt ? summaryOf(day, u.id) : null };
 });
+
+// OCRの読取後の「インボイス対応」。登録番号が読めたらチェックする。読めなくても人のチェックは外さない（再読取は読取結果に合わせる）
+export const invoiceAfterRead = (current, sample, overwrite) => (sample.invoiceNo ? true : overwrite ? false : current);

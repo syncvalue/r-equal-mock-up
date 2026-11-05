@@ -231,7 +231,7 @@ function aiStatus(ai) {
   if (ai.status === 'reading') return '<div class="mt-2 rounded-lg bg-slate-100 p-2 text-sm font-bold animate-pulse">🤖 AIがレシートを読み取り中…</div>';
   const low = ai.sample.confidence < 70;
   return `<div class="mt-2 rounded-lg border-2 ${low ? 'border-amber-400 bg-amber-50' : 'border-slate-200'} p-2 text-sm flex items-center justify-between gap-2">
-    <span>${low ? '<b class="text-amber-800">⚠ 読み取りに自信がありません。金額を確認してください。</b>' : '🤖 読み取りました。内容を確認してください。'}<span class="block text-xs text-slate-500">${esc(ai.sample.store)} ／ ${yen(ai.sample.amount)} ／ 信頼度 ${ai.sample.confidence}%</span></span>
+    <span>${low ? '<b class="text-amber-800">⚠ 読み取りに自信がありません。金額を確認してください。</b>' : '🤖 読み取りました。内容を確認してください。'}<span class="block text-xs text-slate-500">${esc(ai.sample.store)} ／ ${yen(ai.sample.amount)} ／ 信頼度 ${ai.sample.confidence}%</span>${ai.sample.invoiceNo ? `<span class="block text-xs text-emerald-700 font-bold">登録番号 ${esc(ai.sample.invoiceNo)} を読み取り、インボイス対応にチェックしました</span>` : ''}</span>
     <button class="btn btn-secondary !min-h-[36px] !py-0 !px-3 text-xs shrink-0" data-action="exp-ai-retry">再読取</button></div>`;
 }
 
@@ -257,7 +257,7 @@ function ledgerRows(s) {
     const t = typeOf(e.type);
     return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border">
       <span class="w-12 text-xs text-slate-500">${fmtTime(e.at).slice(0, 5)}</span><span class="text-xl">${t.icon}</span>
-      <span class="flex-1 min-w-0"><b>${t.label}</b>${e.auto ? '<span class="ml-1 text-[11px] rounded bg-sky-100 text-sky-800 px-1.5">自動計上</span>' : ''}<span class="block text-xs text-slate-500 truncate">${esc(e.memo)}</span></span>
+      <span class="flex-1 min-w-0"><b>${t.label}</b>${e.invoice ? '<span class="ml-1 text-[11px] rounded bg-emerald-100 text-emerald-800 px-1.5">インボイス</span>' : ''}${e.auto ? '<span class="ml-1 text-[11px] rounded bg-sky-100 text-sky-800 px-1.5">自動計上</span>' : ''}<span class="block text-xs text-slate-500 truncate">${esc(e.memo)}</span></span>
       ${e.photo ? `<button class="w-12 h-12 rounded-lg overflow-hidden border shrink-0" data-action="exp-view" data-id="${e.id}" aria-label="レシートを見る"><img src="${e.photo}" alt="レシート" class="w-full h-full object-cover" /></button>` : '<span class="w-12 text-[11px] text-slate-400 text-center leading-tight">契約書で確認</span>'}
       <b class="w-28 text-right text-rose-600">−${yen(e.amount)}</b>
       ${e.auto ? '<span class="w-9"></span>' : `<button class="w-9 h-9 rounded-lg text-slate-400 hover:bg-slate-100" data-action="exp-remove" data-id="${e.id}" aria-label="削除">🗑</button>`}</div>`;
@@ -294,6 +294,8 @@ export function expenseView(s) {
         <div><div class="font-bold text-sm mb-1">種別${aiBadge(d, 'type')}</div><div class="grid grid-cols-3 gap-1.5">
           ${EXPENSE_TYPES.map((t) => `<button class="chip !px-1 !py-1 flex flex-col items-center leading-tight ${d.type === t.key ? 'active' : ''}" data-action="exp-type" data-value="${t.key}"><span class="text-xl">${t.icon}</span><span class="text-xs">${t.label}</span></button>`).join('')}</div></div>
         <label class="block"><span class="font-bold text-sm">金額${aiBadge(d, 'amount')}</span>${moneyInputHtml({ attrs: 'data-wd="exp-amount"', value: d.amount, cls: 'field' })}</label>
+        <label class="flex items-center gap-2 rounded-lg border p-2 cursor-pointer"><input type="checkbox" class="w-6 h-6" data-action="exp-invoice" ${d.invoice ? 'checked' : ''} />
+          <span class="font-bold text-sm">インボイス対応のレシート${aiBadge(d, 'invoice')}${helpIcon('適格請求書発行事業者の登録番号（T＋13桁）が印字されているレシートです。撮影して番号が読めると、自動でチェックします。')}</span></label>
         <label class="block"><span class="font-bold text-sm">内容・メモ${aiBadge(d, 'memo')}${d.type === 'other' ? '<span class="text-rose-600 ml-1">必須</span>' : '<span class="font-normal text-xs text-slate-500">（任意）</span>'}</span>
           <input class="field !py-2 mt-1" data-wd="exp-memo" value="${esc(d.memo)}" placeholder="例: 大阪→堺 往復分" /></label>
         <div id="exp-live">${expLiveView(s)}</div>

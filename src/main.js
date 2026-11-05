@@ -27,7 +27,7 @@ import { formatMoneyInput } from './moneyInput.js';
 import { blankPettyForm, sendPettyRequest, withdrawPetty, pettyReady } from './pettyRequest.js';
 import {
   START_CHECKS, END_CHECKS, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
-  newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, startReady, closeReady,
+  newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, invoiceAfterRead, startReady, closeReady,
 } from './workday.js';
 import {
   loadUnits, saveUnits, unitsFromVisit, addUnits, byUser, inScope, pendingOf, receive, markMissing, resultMessage, demoUnits, sealColorOfCode, newSealNo,
@@ -133,7 +133,8 @@ function readReceiptAi(sample, { overwrite = false } = {}) {
     const fill = { type: overwrite || !d.type, amount: overwrite || !(d.amount > 0), memo: overwrite || !d.memo.trim() };
     const now = new Date();
     set({ expDraft: {
-      ...d, ai: { status: 'done', sample, filled: fill },
+      ...d, ai: { status: 'done', sample, filled: { ...fill, invoice: Boolean(sample.invoiceNo) } },
+      invoice: invoiceAfterRead(d.invoice, sample, overwrite),
       type: fill.type ? sample.type : d.type, amount: fill.amount ? sample.amount : d.amount,
       memo: fill.memo ? `${sample.store}（${now.getMonth() + 1}/${now.getDate()}）` : d.memo,
     } });
@@ -634,11 +635,12 @@ const actions = {
     readReceiptAi(sample);
   },
   'exp-photo-clear': () => { receiptToken += 1; set({ expDraft: { ...state.expDraft, photo: null, ai: null } }); },
+  'exp-invoice': () => set({ expDraft: { ...state.expDraft, invoice: !state.expDraft.invoice } }),
   'exp-ai-retry': () => { if (state.expDraft.photo) readReceiptAi(state.expDraft.ai?.sample ?? receiptSampleFor(state.expDraft.photo.length), { overwrite: true }); },
   'exp-submit': () => {
     const d = state.expDraft;
     if (!expenseReady(d) || !state.day) return;
-    const next = addExpense(state.day, { id: newId('EX'), at: Date.now(), type: d.type, amount: d.amount, memo: d.memo.trim(), photo: d.photo, auto: false });
+    const next = addExpense(state.day, { id: newId('EX'), at: Date.now(), type: d.type, amount: d.amount, memo: d.memo.trim(), photo: d.photo, invoice: Boolean(d.invoice), auto: false });
     if (!saveDay(next)) { showToast('保存できませんでした（写真の容量が大きすぎます）。撮り直してください'); return; }
     set({ expDraft: blankExpenseDraft() });
     showToast('経費を計上しました');
