@@ -114,3 +114,50 @@ test('日付をずらす: 月・年をまたぐ', () => {
   assert.equal(D.shiftDate('2026-12-31', 1), '2027-01-01');
   assert.equal(D.shiftDate('2026-11-05', 0), '2026-11-05');
 });
+
+test('1件ずつの確認: 経費・お客様への支払・終業時の現金の確認がそろうまで、チェック済みにできない', () => {
+  const d = day();
+  const id = D.cashItemId('u01', '2026-11-04');
+  const none = D.checkRows([d], '2026-11-04', {}, {})[0];
+  assert.deepEqual([none.progress, none.canCheck, none.canOk, none.cash.required], [{ done: 0, total: 3 }, true, false, true]);
+  const part = D.checkRows([d], '2026-11-04', {}, { e1: { by: 'x', at: 1 }, p1: { by: 'x', at: 1 } })[0];
+  assert.deepEqual([part.progress.done, Boolean(part.expenses[0].checked), Boolean(part.purchases[0].checked), Boolean(part.cash.checked), part.canOk], [2, true, true, false, false]);
+  const all = D.checkRows([d], '2026-11-04', {}, D.markAllItems({}, none, { by: '営業サポート', now: 5 }))[0];
+  assert.deepEqual([all.progress, all.canOk, all.allChecked], [{ done: 3, total: 3 }, true, true]);
+  assert.ok(Object.keys(D.markAllItems({}, none)).includes(id));
+});
+
+test('1件ずつの確認: 押すたびに、確認した／していないが切り替わる。元は変えない。未終業・写真なしのときは現金の確認は不要', () => {
+  const a = {};
+  const b = D.toggleItem(a, 'e1', { by: '営業サポート', now: 9 });
+  assert.deepEqual([b.e1.by, b.e1.at, Object.keys(a).length], ['営業サポート', 9, 0]);
+  assert.deepEqual(D.toggleItem(b, 'e1'), {});
+  const open = D.checkRows([day({ closedAt: null, close: null })], '2026-11-04', {}, {})[0];
+  assert.deepEqual([open.cash.required, open.progress.total, open.canOk], [false, 2, false]); // 日報未提出（blocks）でもあるので押せない
+  assert.equal(D.loadItemChecks().x, undefined);
+  assert.equal(D.saveItemChecks({ e1: { by: 'x' } }), true);
+  assert.deepEqual(D.loadItemChecks(), { e1: { by: 'x' } });
+});
+
+test('カレンダー: 月の週ごとの日付（日曜始まり。前後の空きは null）', () => {
+  const g = D.monthGrid('2026-11'); // 2026-11-01 は日曜
+  assert.equal(g[0][0], '2026-11-01');
+  assert.equal(g.at(-1)[0], '2026-11-29');
+  assert.deepEqual(g.at(-1).slice(1), ['2026-11-30', null, null, null, null, null]);
+  assert.ok(g.every((w) => w.length === 7));
+  assert.deepEqual(D.monthGrid('2026-10')[0].slice(0, 4), [null, null, null, null]); // 10/1 は木曜
+});
+
+test('カレンダーの印: 日ごとの、提出された人数・未チェックの人数・要対応（赤の指摘がある未チェック）の人数', () => {
+  const days = [
+    day(), // 11-04 u01: 問題なし
+    day({ userId: 'u02', expenses: [ex({ photo: null }), buy()] }), // 11-04 u02: 領収書なし（要対応）
+    day({ userId: 'u03' }), // 11-04 u03: チェック済み
+    day({ userId: 'u01', date: '2026-11-03', start: { expected: 50000, counted: 49000, diff: -1000, note: 'x' } }), // 11-03 u01: 確認のみ（要対応ではない）
+  ];
+  const checks = { 'u03:2026-11-04': { status: 'ok' } };
+  const b = D.dayBadges(days, checks, {});
+  assert.deepEqual(b['2026-11-04'], { total: 3, pending: 2, urgent: 1 });
+  assert.deepEqual(b['2026-11-03'], { total: 1, pending: 1, urgent: 0 });
+  assert.equal(b['2026-11-02'], undefined);
+});

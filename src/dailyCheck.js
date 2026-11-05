@@ -1,6 +1,6 @@
 // 経費精算（営業サポートの一次チェック）: 日ごと・鑑定士ごとに、前日までに提出された経費・お客様への支払・現金（前日繰越金と終業時の所持金）の
 // 入力漏れ・入力ミスを確認し、「チェック済み」か「差戻し」にする。買取代金は、お客様への支払として確認する（経費とは分けて表示）。
-import { DAILY_CHECK_KEY } from './store.js';
+import { DAILY_CHECK_KEY, ITEM_CHECK_KEY } from './store.js';
 import { PURCHASE_TYPE, balanceOf, dateKey, summaryOf, typeOf } from './workday.js';
 import { HIGH_EXPENSE, flagsOf } from './accounting.js';
 
@@ -22,6 +22,19 @@ const readJson = (key, fallback) => {
 export const checkKey = (userId, date) => `${userId}:${date}`;
 export const loadChecks = () => readJson(DAILY_CHECK_KEY, {});
 export const saveChecks = (c) => { try { localStorage.setItem(DAILY_CHECK_KEY, JSON.stringify(c)); return true; } catch { return false; } };
+
+// 1件ずつの確認（経費・お客様への支払・終業時の現金）。キーは、経費・買取代金のID、または現金の確認のID（cashItemId）
+export const loadItemChecks = () => readJson(ITEM_CHECK_KEY, {});
+export const saveItemChecks = (c) => { try { localStorage.setItem(ITEM_CHECK_KEY, JSON.stringify(c)); return true; } catch { return false; } };
+export const cashItemId = (userId, date) => `cash:${userId}:${date}`;
+export const toggleItem = (items, id, { by = '営業サポート', now = Date.now() } = {}) => (items[id]
+  ? Object.fromEntries(Object.entries(items).filter(([k]) => k !== id))
+  : { ...items, [id]: { by, at: now } });
+// その鑑定士のその日の確認を、まとめて「確認した」にする（一括でチェック済みにするとき）
+export const markAllItems = (items, row, { by = '営業サポート', now = Date.now() } = {}) => {
+  const ids = [...row.expenses, ...row.purchases].map((e) => e.id).concat(row.cash.required ? [row.cash.id] : []);
+  return { ...items, ...Object.fromEntries(ids.filter((id) => !items[id]).map((id) => [id, { by, at: now }])) };
+};
 
 // ---- 確認のポイント ---------------------------------------------------------------------------------
 // 経費1件の確認のポイント。blocks は「鑑定士に直してもらわないと、チェック済みにできない」もの
@@ -64,18 +77,23 @@ export function dayFlags(day, { prev = null, summary = summaryOf(day, day.userId
 
 // ---- 一覧 ---------------------------------------------------------------------------------------------
 // 対象日に始業した鑑定士ごとの行。issues は、1日ぶんの指摘と経費ごとの指摘をまとめたもの（経費の指摘には、どの経費かを添える）
-export function checkRows(days, date, checks) {
+export function checkRows(days, date, checks, items = {}) {
   return days.filter((d) => d.date === date && d.startedAt).map((d) => {
     const all = d.expenses ?? [];
-    const expenses = all.filter((e) => !isPurchase(e)).map((e) => ({ ...e, flags: claimFlags(e) }));
+    const expenses = all.filter((e) => !isPurchase(e)).map((e) => ({ ...e, flags: claimFlags(e), checked: items[e.id] ?? null }));
+    const purchases = all.filter(isPurchase).map((e) => ({ ...e, checked: items[e.id] ?? null }));
+    const cashId = cashItemId(d.userId, d.date);
+    const cash = { id: cashId, required: Boolean(d.closedAt && d.close?.cashPhoto), checked: items[cashId] ?? null }; // 数えた現金の写真と金額が一致していることの確認
+    const targets = [...expenses, ...purchases, ...(cash.required ? [cash] : [])];
+    const progress = { done: targets.filter((t) => t.checked).length, total: targets.length };
     const review = checks[checkKey(d.userId, d.date)] ?? null;
     const issues = [
       ...dayFlags(d, { prev: prevAmount(days, d.userId, d.date) }),
       ...expenses.flatMap((e) => e.flags.map((f) => ({ ...f, text: `${typeOf(e.type).label} ${yen(e.amount)}：${f.text}` }))),
     ];
     return {
-      userId: d.userId, date: d.date, day: d, rec: reconcile(d), expenses, purchases: all.filter(isPurchase),
-      issues, canCheck: !issues.some((i) => i.blocks), status: review?.status ?? 'pending', review,
+      userId: d.userId, date: d.date, day: d, rec: reconcile(d), expenses, purchases, cash, progress, allChecked: progress.done === progress.total,
+      issues, canCheck: !issues.some((i) => i.blocks), canOk: !issues.some((i) => i.blocks) && progress.done === progress.total, status: review?.status ?? 'pending', review,
     };
   }).sort((a, b) => a.userId.localeCompare(b.userId));
 }
@@ -109,3 +127,22 @@ export const shiftDate = (date, n) => {
   d.setDate(d.getDate() + n);
   return dateKey(d);
 };
+
+// ---- カレンダー ------------------------------------------------------------------------------------------
+// 月（'2026-11'）の日付を、日曜始まりの週ごとに並べる。月の前後の空きは null
+export function monthGrid(month) {
+  const first = new Date(`${month}-01T12:00:00`);
+  const cells = [...Array(first.getDay()).fill(null), ...Array.from({ length: new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate() }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`)];
+  while (cells.length % 7) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
+}
+
+// 日ごとの印: total＝提出された鑑定士、pending＝未チェック、urgent＝未チェックのうち、赤の指摘（danger）がある鑑定士
+export function dayBadges(days, checks, items = {}) {
+  const dates = [...new Set(days.filter((d) => d.startedAt).map((d) => d.date))];
+  return Object.fromEntries(dates.map((date) => {
+    const rows = checkRows(days, date, checks, items);
+    const pending = rows.filter((r) => r.status === 'pending');
+    return [date, { total: rows.length, pending: pending.length, urgent: pending.filter((r) => r.issues.some((i) => i.level === 'danger')).length }];
+  }));
+}

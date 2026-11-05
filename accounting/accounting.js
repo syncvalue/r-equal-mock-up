@@ -1,12 +1,12 @@
 // 経理部デスク画面（ダミー・PC想定）。経費精算／残高・入出金管理／週間収支。（固定費・小口金管理は、メニューから外している）
-import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY } from '../src/store.js';
+import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY } from '../src/store.js';
 import { USERS } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser } from '../src/dispatch.js';
 import { dateKey } from '../src/workday.js';
 import { officeUsers, giveAdvance, advanceReady, addCustomerPayment, paymentReady, markPaid, loadCustomerPayments, onlyOffice } from '../src/accounting.js';
 import { loadLedger, saveLedger, makeEntry, addEntry, entryReady, kindOf } from '../src/ledger.js';
 import { loadFixed, saveFixed, fixedReady, saveFixedCost, setFixedActive, loadPettyUses, savePettyUses, pettyUseReady, makePettyUse, addPettyUse, decidePettyUse, pettyRows, fieldStaff } from '../src/fixedCosts.js';
-import { loadChecks, saveChecks, markOk, markReturned, reopen, shiftDate } from '../src/dailyCheck.js';
+import { loadChecks, saveChecks, loadItemChecks, saveItemChecks, toggleItem, markAllItems, markOk, markReturned, reopen, shiftDate } from '../src/dailyCheck.js';
 import { weekStart, shiftWeek } from '../src/weekly.js';
 import { tabLabel, menuView } from './menu.js';
 import { balanceTab } from './balanceTab.js';
@@ -37,7 +37,7 @@ const st = {
   office: AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : '', // 絞り込み中の営業所（空は全営業所）
   ledger: loadLedger(), selDay: null, selUser: null,
   led: blank.led(), pay: blank.pay(), fix: blank.fix(), pu: blank.pu(), returning: null, pettyReject: null,
-  claimFilter: 'pending', claimUser: null, checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
+  claimFilter: 'pending', claimUser: null, calOpen: false, calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
 };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
@@ -118,7 +118,7 @@ function rejectPetty() {
 const review = (fn) => saveChecks(fn(loadChecks()));
 
 const ACTIONS = {
-  tab: (d) => { st.tab = d.tab; st.menuOpen = false; },
+  tab: (d) => { st.tab = d.tab; st.menuOpen = false; st.calOpen = false; },
   menuOpen: () => { st.menuOpen = true; },
   menuClose: () => { st.menuOpen = false; },
   selUser: (d) => { st.selUser = st.selUser === d.selUser ? null : d.selUser; },
@@ -129,8 +129,12 @@ const ACTIONS = {
   payDone: (d) => markPaid(d.payDone),
   claimFilter: (d) => { st.claimFilter = d.claimFilter; },
   claimUser: (d) => { st.claimUser = d.claimUser; st.returning = null; },
-  checkShift: (d) => { st.checkDate = shiftDate(st.checkDate, Number(d.checkShift)); st.claimUser = null; st.returning = null; },
-  checkYesterday: () => { st.checkDate = shiftDate(today(), -1); st.claimUser = null; st.returning = null; },
+  calToggle: () => { st.calOpen = !st.calOpen; st.calMonth = st.checkDate.slice(0, 7); },
+  calShift: (d) => { st.calMonth = shiftMonth(st.calMonth, Number(d.calShift)); },
+  calPick: (d) => { st.checkDate = d.calPick; st.claimUser = null; st.returning = null; st.calOpen = false; },
+  checkShift: (d) => { st.checkDate = shiftDate(st.checkDate, Number(d.checkShift)); st.claimUser = null; st.returning = null; st.calOpen = false; },
+  checkYesterday: () => { st.checkDate = shiftDate(today(), -1); st.claimUser = null; st.returning = null; st.calOpen = false; },
+  itemToggle: (d) => { saveItemChecks(toggleItem(loadItemChecks(), d.itemToggle, { by: BY })); },
   claimOk: (d) => review((c) => markOk(c, d.claimOk, st.checkDate, { by: BY })),
   claimRet: (d) => { st.returning = { id: d.claimRet, reason: '' }; },
   claimRetCancel: () => { st.returning = null; },
@@ -142,7 +146,10 @@ const ACTIONS = {
   claimReopen: (d) => review((c) => reopen(c, d.claimReopen, st.checkDate)),
   claimBulk: () => {
     const targets = bulkTargets(dayRows(ctx));
-    if (targets.length && confirm(`指摘のない未チェックの鑑定士 ${targets.length}人を、まとめてチェック済みにします。よろしいですか？`)) review((c) => targets.reduce((acc, r) => markOk(acc, r.userId, st.checkDate, { by: BY }), c));
+    if (targets.length && confirm(`指摘のない未チェックの鑑定士 ${targets.length}人を、まとめてチェック済みにします（経費・お客様への支払・現金も、すべて確認済みにします）。よろしいですか？`)) {
+      saveItemChecks(targets.reduce((acc, r) => markAllItems(acc, r, { by: BY }), loadItemChecks()));
+      review((c) => targets.reduce((acc, r) => markOk(acc, r.userId, st.checkDate, { by: BY }), c));
+    }
   },
   month: (d) => { st.month = shiftMonth(st.month, Number(d.month)); },
   fixPay: (d) => payFixed(d.fixPay),
@@ -194,10 +201,6 @@ function onField(e, isInput) {
 }
 document.addEventListener('input', (e) => { onField(e, true); });
 document.addEventListener('change', (e) => {
-  if (e.target.matches('[data-check-date]')) {
-    if (e.target.value && e.target.value <= today()) { st.checkDate = e.target.value; st.claimUser = null; st.returning = null; }
-    render(); return;
-  }
   if (e.target.matches('[data-office]')) {
     st.office = e.target.value;
     try { localStorage.setItem('rq-mock-acc-office', st.office); } catch { /* 保存できなくても動作は継続（モック） */ }
@@ -211,7 +214,7 @@ document.addEventListener('change', (e) => {
 // 鑑定士側（タブレット）などの更新を即時反映。入力中なら、入力欄から離れたときに反映する
 const isEditing = () => Boolean(document.activeElement?.dataset?.f);
 window.addEventListener('storage', (e) => {
-  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY].includes(e.key)) return;
+  if (![WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;
   else render();
 });

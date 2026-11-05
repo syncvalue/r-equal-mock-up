@@ -1,6 +1,6 @@
 // 経理部画面の見本データ。鑑定士の始業・経費・日報、鑑定士への補充金、お客様への支払、入出金の帳簿（約4週間）、
 // 鑑定士の小口金、経費精算（一次チェック）の結果を、今日を基準に作る。
-import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, PETTY_KEY, DAILY_CHECK_KEY } from './store.js';
+import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, PETTY_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY } from './store.js';
 import { makeEntry } from './ledger.js';
 import { USERS } from './dashboard.js';
 import { dateKey, loadDays } from './workday.js';
@@ -83,7 +83,7 @@ export function buildSample(now = Date.now()) {
     { id: 'SP-3', customerName: '井上 和夫', amount: 95000, reason: 'highvalue', userId: 'u03', memo: '□□銀行 難波支店 普通 1112223', status: 'done', at: at(now, ago(1), 16), paidAt: at(now, ago(1), 17, 30) },
   ];
   const storedDeposits = [...deposits, ...past.flatMap((d) => (d.closedAt ? [] : [{ id: `SD-${d.userId}-${d.date}`, userId: d.userId, amount: d.withdrawals.reduce((n, w) => n + w.amount, 0), memo: '買取資金', by: '経理部', at: at(now, d.date, 9) }]))];
-  return { days, deposits: storedDeposits, payments, ...buildLedger(now, today, ago, deposits, payments), checks: buildChecks(earlier) };
+  return { days, deposits: storedDeposits, payments, ...buildLedger(now, today, ago, deposits, payments), checks: buildChecks(earlier), items: buildItemChecks(earlier) };
 }
 
 // 経費精算（一次チェック）の見本: 2日前・3日前の分はチェック済み（1人だけ差戻し）。前日の分は、すべて未チェック
@@ -95,6 +95,11 @@ function buildChecks(earlier) {
       : { status: 'ok', reason: '', by: '営業サポート', at: d.closedAt, date: d.date };
   });
   return checks;
+}
+
+// 2日前・3日前の分は、経費・お客様への支払・現金を、1件ずつ確認済みにしておく
+function buildItemChecks(earlier) {
+  return Object.fromEntries(earlier.flatMap((d) => [...d.expenses.map((e) => e.id), `cash:${d.userId}:${d.date}`].map((id) => [id, { by: '営業サポート', at: d.closedAt }])));
 }
 
 // 入出金の帳簿の見本: 28日分の販売代金・補充金・お客様への支払・固定費、鑑定士の小口金の補充と使用
@@ -142,13 +147,14 @@ function buildLedger(now, today, ago, deposits, payments) {
 export function seedSample(now = Date.now(), force = false) {
   try {
     if (!force && (localStorage.getItem(SAMPLE_SEEDED_KEY) || Object.keys(loadDays()).length)) return false;
-    const { days, deposits, payments, ledger, pettyUses, checks } = buildSample(now);
+    const { days, deposits, payments, ledger, pettyUses, checks, items } = buildSample(now);
     localStorage.setItem(WORKDAY_KEY, JSON.stringify(days));
     localStorage.setItem(DEPOSIT_KEY, JSON.stringify(deposits));
     localStorage.setItem(CUSTOMER_PAY_KEY, JSON.stringify(payments));
     localStorage.setItem(LEDGER_KEY, JSON.stringify(ledger));
     localStorage.setItem(PETTY_KEY, JSON.stringify(pettyUses));
     localStorage.setItem(DAILY_CHECK_KEY, JSON.stringify(checks));
+    localStorage.setItem(ITEM_CHECK_KEY, JSON.stringify(items));
     localStorage.setItem(SAMPLE_SEEDED_KEY, '1');
     return true;
   } catch {
