@@ -121,6 +121,21 @@ export const reopen = (checks, userId, date) => Object.fromEntries(Object.entrie
 
 export { signed };
 
+// ---- 鑑定士による修正（営業サポートがチェック済みにするまで、鑑定士が直せる） ---------------------------------
+export const statusOf = (checks, userId, date) => checks[checkKey(userId, date)]?.status ?? 'pending';
+export const canRevise = (checks, userId, date) => statusOf(checks, userId, date) !== 'ok';
+// 鑑定士が経費を直せる日: 提出（終業）済みで、チェック済みでない日。差戻しが先、あとは新しい順
+export function revisableDays(days, checks, userId) {
+  return days.filter((d) => d.userId === userId && d.startedAt && d.closedAt && canRevise(checks, userId, d.date))
+    .map((d) => ({ date: d.date, day: d, status: statusOf(checks, userId, d.date), review: checks[checkKey(userId, d.date)] ?? null }))
+    .sort((a, b) => (a.status === 'returned' ? 0 : 1) - (b.status === 'returned' ? 0 : 1) || b.date.localeCompare(a.date));
+}
+// 直したあと: 差戻しは未チェックに戻し（営業サポートが、もう一度見る）、直した経費の1件ずつの確認は外す
+export const afterRevise = ({ checks, items }, userId, date, changedIds) => ({
+  checks: statusOf(checks, userId, date) === 'returned' ? reopen(checks, userId, date) : checks,
+  items: Object.fromEntries(Object.entries(items).filter(([id]) => !changedIds.includes(id))),
+});
+
 // 日付を n 日ずらす（'2026-11-04', -1 → '2026-11-03'）
 export const shiftDate = (date, n) => {
   const d = new Date(`${date}T12:00:00`);

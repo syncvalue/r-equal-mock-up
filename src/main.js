@@ -4,7 +4,7 @@ import { estimateByPhotos, RECEIPT_SAMPLES, receiptSampleFor } from './ai.js';
 import { fmtElapsed } from './format.js';
 import {
   sendMessage,
-  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, PETTY_KEY, LEDGER_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
+  AP_STORAGE_KEY, APPROVAL_KEY, MSG_KEY, DEPOSIT_KEY, PETTY_KEY, LEDGER_KEY, DAILY_CHECK_KEY, markRead, upsertEval, COMMENT_KEY, loadApprovals, GMO_URL, RESET_CONFIRM, clearTransactions, loadComments, upsertComment, HQ_URL, loadAppraisals, newAppraisalId, newContractId, publishLive, upsertAppraisal, upsertContract,
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import { addPhoto, removePhoto } from './itemPhotos.js';
@@ -24,9 +24,10 @@ import {
   accountFor, passwordProblem, issueCode, checkCode, loadSession, saveSession, clearSession, RESEND_WAIT, MAX_CODE_TRIES,
 } from './auth.js';
 import { formatMoneyInput } from './moneyInput.js';
+import { revisableDays, loadChecks, saveChecks, loadItemChecks, saveItemChecks, afterRevise, canRevise } from './dailyCheck.js';
 import { blankPettyForm, sendPettyRequest, withdrawPetty, pettyReady } from './pettyRequest.js';
 import {
-  START_CHECKS, END_CHECKS, cashTotal, breakdownOf, loadDay, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, recordVisit, summaryOf, carryoverFor,
+  START_CHECKS, END_CHECKS, cashTotal, breakdownOf, loadDay, loadDays, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, reviseExpense, reviseRemove, recordVisit, summaryOf, carryoverFor,
   newId, blankOutcomeDraft, outcomeReady, outcomeOf, blankStartForm, blankCloseForm, blankExpenseDraft, expenseReady, withdrawalReady, addWithdrawal, removeWithdrawal, invoiceAfterRead, startReady, closeReady,
 } from './workday.js';
 import {
@@ -54,6 +55,8 @@ const initialState = () => ({
   startForm: blankStartForm(),
   closeForm: blankCloseForm(),
   expDraft: blankExpenseDraft(),
+  rvDraft: blankExpenseDraft(), // 提出済みの経費の修正の入力中データ
+  fixable: [], // 鑑定士が経費を直せる日（差戻し・確認待ち）
   withdrawDraft: { amount: 0 },
   petty: blankPettyForm(), // 小口金の申請の入力中データ
   outcome: null,
@@ -196,7 +199,7 @@ function render() {
   if (!state.user) { $('#app').innerHTML = V.authView(state); return; } // 未ログイン
   const day = loadDay(state.user);
   const phase = phaseOf(day);
-  set({ day, phase, units: loadUnits() });
+  set({ day, phase, units: loadUnits(), fixable: revisableDays(Object.values(loadDays()), loadChecks(), state.user) });
   // 始業するまで（終業後も）、現地買取だけは使えない
   if (phase !== 'open' && state.view === 'visit') set({ view: 'workday', modal: null });
   readOpenThread();
@@ -210,6 +213,7 @@ function render() {
     (state.view === 'visit' ? V.footerView(state) : '') +
     V.modalView(state) +
     V.receiptModalView(state) +
+    V.reviseModalView(state) +
     V.outcomeModalView(state) +
     V.scanView(state) +
     V.menuView(state);
@@ -220,6 +224,19 @@ function render() {
     const it = state.items.find((i) => i.id === state.modal.id);
     if (it && !it.price) $('[data-item-field=price]')?.focus();
   }
+}
+
+// 提出済みの日の経費を直して保存する。営業サポートがチェック済みにしていたら、直せない。差戻しの日は、直すと未チェックに戻る
+function reviseDay(fn, changedIds, message) {
+  const date = state.modal?.date;
+  const target = state.fixable.find((r) => r.date === date);
+  if (!target || !canRevise(loadChecks(), state.user, date)) { showToast('営業サポートの確認が済んでいるため、直せません'); return; }
+  if (!saveDay(fn(target.day))) { showToast('保存できませんでした（写真の容量が大きすぎます）'); return; }
+  const next = afterRevise({ checks: loadChecks(), items: loadItemChecks() }, state.user, date, changedIds);
+  saveChecks(next.checks);
+  saveItemChecks(next.items);
+  set({ rvDraft: blankExpenseDraft() });
+  showToast(target.status === 'returned' ? `${message}。営業サポートが、もう一度確認します` : message);
 }
 
 function updateItems(id, patch) {
@@ -666,6 +683,25 @@ const actions = {
     if (!confirm('この経費の計上を取り消します。よろしいですか？')) return;
     saveDay(removeExpense(state.day, el.dataset.id));
   },
+  // 提出済みの経費の修正（営業サポートがチェック済みにするまで。差戻し・確認待ちの日）
+  'rv-open': (el) => set({ modal: { type: 'revise', date: el.dataset.date, day: loadDays()[`${state.user}:${el.dataset.date}`] }, rvDraft: blankExpenseDraft() }),
+  'rv-edit': (el) => {
+    const e = state.fixable.find((r) => r.date === state.modal?.date)?.day.expenses.find((x) => x.id === el.dataset.id);
+    if (e && !e.auto) set({ rvDraft: { ...blankExpenseDraft(), id: e.id, type: e.type, amount: e.amount, memo: e.memo ?? '', photo: e.photo ?? null, invoice: Boolean(e.invoice) } });
+  },
+  'rv-new': () => set({ rvDraft: blankExpenseDraft() }),
+  'rv-type': (el) => set({ rvDraft: { ...state.rvDraft, type: el.dataset.value } }),
+  'rv-invoice': () => set({ rvDraft: { ...state.rvDraft, invoice: !state.rvDraft.invoice } }),
+  'rv-photo-dummy': () => {
+    const sample = RECEIPT_SAMPLES[dummyReceiptSeq % RECEIPT_SAMPLES.length];
+    dummyReceiptSeq += 1;
+    set({ rvDraft: { ...state.rvDraft, photo: dummyReceipt({ amount: sample.amount, store: sample.store }) } });
+  },
+  'rv-photo-clear': () => set({ rvDraft: { ...state.rvDraft, photo: null } }),
+  'rv-save': () => reviseDay((day) => reviseExpense(day, state.user, state.rvDraft), state.rvDraft.id ? [state.rvDraft.id] : [], '経費を修正しました'),
+  'rv-remove': (el) => {
+    if (confirm('この経費を削除します。よろしいですか？')) reviseDay((day) => reviseRemove(day, state.user, el.dataset.id), [el.dataset.id], '経費を削除しました');
+  },
   // 小口金の申請（承認は経理部）
   'petty-send': () => {
     if (!sendPettyRequest(state.user, state.petty)) { showToast('金額と用途を入力してください'); return; }
@@ -737,6 +773,11 @@ document.addEventListener('change', (e) => {
   if (el.dataset.expPhoto !== undefined && el.files[0]) {
     shrinkImage(el.files[0], 1000)
       .then((img) => { set({ expDraft: { ...state.expDraft, photo: img } }); readReceiptAi(receiptSampleFor(img.length)); rerenderKeepScroll(); })
+      .catch(() => showToast('画像を読み込めませんでした'));
+  }
+  if (el.dataset.rvPhoto !== undefined && el.files[0]) {
+    shrinkImage(el.files[0], 1000)
+      .then((img) => { set({ rvDraft: { ...state.rvDraft, photo: img } }); rerenderKeepScroll(); })
       .catch(() => showToast('画像を読み込めませんでした'));
   }
   if (el.dataset.cashPhoto !== undefined && el.files[0]) {
@@ -845,7 +886,7 @@ document.addEventListener('input', (e) => {
   if (el.dataset.wd) {
     // 始業・終業・経費の入力。再描画せず state だけ更新し、差異の表示とボタンだけ差し替える（フォーカス維持）
     const filled = el.value.trim() !== '';
-    const amount = el.dataset.wd.endsWith('counted') || ['exp-amount', 'petty-amount', 'wdr-amount'].includes(el.dataset.wd) ? formatMoneyInput(el) : 0;
+    const amount = el.dataset.wd.endsWith('counted') || ['exp-amount', 'rv-amount', 'petty-amount', 'wdr-amount'].includes(el.dataset.wd) ? formatMoneyInput(el) : 0;
     const patch = {
       'start-counted': { startForm: { ...state.startForm, counted: amount, countedSet: filled } },
       'start-note': { startForm: { ...state.startForm, note: el.value } },
@@ -855,6 +896,8 @@ document.addEventListener('input', (e) => {
       'wdr-amount': { withdrawDraft: { amount } },
       'exp-amount': { expDraft: { ...state.expDraft, amount } },
       'exp-memo': { expDraft: { ...state.expDraft, memo: el.value } },
+      'rv-amount': { rvDraft: { ...state.rvDraft, amount } },
+      'rv-memo': { rvDraft: { ...state.rvDraft, memo: el.value } },
       'petty-amount': { petty: { ...state.petty, amount } },
       'petty-date': { petty: { ...state.petty, date: el.value } },
       'petty-memo': { petty: { ...state.petty, memo: el.value } },
@@ -866,6 +909,7 @@ document.addEventListener('input', (e) => {
     if ($('#wd-live')) $('#wd-live').innerHTML = V.wdLiveView(state);
     if ($('#wd-start-bottom')) $('#wd-start-bottom').innerHTML = V.wdStartBottomView(state);
     if ($('#exp-live')) $('#exp-live').innerHTML = V.expLiveView(state);
+    if ($('#rv-live')) $('#rv-live').innerHTML = V.rvLiveView(state);
     if (el.dataset.wd === 'wdr-amount') { const b = $('[data-action="wdr-add"]'); if (b) b.disabled = !withdrawalReady(state.withdrawDraft); }
     if ($('#oc-live')) $('#oc-live').innerHTML = V.ocLiveView(state);
     if (el.dataset.wd.startsWith('petty')) { const b = $('[data-action="petty-send"]'); if (b) b.disabled = !pettyReady(state.petty); }
@@ -911,6 +955,13 @@ function rerenderKeepScroll() {
 window.addEventListener('storage', (e) => {
   if (e.key === PETTY_KEY || e.key === LEDGER_KEY) { // 小口金の承認・却下・補充（経理部）
     if (state.view === 'petty') rerenderKeepScroll();
+    return;
+  }
+  if (e.key === DAILY_CHECK_KEY) { // 営業サポートの経費精算のチェック（差戻し・チェック済み）
+    const before = state.fixable.filter((r) => r.status === 'returned').length;
+    const after = revisableDays(Object.values(loadDays()), loadChecks(), state.user).filter((r) => r.status === 'returned').length;
+    if (after > before) showToast('⚠ 経費精算が差し戻されました。理由を確認して、経費を直してください');
+    rerenderKeepScroll();
     return;
   }
   if (e.key === DEPOSIT_KEY) {

@@ -935,3 +935,4 @@ export { authView } from './authView.js';
 export { pettyView } from './pettyView.js';
 export { workdayView, expenseView, receiptModalView, outcomeModalView, outcomeResultView, wdLiveView, cashTotalView, withdrawLiveView, wdStartBottomView, expLiveView, ocLiveView } from './workdayView.js';
 export { stockView } from './stockView.js';
+export { reviseBanner, reviseSection, reviseModalView, rvLiveView } from './reviseView.js';

@@ -206,3 +206,23 @@ export const todayRows = () => USERS.map((u) => {
 
 // OCRの読取後の「インボイス対応」。登録番号が読めたらチェックする。読めなくても人のチェックは外さない（再読取は読取結果に合わせる）
 export const invoiceAfterRead = (current, sample, overwrite) => (sample.invoiceNo ? true : overwrite ? false : current);
+
+// ---- 終業後の経費の修正（営業サポートがチェック済みにするまで、鑑定士が直せる） ---------------------------------
+// 終業済みの日は、帳簿残高・終業時の過不足・日報の経費合計を、直した経費に合わせて計算し直す（終業時に数えた金額は、そのまま）
+function refreshClosed(day, userId) {
+  if (!day.closedAt) return day;
+  const s = summaryOf(day, userId);
+  return {
+    ...day,
+    close: { ...day.close, expected: s.balance, diff: day.close.counted - s.balance },
+    report: { ...day.report, expenseTotal: s.expenseTotal, byType: s.byType.map(({ key, label, amount, count }) => ({ key, label, amount, count })) },
+  };
+}
+// 経費を直す（draft.id があれば置き換え、なければ追加）。買取代金（自動計上）は直せない
+export function reviseExpense(day, userId, draft, { now = Date.now() } = {}) {
+  const fields = { type: draft.type, amount: draft.amount, memo: (draft.memo ?? '').trim(), photo: draft.photo ?? null, invoice: Boolean(draft.invoice) };
+  if (!draft.id) return refreshClosed(addExpense(day, { id: newId('EX'), at: now, ...fields, auto: false }), userId);
+  if (day.expenses.find((e) => e.id === draft.id)?.auto) return day;
+  return refreshClosed({ ...day, expenses: day.expenses.map((e) => (e.id === draft.id ? { ...e, ...fields } : e)) }, userId);
+}
+export const reviseRemove = (day, userId, id) => (day.expenses.find((e) => e.id === id)?.auto ? day : refreshClosed(removeExpense(day, id), userId));

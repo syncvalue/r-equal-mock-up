@@ -4,6 +4,7 @@ import { helpIcon } from './help.js';
 import { hqMessagesFor, leaderMessagesFor } from './messages.js';
 import { loadReadIds } from './store.js';
 import { loadDay, summaryOf, typeOf } from './workday.js';
+import { reviseBanner } from './reviseView.js';
 import {
   GROUPS, USERS, RESULTS, userById, isLeader, roleLabel, groupMembers, visibleUsers, rangeOf, prevRange, dailySeries, stats, monthProgress, visitRecords, dummyReport, eachDay, ymd,
 } from './dashboard.js';
@@ -131,6 +132,7 @@ export function dashboardView(s) {
 
   return `
   <section class="h-full min-h-0 overflow-y-auto p-4 space-y-3" data-scroll="dash">
+    ${reviseBanner(s)}
     ${messagesCards(s)}
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div><h2 class="text-2xl font-bold">📊 業績ダッシュボード</h2>

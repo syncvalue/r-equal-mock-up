@@ -10,6 +10,7 @@ import { pendingCount } from './stockView.js';
 import {
   START_CHECKS, END_CHECKS, EXPENSE_TYPES, DENOMINATIONS, withdrawalReady, cashTotal, expensesToReview, VISIT_OUTCOMES, outcomeOf, outcomeReady, typeOf, carryoverFor, summaryOf, closeDiff, startReady, closeReady, expenseReady, dateKey,
 } from './workday.js';
+import { reviseSection } from './reviseView.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const SEC = 'h-full min-h-0 p-3';
@@ -321,14 +322,15 @@ function ledgerRows(s) {
 
 export function expenseView(s) {
   if (s.phase !== 'open') {
-    return `<section class="${SEC} flex items-center justify-center"><div class="card max-w-md text-center space-y-3"><div class="text-5xl">💴</div>
+    return `<section class="${SEC} flex flex-col items-center justify-center gap-3 overflow-y-auto"><div class="w-full max-w-2xl space-y-3"><div class="card max-w-md mx-auto text-center space-y-3"><div class="text-5xl">💴</div>
       <p class="font-bold text-lg">${s.phase === 'before' ? '始業登録後に、経費を計上できます' : '終業済みです。経費は明日の始業後に計上できます'}${helpIcon('始業時の現金確認から、所持金の管理が始まります。')}</p>
-      <button class="btn btn-primary" data-action="nav" data-value="workday">${s.phase === 'before' ? '始業へ' : '本日の日報を見る'}</button></div></section>`;
+      <button class="btn btn-primary" data-action="nav" data-value="workday">${s.phase === 'before' ? '始業へ' : '本日の日報を見る'}</button></div>${reviseSection(s)}</div></section>`;
   }
   const sm = summaryOf(s.day, s.user);
   const d = s.expDraft;
   return `
   <section class="${SEC} flex flex-col gap-3">
+    ${reviseSection(s)}
     <div class="flex gap-3">
       ${stat('前日繰越金', yen(sm.opening))}${stat('補充金（経理部から振込）', yen(sm.depositTotal))}${stat('引き出し金額', `+${yen(sm.withdrawalTotal)}`, 'text-emerald-700')}${stat('経費（買取代金を含む）', `−${yen(sm.expenseTotal)}`, 'text-rose-600')}
       <div class="card !p-3 flex-1 text-right !bg-teal-600 text-white"><div class="text-xs text-teal-100">現在の所持金（帳簿）</div><div class="text-3xl font-bold">${yen(sm.balance)}</div>${sm.balance < 0 ? '<div class="text-xs font-bold text-amber-200">⚠ 残高がマイナスです。引き出し金額・計上を確認してください</div>' : ''}</div>
