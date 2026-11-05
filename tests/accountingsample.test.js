@@ -72,3 +72,13 @@ test('サンプル: 一度入れたら、データがある限り自動では入
   assert.ok(Object.keys(buildSample(NOW).days).length > 7);
   assert.ok(localStorage.getItem('rq-mock-ledger') && localStorage.getItem('rq-mock-daily-checks'));
 });
+
+test('サンプル: 買取代金には買取の内訳があり、商品ごとの金額の合計が買取代金に一致する', () => {
+  seedSample(NOW, true);
+  const buys = Object.values(loadDays()).flatMap((d) => d.expenses.filter((e) => e.type === 'purchase'));
+  assert.ok(buys.length >= 8);
+  for (const e of buys) {
+    assert.ok(e.items.length >= 1 && e.items.every((i) => i.name && i.price > 0), e.memo);
+    assert.equal(e.items.reduce((n, i) => n + i.price, 0), e.amount);
+  }
+});

@@ -37,7 +37,7 @@ const st = {
   office: AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : '', // 絞り込み中の営業所（空は全営業所）
   ledger: loadLedger(), selDay: null, selUser: null,
   led: blank.led(), pay: blank.pay(), fix: blank.fix(), pu: blank.pu(), returning: null, pettyReject: null,
-  claimFilter: 'pending', claimUser: null, calOpen: false, calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
+  claimFilter: 'pending', claimUser: null, calOpen: false, openPurchase: [], calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
 };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
@@ -134,6 +134,7 @@ const ACTIONS = {
   calPick: (d) => { st.checkDate = d.calPick; st.claimUser = null; st.returning = null; st.calOpen = false; },
   checkShift: (d) => { st.checkDate = shiftDate(st.checkDate, Number(d.checkShift)); st.claimUser = null; st.returning = null; st.calOpen = false; },
   checkYesterday: () => { st.checkDate = shiftDate(today(), -1); st.claimUser = null; st.returning = null; st.calOpen = false; },
+  purchaseToggle: (d) => { st.openPurchase = st.openPurchase.includes(d.purchaseToggle) ? st.openPurchase.filter((x) => x !== d.purchaseToggle) : [...st.openPurchase, d.purchaseToggle]; },
   itemToggle: (d) => { saveItemChecks(toggleItem(loadItemChecks(), d.itemToggle, { by: BY })); },
   claimOk: (d) => review((c) => markOk(c, d.claimOk, st.checkDate, { by: BY })),
   claimRet: (d) => { st.returning = { id: d.claimRet, reason: '' }; },

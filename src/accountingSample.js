@@ -10,7 +10,16 @@ export const SAMPLE_SEEDED_KEY = 'rq-mock-accounting-sample'; // 初期化で消
 
 const at = (now, date, h, m = 0) => new Date(`${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`).getTime() || now;
 const ex = (now, date, i, h, type, amount, memo, photo = true) => ({ id: `SX-${date}-${i}`, at: at(now, date, h), type, amount, memo, photo: photo ? dummyPhoto(memo.slice(0, 8) || 'receipt') : null, invoice: photo && ['gas', 'supply', 'toll'].includes(type) });
-const buy = (now, date, i, h, amount, name, n) => ({ ...ex(now, date, i, h, 'purchase', amount, `${name} 様 買取代金（${n}点）`, false), auto: true, visitId: `SV-${date}-${i}` });
+const POOL = [['ルイ・ヴィトン ネヴァーフル MM', 'A'], ['ロレックス デイトジャスト', 'B'], ['K18 ネックレス', 'A'], ['エルメス ケリー 28', 'S'], ['シャネル マトラッセ', 'B'], ['オメガ シーマスター', 'B'], ['プラチナ リング', 'A'], ['ティファニー ブレスレット', 'C']];
+// 買取の内訳の見本: 点数ぶんの商品に、金額を重みをつけて割り振る（合計は、買取代金に一致する）
+function itemsOf(amount, n, seed) {
+  const w = Array.from({ length: n }, (_, k) => k + 1 + (seed + k) % 3);
+  const sw = w.reduce((a, b) => a + b, 0);
+  const prices = w.map((x) => Math.round((amount * x) / sw / 100) * 100);
+  prices[n - 1] += amount - prices.reduce((a, b) => a + b, 0);
+  return prices.map((price, k) => ({ name: POOL[(seed + k) % POOL.length][0], rank: POOL[(seed + k) % POOL.length][1], qty: 1, price }));
+}
+const buy = (now, date, i, h, amount, name, n) => ({ ...ex(now, date, i, h, 'purchase', amount, `${name} 様 買取代金（${n}点）`, false), auto: true, visitId: `SV-${date}-${i}`, items: itemsOf(amount, n, i + Number(date.slice(-2))) });
 
 // 1日の記録。balance（帳簿残高）は、未終業なら始業時の金額＋引き出し金額−経費、終業済みなら counted が実際に数えた金額
 function day(userId, date, now, { start, expected = start, startNote = '', expenses, close, deposits = [], visits = 0, drawn: drawnTotal }) {

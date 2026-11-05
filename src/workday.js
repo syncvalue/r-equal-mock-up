@@ -161,7 +161,7 @@ export function recordVisit(day, visit, now = Date.now()) {
   if (!(visit.total > 0)) return withVisit;
   return addExpense(withVisit, {
     id: newId('EX'), at: now, type: PURCHASE_TYPE.key, amount: visit.total, memo: `${visit.customerName} 様 買取代金（${visit.itemCount}点）`,
-    photo: null, auto: true, visitId: visit.visitId,
+    photo: null, auto: true, visitId: visit.visitId, items: visit.items ?? [], // items: 買取内訳（商品名・ランク・点数・金額）
   });
 }
 

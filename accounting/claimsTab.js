@@ -69,7 +69,7 @@ function reconcileTable(r, s) {
 }
 
 // 経費とお客様への支払の表は、同じ列の幅にして、縦をそろえる
-const COLS = '<colgroup><col class="w-28" /><col class="w-16" /><col class="w-36" /><col class="w-28" /><col /><col class="w-28" /><col class="w-28" /><col class="w-64" /></colgroup>';
+const COLS = '<colgroup><col class="w-36" /><col class="w-16" /><col class="w-36" /><col class="w-28" /><col /><col class="w-28" /><col class="w-28" /><col class="w-64" /></colgroup>';
 const ITEM_HEAD = '<th>確認</th><th>時刻</th><th>種類</th><th class="text-right">金額</th><th class="pl-4">内容</th><th>領収書</th><th>インボイス</th><th>確認のポイント</th>';
 const itemTable = (head, body, empty) => `<table class="w-full table-fixed text-sm border border-slate-200 rounded"><thead><tr class="${TH}">${head}</tr></thead><tbody class="${ZEBRA}">${body || `<tr><td colspan="8" class="text-slate-400">${empty}</td></tr>`}</tbody></table>`.replace('<thead>', `${COLS}<thead>`);
 
@@ -90,9 +90,18 @@ function expenseTable(c, r) {
   return itemTable(ITEM_HEAD, body, '経費の記録はありません。');
 }
 
+// お客様への支払: 行の＋－で、買取の内訳（商品ごとの金額）を開閉する
 function purchaseTable(c, r) {
-  const body = r.purchases.map((e) => `<tr class="border-b"><td class="${cell}">${checkBtn(c, r, e)}</td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).icon} ${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
-    <td class="${cell} pl-4 !whitespace-normal">${esc(e.memo)}</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400 text-xs">（確認のポイントなし）</td></tr>`).join('');
+  const open = c.st.openPurchase ?? [];
+  const detail = (e) => {
+    const items = e.items ?? [];
+    const rows = items.map((i) => `<tr class="border-b border-slate-200"><td class="!whitespace-normal">${esc(i.name)}</td><td class="text-center">${esc(i.rank ?? '')}</td><td class="text-right">${i.qty}点</td><td class="text-right font-bold">${yen(i.price)}</td></tr>`).join('');
+    return `<tr class="bg-slate-50 border-b"><td></td><td colspan="7" class="!py-2"><div class="font-bold text-xs text-slate-600 mb-1">買取の内訳</div>${items.length
+      ? `<table class="w-full max-w-3xl text-sm bg-white border border-slate-200"><thead><tr class="bg-slate-100 text-slate-700 text-left"><th>商品</th><th class="text-center">ランク</th><th class="text-right">点数</th><th class="text-right">金額</th></tr></thead><tbody>${rows}<tr class="font-bold bg-slate-100"><td colspan="2">合計</td><td class="text-right">${items.reduce((n, i) => n + i.qty, 0)}点</td><td class="text-right">${yen(items.reduce((n, i) => n + i.price, 0))}</td></tr></tbody></table>`
+      : '<div class="text-xs text-slate-500">内訳の記録がありません（以前の記録）。</div>'}</td></tr>`;
+  };
+  const body = r.purchases.map((e) => `<tr class="border-b"><td class="${cell}"><div class="flex items-center gap-1"><button class="w-7 h-7 rounded border border-slate-400 bg-white font-bold leading-none" data-purchase-toggle="${esc(e.id)}" aria-expanded="${open.includes(e.id)}" aria-label="買取の内訳を${open.includes(e.id) ? '閉じる' : '開く'}">${open.includes(e.id) ? '－' : '＋'}</button>${checkBtn(c, r, e)}</div></td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).icon} ${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
+    <td class="${cell} pl-4 !whitespace-normal">${esc(e.memo)}</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400 text-xs">（確認のポイントなし）</td></tr>${open.includes(e.id) ? detail(e) : ''}`).join('');
   return itemTable(ITEM_HEAD.replace('>内容<', '>お客様・内容<'), body, 'お客様への支払はありません。');
 }
 

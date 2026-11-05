@@ -567,7 +567,7 @@ const actions = {
     recordDeclined({ visitId: state.visitId, phone: state.customer.phone, customerName: state.customer.name, at: Date.now(), items: state.items.filter((i) => !i.sell) });
     const sel = V.selectedItems(state);
     const day = loadDay(state.user);
-    if (day && !saveDay(recordVisit(day, { visitId: state.visitId, customerName: state.customer.name, itemCount: sel.reduce((n, i) => n + i.qty, 0), total: V.total(sel) }))) {
+    if (day && !saveDay(recordVisit(day, { visitId: state.visitId, customerName: state.customer.name, itemCount: sel.reduce((n, i) => n + i.qty, 0), total: V.total(sel), items: sel.map((i) => ({ name: i.name, rank: i.rank, qty: i.qty, price: i.price })) }))) {
       showToast('買取代金を経費に計上できませんでした（保存容量不足）');
     }
     // 持ち帰り（入庫）の対象として、シールを貼った実物を1点ずつ登録する
