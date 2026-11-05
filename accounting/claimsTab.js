@@ -69,9 +69,9 @@ function reconcileTable(r, s) {
 }
 
 // 経費とお客様への支払の表は、同じ列の幅にして、縦をそろえる
-const COLS = '<colgroup><col class="w-28" /><col class="w-14" /><col class="w-32" /><col class="w-24" /><col /><col class="w-24" /><col class="w-44" /></colgroup>';
-const ITEM_HEAD = '<th>確認</th><th>時刻</th><th>種類</th><th class="text-right">金額</th><th class="pl-4">内容</th><th>領収書</th><th>確認のポイント</th>';
-const itemTable = (head, body, empty) => `<table class="w-full table-fixed text-sm border border-slate-200 rounded"><thead><tr class="${TH}">${head}</tr></thead><tbody class="${ZEBRA}">${body || `<tr><td colspan="7" class="text-slate-400">${empty}</td></tr>`}</tbody></table>`.replace('<thead>', `${COLS}<thead>`);
+const COLS = '<colgroup><col class="w-28" /><col class="w-16" /><col class="w-36" /><col class="w-28" /><col /><col class="w-28" /><col class="w-28" /><col class="w-64" /></colgroup>';
+const ITEM_HEAD = '<th>確認</th><th>時刻</th><th>種類</th><th class="text-right">金額</th><th class="pl-4">内容</th><th>領収書</th><th>インボイス</th><th>確認のポイント</th>';
+const itemTable = (head, body, empty) => `<table class="w-full table-fixed text-sm border border-slate-200 rounded"><thead><tr class="${TH}">${head}</tr></thead><tbody class="${ZEBRA}">${body || `<tr><td colspan="8" class="text-slate-400">${empty}</td></tr>`}</tbody></table>`.replace('<thead>', `${COLS}<thead>`);
 
 // 1件ずつの確認ボタン（チェック済み・差戻しの後は、押せない）
 function checkBtn(c, r, item, label = '確認') {
@@ -84,15 +84,16 @@ const cell = 'align-middle';
 function expenseTable(c, r) {
   const body = r.expenses.map((e) => `<tr class="border-b"><td class="${cell}">${checkBtn(c, r, e)}</td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).icon} ${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
     <td class="${cell} pl-4 !whitespace-normal">${esc(e.memo) || '<span class="text-slate-400">（記入なし）</span>'}</td>
-    <td class="${cell}">${e.photo ? `<img src="${e.photo}" alt="領収書" class="h-12 rounded border" />` : e.proxy ? '<span class="text-teal-700 text-xs">経理代行</span>' : '<span class="text-rose-600 font-bold">なし</span>'}${e.invoice ? '<div><span class="text-xs rounded bg-sky-100 text-sky-800 px-1">インボイス</span></div>' : ''}</td>
+    <td class="${cell}">${e.photo ? `<img src="${e.photo}" alt="領収書" class="h-12 rounded border" />` : e.proxy ? '<span class="text-teal-700 text-xs">経理代行</span>' : '<span class="text-rose-600 font-bold">なし</span>'}</td>
+    <td class="${cell}">${e.invoice ? '<span class="text-xs font-bold rounded bg-sky-100 text-sky-800 px-2 py-0.5">インボイス</span>' : '<span class="text-xs text-slate-500">対象外</span>'}</td>
     <td class="${cell} !whitespace-normal">${chips(e.flags) || '<span class="text-emerald-700 text-xs font-bold">問題なし</span>'}</td></tr>`).join('');
   return itemTable(ITEM_HEAD, body, '経費の記録はありません。');
 }
 
 function purchaseTable(c, r) {
   const body = r.purchases.map((e) => `<tr class="border-b"><td class="${cell}">${checkBtn(c, r, e)}</td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).icon} ${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
-    <td class="${cell} pl-4 !whitespace-normal">${esc(e.memo)}</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400 text-xs">（確認のポイントなし）</td></tr>`).join('');
-  return itemTable(ITEM_HEAD.replace('<th>種類</th>', '<th>種類</th>').replace('内容', 'お客様・内容'), body, 'お客様への支払はありません。');
+    <td class="${cell} pl-4 !whitespace-normal">${esc(e.memo)}</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400 text-xs">（確認のポイントなし）</td></tr>`).join('');
+  return itemTable(ITEM_HEAD.replace('>内容<', '>お客様・内容<'), body, 'お客様への支払はありません。');
 }
 
 // 終業時に数えた現金: 写真と金額が一致していることの確認（証跡）
@@ -121,8 +122,8 @@ function detail(c, r) {
     <div class="flex flex-wrap items-center gap-2"><span class="text-lg font-bold">${esc(c.withOffice(userById(r.userId)))}</span><span class="text-slate-500">${mdw(r.date)}の提出分</span>${badge(st.cls, st.label)}${by}</div>
     ${r.review?.reason ? `<div class="text-sm text-rose-700 bg-rose-50 rounded p-2">差戻しの理由：${esc(r.review.reason)}</div>` : ''}
     <div class="flex flex-wrap gap-1">${chips(r.issues) || '<span class="text-emerald-700 text-sm font-bold">指摘なし（入力漏れ・入力ミスは見つかりませんでした）</span>'}</div>
-    <div class="grid lg:grid-cols-2 gap-4"><div class="overflow-x-auto">${reconcileTable(r, s)}</div>
-      <div class="overflow-x-auto space-y-4"><div><div class="font-bold text-sm mb-1">経費（ガソリン代など）</div>${expenseTable(c, r)}</div><div><div class="font-bold text-sm mb-1">お客様への支払</div>${purchaseTable(c, r)}</div></div></div>
+    <div class="max-w-3xl overflow-x-auto">${reconcileTable(r, s)}</div>
+    <div class="overflow-x-auto space-y-6"><div><div class="font-bold text-sm mb-1">経費（ガソリン代など）</div>${expenseTable(c, r)}</div><div><div class="font-bold text-sm mb-1">お客様への支払</div>${purchaseTable(c, r)}</div></div>
     ${cashCheck(c, r)}
     ${actions(c, r)}</section>`;
 }
