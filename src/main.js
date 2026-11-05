@@ -26,7 +26,7 @@ import {
 import { formatMoneyInput } from './moneyInput.js';
 import { loadChats, saveChats, post as postChat, markRead as markChatRead, unreadCount } from './expenseChat.js';
 import { ballList } from './ball.js';
-import { loadRequests, saveRequests, blankRequestForm, requestReady, makeRequest, addRequest, withdrawRequest, requestsOf, postAdv, advUnread, markAdvRead } from './advanceRequest.js';
+import { loadRequests, saveRequests, blankRequestForm, requestReady, makeRequest, addRequest, closeRequest, requestsOf, postAdv, advUnread, markAdvRead } from './advanceRequest.js';
 import { revisableDays, loadChecks, saveChecks, loadItemChecks, saveItemChecks, afterRevise, canRevise } from './dailyCheck.js';
 import {
   START_CHECKS, END_CHECKS, cashTotal, breakdownOf, loadDay, loadDays, saveDay, phaseOf, dateKey, startDay, closeDay, addExpense, removeExpense, reviseExpense, reviseRemove, recordVisit, summaryOf, carryoverFor,
@@ -721,11 +721,16 @@ const actions = {
   },
   'adv-chat-send': () => {
     const target = requestsOf(loadRequests(), state.user).find((r) => r.id === state.advSel) ?? requestsOf(loadRequests(), state.user)[0];
-    if (!target || !state.advChat.trim()) return;
+    if (!target || target.status !== 'open' || !state.advChat.trim()) return;
     saveChats(postAdv(loadChats(), target.id, { from: 'sales', by: userById(state.user).name, text: state.advChat }));
     set({ advChat: '' });
   },
-  'adv-withdraw': (el) => { if (confirm('この補充の依頼を取り下げます。よろしいですか？')) saveRequests(withdrawRequest(loadRequests(), el.dataset.id, state.user)); },
+  // 完了にできるのは、依頼を出した鑑定士（振り込まれても、見送りになっても、やり取りが終わったら完了にする）
+  'adv-close': (el) => {
+    if (!confirm('この補充の依頼を、完了にします。完了すると、チャットは続けられません。よろしいですか？')) return;
+    saveRequests(closeRequest(loadRequests(), el.dataset.id, state.user));
+    saveChats(postAdv(loadChats(), el.dataset.id, { from: 'sales', by: userById(state.user).name, kind: 'closed', text: 'やり取りを完了にしました' }));
+  },
   'rv-open': (el) => set({ modal: { type: 'revise', date: el.dataset.date, day: loadDays()[`${state.user}:${el.dataset.date}`] }, rvDraft: blankExpenseDraft() }),
   'rv-edit': (el) => {
     const e = state.fixable.find((r) => r.date === state.modal?.date)?.day.expenses.find((x) => x.id === el.dataset.id);
@@ -1008,10 +1013,7 @@ window.addEventListener('storage', (e) => {
     rerenderKeepScroll();
     return;
   }
-  if (e.key === ADVANCE_REQ_KEY) { // 補充の依頼への、経理部の対応
-    const rejected = (list) => requestsOf(list, state.user).filter((r) => r.status === 'rejected').length;
-    const before = state.advRequests.filter((r) => r.status === 'rejected').length;
-    if (rejected(loadRequests()) > before) showToast('⚠ 補充の依頼が却下されました。理由を確認してください');
+  if (e.key === ADVANCE_REQ_KEY) { // 補充の依頼（別の画面での更新）
     rerenderKeepScroll();
     return;
   }

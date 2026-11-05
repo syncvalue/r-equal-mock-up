@@ -96,19 +96,19 @@ test('サンプル: 経費精算のやり取りがある（差戻しの日・経
   assert.equal(threadOf(chats, 'u01', yesterday).messages.length, 0);
 });
 
-test('サンプル: 補充の依頼に、対応待ち・振込済み・却下がある', async () => {
+test('サンプル: 補充の依頼に、経理部の番・鑑定士の返信待ち・完了がある。依頼ごとのチャットがある', async () => {
   seedSample(NOW, true);
-  const { loadRequests, pendingRequests } = await import('../src/advanceRequest.js');
-  const list = loadRequests();
-  assert.equal(pendingRequests(list).length, 2);
-  assert.ok(list.some((r) => r.status === 'done' && r.paidAmount === r.amount) && list.some((r) => r.status === 'rejected' && r.reason));
-  assert.equal(new Set(list.map((r) => r.id)).size, list.length);
-  const { advThread, advUnread } = await import('../src/advanceRequest.js');
+  const A = await import('../src/advanceRequest.js');
   const { loadChats } = await import('../src/expenseChat.js');
+  const list = A.loadRequests();
   const chats = loadChats();
-  assert.ok(list.every((r) => advThread(chats, r.id).messages.length >= 1));
-  assert.ok(advThread(chats, 'SAR-1').messages.some((m) => m.from === 'accounting')); // 経理部の相談
-  assert.ok(advThread(chats, 'SAR-3').messages.some((m) => m.kind === 'rejected') && advThread(chats, 'SAR-4').messages.some((m) => m.kind === 'paid'));
-  assert.equal(advUnread(chats, 'SAR-3', 'sales'), 1); // 鑑定士は、却下の通知が新着
-  assert.equal(advUnread(chats, 'SAR-2', 'accounting'), 1); // 経理部は、まだ見ていない依頼が新着
+  assert.equal(A.openRequests(list).length, 3);
+  assert.deepEqual(A.accountingTurn(list, chats).map((r) => r.id), ['SAR-2']); // 経理部の番は、鑑定士の発言だけの依頼
+  assert.ok(list.some((r) => r.status === 'closed' && r.closedAt));
+  assert.equal(new Set(list.map((r) => r.id)).size, list.length);
+  assert.ok(list.every((r) => A.advThread(chats, r.id).messages.length >= 1));
+  assert.ok(A.advThread(chats, 'SAR-1').messages.some((m) => m.from === 'accounting')); // 経理部の相談
+  assert.ok(A.advThread(chats, 'SAR-4').messages.some((m) => m.kind === 'closed'));
+  assert.equal(A.advUnread(chats, 'SAR-3', 'sales'), 1); // 鑑定士は、経理部の返信が新着
+  assert.equal(A.advUnread(chats, 'SAR-2', 'accounting'), 1); // 経理部は、まだ見ていない依頼が新着
 });

@@ -111,14 +111,14 @@ function buildItemChecks(earlier) {
   return Object.fromEntries(earlier.flatMap((d) => [...d.expenses.map((e) => e.id), `cash:${d.userId}:${d.date}`].map((id) => [id, { by: '営業サポート', at: d.closedAt }])));
 }
 
-// 補充の依頼の見本: 対応待ち2件（今日）、振込済み1件・却下1件（過去）
+// 補充の依頼の見本: やり取り中3件（経理部の番1件・鑑定士の返信待ち2件）、完了1件
 function buildAdvRequests(now, today, ago) {
-  const r = (id, userId, date, h, amount, memo, extra = {}) => ({ id, userId, amount, memo, status: 'pending', at: at(now, date, h), decidedAt: null, by: '', reason: '', paidAmount: 0, ...extra });
+  const r = (id, userId, date, h, amount, memo, extra = {}) => ({ id, userId, amount, memo, status: 'open', at: at(now, date, h), closedAt: null, ...extra });
   return [
     r('SAR-1', 'u03', today, 11, 200000, '高額案件（時計）の買取の予定があるため'),
     r('SAR-2', 'u05', today, 13, 100000, ''),
-    r('SAR-3', 'u01', ago(1), 10, 300000, '午後に2件、大きな買取の予定', { status: 'rejected', decidedAt: at(now, ago(1), 11), by: '経理部', reason: 'まだ前日の補充金のうち10万円が、未引き出しです。先に引き出してください' }),
-    r('SAR-4', 'u01', ago(4), 9, 150000, '', { status: 'done', decidedAt: at(now, ago(4), 10), by: '経理部', paidAmount: 150000 }),
+    r('SAR-3', 'u01', ago(1), 10, 300000, '午後に2件、大きな買取の予定'),
+    r('SAR-4', 'u01', ago(4), 9, 150000, '', { status: 'closed', closedAt: at(now, ago(4), 11) }),
   ];
 }
 
@@ -129,14 +129,14 @@ function buildAdvChats(reqs) {
   const talk = {
     'SAR-1': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}（${r.memo}）`, 0), line(r, 'accounting', '20万円は大きいので、まず10万円ではどうですか？ 足りなければ、午後にもう一度、振り込みます。', 20)],
     'SAR-2': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}`, 0)],
-    'SAR-3': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}（${r.memo}）`, 0), line(r, 'accounting', r.reason, 60, 'rejected')],
-    'SAR-4': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}`, 0), line(r, 'accounting', `${yen(r.paidAmount)}を振り込みました（補充金）`, 55, 'paid')],
+    'SAR-3': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}（${r.memo}）`, 0), line(r, 'accounting', 'まだ前日の補充金のうち10万円が、未引き出しです。先に引き出してもらえますか？', 40)],
+    'SAR-4': (r) => [line(r, 'sales', `補充を依頼します：${yen(r.amount)}`, 0), line(r, 'accounting', '15万円を振り込みました。', 55), line(r, 'sales', '確認できました。ありがとうございます。', 70), line(r, 'sales', 'やり取りを完了にしました', 75, 'closed')],
   };
   return Object.fromEntries(reqs.map((r) => {
     const messages = talk[r.id](r).map((m, i) => ({ ...m, id: `adv:${r.id}-${i}` }));
     const last = messages.at(-1).at;
-    // 経理部は、全部読み済み（鑑定士の依頼の発言は、経理部が見た）。鑑定士は、却下・振込の通知が新着のまま、それ以外は読み済み
-    return [`adv:${r.id}`, { messages, accountingReadAt: r.status === 'pending' && r.id === 'SAR-2' ? 0 : last, salesReadAt: r.status === 'done' || r.id === 'SAR-1' ? last : 0 }];
+    // 経理部は、SAR-2（鑑定士の依頼）だけ未読。鑑定士は、経理部の返信（SAR-1・SAR-3）が新着のまま
+    return [`adv:${r.id}`, { messages, accountingReadAt: r.id === 'SAR-2' ? 0 : last, salesReadAt: r.id === 'SAR-1' || r.id === 'SAR-3' ? 0 : last }];
   }));
 }
 
