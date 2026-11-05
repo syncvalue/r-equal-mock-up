@@ -25,6 +25,7 @@ import {
 } from './auth.js';
 import { formatMoneyInput } from './moneyInput.js';
 import { loadChats, saveChats, post as postChat, markRead as markChatRead, unreadCount } from './expenseChat.js';
+import { ballList } from './ball.js';
 import { revisableDays, loadChecks, saveChecks, loadItemChecks, saveItemChecks, afterRevise, canRevise } from './dailyCheck.js';
 import { blankPettyForm, sendPettyRequest, withdrawPetty, pettyReady } from './pettyRequest.js';
 import {
@@ -58,6 +59,7 @@ const initialState = () => ({
   expDraft: blankExpenseDraft(),
   rvChat: '', // 経理部とのやり取りの入力中の文章
   chats: {},
+  balls: [], // 経費精算で、鑑定士が対応待ちの日（差戻し・経理部の質問）
   rvDraft: blankExpenseDraft(), // 提出済みの経費の修正の入力中データ
   fixable: [], // 鑑定士が経費を直せる日（差戻し・確認待ち）
   withdrawDraft: { amount: 0 },
@@ -198,13 +200,15 @@ function readOpenThread() {
   if (t && hasUnread(t, 'sales')) upsertAppraisal(markThreadRead(t, 'sales', Date.now()));
 }
 
+const BASE_TITLE = document.title;
 function render() {
   if (!state.user) { $('#app').innerHTML = V.authView(state); return; } // 未ログイン
   const day = loadDay(state.user);
   const phase = phaseOf(day);
   // 経費精算の修正の画面を開いている間は、経理部のメッセージを読んだことにする
   if (state.modal?.type === 'revise') saveChats(markChatRead(loadChats(), state.user, state.modal.date, 'sales'));
-  set({ chats: loadChats(), day, phase, units: loadUnits(), fixable: revisableDays(Object.values(loadDays()), loadChecks(), state.user) });
+  const allDays = Object.values(loadDays());
+  set({ chats: loadChats(), balls: ballList(allDays, loadChecks(), loadChats(), dateKey(), 'sales', state.user), day, phase, units: loadUnits(), fixable: revisableDays(Object.values(loadDays()), loadChecks(), state.user) });
   // 始業するまで（終業後も）、現地買取だけは使えない
   if (phase !== 'open' && state.view === 'visit') set({ view: 'workday', modal: null });
   readOpenThread();
@@ -212,6 +216,7 @@ function render() {
     approvals: loadApprovals().filter((a) => a.visitId === state.visitId),
   });
   const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
+  document.title = `${state.balls.length ? `(${state.balls.length}) ` : ''}${BASE_TITLE}`; // タブを見るだけで、対応待ちに気づけるように
   $('#app').innerHTML =
     V.headerView(state) +
     `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : state.view === 'petty' ? V.pettyView(state) : state.view === 'return' ? V.stockView(state) : V.placeholderView(state)}</main>` +

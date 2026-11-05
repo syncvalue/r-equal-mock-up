@@ -11,14 +11,14 @@ const returnedOf = (s) => (s.fixable ?? []).filter((r) => r.status === 'returned
 
 const newChat = (s, date) => { const n = unreadCount(s.chats ?? {}, s.user, date, 'sales'); return n ? `<span class="rounded-full bg-rose-600 text-white text-xs font-bold px-2 py-0.5">💬 新着 ${n}</span>` : ''; };
 
-// ダッシュボード上部: 差戻しのお知らせ（理由つき）
+// ダッシュボード上部: 鑑定士の対応待ち（ボールを持っている）のお知らせ。差戻し・経理部からの質問。差戻しは理由つき
 export function reviseBanner(s) {
-  const list = returnedOf(s);
+  const list = s.balls ?? [];
   if (!list.length) return '';
   return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2" role="alert">
-    <div class="font-bold text-rose-800">⚠ 経費精算が差し戻されました（${list.length}日分）。内容を直してください</div>
-    ${list.map((r) => `<div class="flex flex-wrap items-center gap-2 bg-white rounded-lg border border-rose-200 p-2"><b>${mdw(r.date)}</b><span class="flex-1 min-w-[12rem] text-sm text-rose-800">理由：${esc(r.review?.reason)}</span>
-      ${newChat(s, r.date)}<button class="btn btn-primary !min-h-[44px] !py-1 !px-4" data-action="rv-open" data-date="${r.date}">経費を修正する</button></div>`).join('')}</div>`;
+    <div class="font-bold text-rose-800">🔔 経費精算で、あなたの対応待ちが ${list.length}件 あります</div>
+    ${list.map((r) => { const reason = (s.fixable ?? []).find((f) => f.date === r.date)?.review?.reason; return `<div class="flex flex-wrap items-center gap-2 bg-white rounded-lg border border-rose-200 p-2"><b>${mdw(r.date)}</b><span class="flex-1 min-w-[12rem] text-sm text-rose-800">${esc(r.why)}${r.status === 'returned' && reason ? `<span class="block">理由：${esc(reason)}</span>` : ''}</span>
+      ${r.age >= 2 ? `<span class="rounded bg-rose-600 text-white text-xs font-bold px-2 py-0.5">${r.age}日経過</span>` : ''}${newChat(s, r.date)}<button class="btn btn-primary !min-h-[44px] !py-1 !px-4" data-action="rv-open" data-date="${r.date}">開く</button></div>`; }).join('')}</div>`;
 }
 
 // 経費管理: 直せる日の一覧（差戻し・確認前）

@@ -62,10 +62,12 @@ test('タブレットの表示: 差戻しのお知らせ（理由つき）・修
   const days = [closed({ date: '2026-11-03' }), closed()];
   const checks = { 'u01:2026-11-03': { status: 'returned', reason: '高速代の領収書が読めません' } };
   const fixable = D.revisableDays(days, checks, 'u01');
-  const s = { user: 'u01', fixable, modal: { type: 'revise', date: '2026-11-03' }, rvDraft: { id: null, type: '', amount: 0, memo: '', photo: null, invoice: false } };
+  const B = await import('../src/ball.js');
+  const balls = B.ballList(days, checks, {}, '2026-11-05', 'sales', 'u01');
+  const s = { user: 'u01', fixable, balls, modal: { type: 'revise', date: '2026-11-03' }, rvDraft: { id: null, type: '', amount: 0, memo: '', photo: null, invoice: false } };
   const banner = R.reviseBanner(s);
-  assert.ok(banner.includes('差し戻されました') && banner.includes('高速代の領収書が読めません') && banner.includes('data-action="rv-open"'));
-  assert.equal(R.reviseBanner({ fixable: [fixable[1]] }), ''); // 確認待ちだけのときは、お知らせは出さない
+  assert.ok(banner.includes('あなたの対応待ち') && banner.includes('差戻しです') && banner.includes('高速代の領収書が読めません') && banner.includes('2日経過') && banner.includes('data-action="rv-open"'));
+  assert.equal(R.reviseBanner({ fixable: [fixable[1]], balls: [] }), ''); // 鑑定士がボールを持っていないときは、お知らせは出さない
   const section = R.reviseSection(s);
   assert.ok(section.includes('差戻し') && section.includes('確認待ち') && section.includes('11/3（火）'));
   const modal = R.reviseModalView(s);
@@ -82,7 +84,7 @@ test('タブレットの表示: 修正の画面に、経理部とのやり取り
   const days = [closed({ date: '2026-11-03' })];
   const checks = { 'u01:2026-11-03': { status: 'returned', reason: '領収書' } };
   const chats = Ch.post({}, 'u01', '2026-11-03', { from: 'accounting', by: '経理部', text: '撮り直してください', now: 5 });
-  const s = { user: 'u01', fixable: D.revisableDays(days, checks, 'u01'), chats, rvChat: '了解です', modal: { type: 'revise', date: '2026-11-03' }, rvDraft: { id: null, type: '', amount: 0, memo: '', photo: null, invoice: false } };
+  const s = { user: 'u01', fixable: D.revisableDays(days, checks, 'u01'), balls: [{ date: '2026-11-03', why: '差戻しです。経費を修正してください', status: 'returned', age: 2 }], chats, rvChat: '了解です', modal: { type: 'revise', date: '2026-11-03' }, rvDraft: { id: null, type: '', amount: 0, memo: '', photo: null, invoice: false } };
   const modal = R.reviseModalView(s);
   for (const w of ['経理部とのやり取り', '撮り直してください', 'data-wd="rv-chat"', 'data-action="rv-chat-send"', 'value="了解です"']) assert.ok(modal.includes(w), w);
   assert.ok(R.reviseBanner(s).includes('新着 1') && R.reviseSection(s).includes('新着 1'));

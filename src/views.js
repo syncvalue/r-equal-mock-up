@@ -107,7 +107,7 @@ const viewOf = (m) => m.view ?? m.key;
 export const viewTitle = (s) => (s.view === 'workday' ? (s.phase === 'before' ? '始業' : '終業・日報') : MENU.find((m) => viewOf(m) === s.view)?.label);
 
 const menuBadge = (s) =>
-  s.visitStartedAt && !s.visitEndedAt && s.view !== 'visit'
+  (s.visitStartedAt && !s.visitEndedAt && s.view !== 'visit') || s.balls?.length
     ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900"></span>'
     : '';
 
@@ -138,6 +138,7 @@ export function menuView(s) {
           ${m.key === 'end' && s.phase === 'closed' ? '<span class="text-xs font-bold rounded-full bg-white/20 px-2 py-0.5">提出済み</span>' : ''}
           ${m.key === 'visit' && visiting ? `<span class="text-xs font-bold rounded-full bg-emerald-500 px-2 py-0.5">訪問中</span>` : ''}
           ${m.key === 'dashboard' && unreadCount(userById(s.user)) ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5">未読 ${unreadCount(userById(s.user))}</span>` : ''}
+          ${m.key === 'expense' && s.balls?.length ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5">対応待ち ${s.balls.length}</span>` : ''}
           ${m.key === 'return' && pendingCount(s) ? `<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">入庫待ち ${pendingCount(s)}</span>` : ''}
         </button>`).join('')}
       </div>
@@ -178,6 +179,7 @@ export function headerView(s) {
       <div class="flex items-center gap-3 text-sm">
         <button class="text-xs underline text-slate-300 hover:text-white" data-action="reset-all">（デモ用）データ初期化</button>
         ${themeToggleHtml()}
+        ${s.balls?.length && s.view !== 'visit' ? `<button class="rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-action="rv-open" data-date="${s.balls[0].date}" title="${esc(s.balls[0].why)}">🔔 経費の対応待ち ${s.balls.length}件</button>` : ''}
         ${isCustomerFacing(s) ? '' : commentBadge(s)}
         ${s.visitStartedAt && !s.visitEndedAt ? `<span class="text-slate-300">開始 ${fmtTime(s.visitStartedAt).slice(0, 5)}</span>
         <span class="text-lg font-mono font-bold" id="timer">${fmtElapsed(s.visitStartedAt)}</span>` : ''}

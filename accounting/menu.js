@@ -6,9 +6,9 @@ export const TABS = [
 ];
 export const tabLabel = (key) => TABS.find((t) => t.key === key)?.label ?? '';
 
-// badges: { balance: 振込待ちの件数, claims: 前日までの未チェックの鑑定士の数 }
+// badges: { balance: 振込待ちの件数, claims: 経理部の対応待ち（ボールを持っている）の件数 }
 export function menuView({ tab, badges }) {
-  const badge = { balance: ['bg-amber-500', '振込待ち'], claims: ['bg-rose-600', '未チェック'] };
+  const badge = { balance: ['bg-amber-500', '振込待ち'], claims: ['bg-rose-600', '対応待ち'] };
   return `
   <div class="fixed inset-0 z-[55]">
     <button class="absolute inset-0 bg-black/50 cursor-default" data-menu-close aria-label="メニューを閉じる"></button>

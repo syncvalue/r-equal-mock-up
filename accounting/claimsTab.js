@@ -1,10 +1,11 @@
 // 経費精算（営業サポートの一次チェック）: 日ごと・鑑定士ごとに、経費・お客様への支払・現金（前日繰越金と終業時の所持金）を確認する
-import { loadDays, typeOf, summaryOf } from '../src/workday.js';
+import { loadDays, typeOf, summaryOf, dateKey } from '../src/workday.js';
 import { onlyOffice } from '../src/accounting.js';
 import { checkRows, checkCounts, loadChecks, loadItemChecks, dayBadges, monthGrid, bulkTargets as bulkOf, CHECK_STATUS, shiftDate } from '../src/dailyCheck.js';
 import { userById } from '../src/dashboard.js';
 import { loadChats, threadOf, unreadCount, markRead as markChatRead, saveChats } from '../src/expenseChat.js';
 import { chatView } from '../src/expenseChatView.js';
+import { ballOf, ballList } from '../src/ball.js';
 import { helpIcon } from '../src/help.js';
 import { fmtTime, esc } from '../src/format.js';
 import { LEVEL, badge, card, signed, signedYen as yen, mdw, thumb } from './ui.js';
@@ -16,13 +17,8 @@ const FILTERS = [['pending', '未チェック'], ['ok', 'チェック済み'], [
 
 const rowsOf = (c, checks = loadChecks()) => checkRows(onlyOffice(Object.values(loadDays()), c.scopedIds(), Boolean(c.st.office)), c.st.checkDate, checks, loadItemChecks());
 export const dayRows = (c) => rowsOf(c);
-// 前日までに提出された記録のうち、まだチェックしていない鑑定士の数（メニューの件数）。今日の分は、まだ提出前なので数えない
-export function pendingBefore(c, today) {
-  const days = onlyOffice(Object.values(loadDays()), c.scopedIds(), Boolean(c.st.office));
-  const checks = loadChecks();
-  return [...new Set(days.filter((d) => d.date < today && d.startedAt).map((d) => d.date))]
-    .reduce((n, date) => n + checkRows(days, date, checks, loadItemChecks()).filter((r) => r.status === 'pending').length, 0);
-}
+// 経理部がボールを持っている（対応待ちの）鑑定士×日。メニュー・ヘッダーの件数と、画面上部のお知らせに使う
+export const acctBalls = (c) => ballList(onlyOffice(Object.values(loadDays()), c.scopedIds(), Boolean(c.st.office)), loadChecks(), loadChats(), c.today(), 'accounting');
 export const bulkTargets = bulkOf;
 
 // 日付を選ぶカレンダー。日ごとに、要対応（赤）・未チェック（黄）の人数、すべてチェック済み（緑）の印を付ける
@@ -141,6 +137,14 @@ function detail(c, r, chats) {
     ${actions(c, r)}</section>`;
 }
 
+// 誰の番か（経理部＝赤、鑑定士待ち＝グレー）
+function ballChip(r, chats) {
+  const b = ballOf({ status: r.status, thread: threadOf(chats, r.userId, r.date), closed: Boolean(r.day.closedAt), isToday: r.date === r.day.date && r.day.date === dateKey() });
+  if (b.ball === 'accounting') return `<div class="mt-1"><span class="rounded bg-rose-600 text-white text-[11px] font-bold px-1.5 py-0.5" title="${esc(b.why)}">▶ 経理部の番</span></div>`;
+  if (b.ball === 'sales') return `<div class="mt-1"><span class="rounded bg-slate-200 text-slate-700 text-[11px] font-bold px-1.5 py-0.5" title="${esc(b.why)}">⏳ 鑑定士待ち</span></div>`;
+  return '';
+}
+
 function listRow(c, r, selected, chats) {
   const talk = threadOf(chats, r.userId, r.date).messages.length;
   const unread = unreadCount(chats, r.userId, r.date, 'accounting');
@@ -152,7 +156,7 @@ function listRow(c, r, selected, chats) {
     <td class="text-right">${yen(x.carryover)}</td><td class="text-right">${x.closeCounted === null ? '<span class="text-rose-600 font-bold">未提出</span>' : yen(x.closeCounted)}</td>
     <td class="text-right ${x.closeDiff ? 'text-rose-600 font-bold' : ''}">${x.closeDiff === null ? '－' : signed(x.closeDiff)}</td>
     <td class="text-right">${yen(x.expenses)}</td><td class="text-right">${yen(x.customerPaid)}</td>
-    <td>${danger ? badge(LEVEL.danger, `要対応 ${danger}`) : ''} ${warn ? badge(LEVEL.warn, `確認 ${warn}`) : ''} ${!r.issues.length ? '<span class="text-emerald-700 text-xs font-bold">問題なし</span>' : ''}</td><td>${badge(st.cls, st.label)}</td>
+    <td>${danger ? badge(LEVEL.danger, `要対応 ${danger}`) : ''} ${warn ? badge(LEVEL.warn, `確認 ${warn}`) : ''} ${!r.issues.length ? '<span class="text-emerald-700 text-xs font-bold">問題なし</span>' : ''}</td><td>${badge(st.cls, st.label)}${ballChip(r, chats)}</td>
     <td class="whitespace-nowrap">${talk ? `<span class="text-xs">💬 ${talk}</span>` : '<span class="text-slate-300">－</span>'}${unread ? ` <span class="rounded-full bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5">新着 ${unread}</span>` : ''}</td></tr>`;
 }
 
@@ -167,6 +171,18 @@ export function markPickedRead(c) {
   if (next !== chats) saveChats(next);
 }
 
+// 画面上部: 対応待ち（経理部がボールを持っている）のお知らせ。押すと、その鑑定士・日に移る
+function ballBanner(c) {
+  const list = acctBalls(c);
+  if (!list.length) return '<div class="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800">✓ 経理部の対応待ちはありません</div>';
+  const shown = list.slice(0, 6);
+  return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2" role="alert"><div class="font-bold text-rose-800">🔔 経理部の対応待ちが ${list.length}件 あります（古い日から）</div>
+    ${shown.map((r) => `<div class="flex flex-wrap items-center gap-2 bg-white rounded-lg border border-rose-200 px-2 py-1"><b>${mdw(r.date)}</b><b>${esc(c.withOffice(userById(r.userId)))}</b><span class="flex-1 min-w-[12rem] text-sm text-rose-800">${esc(r.why)}</span>
+      ${r.age >= 2 ? `<span class="rounded bg-rose-600 text-white text-xs font-bold px-2 py-0.5">${r.age}日経過</span>` : r.age === 1 ? '<span class="text-xs text-slate-500">前日</span>' : '<span class="text-xs text-slate-500">今日</span>'}
+      <button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-ball-jump="${r.date}|${r.userId}">開く</button></div>`).join('')}
+    ${list.length > shown.length ? `<div class="text-xs text-rose-700">ほか ${list.length - shown.length}件</div>` : ''}</div>`;
+}
+
 export function claimsTab(c) {
   const all = rowsOf(c);
   const n = checkCounts(all);
@@ -176,6 +192,7 @@ export function claimsTab(c) {
   const bulk = bulkOf(all);
   const today = c.today();
   return `
+  ${ballBanner(c)}
   <div class="flex flex-wrap items-center gap-2">
     <button class="b b-sec" data-check-shift="-1" aria-label="前の日">◀</button>
     <span class="font-bold">対象日</span><div class="relative"><button class="b b-sec min-w-[10rem] text-left" data-cal-toggle aria-expanded="${c.st.calOpen}">📅 ${c.st.checkDate.replaceAll('-', '/')}</button>${c.st.calOpen ? calendar(c) : ''}</div>
