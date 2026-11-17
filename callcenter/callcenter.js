@@ -16,7 +16,7 @@ import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
 import { callHistory } from '../src/callHistory.js';
 import { saveCustomerEval } from '../src/customerEval.js';
-import { purchaseSummary, customerProfile, historyCustomers, historyOf, declinedList } from '../src/customerHistory.js';
+import { customerProfile, historyCustomers, historyOf, declinedList } from '../src/customerHistory.js';
 import { pastVisitRows } from './phoneTimeline.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
@@ -313,7 +313,8 @@ function renderHint() {
   const rows = pastVisitRows({ phones, reservations: loadReservations(), today, nameOf: (id) => USERS.find((u) => u.id === id)?.name ?? '',
     visits: [...new Set(phones.filter(Boolean))].flatMap((p) => historyOf({ phone: p }).visits), declined: declinedList(phones.filter(Boolean)).map((i) => ({ at: i.at, items: [i] })) });
   const fresh = !past && !editId && !open.length && !rows.length && /^0\d{9,10}$/.test(digits(form.phone));
-  if (el) el.innerHTML = (fresh ? '<div class="text-xs font-bold text-teal-700">この番号の受付・買取はありません</div>' : '') + openResHtml(open) + visitHistoryHtml(rows) + hintHtml(past, quoted, past ? purchaseSummary(phones) : null) + callLogHtml(calls, callLogOpen);
+  const parts = hintHtml(past, quoted) + openResHtml(open) + visitHistoryHtml(rows) + callLogHtml(calls, callLogOpen);
+  if (el) el.innerHTML = fresh ? '<div class="text-xs font-bold text-teal-700">この番号の受付・買取はありません</div>' : parts ? `<div class="divide-y rounded-lg border border-slate-300 bg-white text-xs">${parts}</div>` : '';
   syncBody();
 }
 

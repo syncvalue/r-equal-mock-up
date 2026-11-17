@@ -204,15 +204,10 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
   return `<div id="checklist" class="sticky top-0 z-10">${checklistHtml(list)}</div>${entry}<div id="form-body" class="flex flex-col gap-2">${body}</div>`;
 }
 
-export function hintHtml(found, applied, summary = null, profile = null) {
+export function hintHtml(found, applied) {
   if (!found) return '';
-  const d = (t) => { const x = new Date(t); return `${x.getFullYear()}/${x.getMonth() + 1}/${x.getDate()}`; };
-  const buy = !summary ? '' : summary.count
-    ? `<div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 border-t border-amber-200 pt-1"><span>直近の買取 <b class="text-sm">${yen(summary.latest.total)}</b><span class="text-slate-500">（${d(summary.latest.at)}・${esc(summary.latest.items)}）</span></span><span>過去の依頼 <b class="text-sm">${summary.count}</b>回</span><span>総買取額 <b class="text-sm">${yen(summary.total)}</b></span></div>`
-    : '<div class="mt-1 border-t border-amber-200 pt-1 text-slate-500">買取の実績はまだありません</div>';
-  return `<div class="rounded-lg bg-amber-50 border border-amber-300 px-2 py-1 text-xs">
-    <div class="flex justify-between items-center gap-2"><span><b>過去にご利用あり</b>：${esc(found.name)} 様（${esc(found.address)}）</span>
-      ${applied ? '<span class="text-xs text-slate-500">反映済み</span>' : '<button class="b b-sec !min-h-0 !py-1 text-sm shrink-0" data-quote>引用</button>'}</div>${buy}${profile ? `<div class="mt-1 border-t border-amber-200 pt-1">${customerProfileHtml(profile, { advice: true })}</div>` : ''}</div>`;
+  return `<section class="flex items-center justify-between gap-2 px-2 py-1.5"><span class="min-w-0 truncate"><b>${esc(found.name)} 様</b><span class="ml-1 text-slate-500">${esc(found.address)}</span></span>
+    ${applied ? '<span class="shrink-0 text-slate-500">反映済み</span>' : '<button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0" data-quote>引用</button>'}</section>`;
 }
 
 // ---- 配車（候補・空き状況） ----------------------------------------------------------
@@ -450,27 +445,27 @@ export const statusBadge = (r) => {
 // お客様から折り返しの電話があったとき（やめる・日を変えたい）に、その番号で受け付け済みの予約を出す
 export function openResHtml(list) {
   if (!list.length) return '';
-  return `<div class="space-y-1"><div class="text-xs font-bold text-slate-900">この電話番号で、すでに受け付けている予約${helpIcon('変更・取消はここから行います')}</div>${list.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs">
-    <span><b>受付済み</b>：${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</span>
-    <span class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-chg="${r.id}">日時を変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></span></div>`).join('')}</div>`;
+  return `<section class="space-y-1 px-2 py-1.5"><div class="font-bold text-slate-900">これからの予約${helpIcon('変更・取消はここから行います')}</div>${list.map((r) => `<div class="flex items-center gap-2">
+    <span class="min-w-0 flex-1 truncate"><b>${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}</b>　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</span>
+    <button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0" data-chg="${r.id}">変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0 !text-rose-700" data-cancelres="${r.id}">取消</button></div>`).join('')}</section>`;
 }
 
 // この電話番号の、過去の訪問（訪問済み・取消）。「このあたり買い取っているな」と分かりながら話せるように、買取の内訳まで開ける
-export function visitHistoryHtml(rows, shown = 4) {
+export function visitHistoryHtml(rows, shown = 3) {
   if (!rows.length) return '';
   const bought = rows.filter((r) => r.total > 0);
   const total = bought.reduce((n, r) => n + r.total, 0);
   const row = (r) => {
-    const head = `<span class="w-24 shrink-0 text-slate-500">${dateLabel(r.date)}</span><span class="min-w-0 flex-1 truncate">${r.kind === 'cancelled' ? `<span class="font-bold text-slate-500">取消</span>　${esc(r.note || r.items)}` : esc(r.items) || '訪問のみ'}</span><span class="shrink-0 font-bold ${r.total > 0 ? 'text-slate-900' : 'text-slate-400'}">${r.kind === 'cancelled' ? '' : r.total > 0 ? yen(r.total) : '買取なし'}</span>`;
+    const qty = r.lines.reduce((n, l) => n + (l.qty ?? 1), 0);
+    const head = `<span class="w-20 shrink-0 text-slate-500">${dateLabel(r.date)}</span><span class="min-w-0 flex-1 truncate">${r.kind === 'cancelled' ? `<span class="font-bold text-slate-500">取消</span>　${esc(r.note || r.items)}` : esc(r.items) || '訪問のみ'}${qty > 1 ? `<span class="ml-1 text-slate-400">${qty}点</span>` : ''}</span><span class="shrink-0 font-bold ${r.total > 0 ? 'text-slate-900' : 'text-slate-400'}">${r.kind === 'cancelled' ? '' : r.total > 0 ? yen(r.total) : '買取なし'}</span>`;
     const lines = r.lines.map((l) => `<div class="flex justify-between gap-2"><span class="min-w-0 truncate">${esc(l.name)}${(l.qty ?? 1) > 1 ? ` ×${l.qty}` : ''}</span><span class="shrink-0">${yen(l.price * (l.qty ?? 1))}</span></div>`).join('');
     const sub = [r.staff ? `担当 ${esc(r.staff)}` : '', r.declinedCount ? `見送り ${r.declinedCount}点` : ''].filter(Boolean).join('　');
     return r.total > 0 && lines
-      ? `<details class="px-2 py-1"><summary class="flex cursor-pointer items-center gap-2">${head}</summary><div class="mt-1 space-y-0.5 border-l-2 border-slate-300 pl-2 text-slate-700">${lines}${sub ? `<div class="text-slate-500">${sub}</div>` : ''}</div></details>`
-      : `<div class="flex items-center gap-2 px-2 py-1">${head}</div>`;
+      ? `<details class="py-0.5"><summary class="flex cursor-pointer items-center gap-2">${head}</summary><div class="mt-1 max-h-40 space-y-0.5 overflow-y-auto border-l-2 border-slate-300 pl-2 text-slate-700">${lines}</div>${sub ? `<div class="pl-2 text-slate-500">${sub}</div>` : ''}</details>`
+      : `<div class="flex items-center gap-2 py-0.5">${head}</div>`;
   };
-  const more = rows.length > shown ? `<details class="border-t"><summary class="cursor-pointer px-2 py-1 text-slate-500">さらに ${rows.length - shown}件</summary><div class="divide-y">${rows.slice(shown).map(row).join('')}</div></details>` : '';
-  return `<div class="space-y-1"><div class="text-xs font-bold text-slate-700">訪問の履歴（${rows.length}件${bought.length ? `・買取 ${bought.length}回 計${yen(total)}` : ''}）</div>
-    <div class="divide-y rounded-lg border border-slate-300 bg-white text-xs">${rows.slice(0, shown).map(row).join('')}${more}</div></div>`;
+  const more = rows.length > shown ? `<details><summary class="cursor-pointer py-0.5 text-slate-500">さらに ${rows.length - shown}件</summary>${rows.slice(shown).map(row).join('')}</details>` : '';
+  return `<section class="space-y-0.5 px-2 py-1.5"><div class="font-bold text-slate-900">訪問の履歴 <span class="font-normal text-slate-500">${rows.length}件${bought.length ? `・買取${bought.length}回 計${yen(total)}` : ''}</span></div>${rows.slice(0, shown).map(row).join('')}${more}</section>`;
 }
 
 // デモ用の電話番号（押すと、電話番号に入る）。ダミーデータの、どの状態も見られるように
@@ -507,7 +502,7 @@ const stampText = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/$
 export function callLogHtml(list, open) {
   if (!list.length) return '';
   const last = list[0];
-  return `<div class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs">
-    <button class="flex w-full items-center justify-between gap-2 text-left" data-calllog><span><b>この電話番号の受電履歴（${list.length}件）</b><span class="ml-2 text-slate-500">直近 ${stampText(last.at)} ${last.dir === 'out' ? '架電' : '受電'} ${esc(last.purpose ?? last.kind)}</span></span><span>${open ? '▲' : '▼'}</span></button>
-    ${open ? `<div class="mt-1 max-h-48 space-y-1 overflow-y-auto border-t pt-1">${list.map((c) => `<div class="flex items-start gap-2"><span class="w-28 shrink-0 text-slate-500">${stampText(c.at)}</span><span class="shrink-0 rounded px-1 font-bold ${KIND_CLS[c.kind] ?? 'bg-slate-100'}">${c.dir === 'out' ? '架電' : '受電'}</span><span class="min-w-0 flex-1"><b>${esc(c.purpose ?? c.kind)}</b>　${esc(c.note)}<span class="ml-1 text-slate-400">（${esc(c.who ?? c.by ?? '')}）</span></span></div>`).join('')}</div>` : ''}</div>`;
+  return `<section class="px-2 py-1.5">
+    <button class="flex w-full items-center justify-between gap-2 text-left" data-calllog><span class="min-w-0 truncate"><b>受電履歴</b> ${list.length}件<span class="ml-2 text-slate-500">直近 ${stampText(last.at)} ${last.dir === 'out' ? '架電' : '受電'} ${esc(last.purpose ?? last.kind)}</span></span><span class="shrink-0">${open ? '▲' : '▼'}</span></button>
+    ${open ? `<div class="mt-1 max-h-40 space-y-1 overflow-y-auto border-t pt-1">${list.map((c) => `<div class="flex items-start gap-2"><span class="w-28 shrink-0 text-slate-500">${stampText(c.at)}</span><span class="shrink-0 rounded px-1 font-bold ${KIND_CLS[c.kind] ?? 'bg-slate-100'}">${c.dir === 'out' ? '架電' : '受電'}</span><span class="min-w-0 flex-1"><b>${esc(c.purpose ?? c.kind)}</b>　${esc(c.note)}<span class="ml-1 text-slate-400">（${esc(c.who ?? c.by ?? '')}）</span></span></div>`).join('')}</div>` : ''}</section>`;
 }
