@@ -63,7 +63,7 @@ function sealStep(d, ctx) {
     ${slots.map((x) => `<div class="rounded-lg border bg-white p-3 flex flex-wrap items-center gap-3 ${d.labels[x.key] && d.colors[x.key] ? 'border-teal-300' : ''}">
       <div class="min-w-0 flex-1"><b class="truncate block">${esc(x.item.name)}${x.item.qty > 1 ? `（${x.n}/${x.item.qty}）` : ''}</b><span class="text-xs text-slate-500">${yen(x.item.price)}</span></div>
       <input class="inp !w-44 font-mono" data-seal="${esc(x.key)}" value="${esc(d.labels[x.key] ?? '')}" placeholder="シールNo." />
-      <button class="b b-sec !px-3 text-sm" data-scan="${esc(x.key)}">読み取り（モック）</button>
+      <button class="demo-only" data-scan="${esc(x.key)}">読み取り</button>
       <div class="flex gap-1">${SEAL_COLORS.map((c) => `<button class="b ${d.colors[x.key] === c.key ? 'on' : 'b-sec'} !px-3 text-sm" data-color="${esc(x.key)}" data-value="${c.key}" title="${esc(c.note)}">${c.dot} ${esc(c.label)}</button>`).join('')}</div>
       ${d.labels[x.key] ? `<button class="text-xs text-slate-500 underline" data-unseal="${esc(x.key)}">解除</button>` : ''}
       ${ctx.labelError?.key === x.key ? `<div class="w-full text-sm font-bold text-rose-700" role="alert">このシール（${esc(ctx.labelError.code)}）は、すでに使われています</div>` : ''}</div>`).join('')}</div>`;

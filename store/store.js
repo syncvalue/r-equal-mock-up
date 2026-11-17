@@ -86,7 +86,7 @@ function render() {
   const head = headerHtml({ store, staff, date: today(), summary: summaryOf(list, store.id, today()), themeHtml: themeToggleHtml() });
   const body = view === 'purchase' && draft
     ? purchaseHtml(purchaseCtx())
-    : `${boardHtml({ board: boardOf(list, store.id, today()), walk, profileOf })}<div class="px-4 pb-6 text-center"><button class="underline text-xs text-slate-500" data-reset>（デモ用）データ初期化</button></div>`;
+    : `${boardHtml({ board: boardOf(list, store.id, today()), walk, profileOf })}<div class="px-4 pb-6 text-center"><button class="demo-only" data-reset>データ初期化</button></div>`;
   $('#root').innerHTML = `${head}${body}${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-slate-900 text-white px-4 py-2 text-sm shadow-lg" role="status">${esc(toast)}</div>` : ''}`;
   const sc = document.querySelector('[data-scroll]');
   if (sc) sc.scrollTop = scroll;

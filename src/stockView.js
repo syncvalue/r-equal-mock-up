@@ -109,7 +109,7 @@ function actionCard(s, mine) {
     <p class="text-xs text-slate-500">納入先: <b>${esc(target.warehouse.name)}</b>（${esc(COOLING_OFF_SHELF)}）${helpIcon('商品は、あなたの営業所と一体の倉庫に入ります（倉庫のない営業所は、先頭の倉庫）。商品ごとに棚は分けず、クーリングオフ保管棚にまとめて保管します。')}</p>
     ${s.user && todo.some((u) => u.status === 'missing') ? `<div class="rounded-xl bg-rose-50 border border-rose-300 p-2 text-xs text-rose-700">所在不明の商品が ${todo.filter((u) => u.status === 'missing').length} 点あります。見つからない場合は本社へ連絡してください。</div>` : ''}
     <div class="mt-auto flex flex-col gap-1 items-end">
-      <button class="text-xs underline text-slate-400" data-action="stock-demo-add">（デモ用）過去2日分の入庫待ちを追加</button>
+      <button class="demo-only" data-action="stock-demo-add">過去2日分の入庫待ちを追加</button>
     </div>
   </div>`;
 }

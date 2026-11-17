@@ -62,7 +62,7 @@ function scanResult(data, scan, rl) {
     <div class="flex flex-wrap items-center gap-3 rounded bg-slate-50 p-2">${photoSlot(unit, 'h-24 w-24')}
       <div class="text-sm space-y-1"><div class="font-bold">商品の写真</div>
         <div class="text-xs text-slate-700">${unit.photo ? `登録済み（${unit.photoBy ? `${esc(unit.photoBy)}・` : ''}${unit.photoAt ? mdTime(unit.photoAt) : ''}）` : '未登録です（いまは仮の絵）'}${helpIcon(`${unit.photo ? '写真を押すと撮り直せます。' : '写真を押して、撮影・選択して登録してください。'}\nクーリングオフの電話で、お客様と商品を確認するときに使います。`)}</div>
-        <div class="flex gap-2"><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-photo-sample="${esc(unit.code)}">（デモ用）サンプル写真を登録</button>${unit.photo ? `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-photo-clear="${esc(unit.code)}">写真を削除</button>` : ''}</div></div></div>
+        <div class="flex gap-2"><button class="demo-only" data-photo-sample="${esc(unit.code)}">サンプル写真を登録</button>${unit.photo ? `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-photo-clear="${esc(unit.code)}">写真を削除</button>` : ''}</div></div></div>
     ${['incoming', 'missing', 'stock'].includes(r.stage) ? (rl.code === unit.code ? relabelForm(rl, unit) : `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-rl-open="${esc(unit.code)}">シール貼り替え（色の間違いなど）</button>`) : ''}
     ${siblingsHtml(data, unit.code)}
     <ol class="text-sm border-l-2 border-slate-200 pl-3 space-y-1">${historyOf(data.full, unit.code).map((e) => `<li><span class="text-xs text-slate-500">${mdTime(e.at)}</span> <b>${e.label}</b> <span class="text-slate-700">${esc(e.detail)}</span></li>`).join('')}</ol>

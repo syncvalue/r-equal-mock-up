@@ -113,7 +113,7 @@ function startScreen(s) {
       <div class="flex items-center justify-between"><h2 class="text-lg font-bold">✓ 始業点検</h2>
         <span class="font-bold ${left ? 'text-amber-800' : 'text-teal-700'}">${START_CHECKS.length - left} / ${START_CHECKS.length}</span></div>
       <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1 portrait:flex-none portrait:overflow-visible" data-scroll="wdChecks">${START_CHECKS.map((c) => checkRow(form, c, false)).join('')}</div>
-      <div class="flex justify-end gap-3 text-xs text-slate-400"><button class="underline" data-action="wd-demo-start">（デモ用）すべてチェックして繰越金を一致させる</button></div>
+      <div class="flex justify-end gap-3 text-xs text-slate-400"><button class="demo-only" data-action="wd-demo-start">すべてチェックして繰越金を一致させる</button></div>
     </div>
     </div>
     <div id="wd-start-bottom" class="portrait:flex-none">${wdStartBottomView(s)}</div>
@@ -201,7 +201,7 @@ function cashCountView(form) {
         ? `<div class="flex items-center gap-3"><img src="${form.cashPhoto}" alt="現金の写真" class="h-24 rounded-lg border" /><button class="btn btn-secondary !min-h-[44px] !py-1 !px-3 text-sm" data-action="close-photo-clear">撮り直す</button></div>`
         : `<div class="grid grid-cols-2 gap-2">
             <label class="btn btn-primary !min-h-[48px] !py-2 !px-2 text-center cursor-pointer flex items-center justify-center">撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-cash-photo /></label>
-            <button class="btn btn-secondary !min-h-[48px] !py-2 !px-2" data-action="close-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>`;
+            <button class="demo-only" data-action="close-photo-dummy">ダミー写真</button></div>`}</div>`;
 }
 
 // 今日計上した経費の明細とレシート画像（日報の経費の内訳に出す。終業時に、間違いがないか見直す）
@@ -252,7 +252,7 @@ function closeScreen(s) {
       <label class="block"><span class="font-bold text-sm">所感・本社への連絡事項<span class="font-normal text-xs text-slate-500">（任意）</span></span>
         <textarea class="field !py-2 mt-1" rows="2" data-wd="close-comment" placeholder="お客様の反応、困ったこと、明日の予定など">${esc(form.comment)}</textarea></label>
       <div id="wd-live" class="space-y-2">${wdLiveView(s)}</div>
-      <button class="text-xs underline text-slate-400 self-end" data-action="wd-demo-close">（デモ用）帳簿どおりに入力して、すべてチェック</button>
+      <button class="demo-only self-end" data-action="wd-demo-close">帳簿どおりに入力して、すべてチェック</button>
     </div>
   </section>`;
 }
@@ -352,7 +352,7 @@ export function expenseView(s) {
             ? `<div class="flex items-center gap-3"><img src="${d.photo}" alt="レシート" class="h-24 rounded-lg border" /><button class="btn btn-secondary !min-h-[44px] !py-1 !px-3 text-sm" data-action="exp-photo-clear">撮り直す</button></div>${aiStatus(d.ai)}`
             : `<div class="grid grid-cols-2 gap-2">
                 <label class="btn btn-primary !min-h-[56px] !py-2 !px-2 text-center text-base cursor-pointer flex items-center justify-center">撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-exp-photo /></label>
-                <button class="btn btn-secondary !min-h-[56px] !py-2 !px-2 text-base" data-action="exp-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>
+                <button class="demo-only" data-action="exp-photo-dummy">ダミー写真</button></div>`}</div>
         <div class="text-xs font-bold text-slate-500 -mb-1">② 内容を確認${helpIcon('撮影すると、AIが自動入力します。')}</div>
         <div><div class="font-bold text-sm mb-1">種別${aiBadge(d, 'type')}</div><div class="grid grid-cols-3 gap-1.5">
           ${EXPENSE_TYPES.map((t) => `<button class="chip !px-1 !py-1 flex flex-col items-center leading-tight ${d.type === t.key ? 'active' : ''}" data-action="exp-type" data-value="${t.key}"><span class="text-sm">${t.label}</span></button>`).join('')}</div></div>

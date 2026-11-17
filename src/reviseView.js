@@ -77,7 +77,7 @@ export function reviseModalView(s) {
           <div><div class="font-bold text-sm mb-1">レシート<span class="text-rose-700 ml-1">必須</span></div>
             ${d.photo ? `<div class="flex items-center gap-3"><img src="${d.photo}" alt="レシート" class="h-20 rounded-lg border" /><button class="btn btn-secondary !min-h-[40px] !py-1 !px-3 text-sm" data-action="rv-photo-clear">撮り直す</button></div>`
               : `<div class="grid grid-cols-2 gap-2"><label class="btn btn-primary !min-h-[48px] !py-2 !px-2 text-center cursor-pointer flex items-center justify-center">撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-rv-photo /></label>
-                <button class="btn btn-secondary !min-h-[48px] !py-2 !px-2" data-action="rv-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>
+                <button class="demo-only" data-action="rv-photo-dummy">ダミー写真</button></div>`}</div>
           <div><div class="font-bold text-sm mb-1">種別</div><div class="grid grid-cols-3 gap-1.5">${EXPENSE_TYPES.map((t) => `<button class="chip !px-1 !py-1 flex flex-col items-center leading-tight ${d.type === t.key ? 'active' : ''}" data-action="rv-type" data-value="${t.key}"><span class="text-sm">${t.label}</span></button>`).join('')}</div></div>
           <label class="block"><span class="font-bold text-sm">金額</span>${moneyInputHtml({ attrs: 'data-wd="rv-amount"', value: d.amount, cls: 'field' })}</label>
           <label class="flex items-center gap-2 rounded-lg border p-2 cursor-pointer"><input type="checkbox" class="w-6 h-6" data-action="rv-invoice" ${d.invoice ? 'checked' : ''} /><span class="font-bold text-sm">インボイス対応のレシート</span></label>

@@ -13,8 +13,8 @@ const link = (action, label) => `<button class="text-sm underline text-slate-500
 
 // 受信したSMS（モック）。実際はSMSで届くため、この表示はデモ用
 const smsPreview = (p) => (p?.userId ? `
-  <div class="rounded-2xl bg-slate-800 text-white p-3 text-sm shadow-lg">
-    <div class="text-[11px] text-slate-300 mb-0.5">デモ用：届いたSMS</div>
+  <div class="rounded-xl border border-dashed border-slate-300 p-2 text-xs text-slate-500">
+    <div class="text-[11px] text-slate-400 mb-0.5">デモ｜届いたSMS</div>
     <div>【出張買取】認証コード <b class="text-xl tracking-widest font-mono">${p.code}</b>（5分間有効）。他人には教えないでください。</div></div>` : '');
 
 function loginScreen(a) {
@@ -26,7 +26,7 @@ function loginScreen(a) {
         <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-sm underline text-slate-500 px-2 py-2" data-action="auth-toggle-pw">${a.showPw ? '隠す' : '表示'}</button></div></label>
     <button class="btn btn-primary w-full" data-action="auth-login">ログイン</button>
     <div class="text-center">${link('auth-forgot', 'パスワードをお忘れの方')}</div>
-    <details class="rounded-xl bg-slate-50 border p-2 text-xs text-slate-500"><summary class="cursor-pointer">デモ用アカウント</summary>
+    <details class="rounded-xl border border-dashed border-slate-300 p-2 text-xs text-slate-400"><summary class="demo-only cursor-pointer">アカウント</summary>
       <div class="mt-1">ID・パスワードは何でも可（モック）。下のIDならその鑑定士、それ以外は鈴木 一郎としてログインします。</div>
       <div class="mt-1 grid grid-cols-2 gap-x-3">${ACCOUNTS.map((x) => `<span><b class="font-mono">${x.loginId}</b> ${esc(userById(x.userId).name)}</span>`).join('')}</div></details>`;
 }

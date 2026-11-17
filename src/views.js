@@ -182,7 +182,7 @@ export function headerView(s) {
         <span class="${st.cls} rounded-full px-3 py-0.5 font-bold text-sm">${st.label}</span>
       </div>
       <div class="flex items-center gap-3 text-sm">
-        <button class="text-xs underline text-slate-300 hover:text-white" data-action="reset-all">（デモ用）データ初期化</button>
+        <button class="demo-only" data-action="reset-all">データ初期化</button>
         ${themeToggleHtml()}
         ${s.undrawn > 0 && s.view !== 'visit' && s.view !== 'expense' ? `<button class="rounded-full bg-amber-400 hover:bg-amber-300 text-slate-900 text-sm font-bold px-3 py-1 animate-pulse" data-action="nav" data-value="expense">補充金 未引き出し ${yen(s.undrawn)}</button>` : ''}
         ${s.balls?.length && s.view !== 'visit' ? `<button class="rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-action="rv-open" data-date="${s.balls[0].date}" title="${esc(s.balls[0].why)}">経費の対応待ち ${s.balls.length}件</button>` : ''}
@@ -326,7 +326,7 @@ function itemPhotoSection(item) {
         <button class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-7 h-7" data-action="item-photo-remove" data-id="${item.id}" data-idx="${i}" aria-label="写真を削除">✕</button></div>`).join('')}
       <label class="h-16 w-16 rounded-lg border-2 border-dashed border-slate-400 flex items-center justify-center text-3xl cursor-pointer bg-white">＋
         <input type="file" accept="image/*" capture="environment" class="hidden" data-item-photo="${item.id}" /></label>
-      <button class="btn btn-secondary !py-1 !min-h-[40px] text-sm" data-action="item-photo-dummy" data-id="${item.id}">（デモ用）ダミー写真を追加</button>
+      <button class="demo-only" data-action="item-photo-dummy" data-id="${item.id}">ダミー写真を追加</button>
     </div>
   </div>`;
 }
@@ -395,7 +395,7 @@ export function briefingView(s) {
         ? `<div class="rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 font-bold text-rose-700">${s.rec ? '● 録音中です' : '✓ 録音を登録済みです'}</div>`
         : `<div class="rounded-xl border-2 border-amber-400 p-3 flex items-center justify-between gap-2"><span class="font-bold">録音を開始してください<span class="text-rose-700 ml-1 text-sm">必須</span></span>
           <button class="btn btn-primary !min-h-[44px] !py-1" data-action="rec-start" ${recordingReady(s.briefing) ? '' : 'disabled'}>録音を開始</button></div>`}
-      <button class="text-xs underline text-slate-400 self-end" data-action="brief-all">（デモ用）すべてチェックして「提案してよい」を選ぶ</button>
+      <button class="demo-only self-end" data-action="brief-all">すべてチェックして「提案してよい」を選ぶ</button>
     </div>
   </section>`;
 }
@@ -442,7 +442,7 @@ export function aiView(s) {
       ${ai.photo ? `<img src="${ai.photo}" alt="撮影画像" class="h-16 w-16 object-cover rounded-lg border" />` : ''}
       <label class="btn btn-primary flex-1 text-center cursor-pointer">撮影して判定
         <input type="file" accept="image/*" capture="environment" class="hidden" data-ai-photo /></label>
-      <button class="btn btn-secondary" data-action="ai-dummy">（デモ用）ダミー</button>
+      <button class="demo-only" data-action="ai-dummy">ダミー</button>
     </div>
     ${body}`;
 }
@@ -572,7 +572,7 @@ export function labelView(s) {
       <div class="flex justify-between items-end">
         <div><h2 class="text-xl font-bold">商品へのシール貼付・QR紐づけ</h2>
           <p class="text-slate-500 text-sm">QRコードを読み取ってください（${done} / ${slots.length} 点）</p></div>
-        <button class="btn btn-secondary !py-2 !min-h-[44px]" data-action="dummy-scan-all">（デモ用）残りを一括で読み取る</button>
+        <button class="demo-only" data-action="dummy-scan-all">残りを一括で読み取る</button>
       </div>
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="labels">
       ${slots
@@ -690,7 +690,7 @@ function boxPanel(s, done) {
     ${p.complete ? (targets.length ? '<div class="text-sm font-bold text-teal-700">✓ 買い取った商品が、すべて箱に入りました</div>' : '')
       : `<div class="text-sm font-bold text-amber-800">箱に入っていない商品が、あと${p.left}点あります。お客様宅に置き忘れていないか、確認してください</div>`}
     ${done || p.complete ? '' : `<button class="btn btn-primary w-full !min-h-[48px] !py-2" data-action="pack-scan">QRを読み取って、箱に入れる</button>
-      <button class="text-xs underline text-slate-400" data-action="pack-scan-foreign">（デモ用）買い取っていない商品のQRを読み取る</button>`}
+      <button class="demo-only" data-action="pack-scan-foreign">買い取っていない商品のQRを読み取る</button>`}
   </div>`;
 }
 
@@ -731,7 +731,7 @@ export function endView(s) {
               <input type="checkbox" class="w-7 h-7 shrink-0" data-action="leave-check" data-key="${c.key}" ${s.leaveChecks[c.key] ? 'checked' : ''} ${done ? 'disabled' : ''} />
               <span class="flex-1 ${s.leaveChecks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`).join('')}
         </div>
-        ${done ? '' : '<button class="text-xs underline text-slate-400 self-end" data-action="leave-all">（デモ用）すべてチェック</button>'}
+        ${done ? '' : '<button class="demo-only self-end" data-action="leave-all">すべてチェック</button>'}
       </div>
     </div>
   </section>`;
@@ -991,12 +991,12 @@ function appraisalComposeView(s, m) {
         <label class="h-20 w-20 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-3xl cursor-pointer">＋
           <input type="file" accept="image/*" capture="environment" class="hidden" data-ap-photo /></label>
       </div>
-      <button class="btn btn-secondary !py-1 !min-h-[40px] mt-2" data-action="ap-dummy-photo">（デモ用）ダミー写真を追加</button></div>
+      <button class="demo-only mt-2" data-action="ap-dummy-photo">ダミー写真を追加</button></div>
     ${ai
       ? `${item ? aiResultView(s, item) : ''}
          <button class="btn w-full bg-slate-600 text-white" data-action="ai-run" ${d.photos.length && !s.aiBusy ? '' : 'disabled'}>${item?.aiAppraisal ? 'もう一度AI査定する' : 'AI査定を実行'}</button>`
       : `<button class="btn btn-primary w-full" data-action="send-appraisal" ${d.note.trim() || d.photos.length ? '' : 'disabled'}>${thread ? '査定部に送る' : '査定部に依頼する'}</button>
-         <button class="text-xs underline text-slate-400" data-action="open-hq">（デモ用）本社査定画面を別タブで開く</button>`}`,
+         <button class="demo-only" data-action="open-hq">本社査定画面を別タブで開く</button>`}`,
   );
 }
 

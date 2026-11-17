@@ -48,3 +48,11 @@ html.dark .fill-slate-500 { fill: #94a3b8; } html.dark .stroke-slate-300 { strok
 /* ダッシュボードのメッセージ欄の「他○件あります」表示 */
 html.dark [data-msgmore] { background-image: linear-gradient(to top, #172236, rgba(23, 34, 54, .9), transparent); }
 html.dark [data-msgmore] span { color: #cbd5e1; }
+
+/* デモ専用のボタン・リンク（本番では消える仮の部品）。どの画面でも同じ見た目: 小さく・薄く・破線の枠。先頭に「デモ｜」が付く。存在感を消し、本来の部品と明らかに違って見えるようにする */
+.demo-only { display: inline-block; font-size: 11px; font-weight: 400; line-height: 1.4; color: #94a3b8; background: transparent; border: 1px dashed #cbd5e1; border-radius: 4px; padding: 1px 6px; min-height: 0; opacity: .8; text-decoration: none; cursor: pointer; }
+.demo-only::before { content: 'デモ｜'; }
+.demo-only:hover { opacity: 1; color: #64748b; border-color: #94a3b8; }
+.demo-only:disabled { opacity: .4; cursor: not-allowed; }
+html.dark .demo-only { color: #64748b; border-color: #2f405a; }
+html.dark .demo-only:hover { color: #94a3b8; border-color: #64748b; }

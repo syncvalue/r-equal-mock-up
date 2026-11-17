@@ -359,9 +359,9 @@ function render() {
       <span class="font-bold text-xl">コールセンター</span><span class="text-teal-700">›</span><span class="font-bold">${tabLabel(tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">オペレーター <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${ops.map((o) => `<option class="text-slate-900" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
-      ${tab === 'new' && !editId ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">音声入力デモ${demoOpen ? 'を閉じる' : '（今後の拡張）'}</button>` : ''}
-      <a class="underline text-white/80 text-xs" href="/tablet/" target="_blank" rel="noopener">鑑定士アプリを開く</a>
-      <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
+      ${tab === 'new' && !editId ? `<button class="demo-only" data-demo="toggle">音声入力${demoOpen ? 'を閉じる' : ''}</button>` : ''}
+      <a class="demo-only" href="/tablet/" target="_blank" rel="noopener">鑑定士アプリ</a>
+      <button class="demo-only" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
   ${menuOpen ? menuView({ tab, badges: menuBadges() }) : ''}
   ${tab === 'new' ? renderNew() : tab === 'calendar' ? calendarHtml({ areaId: cvArea, mode: cvMode, weekStart: cvWeekStart, date: cvDate, reservations: loadReservations(), today: ymdOf(new Date()), calSel, draft: callDraft, now: new Date(), staffSel: cvStaff, staffOpen: cvStaffOpen }) : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}

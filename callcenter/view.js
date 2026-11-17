@@ -74,7 +74,7 @@ export function travelStripHtml(col, f) {
 
 // ---- 通話の文字起こし（デモ） -----------------------------------------------------------
 export const demoWindowHtml = (pos) => `<div id="demo-win" class="fixed z-50 w-[26rem] max-w-[calc(100vw-1rem)] rounded-lg bg-white shadow-2xl border-2 border-amber-400" style="left:${pos.x}px;top:${pos.y}px">
-  <div class="flex items-center justify-between bg-amber-400 text-slate-900 rounded-t px-3 py-1.5 cursor-move select-none" data-drag><b class="text-sm">音声入力デモ（文字起こし）</b><button class="text-lg leading-none px-1" data-demo="close" title="閉じる">✕</button></div>
+  <div class="flex items-center justify-between bg-slate-200 text-slate-600 rounded-t px-3 py-1.5 cursor-move select-none" data-drag><b class="text-sm">デモ｜音声入力（文字起こし）</b><button class="text-lg leading-none px-1" data-demo="close" title="閉じる">✕</button></div>
   <div id="transcript" class="p-3"></div></div>`;
 
 export function transcriptHtml({ lines, playing, finished, pos, total }) {
@@ -84,7 +84,7 @@ export function transcriptHtml({ lines, playing, finished, pos, total }) {
       <div class="text-[10px] text-slate-500">${l.who === 'op' ? 'オペレーター' : 'お客様'}</div>${esc(l.text)}
       ${l.got?.length ? `<div class="mt-1 flex flex-wrap gap-1">${[...new Set(l.got.map((k) => FIELD_LABELS[k]))].map((t) => `<span class="rounded bg-amber-200 text-amber-800 text-[10px] font-bold px-1.5 py-0.5">✎ ${esc(t)}</span>`).join('')}</div>` : ''}</div></div>`;
   return `<div class="space-y-2">
-    <div class="flex items-center justify-between gap-2"><span class="flex items-center"><span class="text-xs bg-amber-100 text-amber-800 rounded px-1.5 py-0.5 font-bold">デモ</span>${helpIcon('今後の拡張機能のデモです（通常は手入力）。\n黄色＝今入った項目。\n枠の選択と確定は、オペレーターが行います。')}</span>
+    <div class="flex items-center justify-between gap-2"><span class="flex items-center"><span class="text-[11px] text-slate-400">デモ</span>${helpIcon('今後の拡張機能のデモです（通常は手入力）。\n黄色＝今入った項目。\n枠の選択と確定は、オペレーターが行います。')}</span>
       <div class="flex items-center gap-1"><span class="text-xs text-slate-500 mr-1">${pos}／${total}</span>
         ${playing ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="stop">⏸ 止める</button>' : `<button class="b b-pri !min-h-0 !py-1 text-sm" data-demo="start">${lines.length && !finished ? '▶ 自動再生を再開' : '▶ 自動再生'}</button>`}
         <button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="step" ${finished ? 'disabled' : ''} title="会話を1つずつ進めます">⏭ 次の発話</button>
@@ -475,13 +475,11 @@ export function visitHistoryHtml(rows, shown = 4) {
 
 // デモ用の電話番号（押すと、電話番号に入る）。ダミーデータの、どの状態も見られるように
 export const DEMO_PHONES = [
-  ['090-2468-1357', '山田 花子', '予約2件・過去の訪問3回'],
-  ['090-5050-6060', '前川 玲子', '予約あり・高額の買取'],
-  ['080-7777-0001', '小林 和子', '予約なし・過去の買取だけ'],
-  ['090-1357-2468', '森本 勝', '取消した予約だけ'],
-  ['090-1111-2222', '（新規）', '受付・買取なし'],
+  ['090-2468-1357', '予約・買取あり'],
+  ['080-7777-0001', '買取のみ'],
+  ['090-1111-2222', '新規'],
 ];
-const demoPhonesHtml = () => `<div class="flex flex-wrap items-center gap-1"><span class="text-[11px] text-slate-400">デモ</span>${DEMO_PHONES.map(([p, n, d]) => `<button class="chip !min-h-0 !py-0.5 !px-2 !text-[11px]" data-demophone="${p}" title="${esc(d)}">${esc(n)} ${p}</button>`).join('')}</div>`;
+const demoPhonesHtml = () => `<div class="flex flex-wrap items-center gap-1">${DEMO_PHONES.map(([p, d]) => `<button class="demo-only" data-demophone="${p}">${esc(d)}</button>`).join('')}</div>`;
 
 // 受付済みの予約を変更中の、入力欄の上の表示。仮確定の変更と、確定済みの変更で、何が起きるかを伝える
 export function editBannerHtml(r, by = '') {

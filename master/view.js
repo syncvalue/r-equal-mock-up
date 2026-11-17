@@ -63,7 +63,7 @@ export function masterHtml(ctx) {
   return `<header class="bg-teal-800 text-white px-6 h-[52px] flex justify-between items-center">
     <div class="flex items-center gap-2"><button class="w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰</button>
       <span class="font-bold text-xl">マスタ管理</span><span class="text-teal-700">›</span><span class="font-bold">${masterLabel(tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm flex items-center gap-3"><a class="underline text-white/80 text-xs" href="/" target="_blank" rel="noopener">画面一覧</a><button class="text-xs underline text-white/70" data-reset>初期値に戻す</button>${ctx.themeHtml ?? ''}</div>
+    <div class="text-sm flex items-center gap-3"><a class="demo-only" href="/" target="_blank" rel="noopener">画面一覧</a><button class="demo-only" data-reset>初期値に戻す</button>${ctx.themeHtml ?? ''}</div>
   </header>
   <main class="max-w-6xl mx-auto p-4 space-y-4 overflow-y-auto" style="height:calc(100vh - 52px)">
     <div class="text-sm font-bold text-slate-700">マスタについて${helpIcon('マスタは、各画面で使う基本のデータです。モックのため、データどうしの連動は最小限で、ダミーのデータはダミーのままです（連動する範囲は、各マスタの説明のとおり）。')}</div>

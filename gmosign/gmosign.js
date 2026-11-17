@@ -49,7 +49,7 @@ function listView() {
       </table>
     </div>
     <button class="b b-sec" data-act="reload">更新</button>
-    <button class="text-xs underline text-slate-400 ml-4" data-act="reset-all">（デモ用）データ初期化</button>
+    <button class="demo-only ml-4" data-act="reset-all">データ初期化</button>
   </main>`;
 }
 

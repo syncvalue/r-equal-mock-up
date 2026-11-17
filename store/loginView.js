@@ -11,7 +11,7 @@ export const loginView = (error = '', staffList = [], stores = []) => `
       <label class="text-sm font-bold block">ログインID<input class="inp mt-1 font-normal" data-login-id placeholder="例: st01" autocomplete="username" autocapitalize="none" /></label>
       <label class="text-sm font-bold block">パスワード<input class="inp mt-1 font-normal" type="password" data-login-pw autocomplete="current-password" /></label>
       <button class="b b-pri w-full" data-login>ログイン</button>
-      <details class="rounded bg-slate-50 border p-2 text-xs text-slate-500"><summary class="cursor-pointer">デモ用アカウント</summary>
+      <details class="rounded border border-dashed border-slate-300 p-2 text-xs text-slate-400"><summary class="demo-only cursor-pointer">アカウント</summary>
                 <div class="mt-1 space-y-0.5">${staffList.map((s) => `<div><b class="font-mono">${esc(s.loginId)}</b> ${esc(s.name)} <span class="text-slate-400">${esc(storeNameOf(s.storeId, stores))}</span></div>`).join('')}</div></details>
     </div>
   </div>`;
