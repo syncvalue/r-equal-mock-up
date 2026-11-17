@@ -102,13 +102,18 @@ function dummyVisits(user, date, isToday) {
       else if (r < 0.4) { result = 'resched'; note = '玄関口で、別の日時での訪問を希望'; }
       else note = pick(rnd2, LOST_REASONS);
     }
-    return { date, time, userId: user.id, customer, items, result, amount, note };
+    // 受付の種別（新＝新規、再＝再訪）と、成約した訪問の粗利（売却見込み−買取額）。既存のダミーを変えないよう、別の疑似乱数で決める
+    const r3 = seeded(`ap-${user.id}-${ymd(date)}-${time}`);
+    const apType = r3() < 0.28 ? '再' : '新';
+    const gross = result === 'won' ? Math.round((amount * (0.18 + r3() * 0.22)) / 1000) * 1000 : 0;
+    return { date, time, userId: user.id, customer, items, result, amount, note, apType, gross };
   });
 }
 
 function dummyDay(user, date, isToday) {
   const v = dummyVisits(user, date, isToday);
-  return { visits: v.filter((x) => !RESULTS[x.result].excluded).length, contracts: v.filter((x) => x.result === 'won').length, amount: v.reduce((n, x) => n + x.amount, 0) };
+  const counted = v.filter((x) => !RESULTS[x.result].excluded);
+  return { visits: counted.length, contracts: v.filter((x) => x.result === 'won').length, amount: v.reduce((n, x) => n + x.amount, 0), gross: v.reduce((n, x) => n + x.gross, 0), revisits: counted.filter((x) => x.apType === '再').length };
 }
 
 // その日の日報（ダミー）。訪問の結果は、業績の集計と同じもの。現金は、買取代金を含む経費・補充金から、鑑定士×日付で固定の値を作る
@@ -161,20 +166,22 @@ export function visitRecords(users, range, now = new Date()) {
 export function dailySeries(users, range, now = new Date()) {
   const todayKey = ymd(now);
   return eachDay(range).map((d) => {
-    const row = { date: d, visits: 0, contracts: 0, amount: 0 };
+    const row = { date: d, visits: 0, contracts: 0, amount: 0, gross: 0, revisits: 0 };
     users.forEach((u) => {
       const day = dummyDay(u, d, ymd(d) === todayKey);
       row.visits += day.visits;
       row.contracts += day.contracts;
       row.amount += day.amount;
+      row.gross += day.gross;
+      row.revisits += day.revisits;
     });
     return row;
   });
 }
 
 export function summarize(series) {
-  const t = series.reduce((a, d) => ({ visits: a.visits + d.visits, contracts: a.contracts + d.contracts, amount: a.amount + d.amount }), { visits: 0, contracts: 0, amount: 0 });
-  return { ...t, rate: t.visits ? t.contracts / t.visits : 0, avg: t.contracts ? Math.round(t.amount / t.contracts) : 0 };
+  const t = series.reduce((a, d) => ({ visits: a.visits + d.visits, contracts: a.contracts + d.contracts, amount: a.amount + d.amount, gross: a.gross + d.gross, revisits: a.revisits + d.revisits }), { visits: 0, contracts: 0, amount: 0, gross: 0, revisits: 0 });
+  return { ...t, newVisits: t.visits - t.revisits, rate: t.visits ? t.contracts / t.visits : 0, avg: t.contracts ? Math.round(t.amount / t.contracts) : 0 };
 }
 
 export const stats = (users, range, now) => summarize(dailySeries(users, range, now));
@@ -186,4 +193,22 @@ export function monthProgress(users, now = new Date()) {
   const target = users.reduce((n, u) => n + u.target, 0);
   const monthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   return { amount, target, rate: target ? amount / target : 0, pace: now.getDate() / monthDays };
+}
+
+// 年間（1〜12月）の、月別の粗利・再訪数など。これからの月は0。画面を描くたびに計算しないよう、同じ条件の結果は覚えておく
+const yearCache = new Map();
+export function yearlySeries(users, now = new Date()) {
+  const year = now.getFullYear();
+  const key = `${users.map((u) => u.id).join(',')}|${ymd(now)}`;
+  if (yearCache.has(key)) return yearCache.get(key);
+  const months = Array.from({ length: 12 }, (_, m) => {
+    const start = new Date(year, m, 1);
+    const end = new Date(year, m + 1, 0);
+    const empty = { month: m + 1, visits: 0, contracts: 0, amount: 0, gross: 0, revisits: 0, newVisits: 0, rate: 0, avg: 0 };
+    return start > now ? empty : { month: m + 1, ...summarize(dailySeries(users, { start, end: end > now ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : end }, now)) };
+  });
+  const result = { year, months, total: summarize(months) };
+  if (yearCache.size > 50) yearCache.clear();
+  yearCache.set(key, result);
+  return result;
 }

@@ -6,7 +6,7 @@ import { loadReadIds } from './store.js';
 import { loadDay, summaryOf, typeOf } from './workday.js';
 import { reviseBanner } from './reviseView.js';
 import {
-  GROUPS, USERS, RESULTS, userById, isLeader, roleLabel, groupMembers, visibleUsers, rangeOf, prevRange, dailySeries, stats, monthProgress, visitRecords, dummyReport, eachDay, ymd,
+  GROUPS, USERS, RESULTS, userById, isLeader, roleLabel, groupMembers, visibleUsers, rangeOf, prevRange, dailySeries, stats, monthProgress, visitRecords, dummyReport, eachDay, ymd, yearlySeries,
 } from './dashboard.js';
 
 const PERIODS = [['today', '今日'], ['week', '今週'], ['month', '今月']];
@@ -57,13 +57,13 @@ function memberTable(s, members, range, now) {
   return `
   <div class="card !p-0 overflow-hidden">
     <table class="w-full text-sm"><thead class="bg-slate-100 text-slate-600"><tr>
-      <th class="p-2 text-left">順位</th><th class="text-left">メンバー</th><th class="text-right">訪問</th><th class="text-right">契約</th><th class="text-right">成約率</th><th class="text-right">買取金額</th><th class="w-48 text-left pl-3">今月の目標達成</th></tr></thead>
+      <th class="p-2 text-left">順位</th><th class="text-left">メンバー</th><th class="text-right">訪問</th><th class="text-right">契約</th><th class="text-right">再訪</th><th class="text-right">成約率</th><th class="text-right">買取金額</th><th class="text-right">粗利</th><th class="w-48 text-left pl-3">今月の目標達成</th></tr></thead>
       <tbody>${rows.map(({ u, st, pr }, i) => `
         <tr class="border-t cursor-pointer hover:bg-indigo-50" data-action="dash-member" data-id="${u.id}">
           <td class="p-2 font-bold">${i + 1}</td>
           <td><b>${esc(u.name)}</b>${isLeader(u) ? ' <span class="text-xs rounded bg-indigo-100 text-indigo-800 px-1.5 py-0.5 font-bold">リーダー</span>' : ''}</td>
-          <td class="text-right">${st.visits}</td><td class="text-right">${st.contracts}</td><td class="text-right">${pct(st.rate)}</td>
-          <td class="text-right font-bold">${yen(st.amount)}</td>
+          <td class="text-right">${st.visits}</td><td class="text-right">${st.contracts}</td><td class="text-right">${st.revisits}</td><td class="text-right">${pct(st.rate)}</td>
+          <td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right">${yen(st.gross)}</td>
           <td class="pl-3"><div class="flex items-center gap-2">${`<div class="flex-1">${progressBar(pr)}</div>`}<span class="w-10 text-right font-bold ${pr.rate >= pr.pace ? 'text-emerald-700' : 'text-amber-700'}">${pct(pr.rate)}</span></div></td></tr>`).join('')}
       </tbody></table></div>
   `;
@@ -112,6 +112,36 @@ function messagesCards(s) {
   </div>`;
 }
 
+// 年間の粗利と、月別の粗利・再訪数（棒＝月別の粗利。下に、月ごとの再訪数）
+function yearCard(users, now) {
+  const y = yearlySeries(users, now);
+  const max = Math.max(1, ...y.months.map((m) => m.gross));
+  const W = 720;
+  const H = 190;
+  const pad = 16;
+  const bw = (W - pad * 2) / 12;
+  const man = (n) => `${Math.round(n / 10000).toLocaleString('ja-JP')}万`;
+  const cols = y.months.map((m, i) => {
+    const h = Math.round((m.gross / max) * (H - 80));
+    const x = pad + i * bw;
+    const cur = m.month === now.getMonth() + 1;
+    return `<g><title>${m.month}月　粗利 ${yen(m.gross)}／再訪 ${m.revisits}件（新規 ${m.newVisits}件）</title>
+      ${m.gross ? `<rect x="${(x + bw * 0.18).toFixed(1)}" y="${H - 52 - h}" width="${(bw * 0.64).toFixed(1)}" height="${h}" rx="3" class="${cur ? 'fill-amber-500' : 'fill-teal-600'}"/>
+      <text x="${(x + bw / 2).toFixed(1)}" y="${H - 56 - h}" text-anchor="middle" font-size="11" class="fill-slate-600">${man(m.gross)}</text>` : ''}
+      <text x="${(x + bw / 2).toFixed(1)}" y="${H - 34}" text-anchor="middle" font-size="12" class="fill-slate-500">${m.month}月</text>
+      <text x="${(x + bw / 2).toFixed(1)}" y="${H - 14}" text-anchor="middle" font-size="13" font-weight="700" class="fill-indigo-700">${m.visits ? m.revisits : '-'}</text></g>`;
+  }).join('');
+  return `<div class="card !p-3 space-y-1">
+    <div class="flex flex-wrap items-end justify-between gap-2">
+      <div class="font-bold text-sm">${y.year}年の粗利<span class="font-normal text-slate-500">（棒＝月別の粗利、<span class="text-indigo-700 font-bold">下の数字＝再訪数</span>）</span>${helpIcon('棒は月別の粗利、下の数字は月別の再訪数です。\n粗利は、モックのダミーデータです。')}</div>
+      <div class="flex gap-4 text-right">
+        <div><div class="text-xs text-slate-500">年間粗利</div><div class="text-2xl font-bold text-teal-700">${yen(y.total.gross)}</div></div>
+        <div><div class="text-xs text-slate-500">年間の再訪数</div><div class="text-2xl font-bold text-indigo-700">${y.total.revisits}<span class="text-sm font-normal">件</span></div></div></div></div>
+    <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="月別の粗利と再訪数">
+      <line x1="${pad}" x2="${W - pad}" y1="${H - 46}" y2="${H - 46}" class="stroke-slate-300" stroke-width="1"/>
+      ${cols}</svg></div>`;
+}
+
 export function dashboardView(s) {
   const now = new Date();
   const user = userById(s.user);
@@ -153,10 +183,12 @@ export function dashboardView(s) {
       </div></details>
     </div>
 
-    <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
       ${kpi(`買取金額${helpIcon('▲▼は前の同じ期間との比較です。\n不在・日程変更は訪問数・成約率に含みません。')}`, yen(cur.amount), delta(cur.amount, prev.amount, true), true)}
+      ${kpi(`粗利${helpIcon('販売代金から、原価（買取額）を引いた額の見込みです（モックのダミーデータ）。')}`, yen(cur.gross), delta(cur.gross, prev.gross))}
       ${kpi('契約数', `${cur.contracts}<span class="text-sm font-normal">件</span>`, delta(cur.contracts, prev.contracts))}
       <button class="text-left" data-action="dash-visits" data-date="">${kpi('訪問数', `${cur.visits}<span class="text-sm font-normal">件</span>`, `${delta(cur.visits, prev.visits)} <span class="text-xs text-teal-700 underline">訪問ごとの結果</span>`)}</button>
+      ${kpi(`再訪数${helpIcon('受付の種別が「再訪」の訪問です（不在・日程変更は含みません）。\n残りは「新規」です。')}`, `${cur.revisits}<span class="text-sm font-normal">件</span>`, `<span class="text-xs text-slate-500">新規 ${cur.newVisits}件${prev.revisits ? '　' : ''}</span>${delta(cur.revisits, prev.revisits)}`)}
       ${kpi('成約率', pct(cur.rate), `<span class="text-xs text-slate-500">前期間 ${pct(prev.rate)}</span>`)}
       ${kpi('平均買取額／契約', yen(cur.avg), delta(cur.avg, prev.avg))}
     </div>
@@ -171,6 +203,8 @@ export function dashboardView(s) {
         <div class="text-xs ${prog.rate >= prog.pace ? 'text-emerald-700' : 'text-amber-700'} font-bold">${prog.rate >= prog.pace ? '目安を上回っています' : '目安を下回っています'}<span class="font-normal text-slate-400">（縦線＝今日までの経過 ${pct(prog.pace)}）</span></div>
       </div>
     </div>
+
+    ${yearCard(users, now)}
 
     ${scope === 'group' ? `<h3 class="font-bold">メンバー別の業績${helpIcon('行をタップするとメンバーの詳細を表示します。\n縦線は今日までの経過の目安です。')}</h3>${memberTable(s, groupMembers(user), range, now)}` : ''}
   </section>`;
