@@ -21,6 +21,7 @@ import { pastVisitRows } from './phoneTimeline.js';
 import { buildIdIndex, idOfPhones, issueCustomerId } from './customerId.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
+import { autoAddress } from '../src/zipAddress.js';
 import { mountPinMap, searchAddress } from './mapPane.js';
 import { pinLabel } from './pin.js';
 import { missingFields, companionText, wantsText, hearingChecklist, entryStage, fullName, fullKana, profileText } from './intake.js';
@@ -470,7 +471,13 @@ const NUMERIC = new Set(['start', 'dur']);
 function onField(e) {
   const k = e.target.dataset.f;
   if (!k) return;
+  const prevZip = form.zip;
+  let autoFilled = false;
   form = { ...form, [k]: NUMERIC.has(k) ? Number(e.target.value) : e.target.value };
+  if (k === 'zip') { // 郵便番号がそろったら、住所の欄に町域まで入れる（番地は続けて入力）
+    const auto = autoAddress(form.zip, form.address, prevZip);
+    if (auto) { form = { ...form, address: auto }; const el = document.querySelector('[data-f="address"]'); if (el) el.value = auto; autoFilled = true; }
+  }
   if (k === 'date' || k === 'start') form = { ...form, whenAsked: true };
   if (k === 'contactFrom' || k === 'contactTo') { form = syncContact(form, k); updateChecklist(); refresh(); return; }
   if (k === 'phone' || k === 'phone2') { quoted = false; forceNew = false; syncCustomerId(); }
@@ -480,7 +487,7 @@ function onField(e) {
   if (k === 'flyerId') { form = withFlyer(form, e.target.value); renderFlyerResult(); renderDispatch(); return; }
   if (k === 'date' && e.target.value) weekStart = weekStartFor(e.target.value);
   if (k === 'zip' || k === 'address') renderZipCandidates();
-  if (LIVE.has(k)) renderDispatch(); else updateChecklist();
+  if (LIVE.has(k) || autoFilled) renderDispatch(); else updateChecklist();
 }
 const renderZipCandidates = () => { const el = $('#zip-cands'); if (el) el.innerHTML = zipCandidatesHtml(form); }; // 入力欄は作り直さない
 document.addEventListener('input', (e) => {

@@ -41,3 +41,17 @@ export function addressCandidates(zip, table = ZIP_TABLE) {
   const digits = normalizeZip(zip);
   return digits.length === 7 ? [...(table[digits] ?? [])] : [];
 }
+
+// 郵便番号を入れたときに、住所の欄へ自動で入れる文字。入れないときは null。
+// 住所が空か、前の郵便番号から入れた町域のまま（番地を打っていない）ときだけ入れる。打ち込んだ住所は消さない。
+// 候補が複数なら、その共通の頭の部分だけ入れる（残りは、候補のボタンから選ぶ）
+export function autoAddress(zip, address, prevZip = '', table = ZIP_TABLE) {
+  const cands = addressCandidates(zip, table);
+  if (!cands.length) return null;
+  const current = String(address ?? '').trim();
+  const untouched = !current || addressCandidates(prevZip, table).some((c) => c.startsWith(current) && current.startsWith(commonHead(addressCandidates(prevZip, table))));
+  if (!untouched) return null;
+  const head = commonHead(cands);
+  return head && head !== current ? head : null;
+}
+const commonHead = (list) => list.reduce((a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return a.slice(0, i); });

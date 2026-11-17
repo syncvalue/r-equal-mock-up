@@ -38,3 +38,19 @@ test('郵便番号が表にないときは、その旨を出す（7桁そろっ�
   assert.match(zipCandidatesHtml({ zip: '123-4567', address: '' }, TABLE), /見つかりません/);
   assert.equal(zipCandidatesHtml({ zip: '123-45', address: '' }, TABLE), '');
 });
+
+test('自動入力: 住所が空なら、町域まで入る。複数候補なら共通の頭だけ', async () => {
+  const { autoAddress } = await import('../src/zipAddress.js');
+  assert.equal(autoAddress('100-0001', '', '', TABLE), '東京都千代田区千代田');
+  assert.equal(autoAddress('9999999', '', '', TABLE), 'A県B市');
+  assert.equal(autoAddress('100-000', '', '', TABLE), null); // 7桁に満たない
+  assert.equal(autoAddress('1000011', '', '', TABLE), null); // 表にない
+});
+
+test('自動入力: 打ち込んだ住所は消さない。前の郵便番号から入れただけなら、入れ替える', async () => {
+  const { autoAddress } = await import('../src/zipAddress.js');
+  assert.equal(autoAddress('100-0001', '東京都千代田区千代田1-2-3', '', TABLE), null);
+  assert.equal(autoAddress('9999999', '東京都千代田区千代田', '1000001', TABLE), 'A県B市');
+  assert.equal(autoAddress('9999999', '東京都千代田区千代田1-1', '1000001', TABLE), null);
+  assert.equal(autoAddress('100-0001', '東京都千代田区千代田', '1000001', TABLE), null); // すでに同じ
+});
