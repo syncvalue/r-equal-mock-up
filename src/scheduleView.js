@@ -101,7 +101,7 @@ function resultPanel(s, e, v, evals) {
            ${recordRows(v.visitId, row)}
            ${row('お客様評価', filled ? `<span class="text-amber-500 text-lg">${'★'.repeat(ev.overall)}</span><span class="text-slate-300 text-lg">${'★'.repeat(5 - ev.overall)}</span>${ev.memo ? `<span class="block text-xs text-slate-500 whitespace-pre-wrap">${esc(ev.memo)}</span>` : ''}<button class="text-xs underline text-teal-700 mt-1" data-action="eval-open" data-id="${e.id}">評価を修正する</button>` : '<b class="text-rose-600">未登録</b>')}`}
     </dl>
-    ${!v.outcome && !filled ? `<button class="btn w-full !min-h-[52px] !py-2 bg-rose-600 text-white font-bold animate-pulse" data-action="eval-open" data-id="${e.id}">⭐ お客様の評価を登録する</button><p class="text-xs text-rose-700 -mt-1">訪問が終わったら、お客様の評価を登録してください（お客様には見せません）。</p>` : ''}
+    ${!v.outcome && !filled ? `<button class="btn w-full !min-h-[52px] !py-2 bg-rose-600 text-white font-bold animate-pulse" data-action="eval-open" data-id="${e.id}">⭐ お客様の評価を登録する</button>` : ''}
   </div>`;
 }
 

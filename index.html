@@ -29,54 +29,53 @@
 <body>
 <main>
   <h1>🗂 画面一覧</h1>
-  <p class="lead">要件定義用の、各画面への入口です（便宜上のページで、アプリの一部ではありません）。</p>
 
   <h2>本システムの画面</h2>
   <div class="grid">
     <a class="card" href="/callcenter/?tab=new" target="_blank" rel="noopener">
       <span class="who">オペレーター</span>
       <b>📞 コールセンター（オペレーター）</b>
-      <span class="desc">受電して、お客様の情報とヒアリングを入力し、鑑定士の空きを見て、訪問を仮確定します。</span>
+      <span class="desc">受電・ヒアリング・訪問の仮確定</span>
     </a>
     <a class="card" href="/callcenter/?tab=dispatch" target="_blank" rel="noopener">
       <span class="who">配車係</span>
       <b>🚚 コールセンター（配車係）</b>
-      <span class="desc">仮確定された訪問を、1日分のカレンダーで見ながら調整して確定します。</span>
+      <span class="desc">訪問の調整・確定</span>
     </a>
     <a class="card" href="/tablet/" target="_blank" rel="noopener">
       <span class="who">鑑定士</span>
       <b>📱 鑑定士タブレット</b>
-      <span class="desc">訪問前の確認、現地での買取、経費、持ち帰り、日報。ログインは sales01〜sales16（ID・パスワードは何でも可）。</span>
+      <span class="desc">訪問・買取・経費・日報（ログイン: sales01〜sales16）</span>
     </a>
     <a class="card" href="/store/" target="_blank" rel="noopener">
       <span class="who">店舗スタッフ</span>
       <b>🏬 店舗（店頭買取）</b>
-      <span class="desc">お客様が店舗に持ち込む買取。来店の受付（予約・飛び込み）から、買取・契約・代金のお支払いまで。ログインは st01〜st03（パスワードは何でも可）。</span>
+      <span class="desc">来店の受付・買取・お支払い（ログイン: st01〜st03）</span>
     </a>
     <a class="card" href="/honsha/" target="_blank" rel="noopener">
       <span class="who">査定部</span>
       <b>🏢 査定部</b>
-      <span class="desc">鑑定士の買取明細をリアルタイムで見て、査定の承認・提案、お知らせを行います。</span>
+      <span class="desc">査定の承認・提案、お知らせ</span>
     </a>
     <a class="card" href="/accounting/" target="_blank" rel="noopener">
       <span class="who">経理部</span>
       <b>💴 経理部</b>
-      <span class="desc">鑑定士の手持ち現金の確認、鑑定士・お客様への入金、経費の入力代行、経費の全体状況を管理します。</span>
+      <span class="desc">現金・入金・経費の管理</span>
     </a>
     <a class="card" href="/warehouse/" target="_blank" rel="noopener">
       <span class="who">倉庫・物流</span>
       <b>🏭 倉庫・物流</b>
-      <span class="desc">買い取った商品の管理、フリマ・業者への販売（出品）、売上管理、クーリングオフによる返品の対応を行います。</span>
+      <span class="desc">在庫・販売・クーリングオフの返品</span>
     </a>
     <a class="card" href="/master/" target="_blank" rel="noopener">
       <span class="who">管理</span>
       <b>🗃 マスタ管理</b>
-      <span class="desc">社員（鑑定士・オペレーター・配車係・査定員・経理担当・倉庫担当・店舗スタッフ）、部署、営業所、出張、店舗、倉庫、委託先の、登録・変更・有効/無効を管理します。</span>
+      <span class="desc">社員・部署・営業所・出張・店舗・倉庫・委託先</span>
     </a>
     <div class="card disabled" aria-disabled="true">
       <span class="who">データ分析</span>
       <b>📈 データ分析</b>
-      <span class="desc">画面は、まだ作っていません（準備中）。</span>
+      <span class="desc">準備中</span>
     </div>
   </div>
 
@@ -85,12 +84,12 @@
     <a class="card external" href="/gmosign/" target="_blank" rel="noopener">
       <span class="who">外部サービス</span>
       <b>✍ GMOサイン</b>
-      <span class="desc">鑑定士のタブレットから送った買取契約の、本人確認と署名（本システムの対象外。画面は、ダミー）。</span>
+      <span class="desc">契約の本人確認と署名（ダミー）</span>
     </a>
   </div>
 
   <footer>
-    <p>各画面の「データ初期化」で、保存したデータをすべて消せます。コールセンター・鑑定士タブレット・本社は、同じブラウザの保存領域でつながっています。</p>
+    <p>各画面の「データ初期化」で、保存したデータを消せます。</p>
   </footer>
 </main>
 </body>

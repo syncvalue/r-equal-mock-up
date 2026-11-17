@@ -4,6 +4,7 @@ import { moneyInputHtml } from './moneyInput.js';
 import { EXPENSE_TYPES, typeOf, expenseReady, summaryOf } from './workday.js';
 import { threadOf, unreadCount } from './expenseChat.js';
 import { chatView } from './expenseChatView.js';
+import { helpIcon } from './help.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const mdw = (date) => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}（${WEEK[new Date(`${date}T00:00:00`).getDay()]}）`;
@@ -25,8 +26,7 @@ export function reviseBanner(s) {
 export function reviseSection(s) {
   const list = s.fixable ?? [];
   if (!list.length) return '';
-  return `<div class="card !p-3 space-y-2"><div class="font-bold">🛠 提出した経費の修正${'' /* 説明は下の文 */}</div>
-    <div class="text-xs text-slate-500">営業サポートが確認するまでは、直せます。確認が済む（チェック済み）と、直せなくなります。差戻しになった日は、直すと、もう一度確認してもらえます。</div>
+  return `<div class="card !p-3 space-y-2"><div class="font-bold">🛠 提出した経費の修正${helpIcon('営業サポートが確認するまでは直せます。確認が済むと直せません。差戻しの日は、直すともう一度確認してもらえます。')}</div>
     ${list.map((r) => `<div class="flex flex-wrap items-center gap-2 rounded-lg border p-2 ${r.status === 'returned' ? 'border-rose-300 bg-rose-50' : ''}"><b>${mdw(r.date)}</b>
       ${r.status === 'returned' ? `<span class="rounded bg-rose-100 text-rose-700 text-xs font-bold px-2 py-0.5">差戻し</span><span class="flex-1 min-w-[10rem] text-sm text-rose-800">理由：${esc(r.review?.reason)}</span>` : '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5">確認待ち</span><span class="flex-1 text-sm text-slate-500">営業サポートの確認前です</span>'}
       ${newChat(s, r.date)}<button class="btn btn-secondary !min-h-[40px] !py-1 !px-4 text-sm" data-action="rv-open" data-date="${r.date}">修正する・経理部とやり取り</button></div>`).join('')}</div>`;
@@ -64,8 +64,8 @@ export function reviseModalView(s) {
     <div class="bg-white rounded-2xl w-full max-w-5xl p-4 max-h-[96dvh] flex flex-col gap-3">
       <div class="flex justify-between items-center"><h2 class="text-xl font-bold">🛠 経費の修正　${mdw(date)}の提出分</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
       ${locked ? '<div class="rounded-lg bg-slate-100 border p-2 text-sm font-bold">この日は、営業サポートの確認が済んでいるため、直せません。</div>'
-        : row.status === 'returned' ? `<div class="rounded-lg bg-rose-50 border-2 border-rose-300 p-2 text-sm"><b class="text-rose-800">営業サポートからの差戻し理由</b><div class="text-rose-800">${esc(row.review?.reason)}</div><div class="text-xs text-slate-500 mt-1">直して保存すると、もう一度確認してもらえます。</div></div>`
-        : '<div class="rounded-lg bg-amber-50 border p-2 text-sm">営業サポートの確認前です。確認が済むと、直せなくなります。</div>'}
+        : row.status === 'returned' ? `<div class="rounded-lg bg-rose-50 border-2 border-rose-300 p-2 text-sm"><b class="text-rose-800">営業サポートからの差戻し理由</b><div class="text-rose-800">${esc(row.review?.reason)}</div></div>`
+        : ''}
       <div class="flex-1 min-h-0 overflow-y-auto grid md:grid-cols-[3fr_2fr] gap-3 items-start" data-scroll="revise">
         <div class="space-y-1.5">
           <div class="flex flex-wrap gap-2 text-sm"><span class="rounded bg-slate-100 px-2 py-1">帳簿上の所持金 <b>${yen(sm.balance)}</b></span><span class="rounded bg-slate-100 px-2 py-1">終業時に数えた金額 <b>${yen(day.close?.counted ?? 0)}</b></span>

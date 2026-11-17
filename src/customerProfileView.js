@@ -42,7 +42,7 @@ export function assignAdvice(p) {
   if (!p) return "";
   const hot = p.trouble.level === "alert" || p.cooloff.length >= 2;
   if (!hot && p.rank !== "S") return "";
-  return `<div class="font-bold text-fuchsia-800">${hot ? "要注意のお客様です。リーダーなど、経験のある上位ランクの鑑定士の担当をおすすめします" : "資産の多いお客様です。上位ランクの鑑定士の担当をおすすめします"}</div>`;
+  return `<div class="font-bold text-fuchsia-800">${hot ? "要注意のお客様です。上位ランクの鑑定士をおすすめします" : "資産の多いお客様です。上位ランクの鑑定士をおすすめします"}</div>`;
 }
 
 export function customerProfileHtml(p, { advice = false } = {}) {

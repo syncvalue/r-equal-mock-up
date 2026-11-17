@@ -46,7 +46,7 @@ function slotsHtml(f, cal) {
   return `<div class="space-y-1"><div class="flex flex-wrap items-center gap-2">
       <b class="text-sm">空き状況（${esc(storeName)}）</b>
       <button class="b b-sec !min-h-0 !py-0.5" data-st-week="-7" title="前の週">◀</button><button class="b b-sec !min-h-0 !py-0.5" data-st-week="7" title="次の週">▶</button><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-st-weektoday>今日</button>
-      <span class="text-xs text-slate-500">${dayHead(weekStart).md}〜　同じ時刻に受けられるのは ${capacity} 組（店舗スタッフの人数）。空いている枠を押すと、来店の日・時刻に入ります。濃いほど埋まっています</span></div>
+      <span class="text-xs text-slate-500">${dayHead(weekStart).md}〜　同じ時刻に ${capacity} 組まで</span></div>
     <div class="overflow-x-auto"><table class="w-full table-fixed border-separate border-spacing-0" style="min-width:36rem"><colgroup><col style="width:3.2rem" />${days.map(() => '<col />').join('')}</colgroup><thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
     <div class="text-xs text-slate-600">選んだ来店：<b>${f.date ? `${dayHead(f.date).md}（${dayHead(f.date).w}） ${esc(f.time)}` : '未選択'}</b></div></div>`;
 }

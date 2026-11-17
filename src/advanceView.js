@@ -3,6 +3,7 @@ import { esc, yen, fmtTime } from './format.js';
 import { moneyInputHtml } from './moneyInput.js';
 import { requestReady, REQUEST_STATUS, advThread, advUnread } from './advanceRequest.js';
 import { chatView } from './expenseChatView.js';
+import { helpIcon } from './help.js';
 
 const md = (at) => { const d = new Date(at); return `${d.getMonth() + 1}/${d.getDate()}`; };
 const unreadTotal = (s) => (s.advRequests ?? []).reduce((n, r) => n + advUnread(s.chats ?? {}, r.id, 'sales'), 0);
@@ -34,21 +35,21 @@ export function advanceModalView(s) {
       <div class="flex justify-between items-center"><h2 class="text-xl font-bold">🙋 補充の依頼</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
       <div class="flex-1 min-h-0 overflow-y-auto grid md:grid-cols-[2fr_3fr] gap-3 items-start" data-scroll="advance">
         <div class="space-y-2">
-          <div class="rounded-xl border-2 p-3 space-y-2"><div class="font-bold text-sm">新しく依頼する</div>
-            <div class="text-xs text-slate-500">買取資金が足りなくなりそうなときに、経理部へ補充金の振込を頼みます（実際の振込は、銀行システムで行われます）。振り込まれても、引き出して登録するまで、所持金には入りません。</div>
+          <div class="rounded-xl border-2 p-3 space-y-2"><div class="font-bold text-sm">新しく依頼する${helpIcon('買取資金が足りなくなりそうなときに、経理部へ補充金の振込を頼みます。振り込まれても、引き出して登録するまで、所持金には入りません。')}</div>
+            
             <label class="block"><span class="font-bold text-sm">補充してほしい金額</span>${moneyInputHtml({ attrs: 'data-wd="adv-amount"', value: s.advForm.amount, cls: 'field', placeholder: '200,000' })}</label>
-            <label class="block"><span class="font-bold text-sm">理由・用途<span class="font-normal text-xs text-slate-500">（任意）</span></span><input class="field !py-2 mt-1" data-wd="adv-memo" value="${esc(s.advForm.memo)}" placeholder="例: 高額案件の予定があるため" /></label>
+            <label class="block"><span class="font-bold text-sm">理由・用途<span class="font-normal text-xs text-slate-500">任意</span></span><input class="field !py-2 mt-1" data-wd="adv-memo" value="${esc(s.advForm.memo)}" placeholder="例: 高額案件の予定があるため" /></label>
             <div id="adv-live">${advLiveView(s)}</div></div>
           <div class="font-bold text-sm">これまでの依頼</div>
           <div class="space-y-1">${list.length ? list.map(row).join('') : '<div class="text-sm text-slate-400">まだ依頼はありません。</div>'}</div></div>
         <div class="space-y-2">${sel ? `
           <div class="rounded-lg border p-2 flex flex-wrap items-center gap-2"><b class="text-lg">${yen(sel.amount)}</b><span class="rounded text-xs font-bold px-2 py-0.5 ${REQUEST_STATUS[sel.status].cls}">${REQUEST_STATUS[sel.status].label}</span><span class="flex-1 text-sm text-slate-600 min-w-0">${esc(sel.memo)}</span>
             ${sel.status === 'open' ? `<button class="btn btn-primary !min-h-[40px] !py-1 !px-3 text-sm" data-action="adv-close" data-id="${sel.id}">✓ 完了にする</button>` : `<span class="text-xs text-slate-500">${md(sel.closedAt)} ${fmtTime(sel.closedAt).slice(0, 5)} に完了</span>`}</div>
-          <div class="text-xs text-slate-500">経理部とのやり取りが終わったら（振り込まれた場合も、見送りになった場合も）、「完了にする」を押してください。実際の振込は、銀行システムで行われます。</div>
-          <div class="font-bold text-sm">💬 経理部とのやり取り</div>
+          
+          <div class="font-bold text-sm">💬 経理部とのやり取り${helpIcon('やり取りが終わったら（振り込まれた場合も、見送りの場合も）「完了にする」を押します。')}</div>
           ${sel.status === 'open'
             ? chatView(advThread(s.chats ?? {}, sel.id), { inputAttrs: 'data-wd="adv-chat"', sendAttrs: 'data-action="adv-chat-send"', draft: s.advChat ?? '', cls: 'field !py-2' })
-            : chatView(advThread(s.chats ?? {}, sel.id), { inputAttrs: 'disabled', sendAttrs: 'disabled', draft: '', cls: 'field !py-2' })}` : '<div class="rounded-xl border p-6 text-center text-sm text-slate-500">依頼を送ると、ここで、経理部とチャットで相談できます。</div>'}</div>
+            : chatView(advThread(s.chats ?? {}, sel.id), { inputAttrs: 'disabled', sendAttrs: 'disabled', draft: '', cls: 'field !py-2' })}` : '<div class="rounded-xl border p-6 text-center text-sm text-slate-500">依頼すると、ここで経理部と相談できます</div>'}</div>
       </div>
     </div>
   </div>`;

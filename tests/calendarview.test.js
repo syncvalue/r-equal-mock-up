@@ -87,7 +87,6 @@ test('週の表: 訪問は、開始から終了までの1つのブロック（�
   assert.ok(!text(block).includes('阿倍野区阿')); // 先頭10文字まで（吹き出しには全文）
   assert.ok(block.includes('top:180px;height:71px')); // 11:30は、9:00から5枠め（36px×5）。1時間＝2枠（72px−1）
   assert.ok(block.includes('data-calblock="R1"') && !block.includes('data-calday')); // ブロックは、日別には切り替えず、詳細を開く
-  assert.ok(text(h).includes('同じ時間にかぶる訪問は、横に並びます'));
 });
 
 test('週の表: 同じ時間にかぶる訪問は、日の列の中で横に並べる（幅を分け合う）', () => {

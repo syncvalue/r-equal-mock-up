@@ -23,7 +23,7 @@ function form(md) {
     <h3 class="font-bold">${md.id ? '部署の編集' : '部署の新規登録'}</h3>
     <div class="grid sm:grid-cols-2 gap-3">
       <label class="text-sm font-bold">部署の名前<input class="inp mt-1 font-normal" data-f="md.name" value="${esc(md.name)}" placeholder="例: 総務部" /></label>
-      <div class="text-sm font-bold">会社<div class="mt-1 py-2 font-normal">${esc(COMPANY.name)}<span class="text-xs text-slate-500">（1社だけ。変更できません）</span></div></div>
+      <div class="text-sm font-bold">会社<div class="mt-1 py-2 font-normal">${esc(COMPANY.name)}</div></div>
     </div>
     <div class="flex gap-2"><button class="b b-pri" data-md-save>${md.id ? '更新する' : '登録する'}</button>${md.id ? '<button class="b b-sec" data-md-cancel>やめる</button>' : ''}</div>
   </div>`;

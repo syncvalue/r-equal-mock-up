@@ -1,4 +1,5 @@
 // お客様が初めてか／リピーターか（何回目か）の表示と、過去の評価・ご利用履歴
+import { helpIcon } from './help.js';
 import { esc, yen } from './format.js';
 import { visitLines, lineTotal } from './customerHistory.js';
 
@@ -35,7 +36,7 @@ export function pastEvalView(h) {
   const RECENT = 5;
   return `
   <div class="rounded-xl border-2 border-indigo-300 bg-indigo-50/30 p-3 space-y-2">
-    <div class="font-bold">⭐ 過去の訪問ごとの評価（${h.count}回）<span class="ml-2 text-xs font-normal text-slate-500">（お客様には見せないでください）</span></div>
+    <div class="font-bold">⭐ 過去の訪問ごとの評価（${h.count}回）${helpIcon('お客様には見せないでください。')}</div>
     <div class="space-y-1">${h.visits.slice(0, RECENT).map((v, i) => visit(v, i === 0)).join('')}
       ${h.visits.length > RECENT ? `<details class="rounded-lg border border-dashed bg-white"><summary class="cursor-pointer px-2 py-1.5 text-sm font-bold text-slate-600">さらに以前の ${h.visits.length - RECENT}回分</summary><div class="max-h-72 space-y-1 overflow-y-auto p-1">${h.visits.slice(RECENT).map((v) => visit(v, false)).join('')}</div></details>` : ''}</div>
   </div>`;

@@ -11,7 +11,6 @@ export const loginView = (error = '', master) => `
       <label class="text-sm font-bold block">パスワード<input class="inp mt-1 font-normal" type="password" data-login-pw autocomplete="current-password" /></label>
       <button class="b b-pri w-full" data-login>ログイン</button>
       <details class="rounded bg-slate-50 border p-2 text-xs text-slate-500"><summary class="cursor-pointer">デモ用アカウント</summary>
-        <div class="mt-1">IDは下のいずれか。パスワードは、何か入力すれば可（モック）。</div>
-        <div class="mt-1 space-y-0.5">${master.staff.filter((s) => s.active).map((s) => `<div><b class="font-mono">${esc(s.loginId)}</b> ${esc(s.name)} <span class="text-slate-400">${esc(master.warehouses.find((w) => w.id === s.warehouseId)?.name ?? '')}</span></div>`).join('')}</div></details>
+                <div class="mt-1 space-y-0.5">${master.staff.filter((s) => s.active).map((s) => `<div><b class="font-mono">${esc(s.loginId)}</b> ${esc(s.name)} <span class="text-slate-400">${esc(master.warehouses.find((w) => w.id === s.warehouseId)?.name ?? '')}</span></div>`).join('')}</div></details>
     </div>
   </div>`;

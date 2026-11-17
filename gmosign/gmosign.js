@@ -44,7 +44,7 @@ function listView() {
             ? list.map((c) => `<tr class="border-t hover:bg-sky-50 cursor-pointer" data-go="#detail/${c.id}">
                 <td class="p-3 font-mono text-sky-700 underline">${esc(c.id)}</td><td>${esc(c.customer.name)}</td>
                 <td>${yen(c.total)}</td><td>${fmtDateTime(c.sentAt)}</td><td>${badge(c.status)}</td></tr>`).join('')
-            : '<tr><td colspan="5" class="p-8 text-center text-slate-400">契約がありません。買取アプリから送信してください。</td></tr>'
+            : '<tr><td colspan="5" class="p-8 text-center text-slate-400">契約がありません。</td></tr>'
         }</tbody>
       </table>
     </div>

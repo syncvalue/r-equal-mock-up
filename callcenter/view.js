@@ -125,7 +125,7 @@ const inp = (key, v, { type = 'text', ph = '', extra = '' } = {}) => `<input cla
 export function zipCandidatesHtml(f, table = ZIP_TABLE) {
   if (normalizeZip(f.zip).length !== 7) return '';
   const cands = addressCandidates(f.zip, table);
-  if (!cands.length) return '<p class="text-xs text-slate-500">この郵便番号の住所は、見つかりません（住所を直接入力してください）</p>';
+  if (!cands.length) return '<p class="text-xs text-slate-500">この郵便番号の住所は、見つかりません</p>';
   const address = String(f.address ?? '').trim();
   if (cands.some((c) => address.startsWith(c))) return '';
   return `<div class="flex flex-wrap items-center gap-1"><span class="text-xs text-slate-500">住所の候補</span>${cands.map((c) => `<button class="chip" data-zipaddr="${esc(c)}">${esc(c)}</button>`).join('')}</div>`;
@@ -422,7 +422,6 @@ export function doneHtml(r) {
       <dt class="text-slate-500">訪問先</dt><dd>${esc(r.customer.address)}</dd>
       <dt class="text-slate-500">担当鑑定士（仮）</dt><dd class="font-bold">${esc(u?.name)}（${esc(areaNameOf(r.areaId))}）</dd>
     </dl>
-    <p class="text-sm text-slate-600">お客様には、<b>訪問日時だけ</b>お伝えください（担当鑑定士のお名前は伝えません）。</p>
     <div class="flex gap-2"><button class="b b-pri" data-new>次の受付へ</button><button class="b b-sec" data-map>🗺 訪問先をGoogleマップで開く</button></div>
   </div>`;
 }

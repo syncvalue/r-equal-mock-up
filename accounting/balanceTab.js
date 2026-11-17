@@ -69,7 +69,7 @@ export function advanceTable(c) {
         <td class="text-right font-bold ${cash.balance < 0 ? 'text-rose-600' : ''}">${signedYen(cash.balance)}</td>
         <td class="text-right font-bold ${day?.close?.diff ? 'text-rose-600' : 'text-emerald-700'}">${day?.closedAt ? signed(day.close.diff) : '-'}</td>
         <td class="!whitespace-normal">${r.flags.length ? badge(r.flags.some((f) => f.level === 'danger') ? LEVEL.danger : LEVEL.warn, `${r.flags.length}件`) : sm ? '<span class="text-emerald-700 text-xs font-bold">問題なし</span>' : '-'}</td></tr>
-        ${c.st.selUser === user.id && sm ? `<tr class="bg-slate-50"><td colspan="10" class="!whitespace-normal text-sm">${r.flags.length ? r.flags.map((f) => badge(LEVEL[f.level], esc(f.text))).join(' ') : '確認が必要な事項はありません。'}<div class="text-xs text-slate-500 mt-1">経費の明細は、経費精算で確認します。</div></td></tr>` : ''}`;
+        ${c.st.selUser === user.id && sm ? `<tr class="bg-slate-50"><td colspan="10" class="!whitespace-normal text-sm">${r.flags.length ? r.flags.map((f) => badge(LEVEL[f.level], esc(f.text))).join(' ') : '確認が必要な事項はありません。'}</td></tr>` : ''}`;
     }).join('')}
     </tbody></table>
   </section>`;

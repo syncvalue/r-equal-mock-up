@@ -97,7 +97,7 @@ function purchaseTable(c, r) {
     const rows = items.map((i) => `<tr class="border-b border-slate-200"><td class="!whitespace-normal">${esc(i.name)}</td><td class="text-center">${esc(i.rank ?? '')}</td><td class="text-right">${i.qty}点</td><td class="text-right font-bold">${yen(i.price)}</td></tr>`).join('');
     return `<tr class="bg-slate-50 border-b"><td></td><td colspan="7" class="!py-2"><div class="font-bold text-xs text-slate-600 mb-1">買取の内訳</div>${items.length
       ? `<table class="w-full max-w-3xl text-sm bg-white border border-slate-200"><thead><tr class="bg-slate-100 text-slate-700 text-left"><th>商品</th><th class="text-center">ランク</th><th class="text-right">点数</th><th class="text-right">金額</th></tr></thead><tbody>${rows}<tr class="font-bold bg-slate-100"><td colspan="2">合計</td><td class="text-right">${items.reduce((n, i) => n + i.qty, 0)}点</td><td class="text-right">${yen(items.reduce((n, i) => n + i.price, 0))}</td></tr></tbody></table>`
-      : '<div class="text-xs text-slate-500">内訳の記録がありません（以前の記録）。</div>'}</td></tr>`;
+      : '<div class="text-xs text-slate-500">内訳の記録なし</div>'}</td></tr>`;
   };
   const body = r.purchases.map((e) => `<tr class="border-b"><td class="${cell}"><div class="flex items-center gap-1"><button class="w-7 h-7 rounded border border-slate-400 bg-white font-bold leading-none" data-purchase-toggle="${esc(e.id)}" aria-expanded="${open.includes(e.id)}" aria-label="買取の内訳を${open.includes(e.id) ? '閉じる' : '開く'}">${open.includes(e.id) ? '－' : '＋'}</button>${checkBtn(c, r, e)}</div></td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).icon} ${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
     <td class="${cell} pl-4 !whitespace-normal">${esc(e.memo)}</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400 text-xs">（確認のポイントなし）</td></tr>${open.includes(e.id) ? detail(e) : ''}`).join('');
@@ -118,7 +118,7 @@ function actions(c, r) {
   if (r.status !== 'pending') return `<button class="b b-sec" data-claim-reopen="${r.userId}">未チェックに戻す</button>`;
   const returning = c.st.returning?.id === r.userId;
   return `<div class="flex flex-wrap items-center gap-2"><button class="b b-pri" data-claim-ok="${r.userId}" ${r.canOk ? '' : 'disabled'}>チェック済みにする</button><span class="text-sm font-bold ${r.allChecked ? 'text-emerald-700' : 'text-slate-600'}">1件ずつの確認 ${r.progress.done}／${r.progress.total}</span><button class="b b-sec" data-claim-ret="${r.userId}">差戻す</button>
-    ${r.canCheck ? (r.allChecked ? '' : '<span class="text-xs text-slate-600">経費・お客様への支払・現金を、1件ずつ確認してください</span>') : '<span class="text-xs text-rose-700 font-bold">赤の指摘（領収書・現金の写真・日報）は、鑑定士に直してもらう必要があります。差戻してください</span>'}</div>
+    ${r.canCheck ? '' : '<span class="text-xs text-rose-700 font-bold">赤の指摘があります。差戻してください</span>'}</div>
     ${returning ? `<div class="flex flex-wrap items-end gap-2 mt-2 bg-rose-50 rounded p-2"><label class="text-sm font-bold flex-1 min-w-[16rem]">差戻しの理由（必須・鑑定士に伝える内容）<input class="inp mt-1 font-normal" data-f="ret.reason" value="${esc(c.st.returning.reason)}" placeholder="例: ガソリン代の領収書がありません。撮影して再提出してください" /></label><button class="b b-pri" data-claim-ret-send>差戻す</button><button class="b b-sec" data-claim-ret-cancel>やめる</button></div>` : ''}`;
 }
 
@@ -219,8 +219,7 @@ export function chatModalView(c) {
   const r = loadRequests().find((x) => x.id === m.id);
   if (!r) return '';
   return chatModalFrame({
-    title: `💬 ${name(r.userId)} さんとのやり取り`, sub: `補充の依頼 ${yen(r.amount)}${r.memo ? `（${esc(r.memo)}）` : ''}　${badge(REQUEST_STATUS[r.status].cls, REQUEST_STATUS[r.status].label)}`,
+    title: `💬 ${name(r.userId)} さんとのやり取り`, sub: `補充の依頼 ${yen(r.amount)}${r.memo ? `（${esc(r.memo)}）` : ''}　${badge(REQUEST_STATUS[r.status].cls, REQUEST_STATUS[r.status].label)}${helpIcon('実際の振込は、銀行システムで行います。やり取りが終わったら、依頼を出した鑑定士が「完了」にします。')}`,
     body: chatView(advThread(chats, r.id), input(r.status !== 'open')),
-    footer: '<div class="text-xs text-slate-500">実際の振込は、銀行システムで行います。やり取りが終わったら、依頼を出した鑑定士が「完了」にします。</div>',
   });
 }

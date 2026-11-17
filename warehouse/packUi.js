@@ -114,7 +114,7 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
           <td><button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-pk-add="${esc(r.unit.code)}">パックに入れる</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-pk-add-lot="${esc(r.unit.visitId)}">同じ契約をすべて</button></td></tr>`).join('')
           : '<tr><td class="text-slate-400 p-2">入れられる商品がありません（検索条件を変えてください）。</td></tr>'}
       </tbody></table></div>
-      ${cand.total > cand.rows.length ? `<div class="text-xs text-slate-500">他に ${cand.total - cand.rows.length} 点あります。絞り込んでください。</div>` : ''}
+      ${cand.total > cand.rows.length ? `<div class="text-xs text-slate-500">他に ${cand.total - cand.rows.length} 点</div>` : ''}
     </div>
 
     <div class="space-y-2">${step(2, 'パッキング', consign ? '希望価格は、原価の1.3倍の目安が入ります。変えるときは、金額を直してください（入力欄から出ると保存されます）。' : '')}

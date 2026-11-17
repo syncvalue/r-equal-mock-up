@@ -66,7 +66,7 @@ function customerEvalEditor(p, phone) {
     <div class="mt-1.5 grid grid-cols-2 gap-2 text-xs" data-custeval="${esc(phone)}">
       <label class="space-y-0.5"><span class="text-slate-500">顧客ランク（資産・売却の見込み）</span>${sel('rank', [['', '（未設定）'], ['S', 'S'], ['A', 'A'], ['B', 'B'], ['C', 'C']], p.rank && !p.rankAuto ? p.rank : '')}</label>
       <label class="space-y-0.5"><span class="text-slate-500">厄介度</span>${sel('level', [['none', 'なし'], ['caution', '注意'], ['alert', '要注意']], p.trouble.level)}</label>
-      <label class="col-span-2 space-y-0.5"><span class="text-slate-500">厄介な点（読点「、」で区切る）</span><input class="inp !py-0.5" data-ce="tags" value="${esc(p.trouble.tags.join('、'))}" placeholder="例: クレームが多い、売却に至らない" /></label>
+      <label class="col-span-2 space-y-0.5"><span class="text-slate-500">厄介な点</span><input class="inp !py-0.5" data-ce="tags" value="${esc(p.trouble.tags.join('、'))}" placeholder="読点で区切る　例: クレームが多い、売却に至らない" /></label>
       <label class="col-span-2 space-y-0.5"><span class="text-slate-500">お客様のメモ</span><textarea class="inp !py-0.5" rows="2" data-ce="memo" placeholder="例: 資産は多いが、成約まで時間がかかる">${esc(p.memo ?? '')}</textarea></label>
       <div class="col-span-2 flex items-center gap-2"><button class="b b-pri !min-h-0 !py-1" data-custeval-save>保存</button>${helpIcon('訪問ごとの評価（鑑定士が入力）を見て登録します。\n初めての訪問は、その訪問の評価が、初期値として設定されます。')}</div></div></details>`;
 }

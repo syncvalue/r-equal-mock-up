@@ -35,7 +35,7 @@ function warehouseForm(mw, offices) {
         ${offices.filter((o) => o.active || o.id === mw.officeId).map((o) => `<option value="${esc(o.id)}" ${mw.officeId === o.id ? 'selected' : ''}>${esc(officeLabel(o))}と一体</option>`).join('')}</select></label>
       <label class="text-sm font-bold">保管場所（棚）<span class="font-normal text-xs text-slate-500">カンマ・改行で区切る</span><textarea class="inp mt-1 font-normal" rows="2" data-f="mw.locations" placeholder="A棚, B棚, 金庫室（高額品）">${esc(mw.locations)}</textarea></label>
     </div>
-    <label class="flex items-center gap-2 text-sm font-bold"><input type="checkbox" class="w-5 h-5" data-f="mw.highValue" ${mw.highValue ? 'checked' : ''} />本社（貴金属などの高額品の保管先にする）<span class="font-normal text-xs text-slate-500">1か所だけ</span></label>
+    <label class="flex items-center gap-2 text-sm font-bold"><input type="checkbox" class="w-5 h-5" data-f="mw.highValue" ${mw.highValue ? 'checked' : ''} />本社（高額品の保管先）${helpIcon('1か所だけ選べます。')}</label>
     <div class="flex gap-2"><button class="b b-pri" data-mw-save>${mw.id ? '更新する' : '登録する'}</button>${mw.id ? '<button class="b b-sec" data-mw-cancel>やめる</button>' : ''}</div>
   </div>`;
 }

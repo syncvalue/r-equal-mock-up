@@ -94,7 +94,7 @@ export function purchaseHtml(ctx) {
   const ok = canProceed(d);
   return `<div class="flex flex-col h-[calc(100vh-52px)]">
     <div class="px-4 py-2 bg-white border-b flex flex-wrap items-center gap-2">
-      <button class="b b-sec !min-h-0 !py-1 text-sm" data-back-board>← 来店の一覧へ（作業は保存されます）</button>
+      <button class="b b-sec !min-h-0 !py-1 text-sm" data-back-board>← 来店の一覧へ</button>
       <b class="ml-2">${esc(d.customer.name)} 様</b>
       <ol class="flex gap-1 ml-4 text-xs">${STEPS.map((s, i) => `<li class="rounded-full px-3 py-1 font-bold ${i === d.step ? 'bg-indigo-700 text-white' : i < d.step ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-500'}">${i + 1}. ${esc(s)}</li>`).join('')}</ol>
     </div>

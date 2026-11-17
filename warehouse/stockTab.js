@@ -26,7 +26,7 @@ const hit = (r, q) => !q || [r.unit.name, r.unit.code, r.unit.customerName, r.un
 function action(r, data) {
   const { unit, rec } = r;
   if (r.stage === 'transit') return `<span class="text-xs">→ ${esc(data.transfers?.find((t) => t.status === 'transit' && t.codes.includes(unit.code))?.toName ?? '')} へ輸送中</span>`;
-  if (['stock', 'listed', 'consigned'].includes(r.stage) && warehouseIdOf(unit, data.master) !== data.me.warehouseId) return '<span class="text-xs text-slate-500">他の倉庫の商品（扱うには、先に移動）</span>';
+  if (['stock', 'listed', 'consigned'].includes(r.stage) && warehouseIdOf(unit, data.master) !== data.me.warehouseId) return '<span class="text-xs text-slate-500">他の倉庫の商品</span>';
   if (r.canList) return `<button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-go-list="${esc(unit.code)}">出品する</button>`;
   if (r.stage === 'stock' && r.cooling) {
     return `<span class="text-xs text-amber-700 font-bold">${md(r.coolEnd)} まで出品不可</span>`;

@@ -103,7 +103,7 @@ function actionCard(s, mine) {
     <button class="btn btn-primary w-full text-xl !py-5" data-action="stock-scan" ${todo.length ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
     <p class="text-xs text-slate-500 -mt-2">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
     ${last && !last.ok ? `<div class="rounded-xl border-2 p-3 text-sm font-bold bg-rose-50 border-rose-400 text-rose-700">⚠ ${esc(last.text)}</div>` : ''}
-    <label class="block"><span class="font-bold text-sm">QRが読めないとき：シールNo.を入力（スキャナ・手入力）</span>
+    <label class="block"><span class="font-bold text-sm">シールNo.を入力（QRが読めないとき）</span>
       <div class="flex gap-2 mt-1"><input id="stock-code" class="field font-mono !py-2" placeholder="RQ-XXXXXXXX" autocomplete="off" data-stock-code />
         <button class="btn btn-secondary !py-2 !px-4 !min-h-[48px]" data-action="stock-submit">入庫</button></div></label>
     <p class="text-xs text-slate-500">納入先: <b>${esc(target.warehouse.name)}</b>（${esc(COOLING_OFF_SHELF)}）${helpIcon('商品は、あなたの営業所と一体の倉庫に入ります（倉庫のない営業所は、先頭の倉庫）。商品ごとに棚は分けず、クーリングオフ保管棚にまとめて保管します。')}</p>

@@ -41,14 +41,14 @@ export function wdLiveView(s) {
   if (s.phase === 'before') {
     const carry = carryoverFor(s.user).amount;
     return `
-    ${s.startForm.countedSet ? diffBox(s.startForm.counted - carry, '前日からの繰越金') : '<div class="rounded-xl bg-slate-50 border p-3 text-center text-sm text-slate-500">いま手元にある現金を数えて、入力してください</div>'}
+    ${s.startForm.countedSet ? diffBox(s.startForm.counted - carry, '前日からの繰越金') : ''}
     <div class="portrait:hidden">${startButton(s)}</div>`;
   }
   const day = s.day;
   const ready = closeReady(s.closeForm, day, s.user, isVisiting(s));
   const diff = closeDiff(day, s.user, s.closeForm.counted);
   return `
-    ${s.closeForm.countedSet ? diffBox(diff, '帳簿の残高') : '<div class="rounded-xl bg-slate-50 border p-3 text-center text-sm text-slate-500">いま手元にある現金を数えて、入力してください</div>'}
+    ${s.closeForm.countedSet ? diffBox(diff, '帳簿の残高') : ''}
     <button class="btn btn-primary w-full text-xl !py-3" data-action="wd-close" ${ready ? '' : 'disabled'}>${ready ? '🌙 日報を提出して終業' : closeHint(s, diff)}</button>`;
 }
 
@@ -102,7 +102,7 @@ function startScreen(s) {
         <div class="flex justify-between items-baseline"><span class="text-sm text-slate-600">${carry.from ? `前日（${dateLabel(carry.from)}）の終業時の所持金` : '繰越金（初回のため初期値）'}</span><b class="text-2xl">${yen(carry.amount)}</b></div>
         <label class="block"><span class="font-bold text-sm">いま手元にある現金（実際に数えた金額）</span>
           ${moneyInputHtml({ attrs: 'data-wd="start-counted"', value: form.counted, cls: 'field' })}</label>
-        <label class="block"><span class="font-bold text-sm">差異の理由<span class="font-normal text-xs text-slate-500">（ずれがある場合は必須）</span></span>
+        <label class="block"><span class="font-bold text-sm">差異の理由<span class="text-rose-600 ml-1">必須</span></span>
           <textarea class="field !py-2 mt-1" rows="2" data-wd="start-note" placeholder="例: 前日の昼食代のレシートが未計上">${esc(form.note)}</textarea></label>
       </div>
       <div id="wd-live" class="space-y-2">${wdLiveView(s)}</div>
@@ -169,7 +169,7 @@ function reportCard(s, day) {
     </div>
 
     <div class="rounded-xl border p-3"><div class="font-bold mb-1">🏠 訪問・買取${visits.some((v) => v.outcome) ? helpIcon('不在・日程変更などは訪問実績に数え、業績（成約率など）には影響しません。') : ''}　<span class="font-normal text-sm">訪問 ${visits.length}件${visits.some((v) => v.outcome) ? `（うち買取に至らず ${visits.filter((v) => v.outcome).length}件）` : ''} ／ ${visits.reduce((n, v) => n + v.itemCount, 0)}点 ／ 買取金額 <b>${yen(visits.reduce((n, v) => n + v.total, 0))}</b></span></div>
-      ${evalPending ? `<div class="rounded-lg border-2 border-rose-400 bg-rose-50 px-2 py-1.5 text-sm font-bold text-rose-700 mb-1">⭐ お客様の評価が未登録です（${evalPending}件）。下の「評価を登録」から入力してください。</div>` : ''}
+      ${evalPending ? `<div class="rounded-lg border-2 border-rose-400 bg-rose-50 px-2 py-1.5 text-sm font-bold text-rose-700 mb-1">⭐ お客様の評価が未登録です（${evalPending}件）</div>` : ''}
       <div class="text-sm divide-y">${visits.length ? visits.map((v) => row(`${fmtTime(v.at).slice(0, 5)}　${esc(v.customerName)} 様${v.outcome ? `<span class="ml-1 text-xs rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">${outcomeOf(v.outcome.type).icon} ${outcomeOf(v.outcome.type).label}</span>${v.outcome.memo ? `<span class="block text-xs text-slate-500 font-normal">${esc(v.outcome.memo)}</span>` : ''}` : `（${v.itemCount}点）${evalBadge(v, evals)}`}`, v.outcome ? '<span class="text-slate-400 font-normal">買取なし</span>' : yen(v.total))).join('') : '<div class="text-slate-400 py-2">完了した訪問はまだありません</div>'}</div></div>
 
     <div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">✅ 始業点検</div>
@@ -191,12 +191,12 @@ const stockNotice = (s) => {
 export const cashTotalView = (form) => `合計 <b class="text-lg">${yen(cashTotal(form.counts))}</b>`;
 function cashCountView(form) {
   return `
-    <div class="font-bold text-sm">実際に所持している現金<span class="font-normal text-xs text-slate-500">（紙幣・硬貨ごとの枚数）</span></div>
+    <div class="font-bold text-sm">実際に所持している現金</div>
     <div class="grid grid-cols-2 gap-x-3 gap-y-1.5">
       ${DENOMINATIONS.map((d) => `<label class="flex items-center gap-2 text-sm"><span class="flex-1 ${d.kind === 'bill' ? 'font-bold' : ''}">${d.kind === 'bill' ? '💴' : '🪙'} ${d.label}</span>
         <input class="field !py-1 !min-h-[40px] w-16 text-right font-bold" type="text" inputmode="numeric" autocomplete="off" data-wd="close-count" data-value="${d.value}" value="${form.counts?.[d.value] || ''}" placeholder="0" aria-label="${d.label}の枚数" /><span class="text-xs text-slate-500">枚</span></label>`).join('')}</div>
     <div id="close-total" class="text-right border-t pt-1">${cashTotalView(form)}</div>
-    <div><div class="font-bold text-sm mb-1">現金の写真<span class="text-rose-600 ml-1">必須</span><span class="font-normal text-xs text-slate-500">（数えた現金を並べて撮影）</span></div>
+    <div><div class="font-bold text-sm mb-1">現金の写真<span class="text-rose-600 ml-1">必須</span></div>
       ${form.cashPhoto
         ? `<div class="flex items-center gap-3"><img src="${form.cashPhoto}" alt="現金の写真" class="h-24 rounded-lg border" /><button class="btn btn-secondary !min-h-[44px] !py-1 !px-3 text-sm" data-action="close-photo-clear">撮り直す</button></div>`
         : `<div class="grid grid-cols-2 gap-2">
@@ -210,7 +210,7 @@ function expenseDetailView(day) {
   const noPhoto = list.filter((e) => !e.photo).length;
   if (!list.length) return '';
   return `<div class="space-y-1">
-    <div class="text-xs font-bold text-slate-500">明細（レシートと照らして、金額・種別に間違いがないか確認）</div>
+    <div class="text-xs font-bold text-slate-500">明細</div>
     ${noPhoto ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-2 py-1 text-xs font-bold text-rose-700">⚠ レシートのない経費が ${noPhoto}件あります</div>` : ''}
     ${list.map((e) => { const t = typeOf(e.type); return `
       <div class="flex items-center gap-2 rounded-lg border px-2 py-1.5">
@@ -218,7 +218,7 @@ function expenseDetailView(day) {
         <span class="flex-1 min-w-0 text-sm"><b>${t.label}</b>${e.invoice ? '<span class="ml-1 text-[11px] rounded bg-emerald-100 text-emerald-800 px-1.5">インボイス</span>' : ''}<span class="block text-xs text-slate-500 truncate">${esc(e.memo)}</span></span>
         ${e.photo ? `<button class="w-12 h-12 rounded-lg overflow-hidden border shrink-0" data-action="exp-view" data-id="${e.id}" aria-label="レシートを拡大"><img src="${e.photo}" alt="レシート" class="w-full h-full object-cover" /></button>` : '<span class="w-12 text-[11px] text-rose-600 font-bold text-center leading-tight">写真なし</span>'}
         <b class="w-20 text-right text-rose-600 text-sm">−${yen(e.amount)}</b></div>`; }).join('')}
-    ${closed(day) ? '' : '<div class="text-xs text-slate-500">違う経費は、経費管理で削除して計上し直せます。</div>'}</div>`;
+  </div>`;
 }
 const closed = (day) => Boolean(day.closedAt);
 
@@ -242,7 +242,7 @@ function closeScreen(s) {
           <div class="flex justify-between py-0.5"><span>− 経費</span><span>${yen(sm.expenseTotal)}</span></div>
           <div class="flex justify-between py-1 font-bold text-lg"><span>帳簿上の残高</span><span>${yen(sm.balance)}</span></div></div>
         ${cashCountView(form)}
-        <label class="block"><span class="font-bold text-sm">差異の理由<span class="font-normal text-xs text-slate-500">（ずれがある場合は必須）</span></span>
+        <label class="block"><span class="font-bold text-sm">差異の理由<span class="text-rose-600 ml-1">必須</span></span>
           <textarea class="field !py-2 mt-1" rows="2" data-wd="close-note" placeholder="例: 駐車場代のレシートを紛失">${esc(form.note)}</textarea></label>
       </div>
       ${stockNotice(s)}
@@ -333,15 +333,15 @@ export function expenseView(s) {
   <section class="${SEC} flex flex-col gap-3">
     ${reviseSection(s)}
     ${sm.undrawn > 0 ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3 flex flex-wrap items-center gap-3" role="alert"><span class="text-2xl">🏦</span>
-      <div class="flex-1 min-w-[16rem]"><div class="font-bold text-amber-900">経理部から補充金 ${yen(sm.depositTotal)} が振り込まれています（未引き出し ${yen(sm.undrawn)}）</div><div class="text-sm text-amber-900">銀行などで引き出したら、下の「引き出し金額」に登録してください。<b>登録すると、はじめて所持金に加わります。</b></div></div>
+      <div class="flex-1 min-w-[16rem]"><div class="font-bold text-amber-900">経理部から補充金 ${yen(sm.depositTotal)} が振り込まれています（未引き出し ${yen(sm.undrawn)}）${helpIcon('登録すると、はじめて所持金に加わります。引き出すまで所持金ではありません。')}</div><div class="text-sm text-amber-900">引き出したら、下の「引き出し金額」に登録してください。</div></div>
       <button class="btn btn-primary !min-h-[48px]" data-action="wdr-rest">未引き出し分 ${yen(sm.undrawn)} を、引き出した</button></div>` : ''}
     <div class="flex gap-3">
-      ${stat('前日繰越金', yen(sm.opening))}<div class="card !p-3 flex-1 text-right ${sm.undrawn > 0 ? '!border-2 !border-amber-400 !bg-amber-50' : ''}"><div class="text-xs text-slate-500">補充金（振込済み。引き出すまで所持金ではありません）</div><div class="text-2xl font-bold text-sky-700">${yen(sm.depositTotal)}</div>${sm.undrawn > 0 ? `<div class="text-xs font-bold text-amber-800">未引き出し ${yen(sm.undrawn)}</div>` : sm.depositTotal ? '<div class="text-xs font-bold text-emerald-700">✓ 引き出し済み</div>' : ''}</div>${stat('＋ 引き出した金額（所持金に加わる）', `+${yen(sm.withdrawalTotal)}`, 'text-emerald-700')}${stat('経費（買取代金を含む）', `−${yen(sm.expenseTotal)}`, 'text-rose-600')}
+      ${stat('前日繰越金', yen(sm.opening))}<div class="card !p-3 flex-1 text-right ${sm.undrawn > 0 ? '!border-2 !border-amber-400 !bg-amber-50' : ''}"><div class="text-xs text-slate-500">補充金（振込済み）</div><div class="text-2xl font-bold text-sky-700">${yen(sm.depositTotal)}</div>${sm.undrawn > 0 ? `<div class="text-xs font-bold text-amber-800">未引き出し ${yen(sm.undrawn)}</div>` : sm.depositTotal ? '<div class="text-xs font-bold text-emerald-700">✓ 引き出し済み</div>' : ''}</div>${stat('＋ 引き出した金額', `+${yen(sm.withdrawalTotal)}`, 'text-emerald-700')}${stat('経費（買取代金を含む）', `−${yen(sm.expenseTotal)}`, 'text-rose-600')}
       <div class="card !p-3 flex-1 text-right !bg-teal-600 text-white"><div class="text-xs text-teal-100">現在の所持金（帳簿）</div><div class="text-3xl font-bold">${yen(sm.balance)}</div>${sm.balance < 0 ? '<div class="text-xs font-bold text-amber-200">⚠ 残高がマイナスです。引き出し金額・計上を確認してください</div>' : ''}</div>
     </div>
     <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
       <div class="card !p-3 flex-1 min-w-0 flex flex-col min-h-0"><h2 class="font-bold text-lg mb-2">📒 今日の入出金</h2>
-        <div class="rounded-xl border-2 p-2 mb-2 space-y-1.5"><div class="font-bold text-sm">🏧 引き出し金額（補充金を引き出して、所持金に加える）${helpIcon('経理部から振り込まれた補充金のうち、いくら引き出したかを入力します。通常は、補充金と同じ金額です。引き出した分が、所持金になります。')}</div>
+        <div class="rounded-xl border-2 p-2 mb-2 space-y-1.5"><div class="font-bold text-sm">🏧 引き出し金額${helpIcon('経理部から振り込まれた補充金のうち、いくら引き出したかを入力します。通常は、補充金と同じ金額です。引き出した分が、所持金になります。')}</div>
           <div id="wdr-live" class="space-y-1.5">${withdrawLiveView(s)}</div></div>
         ${advanceButton(s)}
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="expLedger">${ledgerRows(s)}</div></div>

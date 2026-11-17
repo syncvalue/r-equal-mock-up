@@ -32,7 +32,7 @@ function form(mt, users) {
     <h3 class="font-bold">${mt.id ? '出張の編集' : '出張を新規登録'}</h3>
     <div class="grid sm:grid-cols-2 gap-3">
       <label class="text-sm font-bold">出張の名前<input class="inp mt-1 font-normal" data-f="mt.name" value="${esc(mt.name)}" placeholder="例: 福岡出張" /></label>
-      <label class="text-sm font-bold">担当の都道府県<span class="font-normal text-xs text-slate-500">営業所のないエリアだけ。カンマ・読点・空白で区切る</span><textarea class="inp mt-1 font-normal" rows="2" data-f="mt.prefs" placeholder="福岡県、佐賀県">${esc(mt.prefs)}</textarea></label>
+      <label class="text-sm font-bold">担当の都道府県${helpIcon('営業所のないエリアだけ。読点・カンマ・空白で区切ります。')}<textarea class="inp mt-1 font-normal" rows="2" data-f="mt.prefs" placeholder="福岡県、佐賀県">${esc(mt.prefs)}</textarea></label>
       <label class="text-sm font-bold">開始日<input type="date" class="inp mt-1 font-normal" data-f="mt.start" value="${esc(mt.start)}" /></label>
       <label class="text-sm font-bold">終了日<input type="date" class="inp mt-1 font-normal" data-f="mt.end" value="${esc(mt.end)}" /></label>
     </div>

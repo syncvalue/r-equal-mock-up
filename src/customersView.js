@@ -57,7 +57,7 @@ export function customersView(s) {
   <section class="h-full min-h-0 overflow-y-auto p-4 space-y-3" data-scroll="customers">
     <div class="flex flex-wrap items-end justify-between gap-2">
       <div><h2 class="text-2xl font-bold">📇 顧客検索${helpIcon('自分が担当したお客様だけが出ます。\n電話した結果は記録すると、オペレーターを含む他の人にも見えます（しつこいと思われないようにするため）。')}</h2>
-        <p class="text-sm text-slate-500">自分のお客様 ${total}人　／　お客様に電話して、再訪のアポを取るための一覧です</p></div></div>
+        <p class="text-sm text-slate-500">自分のお客様 ${total}人</p></div></div>
     <input class="field" id="cust-q" type="search" enterkeyhint="search" autocomplete="off" data-cust="q" placeholder="🔍 氏名・フリガナ・電話番号・住所で検索" value="${esc(c.q)}" />
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-xs text-slate-500">並び順</span>${SORTS.map(([k, l]) => chip(c.sort === k, l, `data-action="cust-sort" data-value="${k}"`)).join('')}</div>
@@ -90,14 +90,13 @@ export function customerCallModal(s) {
     ${ng ? '<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-2 text-sm font-bold text-rose-700">🚫 「今後の連絡は不要」と言われています（電話は控えてください）</div>'
       : soon ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-2 text-sm font-bold text-amber-800">⚠ ${daysSince(last.at, now)}日前に電話しています（${esc(last.kind)}・${esc(last.by ?? '')}）。しつこいと思われないよう、ご注意ください</div>` : ''}
     <a class="btn btn-primary w-full text-center !min-h-[52px] !py-2 text-lg" href="tel:${esc(row.phone.replace(/[^\d+]/g, ''))}">📞 ${esc(row.phone)} に電話をかける</a>
-    <label class="block rounded-xl border border-yellow-300 bg-yellow-50 p-3"><span class="font-bold text-sm">📝 自分用のメモ<span class="ml-1 text-xs font-normal text-slate-500">自分だけに見えます・入力すると自動で保存されます</span></span>
+    <label class="block rounded-xl border border-yellow-300 bg-yellow-50 p-3"><span class="font-bold text-sm">📝 自分用のメモ${helpIcon('自分だけに見えます。入力すると自動で保存されます。')}</span>
       <textarea class="field mt-1" rows="2" data-cust="note" placeholder="電話しやすい時間・好み・次に提案したいもの など">${esc(row.memo)}</textarea></label>
     <div class="rounded-xl border p-3 space-y-2">
       <div class="font-bold">電話の結果を記録${helpIcon('記録すると、オペレーターを含む他の人にも見えます。\n電話をかけたら、必ず記録してください。')}</div>
       <div class="grid grid-cols-2 gap-2">${Object.entries(CALL_RESULTS).map(([k, l]) => `<button class="rounded-xl border-2 px-2 py-2 text-sm font-bold text-left ${f.result === k ? 'border-teal-600 bg-teal-50' : 'border-slate-200'}" data-action="cust-result" data-value="${k}">${f.result === k ? '✅ ' : ''}${l}</button>`).join('')}</div>
-      ${f.result === 'appo' ? `<label class="block text-sm font-bold">再訪の希望日時<span class="text-rose-600 ml-1 text-xs">必須</span><input class="field mt-1" data-cust="wish" value="${esc(f.wish)}" placeholder="例: 12/5（金）午後" /></label>
-        <p class="text-xs text-slate-500">オペレーターに共有されます。受付（日時の確定）は、オペレーターが行います。</p>` : ''}
-      <label class="block text-sm font-bold">メモ（任意）<textarea class="field mt-1" rows="2" data-cust="memo" placeholder="お客様から伝えられたこと など">${esc(f.memo)}</textarea></label>
+      ${f.result === 'appo' ? `<label class="block text-sm font-bold">再訪の希望日時<span class="text-rose-600 ml-1 text-xs">必須</span><input class="field mt-1" data-cust="wish" value="${esc(f.wish)}" placeholder="例: 12/5（金）午後" /></label>` : ''}
+      <label class="block text-sm font-bold">メモ<span class="ml-1 text-xs font-normal text-slate-500">任意</span><textarea class="field mt-1" rows="2" data-cust="memo" placeholder="お客様から伝えられたこと など">${esc(f.memo)}</textarea></label>
       <button class="btn btn-primary w-full !min-h-[48px] !py-2" data-action="cust-save" ${ready ? '' : 'disabled'}>電話の結果を記録する</button></div>
     <div><div class="font-bold text-sm mb-1">電話の履歴${helpIcon('鑑定士・オペレーターの電話と受付の記録です。ほかの鑑定士の名前は伏せています。')}</div>
       ${history.length ? `<div class="rounded-xl border divide-y text-sm">${history.map((h) => `<div class="flex items-start gap-2 px-2 py-1.5"><span class="w-32 shrink-0 text-xs text-slate-500">${fmtDateTime(h.at).replace(/:\d\d$/, '')}</span><span class="shrink-0 rounded px-1 text-xs font-bold bg-slate-100">${esc(h.kind)}</span><span class="flex-1 min-w-0">${esc(h.note)}<span class="ml-1 text-xs text-slate-400">（${esc(h.by ?? '')}）</span></span></div>`).join('')}</div>` : '<p class="text-sm text-slate-400">電話の記録はありません</p>'}</div>`,

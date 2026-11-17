@@ -41,7 +41,7 @@ function barHtml({ areaId, mode, weekStart, date, staff = [], staffSel = [], sta
 
 const legendHtml = () => `<span class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">濃さ（訪問が入っている鑑定士の割合）
   <span class="inline-flex items-center gap-0.5">薄い（空き）${[0, 0.25, 0.5, 0.75, 1].map((r) => `<i class="inline-block h-3 w-5 rounded-sm" style="background:${heatStyle(r).bg}"></i>`).join('')}濃い（埋まっている）</span>
-  <span>ブロック＝訪問（お客様のお名前と、住所の先頭10文字）。同じ時間にかぶる訪問は、横に並びます</span></span>`;
+</span>`;
 
 // 週の表（Googleカレンダー風）: 縦=時間、横=日付。訪問は、開始から終了までの1つのブロック。同じ時間にかぶる訪問は、日の列の中で横に並べる。
 // 背景は、訪問が入っている鑑定士の割合に応じた濃さ（集中は濃く、空きは薄く）。ブロックや枠を押すと、その日だけ（鑑定士ごとの列）
@@ -92,7 +92,7 @@ function visitDetailHtml(b, r, draft) {
       <button class="ml-auto text-lg leading-none text-slate-500 hover:text-slate-800" data-calblockclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
     <dl class="space-y-1 text-xs">${rows}</dl>
     <button class="b b-sec !min-h-0 !py-1 text-xs" data-calday="${b.date}">この日だけを、鑑定士ごとに見る</button>
-    ${r ? `<div><div class="mt-1 text-xs font-bold text-teal-800">前日確認</div>${callPanelHtml(r, draft)}</div>` : '<div class="rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">この予定には、受付の記録がありません（前日確認の記録はできません）</div>'}</div>`;
+    ${r ? `<div><div class="mt-1 text-xs font-bold text-teal-800">前日確認</div>${callPanelHtml(r, draft)}</div>` : '<div class="rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">この予定には、受付の記録がありません</div>'}</div>`;
 }
 
 // 日別の表: 縦=時間、横=鑑定士。訪問の帯を押すと、右の一覧でその訪問が開く

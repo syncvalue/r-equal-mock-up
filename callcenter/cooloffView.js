@@ -51,8 +51,8 @@ export function filtersHtml({ days, categories, criteria }) {
 // 商品を探した結果（契約ごと）。商品の状態を見て、依頼にできるかを確認する
 export function resultsHtml(contracts, criteria, sel) {
   const any = String(criteria.q ?? '').trim() || criteria.dates?.length || criteria.category;
-  if (!any) return `<p class="text-xs text-slate-500">お客様が話した手がかりで探します。${helpIcon('お名前・電話番号・買取日・商品の種類・商品名で探します。うろ覚えでも、買取日だけ、商品の種類だけでも探せます。')}</p>`;
-  if (!contracts.length) return '<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">該当する商品がありません。実際には買い取っていない可能性もあります。お名前を外して買取日だけで探す、買取日を広げる、商品の種類を「すべて」にする、などで探し直してください。</div>';
+  if (!any) return `<p class="text-xs text-slate-500">お客様の手がかりで探します。${helpIcon('お名前・電話番号・買取日・商品の種類・商品名で探します。うろ覚えでも、買取日だけ、商品の種類だけでも探せます。')}</p>`;
+  if (!contracts.length) return '<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">該当する商品がありません。買い取っていない可能性もあります。名前を外して探し直してください。</div>';
   return `<div class="space-y-3">${contracts.map((c) => contractCard(c, sel)).join('')}</div>`;
 }
 
@@ -85,7 +85,7 @@ export function formHtml(contracts, sel, form) {
       <label class="text-xs font-bold">理由<select class="inp mt-0.5 font-normal" data-co-field="reason">${RETURN_REASONS.map((r) => `<option value="${r.key}" ${form.reason === r.key ? 'selected' : ''}>${r.label}</option>`).join('')}</select></label>
     </div>
     <label class="text-xs font-bold block">受電メモ<input class="inp mt-0.5 font-normal" data-co-field="memo" value="${esc(form.memo)}" placeholder="例: 返送先は、ご自宅（買取時の住所）で確認済み" /></label>
-    ${c?.phones?.length ? `<div class="text-xs text-slate-500">買取時の電話番号: ${c.phones.map(esc).join(' ／ ')}（ご本人の確認に使えます）</div>` : ''}
+    ${c?.phones?.length ? `<div class="text-xs text-slate-500">買取時の電話番号: ${c.phones.map(esc).join(' ／ ')}</div>` : ''}
     ${asks.length ? `<div class="text-xs rounded bg-amber-50 border border-amber-200 p-2 text-amber-900">${asks.length}点は、倉庫に問い合わせて、返送できるか回答をもらいます${asks.some((r) => r.check.kind === 'expired') ? '（期間を過ぎた商品は、倉庫が個別に判断します）' : ''}。</div>` : ''}
     ${sold.length ? `<div class="text-xs rounded bg-slate-100 border p-2 text-slate-700">売却済みの ${sold.length}点は、対応できません（対応不可として記録します）。</div>` : ''}
     <button class="b b-pri" data-co-create ${rows.length ? '' : 'disabled'}>依頼を作る（倉庫に問い合わせる）</button>

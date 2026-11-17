@@ -294,7 +294,6 @@ export function customerView(s) {
         <h2 class="text-2xl font-bold flex items-center gap-3">お客様のご確認 ${repeatBadge(h)}</h2>
         <span class="text-sm text-slate-500">受付 ${esc(call.receptionNo)} ／ ${esc(call.receivedAt)} ／ 担当 ${esc(call.operator)}</span>
       </div>
-      <p class="text-slate-600">ご本人かどうか、確認してください。</p>
       ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 鑑定士用の情報（過去の評価）を隠す' : '鑑定士用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
       <dl class="grid grid-cols-[8rem_1fr] gap-y-2 text-xl">
         ${row('氏名', c.name)}${row('フリガナ', c.kana)}${row('生年月日', c.birth)}
@@ -324,7 +323,7 @@ function itemPhotoSection(item) {
   const ph = item.photos ?? [];
   return `
   <div class="rounded-xl border-2 ${ph.length ? 'border-slate-200' : 'border-rose-400 bg-rose-50'} p-2.5">
-    <div class="font-bold text-sm mb-1">📷 商品の写真（${ph.length}枚）<span class="${ph.length ? 'text-slate-500' : 'text-rose-600'} text-xs">　必須・1枚以上、複数枚OK</span></div>
+    <div class="font-bold text-sm mb-1">📷 商品の写真（${ph.length}枚）<span class="${ph.length ? 'text-slate-500' : 'text-rose-600'} text-xs">　必須</span></div>
     <div class="flex gap-2 flex-wrap items-center">
       ${ph.map((p, i) => `<div class="relative"><img src="${p}" class="h-16 w-16 object-cover rounded-lg border" alt="商品の写真${i + 1}" />
         <button class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-7 h-7" data-action="item-photo-remove" data-id="${item.id}" data-idx="${i}" aria-label="写真を削除">✕</button></div>`).join('')}
@@ -384,7 +383,6 @@ export function briefingView(s) {
     <div class="card w-full max-w-4xl space-y-2 !p-4 max-h-full overflow-y-auto" data-scroll="briefing">
       <div class="flex justify-between items-baseline"><h2 class="text-2xl font-bold">査定前の説明事項</h2>
         <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${BRIEFING_CHECKS.length - left} / ${BRIEFING_CHECKS.length}</span></div>
-      <p class="text-slate-500 text-sm">説明したものにチェックしてください。</p>
       <div class="space-y-1.5">
         ${BRIEFING_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-1.5 min-h-[46px] cursor-pointer ${b.checks[c.key] ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'}">
           <input type="checkbox" class="w-7 h-7 shrink-0" data-action="brief-check" data-key="${c.key}" ${b.checks[c.key] ? 'checked' : ''} />
@@ -674,8 +672,7 @@ function recordBadge(s) {
 function recordCard(s) {
   const saved = recordingsOf(loadRecordings(), s.visitId);
   if (s.rec) return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2"><div class="font-bold text-rose-700">🔴 録音中（<span class="font-mono" id="rec-timer-end">${fmtElapsed(s.rec.startedAt)}</span>）</div>
-    <button class="btn w-full bg-rose-600 text-white !min-h-[48px] !py-2" data-action="rec-stop">⏹ 録音を停止して、システムに登録する</button>
-    <p class="text-xs text-rose-700">「訪問終了」を押しても、自動で停止して登録されます。</p></div>`;
+    <button class="btn w-full bg-rose-600 text-white !min-h-[48px] !py-2" data-action="rec-stop">⏹ 録音を停止して登録</button></div>`;
   if (saved.length) return `<div class="rounded-xl bg-emerald-50 border border-emerald-300 p-3 text-sm text-emerald-800 font-bold">✓ 録音を登録しました（${saved.map((r) => fmtDuration(r.durationSec)).join('・')}）</div>`;
   if (!recordingReady(s.briefing)) return '';
   return '<div class="rounded-xl bg-amber-50 border border-amber-300 p-3 text-sm text-amber-800 flex items-center justify-between gap-2"><span>録音を始めていません。</span><button class="btn btn-secondary !min-h-[40px] !py-1" data-action="rec-start">🎙 録音を開始</button></div>';
@@ -784,7 +781,7 @@ export function rangeWarn(item) {
 // 参考値（マスタのレンジ幅・過去実績。いずれも1点あたり）と、ドラッグで金額を決められるバー
 export function rangeView(item) {
   const m = PRODUCTS.find((p) => p.id === item.id);
-  if (!m) return `<div class="space-y-2"><p class="text-sm text-slate-500">商品マスタに登録のない商品です（参考値なし）。</p><div data-warn>${rangeWarn(item)}</div></div>`;
+  if (!m) return `<div class="space-y-2"><p class="text-sm text-slate-500">マスタ未登録（参考値なし）</p><div data-warn>${rangeWarn(item)}</div></div>`;
   const { range, history } = m;
   const { lo, hi, step } = priceAxis(m);
   const u = unitPrice(item);

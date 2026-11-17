@@ -22,7 +22,7 @@ function form(mo) {
     <h3 class="font-bold">${mo.id ? '営業所の編集' : '営業所の新規登録'}</h3>
     <div class="grid sm:grid-cols-2 gap-3">
       <label class="text-sm font-bold">営業所の名前<span class="font-normal text-xs text-slate-500">「営業所」は付けない</span><input class="inp mt-1 font-normal" data-f="mo.name" value="${esc(mo.name)}" placeholder="例: 福岡" /></label>
-      <label class="text-sm font-bold">担当の都道府県<span class="font-normal text-xs text-slate-500">カンマ・読点・空白・改行で区切る</span><textarea class="inp mt-1 font-normal" rows="2" data-f="mo.prefs" placeholder="福岡県、佐賀県">${esc(mo.prefs)}</textarea></label>
+      <label class="text-sm font-bold">担当の都道府県${helpIcon('読点・カンマ・空白・改行で区切ります。')}<textarea class="inp mt-1 font-normal" rows="2" data-f="mo.prefs" placeholder="福岡県、佐賀県">${esc(mo.prefs)}</textarea></label>
     </div>
     <div class="flex gap-2"><button class="b b-pri" data-mo-save>${mo.id ? '更新する' : '登録する'}</button>${mo.id ? '<button class="b b-sec" data-mo-cancel>やめる</button>' : ''}</div>
   </div>`;

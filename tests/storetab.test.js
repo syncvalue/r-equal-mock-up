@@ -71,7 +71,7 @@ test('空き状況のカレンダー: 縦=時刻・横=日付。空きは押せ�
   const days = storeWeek({ visits: list, storeId: 'S-NAMBA', dates: [ymd(new Date(NOW)), day], capacity: 2, now: NOW });
   const html = storeTabHtml({ form: { ...blankStoreForm('S-NAMBA', day), time: '14:30' }, stores: DEFAULT_STORES, upcoming: [], cal: { weekStart: ymd(new Date(NOW)), capacity: 2, storeName: 'なんば店', days } });
   const t = text(html);
-  assert.ok(t.includes('空き状況（なんば店）') && t.includes('同じ時刻に受けられるのは 2 組'));
+  assert.ok(t.includes('空き状況（なんば店）') && t.includes('同じ時刻に 2 組まで'));
   assert.ok(html.includes(`data-st-slot="${day}|10:00"`) && html.includes(`data-st-slot="${day}|14:30"`));
   assert.ok(!html.includes(`data-st-slot="${day}|14:00"`) && t.includes('満')); // 満席は押せない
   assert.ok(html.includes('data-st-week="-7"') && html.includes('data-st-week="7"') && html.includes('data-st-weektoday'));

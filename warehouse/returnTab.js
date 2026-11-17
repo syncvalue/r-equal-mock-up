@@ -74,7 +74,7 @@ function modalHtml(r, unitsByCode, draft) {
       <div class="px-4 py-3 space-y-3 overflow-y-auto">
         ${stepsHtml(r)}
         <div class="space-y-1">${r.codes.map((c) => unitLine(r, unitsByCode.get(c) ?? { code: c })).join('')}</div>
-        ${r.status === 'unavailable' ? '' : `<div class="text-sm">お客様から返していただく買取代金 <b>${yen(r.refund)}</b>${r.groupRefund && r.groupRefund !== r.refund ? `<span class="text-xs text-slate-500">（同じ契約の、他の保管場所の分を含めた合計 ${yen(r.groupRefund)}）</span>` : ''}</div>`}
+        ${r.status === 'unavailable' ? '' : `<div class="text-sm">お客様から返していただく買取代金 <b>${yen(r.refund)}</b>${r.groupRefund && r.groupRefund !== r.refund ? `<span class="text-xs text-slate-500">（同じ契約の合計 ${yen(r.groupRefund)}）</span>` : ''}</div>`}
         <div class="rounded-lg border bg-slate-50 p-2"><div class="text-xs font-bold text-slate-500 mb-1">やり取り（コールセンター ⇄ 倉庫）</div>
           <div id="ret-chat" class="space-y-2 max-h-72 overflow-y-auto pr-1">${bubblesHtml(r)}</div></div>
         ${messageBoxHtml(r.id, draft, { msg: 'ret-msg', send: 'ret-send', placeholder: r.status === 'inquiring' ? 'メッセージ／回答のメモ（Enterで送信）' : undefined })}
