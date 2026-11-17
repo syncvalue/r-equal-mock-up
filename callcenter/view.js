@@ -1,5 +1,6 @@
 // コールセンター画面の描画（状態 → HTML）。イベント処理は callcenter.js。
 import { esc, yen } from '../src/format.js';
+import { validPin, pinLabel } from './pin.js';
 import { helpIcon } from '../src/help.js';
 import { customerProfileHtml } from '../src/customerProfileView.js';
 import { CANCEL_REASONS } from './master.js';
@@ -162,7 +163,8 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
       ${lbl(`郵便番号${b('zip')}`, inp('zip', f.zip, { ph: '545-6016' }))}
       ${lbl(`訪問先の住所${b('address')}`, `<div class="flex gap-1">${inp('address', f.address, { ph: '大阪府大阪市阿倍野区…' })}<button class="b b-sec mt-0.5 shrink-0 !px-2" data-mapview title="右の画面を、地図に切り替える">地図</button></div>`, { req: true, cls: 'col-span-2' })}
     </div>
-    <div id="zip-cands" class="empty:hidden">${zipCandidatesHtml(f)}</div>`);
+    <div id="zip-cands" class="empty:hidden">${zipCandidatesHtml(f)}</div>
+    <div id="pin-label" class="text-xs ${validPin(f.pin) ? 'text-teal-700 font-bold' : 'text-slate-500'}">${esc(pinLabel(f.pin))}</div>`);
   const when = sec('④ 訪問の希望日時', `
     <div class="grid grid-cols-2 gap-2">
       ${lbl(`希望日${b('when')}`, inp('date', f.date, { type: 'date', extra: `min="${today}"` }), { req: true })}
@@ -378,13 +380,13 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
   </div>`;
 }
 
-// 右の画面を、訪問先の地図に切り替える（Googleマップの埋め込み）。カレンダーには、ボタンで戻す
-export const mapEmbedUrl = (address) => `https://www.google.com/maps?q=${encodeURIComponent(address)}&hl=ja&z=16&output=embed`;
+// 右の画面を、訪問先の地図に切り替える。地図を押すと、建物の位置にピンを置ける（置いた緯度経度は、住所の下に出る）。カレンダーには、ボタンで戻す
 export function mapPaneHtml(address) {
   return `<div class="space-y-2">
     <div class="flex items-center justify-between gap-2"><div class="text-sm font-bold">訪問先の地図<span class="font-normal text-xs text-slate-500 ml-2">${esc(address)}</span></div>
-      <div class="flex gap-1"><button class="b b-sec !min-h-0 !py-1 text-xs" data-map>別のタブで開く</button><button class="b b-pri !min-h-0 !py-1 text-xs" data-mapclose>カレンダーに戻る</button></div></div>
-    <iframe class="w-full rounded-lg border border-slate-300 bg-white" style="height:70vh" src="${esc(mapEmbedUrl(address))}" title="訪問先の地図" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <div class="flex gap-1"><button class="b b-sec !min-h-0 !py-1 text-xs" data-mapsearch>住所から探す</button><button class="b b-pri !min-h-0 !py-1 text-xs" data-mapclose>カレンダーに戻る</button></div></div>
+    <div class="flex items-center gap-2 text-xs"><span class="text-slate-500">建物の位置を押すと、ピンを置けます（ドラッグで動かせます）</span><span id="map-msg" class="text-amber-800 font-bold"></span></div>
+    <div id="pin-map" class="w-full rounded-lg border border-slate-300 bg-white" style="height:68vh"></div>
   </div>`;
 }
 

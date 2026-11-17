@@ -58,3 +58,7 @@ html.dark [data-msgmore] span { color: #cbd5e1; }
 .demo-only:disabled { opacity: .4; cursor: not-allowed; }
 html.dark .demo-only { color: #64748b; border-color: #2f405a; }
 html.dark .demo-only:hover { color: #94a3b8; border-color: #64748b; }
+
+/* 訪問先の地図のピン（カラー画像を使わず、色1つの丸いピン） */
+.pin-icon { background: none; border: 0; }
+.pin-dot { width: 24px; height: 24px; background: #0f766e; border: 3px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 1px 4px rgba(0,0,0,.4); }

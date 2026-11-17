@@ -21,6 +21,8 @@ import { pastVisitRows } from './phoneTimeline.js';
 import { buildIdIndex, idOfPhones, issueCustomerId } from './customerId.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
+import { mountPinMap, searchAddress } from './mapPane.js';
+import { pinLabel } from './pin.js';
 import { missingFields, companionText, wantsText, hearingChecklist, entryStage, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 import { cooloffPage, filtersHtml, resultsHtml, formHtml as cooloffFormHtml, progressHtml, zoomHtml, REJECT_TEXT } from './cooloffView.js';
@@ -69,6 +71,7 @@ let done = null; // 確定した直後の予約（確定画面を表示してい
 let quoted = false; // 過去のお客様情報を引用済みか
 let showOthers = false;
 let mapAddress = ''; // 空でなければ、右の画面を地図に切り替えている（その住所）
+let pinMap = null; // ピンを置く地図
 let calStaff = []; // 鑑定士を絞り込む（空なら全員）。「この案件はAさんかBさんが適任」のときに、その人たちだけを表示する
 let staffOpen = false;
 let calOnlyFree = false; // 日別表示で、希望の時間に空いている鑑定士だけを出す
@@ -133,7 +136,7 @@ function compute() {
   const proposal = areaOfAddress(form.address, extraAreas);
   const confirmed = form.areaId && form.areaAddr === form.address.trim() ? areaById(form.areaId, extraAreas) : null;
   const area = confirmed ?? proposal;
-  const here = area?.lat != null ? locateAddress(form.address, area) : null; // 今回のお客様の住所の位置（概算）。前の訪問からの距離に使う
+  const here = form.pin ?? (area?.lat != null ? locateAddress(form.address, area) : null); // 今回のお客様の住所の位置（概算）。前の訪問からの距離に使う
   const full = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here, extraAreas });
   // 鑑定士の絞り込み。絞ったときは、表示している鑑定士の中で、おすすめ（担当が最も少ない人）を決め直す
   const staffSel = calStaff.filter((id) => full.inArea.some((c) => c.user.id === id));
@@ -180,7 +183,7 @@ function saveEdit() {
   if (!before || x.missing.length || !x.selected) return;
   form = { ...form, customerId: resolveCustomerId() };
   const area = x.confirmed;
-  const fields = { ...buildRecordFields(form, { area, pos: locateAddress(form.address, area) }), userId: x.selected.user.id };
+  const fields = { ...buildRecordFields(form, { area, pos: form.pin ?? locateAddress(form.address, area) }), userId: x.selected.user.id };
   const nameOf = (id) => USERS.find((u) => u.id === id)?.name ?? id;
   const wasConfirmed = !isTentative(before) && editBy !== '配車係'; // 配車係の変更は、状態を変えない
   amendReservation(editId, fields, editBy, diffRecords(before, { ...before, ...fields }, nameOf), { byDispatcher: editBy === '配車係' }); // 配車係の変更は、状態を変えない（確定済みは確定のまま）
@@ -199,7 +202,7 @@ function confirmReservation() {
   const reservations = x.reservations;
   const past = findPast(form);
   const area = x.confirmed;
-  const center = locateAddress(form.address, area) ?? area; // 予定の地図表示は、住所の概算位置で代用（モック）
+  const center = form.pin ?? locateAddress(form.address, area) ?? area; // 予定の地図表示は、ピンの位置。なければ住所の概算位置で代用（モック）
   const record = {
     id: `RS-${Date.now().toString(36).toUpperCase()}`, receptionNo: nextReceptionNo(reservations), receivedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }),
     receivedTs: Date.now(), status: 'tentative', operator, userId: x.selected.user.id, apType: past ? '再' : '新',
@@ -317,10 +320,34 @@ function renderDispatch() {
   const el = $('#dispatch');
   if (!el) return;
   if (done) mapAddress = '';
-  if (mapAddress) { if (!el.querySelector('iframe')) el.innerHTML = mapPaneHtml(mapAddress); renderHint(); updateChecklist(); return; } // 地図のあいだは、入力のたびに描き直さない
+  if (mapAddress) { if (!pinMap || !el.querySelector('#pin-map')) openPinMap(el); renderHint(); updateChecklist(); return; } // 地図のあいだは、入力のたびに描き直さない
+  closePinMap();
   el.innerHTML = done ? doneHtml(done) : dispatchHtml(compute());
   renderHint();
   updateChecklist();
+}
+// ---- 訪問先の地図とピン ----
+function openPinMap(el) {
+  closePinMap();
+  el.innerHTML = mapPaneHtml(mapAddress);
+  const area = compute().confirmed ?? AREAS[0];
+  const center = locateAddress(form.address, area) ?? area;
+  pinMap = mountPinMap($('#pin-map'), { pin: form.pin, center, onPin: setPin });
+}
+function closePinMap() { if (pinMap) { pinMap.destroy(); pinMap = null; } }
+function setPin(pin) {
+  form = { ...form, pin };
+  const el = $('#pin-label');
+  if (el) { el.textContent = pinLabel(pin); el.className = 'text-xs text-teal-700 font-bold'; }
+}
+async function searchPin() {
+  const msg = $('#map-msg');
+  if (msg) msg.textContent = '探しています…';
+  try {
+    const hit = await searchAddress(mapAddress);
+    if (hit) { pinMap?.moveTo(hit, 17); if (msg) msg.textContent = ''; }
+    else if (msg) msg.textContent = '見つかりません。地図を動かして探してください';
+  } catch (err) { if (msg) msg.textContent = '検索できませんでした。地図を動かして探してください'; console.error(err); }
 }
 function renderHint() {
   const el = $('#hint');
@@ -596,7 +623,8 @@ document.addEventListener('click', (e) => {
   else if (d.week) { weekStart = shiftWeek(Number(d.week)); renderDispatch(); }
   else if (d.pick) { form = { ...form, userId: d.pick }; renderDispatch(); }
   else if ('toggleOthers' in d) { showOthers = !showOthers; renderDispatch(); }
-  else if ('mapview' in d) { const a = form.address.trim(); if (!a) { flash('住所を入力してください'); } else { mapAddress = a; $('#dispatch')?.querySelector('iframe')?.remove(); renderDispatch(); } }
+  else if ('mapview' in d) { const a = form.address.trim(); if (!a) { flash('住所を入力してください'); } else { mapAddress = a; closePinMap(); renderDispatch(); } }
+  else if ('mapsearch' in d) searchPin();
   else if ('mapclose' in d) { mapAddress = ''; renderDispatch(); }
   else if ('map' in d) { const a = done?.customer.address ?? form.address.trim(); if (a) window.open(mapUrl(a), '_blank', 'noopener'); else flash('住所を入力してください'); }
   else if ('quote' in d) {

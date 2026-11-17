@@ -111,10 +111,8 @@ test('聞き取りの順は、電話番号が最初（番号から、新規か�
   assert.deepEqual(hearingChecklist(typed).slice(0, 3).map((x) => x.key), ['phone', 'adType', 'flyer']);
 });
 
-test('地図の切り替え: 住所から、地図の埋め込みURLと、戻るボタン付きの画面ができる', async () => {
-  const { mapEmbedUrl, mapPaneHtml } = await import('../callcenter/view.js');
-  assert.ok(mapEmbedUrl('奈良県奈良市あやめ池北').includes('output=embed'));
-  assert.ok(mapEmbedUrl('奈良県奈良市あやめ池北').includes(encodeURIComponent('奈良県奈良市あやめ池北')));
+test('地図の切り替え: 地図の画面には、ピンを置く地図の枠と、戻るボタンがある', async () => {
+  const { mapPaneHtml } = await import('../callcenter/view.js');
   const html = mapPaneHtml('奈良県奈良市あやめ池北');
-  assert.ok(html.includes('data-mapclose') && html.includes('<iframe'));
+  assert.ok(html.includes('id="pin-map"') && html.includes('data-mapclose') && html.includes('data-mapsearch'));
 });
