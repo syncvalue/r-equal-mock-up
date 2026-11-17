@@ -77,7 +77,7 @@ function simpleList(s, list, sub, empty) {
 }
 
 export function masterBodyView(s) {
-  const tabs = `<div class="flex gap-2 shrink-0">${tab(s, 'browse', '🔍 探す')}${tab(s, 'popular', '🔥 人気')}${tab(s, 'recent', '🕘 最近')}</div>`;
+  const tabs = `<div class="flex gap-2 shrink-0">${tab(s, 'browse', '探す')}${tab(s, 'popular', '人気')}${tab(s, 'recent', '最近')}</div>`;
   let body;
   if (s.mtab === 'popular') {
     body = simpleList(s, popularProducts(40), (p) => `${esc(p.brand)} ・ 買取実績 ${p.history.count}件`, '');

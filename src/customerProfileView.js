@@ -23,7 +23,7 @@ export const custRankBadge = (p) =>
       : "";
 export const troubleBadge = (p) =>
   p && p.trouble.level !== "none"
-    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${p.trouble.level === "alert" ? "bg-rose-600 text-white" : "bg-amber-200 text-amber-800"}" title="${esc(`${p.trouble.tags.join("、")}${p.trouble.memo ? `　${p.trouble.memo}` : ""}`)}">${p.trouble.level === "alert" ? "🚨 要注意" : "⚠ 注意"}</span>`
+    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${p.trouble.level === "alert" ? "bg-rose-600 text-white" : "bg-amber-200 text-amber-800"}" title="${esc(`${p.trouble.tags.join("、")}${p.trouble.memo ? `　${p.trouble.memo}` : ""}`)}">${p.trouble.level === "alert" ? "要注意" : "⚠ 注意"}</span>`
     : "";
 export const cooloffBadge = (p) =>
   p?.cooloff.length
@@ -62,7 +62,7 @@ export function salesCustomerCard(p) {
   if (!p.known)
     return '<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"><span class="font-bold text-slate-900">新規のお客様</span><span class="ml-2 text-xs text-slate-500">買取の実績はありません</span></div>';
   const alert = p.trouble.level === "alert" || p.cooloff.length >= 2;
-  return `<div class="space-y-1 rounded-xl border ${alert ? "border-rose-300 bg-rose-50/60" : "border-slate-300 bg-slate-50/40"} px-3 py-2"><div class="text-sm font-bold ${alert ? "text-rose-700" : "text-slate-900"}">👤 お客様の評価${helpIcon("お客様情報に紐づく評価です。訪問前にご確認ください。鑑定士用の画面にだけ出ます（お客様には見せません）。")}</div>${customerProfileHtml(p)}</div>`;
+  return `<div class="space-y-1 rounded-xl border ${alert ? "border-rose-300 bg-rose-50/60" : "border-slate-300 bg-slate-50/40"} px-3 py-2"><div class="text-sm font-bold ${alert ? "text-rose-700" : "text-slate-900"}">お客様の評価${helpIcon("お客様情報に紐づく評価です。訪問前にご確認ください。鑑定士用の画面にだけ出ます（お客様には見せません）。")}</div>${customerProfileHtml(p)}</div>`;
 }
 
 // 査定したが、売らなかったもの（見送り品）。お客様が手元に持っている可能性がある、有力な情報（鑑定士の訪問前の把握・配車係の当てはめの判断用。お客様には見せない）
@@ -89,5 +89,5 @@ export function declinedCardHtml(items, { empty = false } = {}) {
 // 鑑定士のタブレット用のカード
 export function salesDeclinedCard(items) {
   if (!items?.length) return "";
-  return `<div class="space-y-1 rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2"><div class="text-sm font-bold text-slate-900">📦 前に査定したが、売らなかったもの${helpIcon("手元に持っている可能性があります。")}</div>${declinedCardHtml(items)}</div>`;
+  return `<div class="space-y-1 rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2"><div class="text-sm font-bold text-slate-900">前に査定したが、売らなかったもの${helpIcon("手元に持っている可能性があります。")}</div>${declinedCardHtml(items)}</div>`;
 }

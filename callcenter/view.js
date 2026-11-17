@@ -58,7 +58,7 @@ export const legHtml = (l, dir) => {
 export function travelStripHtml(col, f) {
   if (!col) return '';
   const box = (cls, body) => `<div class="mb-1 rounded border px-2 py-1 text-xs ${cls}">${body}</div>`;
-  if (!String(f.address ?? '').trim()) return box('border-slate-200 bg-slate-50 text-slate-500', '🚗 住所を入力すると、前の訪問からの距離・所要時間が出ます');
+  if (!String(f.address ?? '').trim()) return box('border-slate-200 bg-slate-50 text-slate-500', '住所を入力すると、前の訪問からの距離・所要時間が出ます');
   const t = col.travel;
   if (!t) return '';
   const place = (v) => (v ? `（${esc(v)}）` : '');
@@ -69,12 +69,12 @@ export function travelStripHtml(col, f) {
     return `<div>${where} <b class="text-slate-900">${l.km}km</b>・約${l.min}分　${room}</div>`;
   };
   const lines = [t.prev ? leg(t.prev, 'prev') : '<div>前の訪問なし（営業所からの距離は出しません）</div>', t.next ? leg(t.next, 'next') : ''].join('');
-  return box(t.prev && t.prev.min > t.prev.gap ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-slate-50 text-slate-700', `<div class="font-bold text-slate-700">🚗 ${esc(col.user.name)} の移動（概算）</div>${lines}`);
+  return box(t.prev && t.prev.min > t.prev.gap ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-slate-50 text-slate-700', `<div class="font-bold text-slate-700">${esc(col.user.name)} の移動（概算）</div>${lines}`);
 }
 
 // ---- 通話の文字起こし（デモ） -----------------------------------------------------------
 export const demoWindowHtml = (pos) => `<div id="demo-win" class="fixed z-50 w-[26rem] max-w-[calc(100vw-1rem)] rounded-lg bg-white shadow-2xl border-2 border-amber-400" style="left:${pos.x}px;top:${pos.y}px">
-  <div class="flex items-center justify-between bg-amber-400 text-slate-900 rounded-t px-3 py-1.5 cursor-move select-none" data-drag><b class="text-sm">🎙 音声入力デモ（文字起こし）</b><button class="text-lg leading-none px-1" data-demo="close" title="閉じる">✕</button></div>
+  <div class="flex items-center justify-between bg-amber-400 text-slate-900 rounded-t px-3 py-1.5 cursor-move select-none" data-drag><b class="text-sm">音声入力デモ（文字起こし）</b><button class="text-lg leading-none px-1" data-demo="close" title="閉じる">✕</button></div>
   <div id="transcript" class="p-3"></div></div>`;
 
 export function transcriptHtml({ lines, playing, finished, pos, total }) {
@@ -88,7 +88,7 @@ export function transcriptHtml({ lines, playing, finished, pos, total }) {
       <div class="flex items-center gap-1"><span class="text-xs text-slate-500 mr-1">${pos}／${total}</span>
         ${playing ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="stop">⏸ 止める</button>' : `<button class="b b-pri !min-h-0 !py-1 text-sm" data-demo="start">${lines.length && !finished ? '▶ 自動再生を再開' : '▶ 自動再生'}</button>`}
         <button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="step" ${finished ? 'disabled' : ''} title="会話を1つずつ進めます">⏭ 次の発話</button>
-        <button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="finish" ${finished ? 'disabled' : ''} title="残りの会話を、待たずに最後まで流します">⏩ 一気に最後まで</button>
+        <button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="finish" ${finished ? 'disabled' : ''} title="残りの会話を、待たずに最後まで流します">一気に最後まで</button>
         ${lines.length ? '<button class="b b-sec !min-h-0 !py-1 text-sm" data-demo="reset">やり直す</button>' : ''}</div></div>
     <div class="h-72 overflow-y-auto rounded border bg-white p-2 space-y-1.5" id="chat">${lines.length ? lines.map(bubble).join('') : '<p class="text-sm text-slate-400 text-center pt-24">「⏭ 次の発話」で1つずつ、「▶ 自動再生」で続けて、受電の会話が進みます</p>'}
       ${playing ? '<div class="text-xs text-slate-400 animate-pulse">● 通話中…</div>' : ''}</div>
@@ -160,7 +160,7 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
       <select class="inp !w-auto" data-f="ageEst" title="年齢を聞けない場合は、声から推測した年代を選びます"><option value="">（年代を選ぶ）</option>${AGE_BANDS.map((a) => `<option ${f.ageEst === a ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
     <div class="grid grid-cols-3 gap-2">
       ${lbl(`郵便番号${b('zip')}`, inp('zip', f.zip, { ph: '545-6016' }))}
-      ${lbl(`訪問先の住所${b('address')}`, `<div class="flex gap-1">${inp('address', f.address, { ph: '大阪府大阪市阿倍野区…' })}<button class="b b-sec mt-0.5 shrink-0 !px-2" data-map title="Googleマップで開く">🗺</button></div>`, { req: true, cls: 'col-span-2' })}
+      ${lbl(`訪問先の住所${b('address')}`, `<div class="flex gap-1">${inp('address', f.address, { ph: '大阪府大阪市阿倍野区…' })}<button class="b b-sec mt-0.5 shrink-0 !px-2" data-map title="Googleマップで開く">地図</button></div>`, { req: true, cls: 'col-span-2' })}
     </div>
     <div id="zip-cands" class="empty:hidden">${zipCandidatesHtml(f)}</div>`);
   const when = sec('④ 訪問の希望日時', `
@@ -211,7 +211,7 @@ export function hintHtml(found, applied, summary = null, profile = null) {
     ? `<div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 border-t border-amber-200 pt-1"><span>直近の買取 <b class="text-sm">${yen(summary.latest.total)}</b><span class="text-slate-500">（${d(summary.latest.at)}・${esc(summary.latest.items)}）</span></span><span>過去の依頼 <b class="text-sm">${summary.count}</b>回</span><span>総買取額 <b class="text-sm">${yen(summary.total)}</b></span></div>`
     : '<div class="mt-1 border-t border-amber-200 pt-1 text-slate-500">買取の実績はまだありません</div>';
   return `<div class="rounded-lg bg-amber-50 border border-amber-300 px-2 py-1 text-xs">
-    <div class="flex justify-between items-center gap-2"><span>📇 <b>過去にご利用あり</b>：${esc(found.name)} 様（${esc(found.address)}）</span>
+    <div class="flex justify-between items-center gap-2"><span><b>過去にご利用あり</b>：${esc(found.name)} 様（${esc(found.address)}）</span>
       ${applied ? '<span class="text-xs text-slate-500">反映済み</span>' : '<button class="b b-sec !min-h-0 !py-1 text-sm shrink-0" data-quote>引用</button>'}</div>${buy}${profile ? `<div class="mt-1 border-t border-amber-200 pt-1">${customerProfileHtml(profile, { advice: true })}</div>` : ''}</div>`;
 }
 
@@ -221,7 +221,7 @@ const statText = (st, gender) => (gender === 'f' ? `今月 女性<b class="text-
 const starTitle = (gender) => (gender === 'f' ? '空いている鑑定士のうち、女性のお客様の担当が今月最も少ない人（公平な配分）' : '空いている鑑定士のうち、担当が今月最も少ない人（公平な配分）');
 // 午後出社・午後半休の表示。働けない時間帯を、斜線で塗る
 // 出張中の印（出張メンバーの鑑定士。本来の営業所は変わらない）。trips: [{ name, start, end }]
-export const tripTag = (trips) => (trips?.length ? trips.map((t) => `<span class="rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-800" title="${esc(`${t.name}（${t.start}〜${t.end}）の出張メンバー`)}">🧳 出張中 ${esc(t.name)}</span>`).join(' ') : '');
+export const tripTag = (trips) => (trips?.length ? trips.map((t) => `<span class="rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-800" title="${esc(`${t.name}（${t.start}〜${t.end}）の出張メンバー`)}">出張中 ${esc(t.name)}</span>`).join(' ') : '');
 // 受付の担当エリアの名前（出張エリアを含む）
 export const areaNameOf = (areaId) => areaById(areaId, tripAreas(loadCurrentTrips()))?.name ?? '例外対応';
 export const attTag = (att) => (att && (att.kind === 'pm' || att.kind === 'am') ? `<span class="rounded bg-slate-200 px-1 text-[10px] font-bold text-slate-700" title="${att.kind === 'pm' ? '午前は休み。午後から出社' : '午後は休み。午前のみ出社'}">${att.label}</span>` : '');
@@ -248,7 +248,7 @@ function candidateRow(c, { selectedId, gender, form, showArea = false }) {
   <div class="rounded-lg border-2 px-2 py-1 ${c.absent ? 'bg-slate-100 opacity-60' : 'bg-white'} ${c.free ? 'cursor-pointer hover:border-teal-500' : c.absent ? '' : 'opacity-70'} ${on ? 'border-teal-600 ring-2 ring-teal-300' : 'border-slate-200'}" ${c.free ? `data-pick="${c.user.id}"` : ''}>
     <div class="grid grid-cols-[8rem_6rem_9.5rem_1fr] items-center gap-2 text-xs">
       <div class="flex items-center gap-1.5 truncate">${avatarHtml(c.user, 28)}<span class="truncate"><b class="text-sm">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)} ${attTag(c.att)}${tripTag(c.trips)}${showArea ? `<span class="ml-1 text-[10px] text-slate-500">${esc(areaById(c.areaId)?.name ?? '')}</span>` : ''}</span></div>
-      <div class="flex gap-1">${c.recommended ? tag('bg-amber-400 text-slate-900', '⭐', starTitle(gender)) : ''}${c.absent ? tag('bg-slate-600 text-white', '欠勤', 'この日は欠勤のため、担当に選べません') : c.free ? tag('bg-teal-100 text-teal-700', '空き') : tag('bg-rose-100 text-rose-700', '不可')}</div>
+      <div class="flex gap-1">${c.recommended ? tag('bg-amber-400 text-slate-900', 'おすすめ', starTitle(gender)) : ''}${c.absent ? tag('bg-slate-600 text-white', '欠勤', 'この日は欠勤のため、担当に選べません') : c.free ? tag('bg-teal-100 text-teal-700', '空き') : tag('bg-rose-100 text-rose-700', '不可')}</div>
       <div class="text-slate-700">${statText(c.stats, gender)}</div>
       <div class="min-w-0 text-[11px] leading-tight text-slate-700" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${legHtml(c.travel.prev, 'prev')}</div>${c.travel.next ? `<div class="truncate">${legHtml(c.travel.next, 'next')}</div>` : ''}` : ''}</div>
     </div>
@@ -301,7 +301,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
   const head = cols.map((c) => {
     const tag = c.free ? 'button' : 'div';
     return `<${tag} class="block w-full px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'} ${c.free ? 'cursor-pointer hover:bg-teal-50' : c.absent ? 'opacity-70' : 'opacity-80'}" ${c.free ? `data-pick="${c.user.id}" title="この鑑定士を担当にする"` : `title="${esc(conflictText(c.conflict))}"`}>
-      <div>${avatarHtml(c.user, 28)}</div><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)}${c.recommended ? `<span class="ml-0.5 rounded bg-amber-400 px-1 text-[10px] font-bold" title="${esc(starTitle(form.gender))}">⭐</span>` : ''}
+      <div>${avatarHtml(c.user, 28)}</div><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)}${c.recommended ? `<span class="ml-0.5 rounded bg-amber-400 px-1 text-[10px] font-bold" title="${esc(starTitle(form.gender))}">おすすめ</span>` : ''}
       ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}${c.trips?.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] font-bold ${c.absent ? 'text-slate-700' : c.free ? 'text-teal-700' : 'text-rose-700'}">${c.absent ? '欠勤' : `${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}`}</div></${tag}>`;
   }).join('');
   const axisCol = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: DAY_SLOTS / 2 }, (_, i) => `<span class="absolute right-1 text-[10px] text-slate-400 -translate-y-1/2" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
@@ -333,10 +333,10 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
 const areaBanner = ({ proposal, confirmed, hasAddress, extraAreas = [] }) => {
   if (!hasAddress) return '<div class="rounded-lg bg-slate-100 px-3 py-1.5 text-sm text-slate-500">住所を入力するとエリアを確認できます</div>';
   const judge = !proposal ? '都道府県を判定できません' : proposal.outside ? `<b>${esc(proposal.pref)}</b>は対応エリア外` : `${esc(proposal.pref)} → <b>${esc(proposal.name)}</b>`;
-  const btns = [...AREAS, ...extraAreas].map((a) => `<button class="chip ${confirmed?.id === a.id ? 'on' : ''}" data-area="${a.id}">${a.trip ? '🧳 ' : ''}${esc(a.name)}${proposal?.id === a.id ? '<span class="opacity-70 ml-0.5" title="住所からの判定">●</span>' : ''}</button>`).join('');
+  const btns = [...AREAS, ...extraAreas].map((a) => `<button class="chip ${confirmed?.id === a.id ? 'on' : ''}" data-area="${a.id}">${a.trip ? '' : ''}${esc(a.name)}${proposal?.id === a.id ? '<span class="opacity-70 ml-0.5" title="住所からの判定">●</span>' : ''}</button>`).join('');
   const differ = confirmed && proposal?.id !== confirmed.id ? '<span class="text-[11px] text-amber-800">※住所の判定と異なる</span>' : '';
   return `<div class="rounded-lg border px-2 py-1.5 space-y-1 ${confirmed ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-amber-50 border-amber-300 text-amber-800'}">
-    <div class="flex justify-between items-center gap-2 text-xs"><span>${judge}</span><button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0 !text-slate-900" data-map>🗺 マップで確認</button></div>
+    <div class="flex justify-between items-center gap-2 text-xs"><span>${judge}</span><button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0 !text-slate-900" data-map>マップで確認</button></div>
     <div class="flex flex-wrap items-center gap-1.5"><span class="text-sm font-bold">${confirmed ? '✔ エリア確定：' : 'エリア確定：'}</span>${btns}${differ}</div></div>`;
 };
 
@@ -345,7 +345,7 @@ function staffFilterHtml({ staff, staffSel, staffOpen }) {
   const names = staff.filter((c) => staffSel.includes(c.user.id)).map((c) => c.user.name);
   return `<div class="mb-1">
     <div class="flex flex-wrap items-center gap-2">
-      <button class="chip ${staffSel.length ? 'on' : ''}" data-staffpanel>👥 鑑定士を絞る ${staffOpen ? '▲' : '▼'}</button>
+      <button class="chip ${staffSel.length ? 'on' : ''}" data-staffpanel>鑑定士を絞る ${staffOpen ? '▲' : '▼'}</button>
       <span class="text-xs ${staffSel.length ? 'font-bold text-teal-700' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${names.map(esc).join('・')}` : `全員（${staff.length}名）を表示`}</span>
       ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-staffclear>解除</button>' : ''}${helpIcon('表示したい鑑定士を選びます（複数可）。選んだ鑑定士だけが、カレンダー・担当候補に出ます。')}</div>
     ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((c) => `<button class="chip ${staffSel.includes(c.user.id) ? 'on' : ''} ${c.absent ? 'opacity-60' : ''}" data-staff="${c.user.id}" title="${c.absent ? 'この日は欠勤（担当には選べません）' : ''}">${esc(c.user.name)} ${esc(c.rank ?? '')}${c.att && c.att.kind !== 'present' ? `　${c.att.label}` : ''}</button>`).join('')}</div>` : ''}
@@ -363,7 +363,7 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
   const box = (title, body) => `<div class="min-w-0"><div class="mb-0.5 text-[11px] font-bold text-slate-500">${title}</div><div class="space-y-0.5">${body}</div></div>`;
   const bar = (rate, pace) => `<div class="relative h-1.5 rounded bg-slate-200"><div class="h-1.5 rounded ${rate >= pace ? 'bg-teal-500' : 'bg-amber-400'}" style="width:${Math.min(100, rate * 100)}%"></div><div class="absolute -top-0.5 h-2.5 w-0.5 bg-slate-700" style="left:${Math.min(100, pace * 100)}%" title="今月の経過（${pctText(pace)}）"></div></div>`;
   const plans = d.blocks.length
-    ? d.blocks.map((b) => `<div class="truncate" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}`)}"><b>${minToHHMM(b.start)}–${minToHHMM(b.end)}</b> ${b.source === 'reservation' ? '📞' : ''}${esc(b.label)}${b.place ? `<span class="text-slate-500">　${esc(b.place)}</span>` : ''}</div>`).join('')
+    ? d.blocks.map((b) => `<div class="truncate" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}`)}"><b>${minToHHMM(b.start)}–${minToHHMM(b.end)}</b> ${esc(b.label)}${b.place ? `<span class="text-slate-500">　${esc(b.place)}</span>` : ''}</div>`).join('')
     : '<div class="text-slate-500">予定なし</div>';
   return `<div class="rounded-lg border-2 border-teal-600 bg-white p-2 text-xs">
     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -399,7 +399,7 @@ export function dispatchHtml(x) {
         ${staffFilterHtml({ staff, staffSel, staffOpen })}
         ${calendar.mode === 'day' ? dayViewHtml({ cols: [...ranking.inArea, ...(showOthers ? ranking.others : [])].sort((a, b) => a.user.id.localeCompare(b.user.id)), form, selectedId, canPrev: form.date > calendar.today, onlyFree: calendar.onlyFree }) : weekCalendarHtml(calendar)}</div>
       ${calendar.mode === 'day' && detail ? salesDetailHtml(detail, { form, fairIndex, freeCount, area: areaById(detail.areaId) }) : ''}
-      <div><div class="text-sm font-bold mb-0.5 flex flex-wrap items-baseline gap-x-3">担当候補<span class="font-normal text-[11px] text-slate-500">${minToHHMM(form.start)}〜 の空き</span>${helpIcon(`⭐＝空いている中で、${form.gender === 'f' ? '女性のお客様の担当' : '担当'}が今月最も少ない人`)}</div>
+      <div><div class="text-sm font-bold mb-0.5 flex flex-wrap items-baseline gap-x-3">担当候補<span class="font-normal text-[11px] text-slate-500">${minToHHMM(form.start)}〜 の空き</span>${helpIcon(`＝空いている中で、${form.gender === 'f' ? '女性のお客様の担当' : '担当'}が今月最も少ない人`)}</div>
         <div class="space-y-1">${ranking.inArea.map(card).join('')}</div></div>` : ''}
     <div><button class="text-sm underline text-slate-500" data-toggle-others>${showOthers ? '▼' : '▶'} 他エリア（例外）</button>
       ${showOthers ? `<div class="space-y-1 mt-1">${ranking.others.map((c) => candidateRow(c, { selectedId, gender: form.gender, form, showArea: true })).join('')}</div>` : ''}</div>
@@ -422,7 +422,7 @@ export function doneHtml(r) {
   const u = USERS.find((x) => x.id === r.userId);
   return `
   <div class="rounded-lg border-2 border-teal-500 bg-white p-5 space-y-3">
-    <div class="text-2xl font-bold text-teal-700">✅ 仮確定しました${helpIcon('担当鑑定士は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、鑑定士のタブレットの予定に追加されます。')}</div>
+    <div class="text-2xl font-bold text-teal-700">✓ 仮確定しました${helpIcon('担当鑑定士は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、鑑定士のタブレットの予定に追加されます。')}</div>
     <dl class="text-sm grid grid-cols-[7rem_1fr] gap-y-1">
       <dt class="text-slate-500">受付番号</dt><dd class="font-bold">${esc(r.receptionNo)}</dd>
       <dt class="text-slate-500">訪問日時</dt><dd class="font-bold">${esc(r.date)} ${esc(r.start)}〜${esc(r.end)}</dd>
@@ -430,7 +430,7 @@ export function doneHtml(r) {
       <dt class="text-slate-500">訪問先</dt><dd>${esc(r.customer.address)}</dd>
       <dt class="text-slate-500">担当鑑定士（仮）</dt><dd class="font-bold">${esc(u?.name)}（${esc(areaNameOf(r.areaId))}）</dd>
     </dl>
-    <div class="flex gap-2"><button class="b b-pri" data-new>次の受付へ</button><button class="b b-sec" data-map>🗺 訪問先をGoogleマップで開く</button></div>
+    <div class="flex gap-2"><button class="b b-pri" data-new>次の受付へ</button><button class="b b-sec" data-map>訪問先をGoogleマップで開く</button></div>
   </div>`;
 }
 
@@ -450,8 +450,8 @@ export const statusBadge = (r) => {
 // お客様から折り返しの電話があったとき（やめる・日を変えたい）に、その番号で受け付け済みの予約を出す
 export function openResHtml(list) {
   if (!list.length) return '';
-  return `<div class="space-y-1"><div class="text-xs font-bold text-slate-900">📅 この電話番号で、すでに受け付けている予約${helpIcon('変更・取消はここから行います')}</div>${list.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs">
-    <span>📅 <b>受付済み</b>：${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</span>
+  return `<div class="space-y-1"><div class="text-xs font-bold text-slate-900">この電話番号で、すでに受け付けている予約${helpIcon('変更・取消はここから行います')}</div>${list.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs">
+    <span><b>受付済み</b>：${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</span>
     <span class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-chg="${r.id}">日時を変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></span></div>`).join('')}</div>`;
 }
 
@@ -482,6 +482,6 @@ export function callLogHtml(list, open) {
   if (!list.length) return '';
   const last = list[0];
   return `<div class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs">
-    <button class="flex w-full items-center justify-between gap-2 text-left" data-calllog><span>📞 <b>この電話番号の受電履歴（${list.length}件）</b><span class="ml-2 text-slate-500">直近 ${stampText(last.at)} ${last.dir === 'out' ? '架電' : '受電'} ${esc(last.purpose ?? last.kind)}</span></span><span>${open ? '▲' : '▼'}</span></button>
+    <button class="flex w-full items-center justify-between gap-2 text-left" data-calllog><span><b>この電話番号の受電履歴（${list.length}件）</b><span class="ml-2 text-slate-500">直近 ${stampText(last.at)} ${last.dir === 'out' ? '架電' : '受電'} ${esc(last.purpose ?? last.kind)}</span></span><span>${open ? '▲' : '▼'}</span></button>
     ${open ? `<div class="mt-1 max-h-48 space-y-1 overflow-y-auto border-t pt-1">${list.map((c) => `<div class="flex items-start gap-2"><span class="w-28 shrink-0 text-slate-500">${stampText(c.at)}</span><span class="shrink-0 rounded px-1 font-bold ${KIND_CLS[c.kind] ?? 'bg-slate-100'}">${c.dir === 'out' ? '架電' : '受電'}</span><span class="min-w-0 flex-1"><b>${esc(c.purpose ?? c.kind)}</b>　${esc(c.note)}<span class="ml-1 text-slate-400">（${esc(c.who ?? c.by ?? '')}）</span></span></div>`).join('')}</div>` : ''}</div>`;
 }

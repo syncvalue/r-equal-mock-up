@@ -46,7 +46,7 @@ function form(mt, users) {
 // ctx: { trips, users: 出張メンバーに選べる鑑定士 [{ id, name }], today: YYYY-MM-DD, ui: { mt } }
 export function tripsPanelHtml({ trips, users, today, ui }) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🧳 出張（${trips.filter((t) => t.active).length}件）${helpIcon('営業所のないエリアへ、チラシを配って、期間を決めて訪問買取をする営業方法です。\n出張メンバーの本来の営業所は変わりません。期間中だけ、出張エリアの候補にも加わり（本来の営業所のエリアの候補にも残ります）、コールセンターでは「出張中」と分かるように出ます。')}</h2>
+      <h2 class="font-bold text-lg">出張（${trips.filter((t) => t.active).length}件）${helpIcon('営業所のないエリアへ、チラシを配って、期間を決めて訪問買取をする営業方法です。\n出張メンバーの本来の営業所は変わりません。期間中だけ、出張エリアの候補にも加わり（本来の営業所のエリアの候補にも残ります）、コールセンターでは「出張中」と分かるように出ます。')}</h2>
       ${table(trips, users, today)}${form(ui.mt, users)}
     </section>`;
 }

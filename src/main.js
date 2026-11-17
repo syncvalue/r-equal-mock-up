@@ -1131,7 +1131,7 @@ window.addEventListener('storage', (e) => {
   if (e.key === CHAT_KEY) { // 経費精算のやり取り（経理部からのメッセージ）
     const unread = (list) => list.reduce((n, r) => n + unreadCount(loadChats(), state.user, r.date, 'sales'), 0);
     const advUnreadN = requestsOf(loadRequests(), state.user).reduce((n, r) => n + advUnread(loadChats(), r.id, 'sales'), 0);
-    if ((unread(state.fixable) > 0 && state.modal?.type !== 'revise') || (advUnreadN > 0 && state.modal?.type !== 'advance')) showToast('💬 経理部から、メッセージが届きました');
+    if ((unread(state.fixable) > 0 && state.modal?.type !== 'revise') || (advUnreadN > 0 && state.modal?.type !== 'advance')) showToast('経理部から、メッセージが届きました');
     rerenderKeepScroll();
     return;
   }
@@ -1141,30 +1141,30 @@ window.addEventListener('storage', (e) => {
     return;
   }
   if (e.key === DEPOSIT_KEY) {
-    showToast('🏦 経理部から補充金が振り込まれました');
+    showToast('経理部から補充金が振り込まれました');
     rerenderKeepScroll();
     return;
   }
   if (e.key === MSG_KEY) {
-    showToast('📢 本社からメッセージが届きました');
+    showToast('本社からメッセージが届きました');
     rerenderKeepScroll();
     return;
   }
   if (e.key === APPROVAL_KEY) {
     const decided = (l) => l.filter((a) => a.visitId === state.visitId && a.status !== '待ち').length;
-    if (decided(loadApprovals()) > decided(state.approvals)) showToast('✅ 査定部から承認の結果が届きました');
+    if (decided(loadApprovals()) > decided(state.approvals)) showToast('✓ 査定部から承認の結果が届きました');
     rerenderKeepScroll();
     return;
   }
   if (e.key === COMMENT_KEY) {
     const mine = (list) => list.filter((c) => c.visitId === state.visitId).length;
-    if (mine(loadComments()) > state.comments.length) showToast('❗ 査定部からコメントが届きました');
+    if (mine(loadComments()) > state.comments.length) showToast('査定部からコメントが届きました');
     rerenderKeepScroll();
     return;
   }
   if (e.key !== AP_STORAGE_KEY) return;
   const unread = (l) => l.filter((a) => a.visitId === state.visitId && hasUnread(a, 'sales')).length;
-  if (unread(loadAppraisals()) > unread(state.appraisals)) showToast('💬 査定部から返信が届きました');
+  if (unread(loadAppraisals()) > unread(state.appraisals)) showToast('査定部から返信が届きました');
   // 下書き入力中は再描画しない（フォーカスが外れるため）
   if (!document.activeElement?.dataset?.draft) rerenderKeepScroll();
 });

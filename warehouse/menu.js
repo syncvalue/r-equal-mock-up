@@ -1,13 +1,14 @@
 // 左側の開閉式メニュー（鑑定士のタブレットと同じ。☰ で開き、項目を選ぶか、外側・✕で閉じる）
+import { icon } from '../src/icons.js';
 import { esc } from '../src/format.js';
 
 export const TABS = [
-  { key: 'stock', icon: '📦', label: '商品管理', sub: '在庫の確認・検索・QR読取' },
-  { key: 'receive', icon: '📥', label: '入庫', sub: '届いた商品の入庫・シール貼り替え' },
-  { key: 'transfer', icon: '🚚', label: '倉庫間移動', sub: '他の倉庫へ送る・受け取る' },
-  { key: 'list', icon: '🛒', label: '販売（出品）', sub: '出品・委託・売却の登録' },
-  { key: 'sales', icon: '💹', label: '売上管理', sub: '売上・利益（会社全体も）' },
-  { key: 'return', icon: '↩', label: 'クーリングオフ返品', sub: '依頼の一覧・やり取り・回答・返送' },
+  { key: 'stock', icon: 'box', label: '商品管理', sub: '在庫の確認・検索・QR読取' },
+  { key: 'receive', icon: 'inbox', label: '入庫', sub: '届いた商品の入庫・シール貼り替え' },
+  { key: 'transfer', icon: 'truck', label: '倉庫間移動', sub: '他の倉庫へ送る・受け取る' },
+  { key: 'list', icon: 'cart', label: '販売（出品）', sub: '出品・委託・売却の登録' },
+  { key: 'sales', icon: 'chart', label: '売上管理', sub: '売上・利益（会社全体も）' },
+  { key: 'return', icon: 'undo', label: 'クーリングオフ返品', sub: '依頼の一覧・やり取り・回答・返送' },
 ];
 export const tabLabel = (key) => TABS.find((t) => t.key === key)?.label ?? '';
 
@@ -25,7 +26,7 @@ export function menuView({ tab, badges, staff, warehouseName }) {
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
         ${TABS.map((t) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === t.key ? 'bg-slate-700' : 'hover:bg-white/10 active:bg-white/20'}" data-tab="${t.key}">
-          <span class="text-3xl">${t.icon}</span>
+          <span class="text-3xl">${icon(t.icon, 28)}</span>
           <span class="flex-1"><span class="block font-bold text-lg leading-tight">${t.label}</span><span class="text-xs text-slate-300">${t.sub}</span></span>
           ${badges[t.key] ? `<span class="text-xs font-bold rounded-full ${badge[t.key][0]} px-2 py-0.5 whitespace-nowrap">${badge[t.key][1]} ${badges[t.key]}</span>` : ''}
         </button>`).join('')}

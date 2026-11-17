@@ -54,7 +54,7 @@ const tabBody = (full, now) => {
   const data = { ...state, rows: buildRows(state, now), master, allRows: buildRows(full, now), full, me: staff };
   // 出品・売却・返品は、自分の倉庫の商品だけ扱える（他の倉庫の商品は、先に移動する）
   const own = scopeState(full, staff.warehouseId, master);
-  const ownNotice = `<div class="text-xs rounded bg-slate-50 border border-slate-200 p-2">扱える商品: あなたの倉庫（${esc(myWarehouse().name)}）の分だけ${helpIcon('この画面で扱えるのは、あなたの倉庫の商品だけです。他の倉庫の商品は、先に「🚚 倉庫間移動」で、自分の倉庫に移してください。')}</div>`;
+  const ownNotice = `<div class="text-xs rounded bg-slate-50 border border-slate-200 p-2">扱える商品: あなたの倉庫（${esc(myWarehouse().name)}）の分だけ${helpIcon('この画面で扱えるのは、あなたの倉庫の商品だけです。他の倉庫の商品は、先に「倉庫間移動」で、自分の倉庫に移してください。')}</div>`;
   if (tab === 'receive') return receiveTab(full, ui, myWarehouse(), master);
   if (tab === 'transfer') return transferTab(full, master, ui, staff, now);
   if (tab === 'list') return ownNotice + listTab({ ...own, rows: buildRows(own, now) }, ui, now, { full, master, me: staff });
@@ -85,7 +85,7 @@ function render() {
   <header class="bg-slate-900 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${menuBadge ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
       <span class="font-bold text-xl">倉庫・物流</span><span class="text-slate-300">›</span><span class="font-bold">${esc(tabLabel(tab))}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${tab === 'stock' ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter(isOpenReturn).length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
+    <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${tab === 'stock' ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter(isOpenReturn).length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${tabBody(full, now)}</main>${menuOpen ? menuView({ tab, badges, staff, warehouseName: wh.name }) : ''}</div>`;
   const chat = $('#ret-chat');
@@ -153,7 +153,7 @@ function sendMessage(id) {
   ui.rt = { ...ui.rt, draft: { ...ui.rt.draft, [id]: '' } };
 }
 // 入庫（誰の商品でも入庫できる）。シールを読み取った場合は、読取で照合したものとして記録する
-const DEST_TEXT = { toHonsha: 'は、本社には入庫できません。倉庫で入庫し、高額品は「🚚 倉庫間移動」で本社へ移します' };
+const DEST_TEXT = { toHonsha: 'は、本社には入庫できません。倉庫で入庫し、高額品は「倉庫間移動」で本社へ移します' };
 function storeCode(raw) {
   const unit = loadUnits().find((u) => u.code === String(raw ?? '').trim().toUpperCase());
   const problem = unit && unit.status !== 'stored' ? receiveProblem(master, staff.warehouseId) : '';
@@ -242,7 +242,7 @@ function doRelabel(code) {
   ui.rc = { ...ui.rc, checks: ui.rc.checks.filter((c) => c !== code) };
   ui.rl = { code: '', newCode: '', color: '' };
   if (ui.scan.raw === code) ui.scan = { raw: next.code };
-  alert(`シールを貼り替えました。新しいシールNo.: ${next.code}${problem ? `\n\nシールの色が変わり、${problem === 'highToHonsha' ? '高額品になった' : '高額品でなくなった'}ため、${problem === 'highToHonsha' ? '本社' : '倉庫'}に移す必要があります。「🚚 倉庫間移動」で移してください。` : ''}`);
+  alert(`シールを貼り替えました。新しいシールNo.: ${next.code}${problem ? `\n\nシールの色が変わり、${problem === 'highToHonsha' ? '高額品になった' : '高額品でなくなった'}ため、${problem === 'highToHonsha' ? '本社' : '倉庫'}に移す必要があります。「倉庫間移動」で移してください。` : ''}`);
 }
 
 // ---- 倉庫間の移動 -----------------------------------------------------------------

@@ -24,13 +24,13 @@ export const dummyPhoto = (label) =>
   );
 
 // 商品の写真（ダミー）。商品名・カテゴリから絵を作る（同じ商品は同じ絵、別の商品は色が変わる）。実際には、買取のときに撮影した写真を使う
-const ICONS = [['時計', '⌚'], ['バッグ', '👜'], ['財布', '👛'], ['小物', '👛'], ['ジュエリー', '💍'], ['貴金属', '💍'], ['カメラ', '📷'], ['家電', '📷']];
+const ICONS = [['時計', '時計'], ['バッグ', 'バッグ'], ['財布', '財布'], ['小物', '小物'], ['ジュエリー', '宝飾'], ['貴金属', '貴金属'], ['カメラ', 'カメラ'], ['家電', '家電']];
 const xml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export function productPhoto(name, category) {
   const hue = [...String(name ?? '')].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 360, 17);
-  const icon = ICONS.find(([k]) => String(category ?? '').includes(k))?.[1] ?? '📦';
+  const icon = ICONS.find(([k]) => String(category ?? '').includes(k))?.[1] ?? '商品';
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="320" height="240" fill="hsl(${hue},35%,86%)"/><circle cx="160" cy="100" r="62" fill="hsl(${hue},35%,74%)"/><text x="160" y="124" font-size="72" text-anchor="middle">${icon}</text><text x="160" y="216" font-size="20" text-anchor="middle" fill="hsl(${hue},30%,25%)">${xml(name)}</text></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="320" height="240" fill="hsl(${hue},35%,86%)"/><circle cx="160" cy="100" r="62" fill="hsl(${hue},35%,74%)"/><text x="160" y="112" font-size="34" font-weight="700" fill="#475569" text-anchor="middle">${icon}</text><text x="160" y="216" font-size="20" text-anchor="middle" fill="hsl(${hue},30%,25%)">${xml(name)}</text></svg>`,
   );
 }
 // 登録された写真があればそれを、なければダミーを使う

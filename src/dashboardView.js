@@ -70,7 +70,7 @@ function memberTable(s, members, range, now) {
 }
 
 // メッセージ（本社／リーダー）。見出しをタップして開閉する（初期は閉じて、縦幅を取らない）。開いた一覧は2件分の高さで、3件目以降はスクロール
-function messageCard(s, { key, icon, title, msgs, canSend }) {
+function messageCard(s, { key, title, msgs, canSend }) {
   const user = userById(s.user);
   const read = new Set(loadReadIds(user.id));
   const unread = msgs.filter((m) => !read.has(m.id)).length;
@@ -81,7 +81,7 @@ function messageCard(s, { key, icon, title, msgs, canSend }) {
     <div class="flex items-center gap-2">
       <button class="flex-1 min-w-0 flex items-center gap-2 text-left min-h-[40px]" data-action="msg-toggle" data-key="${key}" aria-expanded="${open}">
         <span class="text-slate-500 w-4 shrink-0">${open ? '▼' : '▶'}</span>
-        <span class="font-bold shrink-0">${icon} ${title}</span>
+        <span class="font-bold shrink-0">${title}</span>
         ${unread ? `<span class="text-xs rounded-full bg-rose-600 text-white px-2 py-0.5 shrink-0">未読 ${unread}</span>` : ''}
         ${!open && latest ? `<span class="text-xs text-slate-400 truncate min-w-0">${esc(latest.title)}</span>` : ''}
       </button>
@@ -107,8 +107,8 @@ function messageCard(s, { key, icon, title, msgs, canSend }) {
 function messagesCards(s) {
   const user = userById(s.user);
   return `<div class="grid grid-cols-2 gap-3 items-start">
-    ${messageCard(s, { key: 'hq', icon: '📢', title: '本社から', msgs: hqMessagesFor(user), canSend: false })}
-    ${messageCard(s, { key: 'leader', icon: '👤', title: 'リーダーから', msgs: leaderMessagesFor(user), canSend: isLeader(user) })}
+    ${messageCard(s, { key: 'hq', title: '本社から', msgs: hqMessagesFor(user), canSend: false })}
+    ${messageCard(s, { key: 'leader', title: 'リーダーから', msgs: leaderMessagesFor(user), canSend: isLeader(user) })}
   </div>`;
 }
 
@@ -165,17 +165,17 @@ export function dashboardView(s) {
     ${reviseBanner(s)}
     ${messagesCards(s)}
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <div><h2 class="text-2xl font-bold">📊 業績ダッシュボード</h2>
+      <div><h2 class="text-2xl font-bold">業績ダッシュボード</h2>
         <p class="text-sm text-slate-500">${esc(subject)} ／ ${range.start.getMonth() + 1}/${range.start.getDate()}${range.start.getTime() === range.end.getTime() ? '' : `〜${range.end.getMonth() + 1}/${range.end.getDate()}`}</p></div>
       <div class="flex items-center gap-2">
-        <button class="btn btn-secondary !min-h-[40px] !py-1 !px-3 text-sm whitespace-nowrap" data-action="dash-reports">📝 日報を見る</button>
+        <button class="btn btn-secondary !min-h-[40px] !py-1 !px-3 text-sm whitespace-nowrap" data-action="dash-reports">日報を見る</button>
         <div class="flex gap-1 w-64">${PERIODS.map(([k, l]) => `<button class="flex-1 py-2 rounded-lg font-bold ${s.dash.period === k ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'}" data-action="dash-period" data-value="${k}">${l}</button>`).join('')}</div></div>
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
       ${leader
         ? `<div class="flex gap-1 w-80">${tab('me', '自分')}${tab('group', 'グループ全体')}</div>`
-        : '<span class="text-sm rounded-lg bg-slate-100 text-slate-700 px-3 py-1.5">🔒 あなたの業績のみ表示されます</span>'}
+        : '<span class="text-sm rounded-lg bg-slate-100 text-slate-700 px-3 py-1.5">あなたの業績のみ表示されます</span>'}
       ${scope === 'member' ? '<button class="text-teal-700 font-bold underline" data-action="dash-scope" data-value="group">← グループ全体に戻る</button>' : ''}
       <details class="ml-auto text-xs text-slate-500" ${s.dash.demoOpen ? 'open' : ''}><summary class="cursor-pointer text-right underline" data-action="dash-demo">デモ用：表示するロール</summary><div class="mt-1 flex flex-wrap items-center justify-end gap-2">
       <div class="flex items-center gap-1">表示するロール
@@ -225,7 +225,7 @@ export function dashVisitsModal(s) {
   const showWho = users.length > 1;
   const label = day ? `${range.start.getMonth() + 1}/${range.start.getDate()}` : `${range.start.getMonth() + 1}/${range.start.getDate()}${range.start.getTime() === range.end.getTime() ? '' : `〜${range.end.getMonth() + 1}/${range.end.getDate()}`}`;
   return {
-    title: `🏠 訪問ごとの結果　${label}`,
+    title: `訪問ごとの結果　${label}`,
     body: `
     <div class="flex flex-wrap gap-2 text-sm">
       <span class="rounded-lg bg-slate-100 px-3 py-1">訪問実績 <b>${recs.length}件</b></span>
@@ -312,19 +312,19 @@ export function dashReportsModal(s) {
     const r = reportFor(user, d, now);
     // 詳細では「閉じる」の代わりに、同じ場所に「一覧に戻る」を置く（一覧に戻るつもりで閉じてしまわないように）
     return {
-      title: `📝 ${esc(user.name)}　${dLabel(d)}の日報`,
+      title: `${esc(user.name)}　${dLabel(d)}の日報`,
       right: '<button class="btn btn-secondary !py-1 !min-h-[40px] !px-4 whitespace-nowrap" data-action="dash-rep-back">← 一覧に戻る</button>',
       body: r ? reportDetail(r) : '<p class="text-slate-400 text-center py-8">この日の日報はありません</p>',
     };
   }
   if (!user) {
     const rows = users.map((u) => ({ u, st: stats3(listFor(u)) }));
-    return { title: `📝 日報　${period}${helpIcon('メンバーを選ぶと、期間中の日報を見られます。')}`, body: `
+    return { title: `日報　${period}${helpIcon('メンバーを選ぶと、期間中の日報を見られます。')}`, body: `
       <div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-700"><tr><th class="p-2 text-left">メンバー</th><th class="text-right">日報</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right pr-3">差異のあった日</th></tr></thead>
         <tbody>${rows.map(({ u, st }) => `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-user" data-id="${u.id}"><td class="p-2 font-bold">${esc(u.name)}</td><td class="text-right">${st.days}日</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right pr-3 ${st.diffDays ? 'text-rose-700 font-bold' : 'text-slate-400'}">${st.diffDays ? `${st.diffDays}日` : 'なし'}</td></tr>`).join('')}</tbody></table></div>` };
   }
   const list = listFor(user);
-  return { title: `📝 ${esc(user.name)}の日報　${period}${helpIcon('行をタップすると、その日の日報を表示します。')}`, body: `${back}
+  return { title: `${esc(user.name)}の日報　${period}${helpIcon('行をタップすると、その日の日報を表示します。')}`, body: `${back}
     ${list.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-700"><tr><th class="p-2 text-left">日付</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right">経費</th><th class="text-right pr-3">現金の過不足</th></tr></thead>
       <tbody>${list.map((r) => { const st = stats3([r]); return `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-day" data-date="${ymd(r.date)}"><td class="p-2 font-bold whitespace-nowrap">${dLabel(r.date)}${r.closed ? '' : ' <span class="text-xs rounded bg-amber-100 text-amber-800 px-1.5">集計中</span>'}</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right">${yen(r.expenseTotal)}</td><td class="text-right pr-3 font-bold ${!r.closed ? 'text-slate-400' : r.diff ? 'text-rose-700' : 'text-teal-700'}">${r.closed ? signedYen(r.diff) : '-'}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="text-slate-400 text-center py-8">この期間の日報はありません</p>'}` };
 }

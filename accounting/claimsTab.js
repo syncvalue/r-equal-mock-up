@@ -81,7 +81,7 @@ function checkBtn(c, r, item, label = '確認') {
 const cell = 'align-middle';
 
 function expenseTable(c, r) {
-  const body = r.expenses.map((e) => `<tr class="border-b"><td class="${cell}">${checkBtn(c, r, e)}</td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).icon} ${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
+  const body = r.expenses.map((e) => `<tr class="border-b"><td class="${cell}">${checkBtn(c, r, e)}</td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
     <td class="${cell} pl-4 !whitespace-normal">${esc(e.memo) || '<span class="text-slate-400">（記入なし）</span>'}</td>
     <td class="${cell}">${e.photo ? thumb(e.photo, '領収書') : e.proxy ? '<span class="text-teal-700 text-xs">経理代行</span>' : '<span class="text-rose-700 font-bold">なし</span>'}</td>
     <td class="${cell}">${e.invoice ? '<span class="text-xs font-bold rounded bg-slate-100 text-slate-900 px-2 py-0.5">インボイス</span>' : '<span class="text-xs text-slate-500">対象外</span>'}</td>
@@ -99,7 +99,7 @@ function purchaseTable(c, r) {
       ? `<table class="w-full max-w-3xl text-sm bg-white border border-slate-200"><thead><tr class="bg-slate-100 text-slate-700 text-left"><th>商品</th><th class="text-center">ランク</th><th class="text-right">点数</th><th class="text-right">金額</th></tr></thead><tbody>${rows}<tr class="font-bold bg-slate-100"><td colspan="2">合計</td><td class="text-right">${items.reduce((n, i) => n + i.qty, 0)}点</td><td class="text-right">${yen(items.reduce((n, i) => n + i.price, 0))}</td></tr></tbody></table>`
       : '<div class="text-xs text-slate-500">内訳の記録なし</div>'}</td></tr>`;
   };
-  const body = r.purchases.map((e) => `<tr class="border-b"><td class="${cell}"><div class="flex items-center gap-1"><button class="w-7 h-7 rounded border border-slate-400 bg-white font-bold leading-none" data-purchase-toggle="${esc(e.id)}" aria-expanded="${open.includes(e.id)}" aria-label="買取の内訳を${open.includes(e.id) ? '閉じる' : '開く'}">${open.includes(e.id) ? '－' : '＋'}</button>${checkBtn(c, r, e)}</div></td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).icon} ${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
+  const body = r.purchases.map((e) => `<tr class="border-b"><td class="${cell}"><div class="flex items-center gap-1"><button class="w-7 h-7 rounded border border-slate-400 bg-white font-bold leading-none" data-purchase-toggle="${esc(e.id)}" aria-expanded="${open.includes(e.id)}" aria-label="買取の内訳を${open.includes(e.id) ? '閉じる' : '開く'}">${open.includes(e.id) ? '－' : '＋'}</button>${checkBtn(c, r, e)}</div></td><td class="${cell}">${fmtTime(e.at).slice(0, 5)}</td><td class="${cell}">${typeOf(e.type).label}</td><td class="${cell} text-right font-bold">${yen(e.amount)}</td>
     <td class="${cell} pl-4 !whitespace-normal">${esc(e.memo)}</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400">－</td><td class="${cell} text-slate-400 text-xs">（確認のポイントなし）</td></tr>${open.includes(e.id) ? detail(e) : ''}`).join('');
   return itemTable(ITEM_HEAD.replace('>内容<', '>お客様・内容<'), body, 'お客様への支払はありません。');
 }
@@ -133,7 +133,7 @@ function detail(c, r, chats) {
     <div class="max-w-3xl overflow-x-auto">${reconcileTable(r, s)}</div>
     <div class="overflow-x-auto space-y-6"><div><div class="font-bold text-sm mb-1">経費（ガソリン代など）</div>${expenseTable(c, r)}</div><div><div class="font-bold text-sm mb-1">お客様への支払</div>${purchaseTable(c, r)}</div></div>
     ${cashCheck(c, r)}
-    <div class="flex flex-wrap items-center gap-2"><button class="b b-sec" data-chat-open="claim|${r.userId}|${r.date}">💬 ${esc(userById(r.userId).name)} さんとやり取りする${threadOf(chats, r.userId, r.date).messages.length ? `（${threadOf(chats, r.userId, r.date).messages.length}件）` : ''}</button>${unreadCount(chats, r.userId, r.date, 'accounting') ? `<span class="rounded-full bg-rose-600 text-white text-xs font-bold px-2 py-0.5">新着 ${unreadCount(chats, r.userId, r.date, 'accounting')}</span>` : ''}${helpIcon('この日の経費精算について、鑑定士とチャットでやり取りします。差戻し・チェック済みにした記録も、チャットに残ります。鑑定士のタブレットにも表示されます。')}</div>
+    <div class="flex flex-wrap items-center gap-2"><button class="b b-sec" data-chat-open="claim|${r.userId}|${r.date}">${esc(userById(r.userId).name)} さんとやり取りする${threadOf(chats, r.userId, r.date).messages.length ? `（${threadOf(chats, r.userId, r.date).messages.length}件）` : ''}</button>${unreadCount(chats, r.userId, r.date, 'accounting') ? `<span class="rounded-full bg-rose-600 text-white text-xs font-bold px-2 py-0.5">新着 ${unreadCount(chats, r.userId, r.date, 'accounting')}</span>` : ''}${helpIcon('この日の経費精算について、鑑定士とチャットでやり取りします。差戻し・チェック済みにした記録も、チャットに残ります。鑑定士のタブレットにも表示されます。')}</div>
     ${actions(c, r)}</section>`;
 }
 
@@ -157,7 +157,7 @@ function listRow(c, r, selected, chats) {
     <td class="text-right ${x.closeDiff ? 'text-rose-700 font-bold' : ''}">${x.closeDiff === null ? '－' : signed(x.closeDiff)}</td>
     <td class="text-right">${yen(x.expenses)}</td><td class="text-right">${yen(x.customerPaid)}</td>
     <td>${danger ? badge(LEVEL.danger, `要対応 ${danger}`) : ''} ${warn ? badge(LEVEL.warn, `確認 ${warn}`) : ''} ${!r.issues.length ? '<span class="text-teal-700 text-xs font-bold">問題なし</span>' : ''}</td><td>${badge(st.cls, st.label)}${ballChip(r, chats)}</td>
-    <td class="whitespace-nowrap"><button class="text-xs underline text-teal-700" data-chat-open="claim|${r.userId}|${r.date}">💬 ${talk ? talk : '開く'}</button>${unread ? ` <span class="rounded-full bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5">新着 ${unread}</span>` : ''}</td></tr>`;
+    <td class="whitespace-nowrap"><button class="text-xs underline text-teal-700" data-chat-open="claim|${r.userId}|${r.date}">${talk ? talk : '開く'}</button>${unread ? ` <span class="rounded-full bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5">新着 ${unread}</span>` : ''}</td></tr>`;
 }
 
 const listOf = (c, all) => (c.st.claimFilter === 'all' ? all : all.filter((r) => r.status === c.st.claimFilter));
@@ -167,7 +167,7 @@ function ballBanner(c) {
   const list = acctBalls(c);
   if (!list.length) return '<div class="rounded-xl border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-700">✓ 経理部の対応待ちはありません</div>';
   const shown = list.slice(0, 6);
-  return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2" role="alert"><div class="font-bold text-rose-700">🔔 経理部の対応待ちが ${list.length}件 あります（古い日から）</div>
+  return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2" role="alert"><div class="font-bold text-rose-700">経理部の対応待ちが ${list.length}件 あります（古い日から）</div>
     ${shown.map((r) => `<div class="flex flex-wrap items-center gap-2 bg-white rounded-lg border border-rose-200 px-2 py-1"><b>${mdw(r.date)}</b><b>${esc(c.withOffice(userById(r.userId)))}</b><span class="flex-1 min-w-[12rem] text-sm text-rose-700">${esc(r.why)}</span>
       ${r.age >= 2 ? `<span class="rounded bg-rose-600 text-white text-xs font-bold px-2 py-0.5">${r.age}日経過</span>` : r.age === 1 ? '<span class="text-xs text-slate-500">前日</span>' : '<span class="text-xs text-slate-500">今日</span>'}
       <button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-ball-jump="${r.date}|${r.userId}">開く</button></div>`).join('')}
@@ -186,7 +186,7 @@ export function claimsTab(c) {
   ${ballBanner(c)}
   <div class="flex flex-wrap items-center gap-2">
     <button class="b b-sec" data-check-shift="-1" aria-label="前の日">◀</button>
-    <span class="font-bold">対象日</span><div class="relative"><button class="b b-sec min-w-[10rem] text-left" data-cal-toggle aria-expanded="${c.st.calOpen}">📅 ${c.st.checkDate.replaceAll('-', '/')}</button>${c.st.calOpen ? calendar(c) : ''}</div>
+    <span class="font-bold">対象日</span><div class="relative"><button class="b b-sec min-w-[10rem] text-left" data-cal-toggle aria-expanded="${c.st.calOpen}">${c.st.checkDate.replaceAll('-', '/')}</button>${c.st.calOpen ? calendar(c) : ''}</div>
     <button class="b b-sec" data-check-shift="1" ${c.st.checkDate >= today ? 'disabled' : ''} aria-label="次の日">▶</button>
     <button class="b b-sec" data-check-yesterday>前日（${mdw(shiftDate(today, -1))}）</button>
     <span class="font-bold text-slate-700">${mdw(c.st.checkDate)}の提出分</span>
@@ -214,12 +214,12 @@ export function chatModalView(c) {
   const input = (disabled) => ({ inputAttrs: disabled ? 'disabled' : 'data-f="chat.text"', sendAttrs: disabled ? 'disabled' : 'data-chat-modal-send', draft: disabled ? '' : c.st.chat?.text ?? '' });
   if (m.kind === 'claim') {
     const status = loadChecks()[`${m.userId}:${m.date}`]?.status ?? 'pending';
-    return chatModalFrame({ title: `💬 ${name(m.userId)} さんとのやり取り`, sub: `${mdw(m.date)}の提出分（経費精算）　${badge(CHECK_STATUS[status].cls, CHECK_STATUS[status].label)}`, body: chatView(threadOf(chats, m.userId, m.date), input(false)) });
+    return chatModalFrame({ title: `${name(m.userId)} さんとのやり取り`, sub: `${mdw(m.date)}の提出分（経費精算）　${badge(CHECK_STATUS[status].cls, CHECK_STATUS[status].label)}`, body: chatView(threadOf(chats, m.userId, m.date), input(false)) });
   }
   const r = loadRequests().find((x) => x.id === m.id);
   if (!r) return '';
   return chatModalFrame({
-    title: `💬 ${name(r.userId)} さんとのやり取り`, sub: `補充の依頼 ${yen(r.amount)}${r.memo ? `（${esc(r.memo)}）` : ''}　${badge(REQUEST_STATUS[r.status].cls, REQUEST_STATUS[r.status].label)}${helpIcon('実際の振込は、銀行システムで行います。やり取りが終わったら、依頼を出した鑑定士が「完了」にします。')}`,
+    title: `${name(r.userId)} さんとのやり取り`, sub: `補充の依頼 ${yen(r.amount)}${r.memo ? `（${esc(r.memo)}）` : ''}　${badge(REQUEST_STATUS[r.status].cls, REQUEST_STATUS[r.status].label)}${helpIcon('実際の振込は、銀行システムで行います。やり取りが終わったら、依頼を出した鑑定士が「完了」にします。')}`,
     body: chatView(advThread(chats, r.id), input(r.status !== 'open')),
   });
 }

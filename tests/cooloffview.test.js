@@ -153,7 +153,7 @@ test('倉庫の写真の登録: 商品管理・入庫の一覧の写真から登
   const withPhoto = sample.units.map((u, i) => (i === 0 ? { ...u, photo: 'data:image/jpeg;base64,AAA' } : u));
   const rows2 = W.buildRows({ ...sample, units: withPhoto }, NOW);
   const one = stockTab({ ...data, units: withPhoto, rows: rows2, allRows: rows2, full: { ...sample, units: withPhoto } }, { ...ui, filter: 'all', q: sample.units[0].code });
-  assert.ok(one.includes('📷変更') && one.includes('data:image/jpeg;base64,AAA'));
+  assert.ok(one.includes('>変更<') && one.includes('data:image/jpeg;base64,AAA'));
   const noPhoto = stockTab(data, { ...ui, filter: 'all', scan: { raw: sample.units[0].code } });
   assert.ok(noPhoto.includes('data-photo-sample') && noPhoto.includes('未登録です') && !noPhoto.includes('data-photo-clear'));
   const detail = stockTab({ ...data, units: withPhoto, rows: rows2, allRows: rows2, full: { ...sample, units: withPhoto } }, { ...ui, filter: 'all', scan: { raw: sample.units[0].code } });

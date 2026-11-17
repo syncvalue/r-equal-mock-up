@@ -1,4 +1,4 @@
-// 📥 入庫: 倉庫担当が、鑑定士から渡された買取商品を入庫する。QRシール（シールNo.）を読み取るか、契約書（明細）と実物を見比べて☑を付けた商品を入庫する。
+// 入庫: 倉庫担当が、鑑定士から渡された買取商品を入庫する。QRシール（シールNo.）を読み取るか、契約書（明細）と実物を見比べて☑を付けた商品を入庫する。
 // ☑（照合）は、誰がいつ付けたかが、入庫した商品に記録される。
 // 鑑定士のタブレットでも入庫できる。倉庫では、誰が買い取った商品でも入庫できる。
 import { handlerLabel } from '../src/unitHandler.js';
@@ -13,13 +13,13 @@ const TAG = { pending: badge('bg-amber-100 text-amber-800', '入庫待ち'), mis
 function scanPanel(rc, todo, warehouse) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">📥 入庫する <span class="text-sm font-normal text-slate-700">入庫先: ${esc(warehouse.name)}</span>${helpIcon('鑑定士から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。\nシールの色が紫・赤の高額品も、いったん倉庫で入庫し、そのあと「倉庫間移動」で本社へ移します（本社には、入庫ではなく移動で入ります）。\n鑑定士が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。')}</h2>
+    <h2 class="font-bold text-lg">入庫する <span class="text-sm font-normal text-slate-700">入庫先: ${esc(warehouse.name)}</span>${helpIcon('鑑定士から、買い取った商品が契約書（明細）とともに届いたら、ここで入庫します。入庫した商品は、あなたの所属する倉庫（上記）に保管されます。\nシールの色が紫・赤の高額品も、いったん倉庫で入庫し、そのあと「倉庫間移動」で本社へ移します（本社には、入庫ではなく移動で入ります）。\n鑑定士が自分でタブレットから、納入先の倉庫を選んで入庫することもできます。')}</h2>
     <div class="text-sm rounded bg-teal-50 border border-teal-200 p-2">保管場所: <b>クーリングオフ保管棚</b>${helpIcon('訪問買取の商品は、クーリングオフ期間中、商品ごとに分けず、全てこの棚にまとめて保管します。')}</div>
     ${todo.some((u) => u.channel === 'store') ? `<div><div class="text-sm font-bold mb-1">店頭買取の保管場所${helpIcon('店頭買取はクーリング・オフの対象外なので、クーリングオフ保管棚には入れません。ここで選んだ棚に保管します。')}</div>
       <div class="flex flex-wrap gap-1.5">${warehouse.locations.map((l) => `<button class="b b-sec !min-h-[40px] !py-1 !px-3 text-sm ${rc.location === l ? 'on' : ''}" data-rc-loc="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>` : ''}
     <label class="text-sm font-bold block">シールNo.${helpIcon('スキャナ・手入力。Enterで入庫。読み取りで、照合したものとして記録します。')}
       <div class="flex gap-2 mt-1"><input class="inp font-mono font-normal" data-rc-code placeholder="RQ-XXXXXXXX" autocomplete="off" /><button class="b b-pri" data-rc-submit>入庫</button></div></label>
-    <button class="b b-pri w-full !bg-teal-700" data-cam-receive>📷 カメラで読み取って入庫</button>
+    <button class="b b-pri w-full !bg-teal-700" data-cam-receive>カメラで読み取って入庫</button>
     ${rc.last ? `<div class="rounded-xl border-2 p-3 text-sm font-bold ${rc.last.ok ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-rose-50 border-rose-400 text-rose-700'}">${rc.last.ok ? '✓' : '⚠'} ${esc(rc.last.text)}</div>` : ''}
     <div class="text-sm rounded bg-slate-50 p-2">入庫待ち <b class="text-lg">${todo.filter((u) => u.status === 'pending').length}</b> 点　所在不明 <b class="text-lg ${todo.some((u) => u.status === 'missing') ? 'text-rose-700' : ''}">${todo.filter((u) => u.status === 'missing').length}</b> 点</div>
   </section>`;
@@ -45,7 +45,7 @@ function contractCard(units, rc, rl, warehouse, master) {
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500"><th>☑ 明細と一致</th><th>シールNo.</th><th>商品</th><th>ランク</th><th class="text-right">買取額</th><th>状態</th><th>照合・保管場所</th></tr></thead><tbody>${units.map((u) => `<tr class="border-t ${u.status === 'stored' ? 'text-slate-400' : ''}">
       <td>${u.status === 'stored' ? '' : receiveProblem(master, warehouse.id) ? `<span class="text-xs text-amber-800 font-bold whitespace-normal">${PROBLEM_TEXT[receiveProblem(master, warehouse.id)]}</span>` : `<input type="checkbox" class="w-5 h-5" data-rc-check="${esc(u.code)}" ${rc.checks.includes(u.code) ? 'checked' : ''} aria-label="${esc(u.name)}を明細と照合した" />`}</td>
       <td class="font-mono text-xs">${esc(u.code)}</td><td class="font-bold"><div class="flex items-center gap-2">${photoSlot(u)}<div>${esc(u.name)}<div class="text-xs font-normal">${esc(u.category)} ${sealBadge(u)}</div></div></div></td><td>${esc(u.rank)}</td><td class="text-right">${yen(u.price)}</td>
-      <td>${TAG[u.status]}</td><td class="text-xs !whitespace-normal">${u.status === 'stored' ? `📍 ${esc(u.location)}<div>${checkInfo(u)}</div>` : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-rl-open="${esc(u.code)}">シール貼り替え</button>`}</td></tr>${rl.code === u.code ? `<tr><td colspan="7">${relabelForm(rl, u)}</td></tr>` : ''}`).join('')}</tbody></table>
+      <td>${TAG[u.status]}</td><td class="text-xs !whitespace-normal">${u.status === 'stored' ? `${esc(u.location)}<div>${checkInfo(u)}</div>` : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-rl-open="${esc(u.code)}">シール貼り替え</button>`}</td></tr>${rl.code === u.code ? `<tr><td colspan="7">${relabelForm(rl, u)}</td></tr>` : ''}`).join('')}</tbody></table>
     ${actionable.length ? `<div class="flex flex-wrap items-center gap-2">
       <button class="b b-sec !min-h-0 !py-1.5 !px-3 text-sm" data-rc-all="${esc(first.visitId)}">${checked.length === actionable.length ? '☑をすべて外す' : '残りをすべて☑'}</button>
       <button class="b b-pri !min-h-0 !py-1.5 !px-3 text-sm" data-rc-visit="${esc(first.visitId)}" ${checked.length ? '' : 'disabled'}>☑した${checked.length}点を入庫（${first.channel === 'store' ? esc(rc.location.replace(/（.*/, '')) : 'クーリングオフ保管棚'}）</button>

@@ -48,7 +48,7 @@ function listView() {
         }</tbody>
       </table>
     </div>
-    <button class="b b-sec" data-act="reload">🔄 更新</button>
+    <button class="b b-sec" data-act="reload">更新</button>
     <button class="text-xs underline text-slate-400 ml-4" data-act="reset-all">（デモ用）データ初期化</button>
   </main>`;
 }
@@ -71,13 +71,13 @@ function detailView(c) {
       <section class="bg-white shadow rounded-lg p-5 space-y-3">
         <h2 class="font-bold text-lg">① 本人確認書類の登録</h2>
         ${c.kyc
-          ? `<p class="text-teal-700 font-bold">✅ 登録済み：${esc(c.kyc.type)}（${kycPhotos(c.kyc).length}枚）</p>
+          ? `<p class="text-teal-700 font-bold">✓ 登録済み：${esc(c.kyc.type)}（${kycPhotos(c.kyc).length}枚）</p>
              <div class="flex gap-2">${kycPhotos(c.kyc).map((p, i) => `<img src="${p}" alt="本人確認書類（${SIDES[i]}）" class="h-32 rounded border" />`).join('')}</div>`
           : kycForm()}
         <h2 class="font-bold text-lg pt-2">② 契約書の印刷${helpIcon('印刷した契約書に、お客様がボールペンで「チェック項目への記入」と「署名」をします（この画面では行いません）。')}</h2>
         ${!c.kyc
           ? '<p class="text-slate-400">本人確認書類の登録後に印刷できます。</p>'
-          : `${printed ? `<p class="text-teal-700 font-bold">✅ 印刷済み（${fmtDateTime(c.printedAt)}）</p>` : ''}
+          : `${printed ? `<p class="text-teal-700 font-bold">✓ 印刷済み（${fmtDateTime(c.printedAt)}）</p>` : ''}
              <div class="flex gap-2"><button class="b b-sec flex-1" data-act="preview">プレビュー</button>
              <button class="b b-pri flex-1" data-act="print">${printed ? '再印刷' : '印刷（会社控え・お客様控え）'}</button></div>`}
       </section>

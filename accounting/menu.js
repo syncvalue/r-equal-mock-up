@@ -1,8 +1,9 @@
 // 左側の開閉式メニュー（鑑定士のタブレット・倉庫・物流と同じ。☰ で開き、項目を選ぶか、外側・✕で閉じる）
+import { icon } from '../src/icons.js';
 export const TABS = [
-  { key: 'claims', icon: '🧾', label: '経費精算', sub: '営業サポートの一次チェック（日ごと・鑑定士ごと）' },
-  { key: 'balance', icon: '🏦', label: '残高・入出金管理', sub: '鑑定士の補充金・支払・入金・日次残高' },
-  { key: 'weekly', icon: '📊', label: '週間収支', sub: '週の入出金・粗利・固定費・残高' },
+  { key: 'claims', icon: 'receipt', label: '経費精算', sub: '営業サポートの一次チェック（日ごと・鑑定士ごと）' },
+  { key: 'balance', icon: 'bank', label: '残高・入出金管理', sub: '鑑定士の補充金・支払・入金・日次残高' },
+  { key: 'weekly', icon: 'chart', label: '週間収支', sub: '週の入出金・粗利・固定費・残高' },
 ];
 export const tabLabel = (key) => TABS.find((t) => t.key === key)?.label ?? '';
 
@@ -20,7 +21,7 @@ export function menuView({ tab, badges }) {
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
         ${TABS.map((t) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === t.key ? 'bg-teal-700' : 'hover:bg-white/10 active:bg-white/20'}" data-tab="${t.key}">
-          <span class="text-3xl">${t.icon}</span>
+          <span class="text-3xl">${icon(t.icon, 28)}</span>
           <span class="flex-1"><span class="block font-bold text-lg leading-tight">${t.label}</span><span class="text-xs text-slate-300">${t.sub}</span></span>
           ${badges[t.key] ? `<span class="text-xs font-bold rounded-full ${badge[t.key][0]} px-2 py-0.5 whitespace-nowrap">${badge[t.key][1]} ${badges[t.key]}</span>` : ''}
         </button>`).join('')}

@@ -27,5 +27,5 @@ export const pct = (r) => `${(r * 100).toFixed(1)}%`;
 // 商品の写真。押すと、撮影・選択して登録（撮り直し）できる。未登録（ダミーの絵）は見分けられる
 export const photoSlot = (unit, size = 'h-12 w-12') => `<label class="relative inline-block cursor-pointer shrink-0 align-middle" title="${unit.photo ? '写真を撮り直す・選び直す' : '写真を登録する（撮影・選択）'}">
   <img src="${photoOf(unit)}" alt="${esc(unit.name)}" class="${size} object-cover rounded border bg-slate-100 ${unit.photo ? '' : 'opacity-60'}" />
-  <span class="absolute bottom-0 inset-x-0 rounded-b text-[9px] leading-4 text-center font-bold text-white ${unit.photo ? 'bg-black/50' : 'bg-amber-500'}">${unit.photo ? '📷変更' : '未登録'}</span>
+  <span class="absolute bottom-0 inset-x-0 rounded-b text-[9px] leading-4 text-center font-bold text-white ${unit.photo ? 'bg-black/50' : 'bg-amber-500'}">${unit.photo ? '変更' : '未登録'}</span>
   <input type="file" accept="image/*" capture="environment" class="hidden" data-photo-file="${esc(unit.code)}" /></label>`;

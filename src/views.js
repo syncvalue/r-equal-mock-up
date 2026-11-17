@@ -1,3 +1,4 @@
+import { icon } from './icons.js';
 import { recordingsOf, loadRecordings, fmtDuration, recordingReady } from './recording.js';
 import { PRODUCTS, RANKS } from './data.js';
 import { mapView, tileUrl } from './mapView.js';
@@ -60,8 +61,8 @@ const commentBadge = (s) => {
   if (!s.comments.length) return '';
   const n = unackedComments(s).length;
   return n
-    ? `<button class="relative bg-rose-600 rounded-full w-11 h-11 text-2xl font-bold animate-pulse" data-action="open-comments" aria-label="本社からのコメント">❗<span class="absolute -top-1 -right-1 bg-white text-rose-700 text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center">${n}</span></button>`
-    : '<button class="bg-slate-700 rounded-full w-11 h-11 text-xl" data-action="open-comments" aria-label="本社からのコメント">💬</button>';
+    ? `<button class="relative bg-rose-600 rounded-full w-11 h-11 text-2xl font-bold animate-pulse" data-action="open-comments" aria-label="本社からのコメント">!<span class="absolute -top-1 -right-1 bg-white text-rose-700 text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center">${n}</span></button>`
+    : `<button class="bg-slate-700 rounded-full w-11 h-11 flex items-center justify-center" data-action="open-comments" aria-label="本社からのコメント">${icon('chat', 22)}</button>`;
 };
 
 // 明細行に出す査定依頼の状態
@@ -74,7 +75,7 @@ const apTag = (s, itemId) => {
 
 const itemWarn = (s, itemId) => {
   const t = threadFor(s.appraisals, s.visitId, itemId);
-  return s.comments.some((c) => c.itemId === itemId && !c.ack) || (t && hasUnread(t, 'sales')) ? '<span class="text-rose-700 text-xl ml-1" title="査定部からのコメント・返信">❗</span>' : '';
+  return s.comments.some((c) => c.itemId === itemId && !c.ack) || (t && hasUnread(t, 'sales')) ? '<span class="text-rose-700 text-xl ml-1" title="査定部からのコメント・返信"></span>' : '';
 };
 
 // 査定の前に、お客様へ説明する事項。説明したことを記録してから査定に進む
@@ -102,13 +103,13 @@ export const briefingDone = (s) => BRIEFING_CHECKS.every((c) => s.briefing.check
 
 // ---- メインメニュー（開閉式ドロワー）。機能の中身は準備中 -------------------------------
 export const MENU = [
-  { key: 'dashboard', icon: '📊', label: 'ダッシュボード', sub: '本社からのお知らせ・業績の確認' },
-  { key: 'start', view: 'workday', icon: '☀', label: '始業', sub: '始業点検をして、業務を開始' },
-  { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
-  { key: 'customers', icon: '📇', label: '顧客検索', sub: '自分のお客様に電話して、再訪のアポを取る' },
-  { key: 'expense', icon: '💴', label: '経費管理', sub: '前日繰越金・補充金（入）と、経費・買取代金（出）' },
-  { key: 'return', icon: '📦', label: '商品の入庫', sub: '買取商品のQR読取・倉庫への入庫' },
-  { key: 'end', view: 'workday', icon: '🌙', label: '終業・日報', sub: '現金の締めと、日報の提出' },
+  { key: 'dashboard', icon: 'chart', label: 'ダッシュボード', sub: '本社からのお知らせ・業績の確認' },
+  { key: 'start', view: 'workday', icon: 'sun', label: '始業', sub: '始業点検をして、業務を開始' },
+  { key: 'schedule', icon: 'calendar', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
+  { key: 'customers', icon: 'card', label: '顧客検索', sub: '自分のお客様に電話して、再訪のアポを取る' },
+  { key: 'expense', icon: 'yen', label: '経費管理', sub: '前日繰越金・補充金（入）と、経費・買取代金（出）' },
+  { key: 'return', icon: 'box', label: '商品の入庫', sub: '買取商品のQR読取・倉庫への入庫' },
+  { key: 'end', view: 'workday', icon: 'moon', label: '終業・日報', sub: '現金の締めと、日報の提出' },
 ];
 const viewOf = (m) => m.view ?? m.key;
 // 画面の見出し。始業・終業は同じ画面で、状況によって中身が変わる
@@ -136,11 +137,11 @@ export function menuView(s) {
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
         ${MENU.map((m) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[68px] ${isActive(s, m) ? 'bg-teal-600' : 'hover:bg-white/10 active:bg-white/20'} ${isDisabled(s, m) ? 'opacity-40' : ''}" data-action="nav" data-value="${viewOf(m)}" data-menu="${m.key}" ${isDisabled(s, m) ? 'disabled' : ''}>
-          <span class="text-3xl">${m.icon}</span>
+          <span>${icon(m.icon, 28)}</span>
           <span class="flex-1 min-w-0"><span class="block font-bold text-lg leading-tight">${m.label}</span><span class="text-xs text-slate-300">${m.sub}</span>${m.key === 'expense' && (s.undrawn > 0 || s.balls?.length) ? `<span class="flex flex-wrap gap-1 mt-1.5">${s.undrawn > 0 ? `<span class="text-xs font-bold rounded-full bg-amber-400 text-slate-900 px-2 py-0.5 whitespace-nowrap">未引き出し ${yen(s.undrawn)}</span>` : ''}${s.balls?.length ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5 whitespace-nowrap">対応待ち ${s.balls.length}</span>` : ''}</span>` : ''}</span>
           ${m.key === 'start' && s.phase !== 'before' ? '<span class="text-xs font-bold rounded-full bg-white/20 px-2 py-0.5">実施済み</span>' : ''}
           ${m.key === 'start' && s.phase === 'before' ? '<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">未実施</span>' : ''}
-          ${m.key === 'end' && s.phase === 'before' ? '<span class="text-lg">🔒</span>' : ''}
+          ${m.key === 'end' && s.phase === 'before' ? `<span>${icon('lock', 18)}</span>` : ''}
           ${m.key === 'end' && s.phase === 'closed' ? '<span class="text-xs font-bold rounded-full bg-white/20 px-2 py-0.5">提出済み</span>' : ''}
           ${m.key === 'dashboard' && unreadCount(userById(s.user)) ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5">未読 ${unreadCount(userById(s.user))}</span>` : ''}
           ${m.key === 'return' && pendingCount(s) ? `<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">入庫待ち ${pendingCount(s)}</span>` : ''}
@@ -159,7 +160,7 @@ export function placeholderView(s) {
   return `
   <section class="${SEC} flex items-center justify-center">
     <div class="card w-full max-w-2xl space-y-4">
-      <div class="flex items-center gap-4"><span class="text-5xl">${m.icon}</span>
+      <div class="flex items-center gap-4"><span>${icon(m.icon, 44)}</span>
         <div><h2 class="text-2xl font-bold">${m.label}</h2><p class="text-slate-500">${m.sub}</p></div>
         <span class="ml-auto rounded-full bg-amber-100 text-amber-800 font-bold px-3 py-1">準備中</span></div>
       <div class="rounded-xl bg-slate-50 border p-4"><div class="font-bold mb-2">予定している機能</div>
@@ -183,8 +184,8 @@ export function headerView(s) {
       <div class="flex items-center gap-3 text-sm">
         <button class="text-xs underline text-slate-300 hover:text-white" data-action="reset-all">（デモ用）データ初期化</button>
         ${themeToggleHtml()}
-        ${s.undrawn > 0 && s.view !== 'visit' && s.view !== 'expense' ? `<button class="rounded-full bg-amber-400 hover:bg-amber-300 text-slate-900 text-sm font-bold px-3 py-1 animate-pulse" data-action="nav" data-value="expense">🏦 補充金 未引き出し ${yen(s.undrawn)}</button>` : ''}
-        ${s.balls?.length && s.view !== 'visit' ? `<button class="rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-action="rv-open" data-date="${s.balls[0].date}" title="${esc(s.balls[0].why)}">🔔 経費の対応待ち ${s.balls.length}件</button>` : ''}
+        ${s.undrawn > 0 && s.view !== 'visit' && s.view !== 'expense' ? `<button class="rounded-full bg-amber-400 hover:bg-amber-300 text-slate-900 text-sm font-bold px-3 py-1 animate-pulse" data-action="nav" data-value="expense">補充金 未引き出し ${yen(s.undrawn)}</button>` : ''}
+        ${s.balls?.length && s.view !== 'visit' ? `<button class="rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-action="rv-open" data-date="${s.balls[0].date}" title="${esc(s.balls[0].why)}">経費の対応待ち ${s.balls.length}件</button>` : ''}
         ${recordBadge(s)}
         ${isCustomerFacing(s) ? '' : commentBadge(s)}
         ${s.visitStartedAt && !s.visitEndedAt ? `<span class="text-slate-300">開始 ${fmtTime(s.visitStartedAt).slice(0, 5)}</span>
@@ -246,14 +247,14 @@ function arrivalMap(s, ev) {
   const at = (x, y) => `left:calc(50% + ${x}px);top:calc(50% + ${y}px)`;
   const status = s.geo?.pending ? '現在地を確認しています…'
     : v.far ? `現在地は、訪問先の${v.far.dir}、約${v.far.km < 10 ? v.far.km.toFixed(1) : Math.round(v.far.km)}kmにあります（まだ着いていません）`
-    : v.me ? '🔵 現在地' : '現在地を取得できませんでした（位置情報の許可を確認してください）';
+    : v.me ? '● 現在地' : '現在地を取得できませんでした（位置情報の許可を確認してください）';
   return `<div class="w-full max-w-3xl space-y-1 flex-1 min-h-[300px] flex flex-col">
     <div class="relative flex-1 min-h-[280px] rounded-2xl overflow-hidden border-2 border-teal-600 bg-slate-200 select-none">
       ${v.tiles.map((t) => `<img src="${tileUrl(t)}" alt="" draggable="false" class="absolute max-w-none pointer-events-none" style="${at(t.left, t.top)};width:256px;height:256px;margin:0" />`).join('')}
       ${v.me ? `<span class="absolute -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-500 border-[3px] border-white shadow-lg ring-4 ring-slate-400/40" style="${at(v.me.x, v.me.y)}" title="現在地"></span>` : ''}
       <button class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full flex flex-col items-center active:scale-95" data-action="start" aria-label="訪問先をタップして、訪問開始">
         <span class="rounded-full bg-teal-600 text-white text-sm font-bold px-3 py-1 shadow-lg whitespace-nowrap">タップで訪問開始</span>
-        <span class="text-5xl leading-none drop-shadow">📍</span></button>
+        <span class="leading-none drop-shadow">${icon('map', 48)}</span></button>
       <span class="absolute right-1 bottom-0 text-[10px] bg-white/80 px-1 rounded">© OpenStreetMap contributors</span>
     </div>
     <div class="text-xs text-center ${v.far ? 'text-amber-800 font-bold' : 'text-slate-500'}">${status}</div>
@@ -270,10 +271,10 @@ export function startView(s) {
     <button class="card !p-3 w-full max-w-3xl text-center space-y-0.5 border-2 border-teal-600 active:bg-teal-50 shrink-0" data-action="hearing-open" data-id="${ev?.id ?? ''}" ${ev ? '' : 'disabled'}>
       <div class="text-xs text-slate-500">${ev ? `予定 ${ev.start}–${ev.end}` : '訪問先'}</div>
       <div class="text-xl font-bold">${esc(s.customer.name)} 様</div>
-      <div class="text-sm text-slate-700">📍 ${esc(s.customer.address)}</div>
-      ${ev ? '<div class="text-sm font-bold text-teal-700 pt-0.5">📞 受電時のヒアリングを見る ›</div>' : ''}
+      <div class="text-sm text-slate-700">${esc(s.customer.address)}</div>
+      ${ev ? '<div class="text-sm font-bold text-teal-700 pt-0.5">受電時のヒアリングを見る ›</div>' : ''}
     </button>
-    <button class="btn btn-secondary !min-h-[48px] !py-2 text-base" data-action="oc-open">🚪 不在・日程変更など、訪問できなかった場合</button>
+    <button class="btn btn-secondary !min-h-[48px] !py-2 text-base" data-action="oc-open">不在・日程変更など、訪問できなかった場合</button>
     <button class="text-sm underline text-slate-400" data-action="nav" data-value="schedule">今日の予定に戻る</button>
   </section>`;
 }
@@ -290,7 +291,7 @@ export function customerView(s) {
         <h2 class="text-2xl font-bold flex items-center gap-3">お客様のご確認 ${repeatBadge(h)}</h2>
         <span class="text-sm text-slate-500">受付 ${esc(call.receptionNo)} ／ ${esc(call.receivedAt)} ／ 担当 ${esc(call.operator)}</span>
       </div>
-      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-700 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 鑑定士用の情報（過去の評価）を隠す' : '鑑定士用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
+      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-700 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '鑑定士用の情報（過去の評価）を隠す' : '鑑定士用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
       <dl class="grid grid-cols-[8rem_1fr] gap-y-2 text-xl">
         ${row('氏名', c.name)}${row('フリガナ', c.kana)}${row('生年月日', c.birth)}
         ${row('電話番号', c.phone2 ? `${c.phone} ／ ${c.phone2}` : c.phone)}${row('住所', `${c.zip} ${c.address}`)}${row('職業', c.occupation)}
@@ -298,7 +299,7 @@ export function customerView(s) {
       <div class="grid grid-cols-2 gap-4">
         <button class="btn btn-secondary" data-action="edit-customer">相違あり（修正する）</button>
         <button class="btn btn-primary ${s.customerConfirmed ? 'ring-4 ring-teal-300' : ''}" data-action="confirm-customer">
-          ${s.customerConfirmed ? '✅ 確認済み' : 'このお客様で間違いありません'}</button>
+          ${s.customerConfirmed ? '✓ 確認済み' : 'このお客様で間違いありません'}</button>
       </div>
     </div>
   </section>`;
@@ -306,7 +307,7 @@ export function customerView(s) {
 
 const sealChip = (s, i) => {
   const n = sealCount(s, i);
-  return n ? `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${n === i.qty ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-800'}">🏷 シール ${n}/${i.qty}</span>` : '';
+  return n ? `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${n === i.qty ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-800'}">シール ${n}/${i.qty}</span>` : '';
 };
 
 // シールの色の選択。紫・赤は、本社で管理する高額品（いったん倉庫に入庫し、倉庫間移動で本社へ移す）。黄・緑・青は、区別しない
@@ -319,11 +320,11 @@ function itemPhotoSection(item) {
   const ph = item.photos ?? [];
   return `
   <div class="rounded-xl border-2 ${ph.length ? 'border-slate-200' : 'border-rose-400 bg-rose-50'} p-2.5">
-    <div class="font-bold text-sm mb-1">📷 商品の写真（${ph.length}枚）<span class="${ph.length ? 'text-slate-500' : 'text-rose-700'} text-xs">　必須</span></div>
+    <div class="font-bold text-sm mb-1">商品の写真（${ph.length}枚）<span class="${ph.length ? 'text-slate-500' : 'text-rose-700'} text-xs">　必須</span></div>
     <div class="flex gap-2 flex-wrap items-center">
       ${ph.map((p, i) => `<div class="relative"><img src="${p}" class="h-16 w-16 object-cover rounded-lg border" alt="商品の写真${i + 1}" />
         <button class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-7 h-7" data-action="item-photo-remove" data-id="${item.id}" data-idx="${i}" aria-label="写真を削除">✕</button></div>`).join('')}
-      <label class="h-16 w-16 rounded-lg border-2 border-dashed border-slate-400 flex items-center justify-center text-3xl cursor-pointer bg-white">📷
+      <label class="h-16 w-16 rounded-lg border-2 border-dashed border-slate-400 flex items-center justify-center text-3xl cursor-pointer bg-white">＋
         <input type="file" accept="image/*" capture="environment" class="hidden" data-item-photo="${item.id}" /></label>
       <button class="btn btn-secondary !py-1 !min-h-[40px] text-sm" data-action="item-photo-dummy" data-id="${item.id}">（デモ用）ダミー写真を追加</button>
     </div>
@@ -335,7 +336,7 @@ function sealSection(s, item) {
   const slots = itemSlots(s, item);
   return `
   <details class="rounded-xl border-2 border-slate-200 p-2.5 space-y-1.5" ${sealCount(s, item) || s.labelError?.key?.startsWith(`${item.id}-`) ? 'open' : ''}>
-    <summary class="cursor-pointer flex items-center justify-between"><b class="text-sm">🏷 この場でシールを貼る <span class="font-normal text-xs text-slate-400">（任意）</span></b>
+    <summary class="cursor-pointer flex items-center justify-between"><b class="text-sm">この場でシールを貼る <span class="font-normal text-xs text-slate-400">（任意）</span></b>
       <span class="text-xs font-bold ${sealCount(s, item) === item.qty ? 'text-teal-700' : 'text-slate-500'}">${sealCount(s, item)} / ${item.qty}</span></summary>
     ${slots.map((x) => {
       const code = s.labels[x.key];
@@ -344,8 +345,8 @@ function sealSection(s, item) {
         <span class="w-12 text-xs font-bold text-slate-500">${item.qty > 1 ? `${x.n}/${item.qty}` : ''}</span>
         <input class="field flex-1 font-mono !py-1.5 !text-base" placeholder="QRを読み取り／手入力" value="${esc(code)}" data-label-key="${x.key}" ${code ? 'readonly' : ''} />
         ${code
-          ? `<span class="text-teal-700 font-bold text-sm">✅済</span><button class="btn btn-secondary !py-1 !min-h-[40px] !px-3 text-sm" data-action="clear-label" data-key="${x.key}">解除</button>`
-          : `<button class="btn btn-primary !py-1 !min-h-[40px] !px-3 text-sm" data-action="dummy-scan" data-key="${x.key}">📷 QR読取</button>`}</div>
+          ? `<span class="text-teal-700 font-bold text-sm">✓済</span><button class="btn btn-secondary !py-1 !min-h-[40px] !px-3 text-sm" data-action="clear-label" data-key="${x.key}">解除</button>`
+          : `<button class="btn btn-primary !py-1 !min-h-[40px] !px-3 text-sm" data-action="dummy-scan" data-key="${x.key}">QR読取</button>`}</div>
         ${colorChips(s, x.key, 'xs')}
         ${err ? `<p class="text-rose-700 font-bold text-xs">${esc(err)}</p>` : ''}</div>`;
     }).join('')}
@@ -361,11 +362,11 @@ export function itemsListView(s) {
     <div class="flex items-center gap-2 rounded-xl border-2 border-slate-200 pl-3 pr-2 py-1">
       <div class="flex-1 min-w-0 leading-tight">
         <div class="font-bold text-[15px] line-clamp-2">${esc(i.name)}${itemWarn(s, i.id)}</div>
-        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}点${hasPhoto(i) ? `・📷${i.photos.length}枚` : '<span class="text-rose-700 font-bold">・📷写真なし</span>'}${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
+        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}点${hasPhoto(i) ? `・${i.photos.length}枚` : '<span class="text-rose-700 font-bold">・写真なし</span>'}${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
       </div>
       ${i.price ? `<div class="font-bold text-right whitespace-nowrap">${yen(i.price)}</div>` : '<div class="font-bold text-rose-700 text-sm text-right leading-tight">金額<br>未入力</div>'}
       <button class="${btn} border-slate-300 bg-white text-slate-700" data-action="open-item" data-id="${i.id}" aria-label="詳細を編集">✎<br>編集</button>
-      <button class="${btn} border-slate-600 bg-slate-600 text-white" data-action="open-appraisal-item" data-id="${i.id}" aria-label="本社に査定依頼">📨<br>査定</button>
+      <button class="${btn} border-slate-600 bg-slate-600 text-white" data-action="open-appraisal-item" data-id="${i.id}" aria-label="本社に査定依頼">査定</button>
     </div>`,
     )
     .join('');
@@ -388,12 +389,12 @@ export function briefingView(s) {
         <div class="font-bold">依頼商品以外の買取可能な商品を、ご提案してもよろしいですか？<span class="text-rose-700 ml-1 text-sm">お客様のご回答</span></div>
         <div class="grid grid-cols-2 gap-2">${PROPOSE_OPTIONS.map((o) => `
           <button class="rounded-xl border-2 p-3 text-left ${b.propose === o.value ? o.cls + ' ring-2 ring-offset-1 ring-teal-400' : 'border-slate-200'}" data-action="brief-propose" data-value="${o.value}">
-            <span class="block font-bold text-lg">${b.propose === o.value ? '✅ ' : ''}${o.label}</span><span class="block text-xs text-slate-500">${o.sub}</span></button>`).join('')}</div>
+            <span class="block font-bold text-lg">${b.propose === o.value ? '✓ ' : ''}${o.label}</span><span class="block text-xs text-slate-500">${o.sub}</span></button>`).join('')}</div>
       </div>
       ${recordingStarted(s)
-        ? `<div class="rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 font-bold text-rose-700">${s.rec ? '🔴 録音中です' : '✓ 録音を登録済みです'}</div>`
+        ? `<div class="rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 font-bold text-rose-700">${s.rec ? '● 録音中です' : '✓ 録音を登録済みです'}</div>`
         : `<div class="rounded-xl border-2 border-amber-400 p-3 flex items-center justify-between gap-2"><span class="font-bold">録音を開始してください<span class="text-rose-700 ml-1 text-sm">必須</span></span>
-          <button class="btn btn-primary !min-h-[44px] !py-1" data-action="rec-start" ${recordingReady(s.briefing) ? '' : 'disabled'}>🎙 録音を開始</button></div>`}
+          <button class="btn btn-primary !min-h-[44px] !py-1" data-action="rec-start" ${recordingReady(s.briefing) ? '' : 'disabled'}>録音を開始</button></div>`}
       <button class="text-xs underline text-slate-400 self-end" data-action="brief-all">（デモ用）すべてチェックして「提案してよい」を選ぶ</button>
     </div>
   </section>`;
@@ -403,9 +404,9 @@ export function itemsView(s) {
   return `
   <section class="${SEC} grid grid-cols-2 portrait:grid-cols-1 portrait:grid-rows-2 gap-3">
     <div class="card flex flex-col gap-2 min-h-0 !p-4">
-      <button class="btn btn-primary !py-1 !min-h-[48px]" data-action="open-ai">🤖 AIカメラで商品候補を探す</button>
+      <button class="btn btn-primary !py-1 !min-h-[48px]" data-action="open-ai">AIカメラで商品候補を探す</button>
       <div class="relative">
-        <input class="field !py-2 pr-12" id="search" type="search" enterkeyhint="search" autocomplete="off" placeholder="🔍 ブランド・商品名・型番で検索" value="${esc(s.search)}" />
+        <input class="field !py-2 pr-12" id="search" type="search" enterkeyhint="search" autocomplete="off" placeholder="ブランド・商品名・型番で検索" value="${esc(s.search)}" />
         <button id="search-clear" class="${s.search ? '' : 'hidden'} absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 text-2xl text-slate-400" data-action="mclear-search" aria-label="クリア">✕</button>
       </div>
       <div id="master" class="flex flex-col gap-2 min-h-0 flex-1">${masterBodyView(s)}</div>
@@ -425,7 +426,7 @@ export function aiView(s) {
   const ai = s.ai;
   const body =
     ai.status === 'loading'
-      ? '<p class="text-teal-700 font-bold animate-pulse py-6 text-center">🔍 AIが画像を解析中…</p>'
+      ? '<p class="text-teal-700 font-bold animate-pulse py-6 text-center">AIが画像を解析中…</p>'
       : ai.status === 'done'
         ? `<div class="space-y-2">${ai.candidates
             .map((c) => {
@@ -439,7 +440,7 @@ export function aiView(s) {
   return `
     <div class="flex gap-2 items-center">
       ${ai.photo ? `<img src="${ai.photo}" alt="撮影画像" class="h-16 w-16 object-cover rounded-lg border" />` : ''}
-      <label class="btn btn-primary flex-1 text-center cursor-pointer">📷 撮影して判定
+      <label class="btn btn-primary flex-1 text-center cursor-pointer">撮影して判定
         <input type="file" accept="image/*" capture="environment" class="hidden" data-ai-photo /></label>
       <button class="btn btn-secondary" data-action="ai-dummy">（デモ用）ダミー</button>
     </div>
@@ -485,7 +486,7 @@ export function selectView(s) {
       <div class="flex items-start justify-between gap-3">
         <div><h2 class="text-2xl font-bold">買取商品のご確認</h2>
           <p class="text-slate-700">${esc(s.customer.name)} 様、以下の内容で買取いたします。</p></div>
-        <button class="shrink-0 text-xs underline ${staff ? 'text-rose-700 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 鑑定士用の情報を隠す' : '鑑定士用の情報を表示'}</button>
+        <button class="shrink-0 text-xs underline ${staff ? 'text-rose-700 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '鑑定士用の情報を隠す' : '鑑定士用の情報を表示'}</button>
       </div>
       ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-800 font-bold">鑑定士用（お客様には見せないでください）　承認 ${okCount} / ${chosen.length}点。</div>` : ''}
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="select">
@@ -498,7 +499,7 @@ export function selectView(s) {
         <div class="flex items-center justify-between gap-3">
           <div class="flex-1"><div class="text-lg font-bold ${i.sell ? '' : 'line-through'}">${esc(i.name)}${staff ? itemWarn(s, i.id) : ''}
               ${a ? (staff ? `<span class="ml-2 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>` : confirmTag(a.state)) : ''}</div>
-            <div class="text-sm text-slate-500">状態 ${esc(rankLabel(i))} ／ ${i.qty}点${staff && i.aiAppraisal ? ` ／ 🤖AI査定 ${yen(i.aiAppraisal.price)}` : ''}</div></div>
+            <div class="text-sm text-slate-500">状態 ${esc(rankLabel(i))} ／ ${i.qty}点${staff && i.aiAppraisal ? ` ／ AI査定 ${yen(i.aiAppraisal.price)}` : ''}</div></div>
           <div class="text-2xl font-bold w-36 text-right ${i.sell ? '' : 'line-through'}">${yen(i.price)}</div>
           <button class="btn w-40 !py-2 ${i.sell ? 'btn-primary' : 'btn-secondary'}" data-action="toggle-sell" data-id="${i.id}">${i.sell ? '✓ 売却する' : '今回は見送る'}</button>
         </div>
@@ -551,9 +552,9 @@ export function scanView(s) {
         </div>
       </div>
       <div class="absolute inset-x-0 bottom-6 flex justify-center">
-        ${bad ? `<div class="rounded-2xl bg-rose-600 px-6 py-3 text-center shadow-lg max-w-xl"><div class="font-bold text-lg">🚫 ${esc(s.scan.message)}</div><div class="font-mono text-xl tracking-wider">${esc(s.scan.code)}</div></div>`
+        ${bad ? `<div class="rounded-2xl bg-rose-600 px-6 py-3 text-center shadow-lg max-w-xl"><div class="font-bold text-lg">${esc(s.scan.message)}</div><div class="font-mono text-xl tracking-wider">${esc(s.scan.code)}</div></div>`
         : s.scan.status === 'empty'
-          ? '<div class="rounded-2xl bg-teal-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">🎉 対象の商品をすべて入庫しました</div><div class="text-sm">「完了」を押してください</div></div>'
+          ? '<div class="rounded-2xl bg-teal-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">対象の商品をすべて入庫しました</div><div class="text-sm">「完了」を押してください</div></div>'
           : found
           ? `<div class="rounded-2xl bg-teal-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ ${stock ? `入庫しました（${esc(s.scan.name)}）` : pack ? `箱に入れました（${esc(s.scan.name)}）` : '読み取りました'}</div><div class="font-mono text-2xl tracking-wider">${esc(s.scan.code)}</div></div>`
           : '<div class="rounded-full bg-black/60 px-5 py-2 text-lg">QRコードを枠内に合わせてください</div>'}
@@ -584,8 +585,8 @@ export function labelView(s) {
           <div class="w-64 font-bold text-sm">${esc(x.item.name)}${x.item.qty > 1 ? `（${x.n}/${x.item.qty}）` : ''}</div>
           <input class="field flex-1 font-mono !py-2" placeholder="QRを読み取り／手入力" value="${esc(code)}" data-label-key="${x.key}" ${code ? 'readonly' : ''} />
           ${code
-            ? `<span class="text-teal-700 font-bold w-16">✅済</span><button class="btn btn-secondary !py-2 !min-h-[44px]" data-action="clear-label" data-key="${x.key}">解除</button>`
-            : `<button class="btn btn-primary !py-2 !min-h-[44px]" data-action="dummy-scan" data-key="${x.key}">📷 QR読取</button>`}
+            ? `<span class="text-teal-700 font-bold w-16">✓済</span><button class="btn btn-secondary !py-2 !min-h-[44px]" data-action="clear-label" data-key="${x.key}">解除</button>`
+            : `<button class="btn btn-primary !py-2 !min-h-[44px]" data-action="dummy-scan" data-key="${x.key}">QR読取</button>`}
         </div>
         ${colorChips(s, x.key, 'sm')}
         ${err ? `<p class="text-rose-700 font-bold text-sm">${esc(err)}</p>` : ''}
@@ -633,7 +634,7 @@ function evalModalView(s) {
     <div><div class="font-bold text-sm mb-1">${label}<span class="font-normal text-xs text-slate-500">（複数選択可）</span></div><div class="flex flex-wrap gap-1.5">
       ${EVAL_OPTIONS[field].map((o) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${d[field].includes(o) ? 'active' : ''}" data-action="eval-toggle" data-field="${field}" data-value="${o}">${o}</button>`).join('')}</div></div>`;
   return modalShell(
-    `⭐ お客様の評価　<span class="text-sm font-normal text-slate-500">${esc(customer.name)} 様</span>${helpIcon('社内記録です。お客様には表示されません。')}`,
+    `お客様の評価　<span class="text-sm font-normal text-slate-500">${esc(customer.name)} 様</span>${helpIcon('社内記録です。お客様には表示されません。')}`,
     `<div class="grid sm:grid-cols-2 gap-3 items-start">
       <div class="space-y-2.5">
         <div><div class="font-bold text-sm mb-1">総合評価</div><div class="flex gap-1">
@@ -659,19 +660,19 @@ function evalModalView(s) {
 // 録音の状態（ヘッダー）。了承を得たら開始でき、録音中は時間が進む。停止すると、システムに登録される
 function recordBadge(s) {
   if (!s.visitStartedAt || s.visitEndedAt || s.outcome) return '';
-  if (s.rec) return `<span class="rounded-full bg-rose-600 text-white text-sm font-bold px-3 py-1 flex items-center gap-1.5"><span class="animate-pulse">🔴</span>録音中 <span class="font-mono" id="rec-timer">${fmtElapsed(s.rec.startedAt)}</span></span>`;
+  if (s.rec) return `<span class="rounded-full bg-rose-600 text-white text-sm font-bold px-3 py-1 flex items-center gap-1.5"><span class="animate-pulse">●</span>録音中 <span class="font-mono" id="rec-timer">${fmtElapsed(s.rec.startedAt)}</span></span>`;
   if (recordingsOf(loadRecordings(), s.visitId).length || !recordingReady(s.briefing)) return '';
-  return '<button class="rounded-full bg-white text-rose-700 text-sm font-bold px-3 py-1 hover:bg-rose-50" data-action="rec-start">🎙 録音を開始</button>';
+  return '<button class="rounded-full bg-white text-rose-700 text-sm font-bold px-3 py-1 hover:bg-rose-50" data-action="rec-start">録音を開始</button>';
 }
 
 // 訪問終了画面の、録音カード。停止すると、録音データがシステムに登録される
 function recordCard(s) {
   const saved = recordingsOf(loadRecordings(), s.visitId);
-  if (s.rec) return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2"><div class="font-bold text-rose-700">🔴 録音中（<span class="font-mono" id="rec-timer-end">${fmtElapsed(s.rec.startedAt)}</span>）</div>
+  if (s.rec) return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2"><div class="font-bold text-rose-700">● 録音中（<span class="font-mono" id="rec-timer-end">${fmtElapsed(s.rec.startedAt)}</span>）</div>
     <button class="btn w-full bg-rose-600 text-white !min-h-[48px] !py-2" data-action="rec-stop">⏹ 録音を停止して登録</button></div>`;
   if (saved.length) return `<div class="rounded-xl bg-teal-50 border border-teal-300 p-3 text-sm text-teal-700 font-bold">✓ 録音を登録しました（${saved.map((r) => fmtDuration(r.durationSec)).join('・')}）</div>`;
   if (!recordingReady(s.briefing)) return '';
-  return '<div class="rounded-xl bg-amber-50 border border-amber-300 p-3 text-sm text-amber-800 flex items-center justify-between gap-2"><span>録音を始めていません。</span><button class="btn btn-secondary !min-h-[40px] !py-1" data-action="rec-start">🎙 録音を開始</button></div>';
+  return '<div class="rounded-xl bg-amber-50 border border-amber-300 p-3 text-sm text-amber-800 flex items-center justify-between gap-2"><span>録音を始めていません。</span><button class="btn btn-secondary !min-h-[40px] !py-1" data-action="rec-start">録音を開始</button></div>';
 }
 
 // 持ち帰りの箱詰め。買い取った商品のQRを読み取りながら、箱に入れる。買い取っていない商品のQRは、箱に入れない
@@ -681,14 +682,14 @@ function boxPanel(s, done) {
   const packed = s.box?.packed ?? [];
   const alert = s.box?.alert;
   return `<div class="rounded-xl border-2 p-3 space-y-2 ${p.complete ? 'border-teal-400 bg-teal-50' : 'border-amber-400 bg-amber-50'}">
-    <div class="flex items-center justify-between gap-2"><div class="font-bold">📦 持ち帰りの箱詰め${helpIcon('買い取った商品のQRコードを、1点ずつ読み取りながら、持ち帰り用の箱に入れます。\n買い取った商品がすべて箱に入るまで、訪問は終了できません。\n買い取っていない商品のQRを読み取ると、警告が出ます。')}</div>
+    <div class="flex items-center justify-between gap-2"><div class="font-bold">持ち帰りの箱詰め${helpIcon('買い取った商品のQRコードを、1点ずつ読み取りながら、持ち帰り用の箱に入れます。\n買い取った商品がすべて箱に入るまで、訪問は終了できません。\n買い取っていない商品のQRを読み取ると、警告が出ます。')}</div>
       <span class="font-bold ${p.complete ? 'text-teal-700' : 'text-amber-800'}">${p.done} / ${p.total}点</span></div>
     ${targets.length ? `<div class="grid sm:grid-cols-2 gap-1">${targets.map((t) => `<div class="flex items-center gap-2 text-sm rounded-lg px-2 py-1 ${packed.includes(t.code) ? 'bg-white text-teal-700' : 'bg-white/70 text-slate-700 font-bold'}">
-      <span class="w-5 text-center">${packed.includes(t.code) ? '✅' : '⬜'}</span><span class="min-w-0 flex-1 truncate">${esc(t.name)}${t.qty > 1 ? `（${t.n}/${t.qty}）` : ''}</span><span class="font-mono text-[11px] text-slate-400">${esc(t.code.slice(-4))}</span></div>`).join('')}</div>` : '<div class="text-sm text-slate-500">持ち帰る商品はありません</div>'}
-    ${alert ? `<div class="rounded-lg bg-rose-600 text-white px-3 py-2 text-sm font-bold">🚫 ${esc(alert.message)}<span class="block font-mono text-xs font-normal">${esc(alert.code)}</span></div>` : ''}
+      <span class="w-5 text-center">${packed.includes(t.code) ? '✓' : '☐'}</span><span class="min-w-0 flex-1 truncate">${esc(t.name)}${t.qty > 1 ? `（${t.n}/${t.qty}）` : ''}</span><span class="font-mono text-[11px] text-slate-400">${esc(t.code.slice(-4))}</span></div>`).join('')}</div>` : '<div class="text-sm text-slate-500">持ち帰る商品はありません</div>'}
+    ${alert ? `<div class="rounded-lg bg-rose-600 text-white px-3 py-2 text-sm font-bold">${esc(alert.message)}<span class="block font-mono text-xs font-normal">${esc(alert.code)}</span></div>` : ''}
     ${p.complete ? (targets.length ? '<div class="text-sm font-bold text-teal-700">✓ 買い取った商品が、すべて箱に入りました</div>' : '')
       : `<div class="text-sm font-bold text-amber-800">箱に入っていない商品が、あと${p.left}点あります。お客様宅に置き忘れていないか、確認してください</div>`}
-    ${done || p.complete ? '' : `<button class="btn btn-primary w-full !min-h-[48px] !py-2" data-action="pack-scan">📷 QRを読み取って、箱に入れる</button>
+    ${done || p.complete ? '' : `<button class="btn btn-primary w-full !min-h-[48px] !py-2" data-action="pack-scan">QRを読み取って、箱に入れる</button>
       <button class="text-xs underline text-slate-400" data-action="pack-scan-foreign">（デモ用）買い取っていない商品のQRを読み取る</button>`}
   </div>`;
 }
@@ -705,7 +706,6 @@ export function endView(s) {
     <div class="w-full max-w-5xl grid md:grid-cols-[2fr_3fr] gap-4 items-stretch max-h-full">
       <div class="card space-y-3 flex flex-col justify-between !p-4">
         <div class="text-center space-y-1">
-          <div class="text-5xl">${done ? '🎉' : '📨'}</div>
           <div class="font-bold text-lg">GMOサインに送信しました${helpIcon('本人確認・契約書の印刷は、GMOサイン管理画面で行います。')}</div>
           <div class="text-slate-700 text-sm">契約No. ${esc(s.contract.id)}<br>買取金額 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
         </div>
@@ -720,7 +720,7 @@ export function endView(s) {
       </div>
       <div class="card !p-4 flex flex-col gap-2 min-h-0">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold">🚪 お客様宅を出る前の確認${helpIcon('すべてチェックすると、訪問を終了できます。')}</h2>
+          <h2 class="text-lg font-bold">お客様宅を出る前の確認${helpIcon('すべてチェックすると、訪問を終了できます。')}</h2>
           <span class="font-bold ${left ? 'text-amber-800' : 'text-teal-700'}">${LEAVE_TOTAL - left} / ${LEAVE_TOTAL}</span></div>
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="leave">
           ${boxPanel(s, done)}
@@ -813,7 +813,7 @@ export function rangeView(item) {
 export function modalView(s) {
   const m = s.modal;
   if (!m) return '';
-  if (m.type === 'ai') return modalShell('🤖 AIカメラで商品候補を探す', `<div id="ai" class="space-y-3">${aiView(s)}</div>`);
+  if (m.type === 'ai') return modalShell('AIカメラで商品候補を探す', `<div id="ai" class="space-y-3">${aiView(s)}</div>`);
   if (m.type === 'finish-confirm') {
     return modalShell(
       '訪問を終了しますか？',
@@ -842,7 +842,7 @@ export function modalView(s) {
     const warn = s.comments.filter((c) => c.itemId === i.id && !c.ack);
     return modalShell(
       esc(i.name),
-      `${warn.length ? `<button class="w-full text-left rounded-xl bg-rose-50 border-2 border-rose-400 p-3 font-bold text-rose-700" data-action="open-comments">❗ 本社コメント ${warn.length}件（タップで確認）</button>` : ''}
+      `${warn.length ? `<button class="w-full text-left rounded-xl bg-rose-50 border-2 border-rose-400 p-3 font-bold text-rose-700" data-action="open-comments">⚠ 本社コメント ${warn.length}件（タップで確認）</button>` : ''}
       <div class="grid sm:grid-cols-2 gap-3 items-start">
         <div class="space-y-2">
           <div class="font-bold text-sm">買取金額（円）<span class="font-normal text-xs text-slate-500">　${i.qty}点分の合計</span></div>
@@ -883,7 +883,7 @@ export function modalView(s) {
   if (m.type === 'leadermsg') {
     const d = s.leaderDraft;
     const g = userById(s.user).group;
-    return modalShell(`👤 グループのメンバーへメッセージ${helpIcon(`グループ${g}のメンバー全員のダッシュボードに、「リーダーから」として表示されます。`)}`, `
+    return modalShell(`グループのメンバーへメッセージ${helpIcon(`グループ${g}のメンバー全員のダッシュボードに、「リーダーから」として表示されます。`)}`, `
       <label class="block"><span class="font-bold text-sm">タイトル</span><input class="field !py-2 mt-1" data-ld="title" value="${esc(d.title)}" placeholder="例: 明日の朝の集合について" /></label>
       <label class="block"><span class="font-bold text-sm">本文</span><textarea class="field !py-2 mt-1" rows="4" data-ld="body" placeholder="連絡内容">${esc(d.body)}</textarea></label>
       <button class="flex items-center gap-2 font-bold text-sm" data-action="leader-important"><span class="w-6 h-6 rounded border-2 flex items-center justify-center ${d.important ? 'bg-rose-600 border-rose-600 text-white' : 'border-slate-300'}">${d.important ? '✓' : ''}</span>重要として送る</button>
@@ -903,7 +903,7 @@ const TAG_CLS = { 差戻し: 'bg-rose-600 text-white', 安すぎる: 'bg-slate-1
 function commentsModalView(s) {
   const list = [...s.comments].sort((a, b) => b.createdAt - a.createdAt);
   return modalShell(
-    '💬 査定部からのコメント',
+    '査定部からのコメント',
     `${list.length ? '' : '<p class="text-slate-400 text-center py-8">コメントはありません</p>'}
     ${list.map((c) => {
       const item = s.items.find((i) => i.id === c.itemId);
@@ -954,12 +954,12 @@ function chatView(t) {
 
 function aiResultView(s, item) {
   const r = item.aiAppraisal;
-  if (s.aiBusy) return '<p class="text-slate-700 font-bold animate-pulse py-6 text-center">🤖 AIが画像から査定中…</p>';
+  if (s.aiBusy) return '<p class="text-slate-700 font-bold animate-pulse py-6 text-center">AIが画像から査定中…</p>';
   if (!r) return '';
   const adopted = item.price === r.price && item.rank === r.rank;
   return `
   <div class="rounded-xl border-2 border-slate-300 bg-slate-50 p-3 space-y-2">
-    <div class="flex justify-between items-center"><b>🤖 AI査定結果</b><span class="text-xs text-slate-500">${fmtTime(r.at)}</span></div>
+    <div class="flex justify-between items-center"><b>AI査定結果</b><span class="text-xs text-slate-500">${fmtTime(r.at)}</span></div>
     <div class="flex items-end justify-between gap-3">
       <div><div class="text-sm text-slate-500">推定買取額（数量分の合計）</div><div class="text-3xl font-bold text-slate-900">${yen(r.price)}</div>
         <div class="text-xs text-slate-500">目安 ${yen(r.min)} 〜 ${yen(r.max)}</div></div>
@@ -978,9 +978,9 @@ function appraisalComposeView(s, m) {
   const ai = s.apMode === 'ai';
   const tab = (key, label) => `<button class="flex-1 py-3 rounded-xl font-bold text-lg ${s.apMode === key ? (key === 'ai' ? 'bg-slate-600' : 'bg-slate-600') + ' text-white' : 'bg-slate-100 text-slate-700'}" data-action="ap-mode" data-value="${key}">${label}</button>`;
   return modalShell(
-    ai ? '🤖 AI査定' : '📨 査定部に査定依頼',
+    ai ? 'AI査定' : '査定部に査定依頼',
     `<p class="font-bold text-lg">${esc(d.name)}${helpIcon(ai ? '画像からAIが買取額とランクを推定します。' : '写真を査定部に送り、査定を依頼します。やり取りは、査定員が完結するまで続けられます。商品の承認は、査定依頼が完結してからです。')}</p>
-    <div class="flex gap-2">${tab('hq', '👤 査定部に依頼')}${tab('ai', '🤖 AI査定')}</div>
+    <div class="flex gap-2">${tab('hq', '査定部に依頼')}${tab('ai', 'AI査定')}</div>
     ${!ai && thread ? chatView(thread) : ''}
     <label class="block"><span class="font-bold">${!ai && thread ? 'メッセージ' : '状態・補足'}</span>
       <textarea class="field mt-1" rows="2" data-draft="note" placeholder="${thread && !ai ? '返信や追加の情報' : '傷、付属品、お客様の希望額など'}">${esc(d.note)}</textarea></label>
@@ -988,7 +988,7 @@ function appraisalComposeView(s, m) {
       <div class="flex gap-2 flex-wrap">
         ${d.photos.map((p, i) => `<div class="relative"><img src="${p}" class="h-20 w-20 object-cover rounded-lg border" alt="写真${i + 1}" />
           <button class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-7 h-7" data-action="ap-remove-photo" data-idx="${i}" aria-label="削除">✕</button></div>`).join('')}
-        <label class="h-20 w-20 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-3xl cursor-pointer">📷
+        <label class="h-20 w-20 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-3xl cursor-pointer">＋
           <input type="file" accept="image/*" capture="environment" class="hidden" data-ap-photo /></label>
       </div>
       <button class="btn btn-secondary !py-1 !min-h-[40px] mt-2" data-action="ap-dummy-photo">（デモ用）ダミー写真を追加</button></div>

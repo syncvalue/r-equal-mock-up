@@ -34,7 +34,7 @@ export const hearingMeta = (e) =>
   `受付 ${esc(e.receptionNo)} ／ ${esc(e.receivedAt)} ／ 受電 ${esc(e.operator)}（コールセンター）`;
 
 export const hearingModal = (e) => ({
-  title: `📞 ${esc(e.customer.name)} 様　受電時のヒアリング`,
+  title: `${esc(e.customer.name)} 様　受電時のヒアリング`,
   body: `<div class="text-xs text-slate-500">${hearingMeta(e)}${helpIcon("コールセンターがお客様から聞き取った内容です。訪問前に確認してください。")}</div>
     <dl class="text-sm divide-y">${hearingRows(e)}</dl>`,
 });

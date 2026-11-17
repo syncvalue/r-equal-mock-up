@@ -18,7 +18,7 @@ const ledgerForm = (c) => {
   const cat = categoryOf(f.category);
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">✍️ 入金・支払の登録${helpIcon('家賃・人件費などの固定費は、固定費の画面から支払います。')}</h2>
+    <h2 class="font-bold text-lg">入金・支払の登録${helpIcon('家賃・人件費などの固定費は、固定費の画面から支払います。')}</h2>
     <div class="flex gap-2">${[['in', '入金'], ['out', '支払']].map(([k, l]) => `<button class="b b-sec ${f.kind === k ? 'on' : ''}" data-led-kind="${k}">${l}</button>`).join('')}</div>
     <div class="grid sm:grid-cols-2 gap-3">
       <label class="text-sm font-bold">区分<select class="inp mt-1 font-normal" data-f="led.category">${MANUAL[f.kind].map((x) => `<option value="${x.key}" ${f.category === x.key ? 'selected' : ''}>${x.label}</option>`).join('')}</select><span class="text-xs font-normal text-slate-500">${esc(cat?.hint ?? '')}</span></label>
@@ -38,7 +38,7 @@ const dailyTable = (c) => {
   const rows = dailyBalances(c.st.ledger, from, to);
   return `
   <section class="rounded-xl border bg-white p-4 space-y-2">
-    <h2 class="font-bold text-lg">📅 日次残高（直近14日）${helpIcon('残高 ＝ 前日の残高 ＋ 入金 − 支払。行を押すと、その日の入出金の明細が出ます。')}</h2>
+    <h2 class="font-bold text-lg">日次残高（直近14日）${helpIcon('残高 ＝ 前日の残高 ＋ 入金 − 支払。行を押すと、その日の入出金の明細が出ます。')}</h2>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>日付</th><th class="text-right">前日残高</th><th class="text-right">入金</th><th class="text-right">支払</th><th class="text-right">残高</th></tr></thead><tbody>
     ${rows.map((r) => `<tr class="border-b ${r.count ? 'cursor-pointer hover:bg-slate-50' : 'text-slate-400'}" ${r.count ? `data-sel-day="${r.date}"` : ''}><td>${mdw(r.date)}${r.date === to ? ' <span class="text-xs text-teal-700 font-bold">今日</span>' : ''}</td><td class="text-right">${yen(r.opening)}</td><td class="text-right text-teal-700">${r.in ? `+${yen(r.in)}` : '-'}</td><td class="text-right text-rose-700">${r.out ? `−${yen(r.out)}` : '-'}</td><td class="text-right font-bold ${r.balance < 0 ? 'text-rose-700' : ''}">${signedYen(r.balance)}</td></tr>
       ${c.st.selDay === r.date ? dayDetail(c, r.date) : ''}`).join('')}
@@ -59,7 +59,7 @@ export function advanceTable(c) {
   });
   return `
   <section class="rounded-xl border bg-white p-4 space-y-2">
-    <h2 class="font-bold text-lg">👤 鑑定士の補充金（今日）${helpIcon('補充金 ＝ 経理部が振り込んだ金額。引き出し金額 ＝ そのうち鑑定士が引き出した金額（鑑定士が入力。通常は補充金と一致）。所持金 ＝ 始業時の金額（未始業は前日繰越）＋ 引き出し金額 − 経費（買取代金を含む）。終業時に鑑定士が数えた金額との差異は、理由と一緒に出します。')}</h2>
+    <h2 class="font-bold text-lg">鑑定士の補充金（今日）${helpIcon('補充金 ＝ 経理部が振り込んだ金額。引き出し金額 ＝ そのうち鑑定士が引き出した金額（鑑定士が入力。通常は補充金と一致）。所持金 ＝ 始業時の金額（未始業は前日繰越）＋ 引き出し金額 − 経費（買取代金を含む）。終業時に鑑定士が数えた金額との差異は、理由と一緒に出します。')}</h2>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>鑑定士</th><th>営業所</th><th>状況</th><th class="text-right">始業時</th><th class="text-right">補充金</th><th class="text-right">引き出し金額</th><th class="text-right">経費</th><th class="text-right">所持金</th><th class="text-right">過不足</th><th>確認事項</th></tr></thead><tbody>
     ${rows.map((r) => {
       const { user, day, phase, summary: sm, cash } = r;
@@ -80,7 +80,7 @@ function customerPayments(c) {
   const pays = onlyOffice(loadCustomerPayments(), c.scopedIds(), Boolean(c.st.office)); // 担当鑑定士が未指定の振込は、全営業所のときだけ出る
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">💸 お客様への支払（銀行振込）${helpIcon('鑑定士の現金が足りなかった場合や、高額のため後日振込にした場合の、お客様へのお支払いです。「振込済みにする」と、日次残高に支払として載ります。')}</h2>
+    <h2 class="font-bold text-lg">お客様への支払（銀行振込）${helpIcon('鑑定士の現金が足りなかった場合や、高額のため後日振込にした場合の、お客様へのお支払いです。「振込済みにする」と、日次残高に支払として載ります。')}</h2>
     <div class="grid sm:grid-cols-2 gap-3">
       <label class="text-sm font-bold">お客様名<input class="inp mt-1 font-normal" data-f="pay.customerName" value="${esc(f.customerName)}" placeholder="例: 山田 花子" /></label>
       <label class="text-sm font-bold">金額${moneyInputHtml({ attrs: 'data-f="pay.amount"', value: f.amount, placeholder: '120,000', cls: 'inp mt-1 font-normal' })}</label>
@@ -108,13 +108,13 @@ function advanceRequests(c) {
   const closed = all.filter((r) => r.status === 'closed').sort((a, b) => b.closedAt - a.closedAt).slice(0, 5);
   return `
   <section class="rounded-xl border-2 ${turn ? 'border-amber-400' : 'border-slate-200'} bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">🙋 鑑定士からの補充の依頼${turn ? ` ${badge('bg-amber-400 text-slate-900', `対応待ち ${turn}`)}` : ''}${helpIcon('鑑定士が、鑑定士タブレットから、補充金の振込を依頼します。「やり取りを開く」で、鑑定士とチャットでやり取りします。実際の振込は、銀行システムで行うので、ここでは、金額や結果は扱いません。やり取りが終わったら（振り込んだ場合も、見送りの場合も）、依頼を出した鑑定士が「完了」にします。')}</h2>
+    <h2 class="font-bold text-lg">鑑定士からの補充の依頼${turn ? ` ${badge('bg-amber-400 text-slate-900', `対応待ち ${turn}`)}` : ''}${helpIcon('鑑定士が、鑑定士タブレットから、補充金の振込を依頼します。「やり取りを開く」で、鑑定士とチャットでやり取りします。実際の振込は、銀行システムで行うので、ここでは、金額や結果は扱いません。やり取りが終わったら（振り込んだ場合も、見送りの場合も）、依頼を出した鑑定士が「完了」にします。')}</h2>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-700 bg-slate-200 border-b-2 border-slate-300"><th>依頼</th><th>鑑定士</th><th class="text-right">金額</th><th>理由・用途</th><th>やり取り</th><th>誰の番</th><th>操作</th></tr></thead><tbody>
       ${open.map((r) => { const talk = advThread(chats, r.id).messages.length; const unread = advUnread(chats, r.id, 'accounting'); const ball = requestBall(r, advThread(chats, r.id));
         return `<tr class="border-b"><td>${fmtTime(r.at).slice(0, 5)}</td><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td><td class="text-right font-bold">${yen(r.amount)}</td><td class="!whitespace-normal">${esc(r.memo) || '<span class="text-slate-400">（記入なし）</span>'}</td>
-          <td class="whitespace-nowrap">${talk ? `<span class="text-xs">💬 ${talk}</span>` : '<span class="text-slate-300">－</span>'}${unread ? ` <span class="rounded-full bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5">新着 ${unread}</span>` : ''}</td>
+          <td class="whitespace-nowrap">${talk ? `<span class="text-xs">${talk}</span>` : '<span class="text-slate-300">－</span>'}${unread ? ` <span class="rounded-full bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5">新着 ${unread}</span>` : ''}</td>
           <td>${ball === 'accounting' ? '<span class="rounded bg-rose-600 text-white text-[11px] font-bold px-1.5 py-0.5">▶ 経理部の番</span>' : '<span class="rounded bg-slate-200 text-slate-700 text-[11px] font-bold px-1.5 py-0.5">⏳ 鑑定士待ち</span>'}</td>
-          <td><button class="b b-pri !min-h-0 !py-1 !px-3 text-xs" data-chat-open="adv|${r.id}">💬 やり取りを開く</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="text-slate-400">やり取り中の依頼はありません。</td></tr>'}
+          <td><button class="b b-pri !min-h-0 !py-1 !px-3 text-xs" data-chat-open="adv|${r.id}">やり取りを開く</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="text-slate-400">やり取り中の依頼はありません。</td></tr>'}
     </tbody></table>
     ${closed.length ? `<div class="text-sm font-bold">最近完了した依頼</div><table class="w-full text-sm"><tbody>${closed.map((r) => `<tr class="border-b"><td>${mdw(dateKey(new Date(r.closedAt)))} ${fmtTime(r.closedAt).slice(0, 5)}</td><td class="font-bold">${esc(c.withOffice(userById(r.userId)))}</td><td class="text-right">${yen(r.amount)}</td><td>${badge(REQUEST_STATUS.closed.cls, REQUEST_STATUS.closed.label)}</td><td class="!whitespace-normal text-xs">${esc(r.memo)}</td></tr>`).join('')}</tbody></table>` : ''}
   </section>`;

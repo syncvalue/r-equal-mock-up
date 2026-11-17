@@ -1,4 +1,5 @@
 // マスタ管理画面の表示（画面に依存しない純関数）。マスタの切り替え（社員・営業所・倉庫・委託先）と、各パネルの組み立て。
+import { icon } from '../src/icons.js';
 import { employeesPanelHtml, EMPLOYEE_REASON_TEXT } from './employeesPanel.js';
 import { departmentsPanelHtml } from './departmentsPanel.js';
 import { officesPanelHtml } from './officesPanel.js';
@@ -8,13 +9,13 @@ import { helpIcon } from '../src/help.js';
 import { warehousesPanelHtml, vendorsPanelHtml } from './warehousesPanel.js';
 
 export const MASTERS = [
-  { key: 'employees', icon: '👥', label: '社員', sub: '鑑定士・オペレーター・査定員・倉庫担当・店舗スタッフなど' },
-  { key: 'departments', icon: '🧩', label: '部署', sub: '会社「REqual」の部署' },
-  { key: 'offices', icon: '🏢', label: '営業所', sub: '営業所と、担当の都道府県' },
-  { key: 'trips', icon: '🧳', label: '出張', sub: '営業所のないエリアへの出張と、出張メンバー' },
-  { key: 'stores', icon: '🏬', label: '店舗', sub: 'お客様が持ち込む実店舗' },
-  { key: 'warehouses', icon: '🏭', label: '倉庫', sub: '倉庫・保管場所・高額品の判定' },
-  { key: 'vendors', icon: '🤝', label: '委託先', sub: '業者オークションなど' },
+  { key: 'employees', icon: 'users', label: '社員', sub: '鑑定士・オペレーター・査定員・倉庫担当・店舗スタッフなど' },
+  { key: 'departments', icon: 'grid', label: '部署', sub: '会社「REqual」の部署' },
+  { key: 'offices', icon: 'building', label: '営業所', sub: '営業所と、担当の都道府県' },
+  { key: 'trips', icon: 'bag', label: '出張', sub: '営業所のないエリアへの出張と、出張メンバー' },
+  { key: 'stores', icon: 'store', label: '店舗', sub: 'お客様が持ち込む実店舗' },
+  { key: 'warehouses', icon: 'factory', label: '倉庫', sub: '倉庫・保管場所・高額品の判定' },
+  { key: 'vendors', icon: 'link', label: '委託先', sub: '業者オークションなど' },
 ];
 export const masterLabel = (key) => MASTERS.find((m) => m.key === key)?.label ?? '';
 
@@ -29,7 +30,7 @@ export function menuHtml(tab) {
       </div>
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
         ${MASTERS.map((m) => `<button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === m.key ? 'bg-teal-700' : 'hover:bg-white/10 active:bg-white/20'}" data-master="${m.key}">
-          <span class="text-3xl">${m.icon}</span><span class="flex-1"><span class="block font-bold text-lg leading-tight">${m.label}</span><span class="text-xs text-slate-300">${m.sub}</span></span>
+          <span class="text-3xl">${icon(m.icon, 28)}</span><span class="flex-1"><span class="block font-bold text-lg leading-tight">${m.label}</span><span class="text-xs text-slate-300">${m.sub}</span></span>
         </button>`).join('')}
       </div>
     </nav>

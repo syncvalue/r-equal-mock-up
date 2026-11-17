@@ -1,10 +1,11 @@
 // 左側の開閉式メニュー（経理部・倉庫・物流・鑑定士のタブレットと同じ。☰ で開き、項目を選ぶか、外側・✕で閉じる）
+import { icon } from '../src/icons.js';
 export const TABS = [
-  { key: 'new', icon: '📞', label: '受電', sub: '電話番号から、新規の受付か、予約の変更かを判定（オペレーター）' },
-  { key: 'calendar', icon: '📅', label: '訪問カレンダー', sub: 'エリアごとの訪問の予定と、前日確認の連絡' },
-  { key: 'dispatch', icon: '🗓', label: '配車確定（配車係）', sub: '仮確定の訪問の確定と、鑑定士の調整' },
-  { key: 'cooloff', icon: '↩️', label: 'クーリングオフ', sub: '受電と依頼の作成、倉庫の対応の進み具合' },
-  { key: 'store', icon: '🏬', label: '来店予約（店舗）', sub: '店舗への来店の予約' },
+  { key: 'new', icon: 'phone', label: '受電', sub: '電話番号から、新規の受付か、予約の変更かを判定（オペレーター）' },
+  { key: 'calendar', icon: 'calendar', label: '訪問カレンダー', sub: 'エリアごとの訪問の予定と、前日確認の連絡' },
+  { key: 'dispatch', icon: 'truck', label: '配車確定（配車係）', sub: '仮確定の訪問の確定と、鑑定士の調整' },
+  { key: 'cooloff', icon: 'undo', label: 'クーリングオフ', sub: '受電と依頼の作成、倉庫の対応の進み具合' },
+  { key: 'store', icon: 'store', label: '来店予約（店舗）', sub: '店舗への来店の予約' },
 ];
 export const tabLabel = (key) => TABS.find((t) => t.key === key)?.label ?? '';
 
@@ -21,7 +22,7 @@ export function menuView({ tab, badges = {} }) {
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
         ${TABS.map((t) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === t.key ? 'bg-teal-700' : 'hover:bg-white/10 active:bg-white/20'}" data-tab="${t.key}">
-          <span class="text-3xl">${t.icon}</span>
+          <span class="text-3xl">${icon(t.icon, 28)}</span>
           <span class="flex-1"><span class="block font-bold text-lg leading-tight">${t.label}</span><span class="text-xs text-slate-300">${t.sub}</span></span>
           <span class="flex flex-col items-end gap-1">${(badges[t.key] ?? []).map((b) => `<span class="text-xs font-bold rounded-full ${b.cls} px-2 py-0.5 whitespace-nowrap">${b.text}</span>`).join('')}</span>
         </button>`).join('')}

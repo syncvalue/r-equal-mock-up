@@ -38,7 +38,7 @@ function form(ms, warehouses) {
 // ctx: { stores, warehouses: 倉庫の一覧, staffCount: 店舗ID → 有効な店舗スタッフの人数, ui: { ms } }
 export function storesPanelHtml({ stores, warehouses, staffCount = {}, ui }) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🏬 店舗（${stores.filter((s) => s.active).length}店）${helpIcon('お客様が、買取希望品を持ち込む実店舗です（訪問はしません）。店舗スタッフは、いずれかの店舗に所属し、店舗の画面で来店の受付と買取を行います。\n店舗の買取は、クーリング・オフの対象外なので、買い取った商品に保管期間（10日間）はありません。')}</h2>
+      <h2 class="font-bold text-lg">店舗（${stores.filter((s) => s.active).length}店）${helpIcon('お客様が、買取希望品を持ち込む実店舗です（訪問はしません）。店舗スタッフは、いずれかの店舗に所属し、店舗の画面で来店の受付と買取を行います。\n店舗の買取は、クーリング・オフの対象外なので、買い取った商品に保管期間（10日間）はありません。')}</h2>
       ${table(stores, warehouses, staffCount)}${form(ui.ms, warehouses)}
     </section>`;
 }

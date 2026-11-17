@@ -2,6 +2,7 @@
 import { esc } from './format.js';
 import { ACCOUNTS, maskPhone, RESEND_WAIT } from './auth.js';
 import { userById } from './dashboard.js';
+import { icon } from './icons.js';
 
 const input = (label, key, value, { type = 'text', placeholder = '', autocomplete = 'off', inputmode = '', maxlength = '' } = {}) => `
   <label class="block"><span class="font-bold text-sm">${label}</span>
@@ -13,7 +14,7 @@ const link = (action, label) => `<button class="text-sm underline text-slate-500
 // 受信したSMS（モック）。実際はSMSで届くため、この表示はデモ用
 const smsPreview = (p) => (p?.userId ? `
   <div class="rounded-2xl bg-slate-800 text-white p-3 text-sm shadow-lg">
-    <div class="text-[11px] text-slate-300 mb-0.5">📱 デモ用：届いたSMS</div>
+    <div class="text-[11px] text-slate-300 mb-0.5">デモ用：届いたSMS</div>
     <div>【出張買取】認証コード <b class="text-xl tracking-widest font-mono">${p.code}</b>（5分間有効）。他人には教えないでください。</div></div>` : '');
 
 function loginScreen(a) {
@@ -66,7 +67,7 @@ export function authView(s) {
   return `
   <section class="h-full overflow-y-auto flex items-start sm:items-center justify-center p-4 bg-slate-100">
     <div class="card w-full max-w-md space-y-4">
-      <div class="text-center"><div class="text-5xl">🚗</div><h1 class="text-2xl font-bold">出張買取</h1><div class="text-slate-500 font-bold">${TITLES[a.screen]}</div></div>
+      <div class="text-center"><div class="flex justify-center">${icon('truck', 48)}</div><h1 class="text-2xl font-bold">出張買取</h1><div class="text-slate-500 font-bold">${TITLES[a.screen]}</div></div>
       ${body}
     </div>
   </section>`;

@@ -6,8 +6,8 @@ import { visitLines, lineTotal } from './customerHistory.js';
 const dateStr = (ms) => new Date(ms).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' });
 
 export const repeatBadge = (h, { small = false } = {}) => h.isRepeat
-  ? `<span class="inline-block rounded-full bg-slate-600 text-white font-bold ${small ? 'text-[11px] px-2 py-0' : 'text-sm px-3 py-0.5'}">🔁 リピーター ${h.ordinal}回目</span>`
-  : `<span class="inline-block rounded-full bg-slate-100 text-slate-900 font-bold ${small ? 'text-[11px] px-2 py-0' : 'text-sm px-3 py-0.5'}">🆕 初めてのお客様</span>`;
+  ? `<span class="inline-block rounded-full bg-slate-600 text-white font-bold ${small ? 'text-[11px] px-2 py-0' : 'text-sm px-3 py-0.5'}">リピーター ${h.ordinal}回目</span>`
+  : `<span class="inline-block rounded-full bg-slate-100 text-slate-900 font-bold ${small ? 'text-[11px] px-2 py-0' : 'text-sm px-3 py-0.5'}">初めてのお客様</span>`;
 
 // 訪問ごとの評価と、ご利用履歴（鑑定士の内部情報。お客様には見せない）。評価は、訪問ごとに鑑定士が入力したもの。お客様情報に紐づく評価（ランク・厄介度）は、別のカードで出す
 const row = (k, v) => (v && v.length ? `<div><span class="text-xs text-slate-500">${k}</span> <b>${Array.isArray(v) ? v.map(esc).join('・') : esc(v)}</b></div>` : '');
@@ -36,7 +36,7 @@ export function pastEvalView(h) {
   const RECENT = 5;
   return `
   <div class="rounded-xl border-2 border-slate-300 bg-slate-50/30 p-3 space-y-2">
-    <div class="font-bold">⭐ 過去の訪問ごとの評価（${h.count}回）${helpIcon('お客様には見せないでください。')}</div>
+    <div class="font-bold">過去の訪問ごとの評価（${h.count}回）${helpIcon('お客様には見せないでください。')}</div>
     <div class="space-y-1">${h.visits.slice(0, RECENT).map((v, i) => visit(v, i === 0)).join('')}
       ${h.visits.length > RECENT ? `<details class="rounded-lg border border-dashed bg-white"><summary class="cursor-pointer px-2 py-1.5 text-sm font-bold text-slate-700">さらに以前の ${h.visits.length - RECENT}回分</summary><div class="max-h-72 space-y-1 overflow-y-auto p-1">${h.visits.slice(RECENT).map((v) => visit(v, false)).join('')}</div></details>` : ''}</div>
   </div>`;

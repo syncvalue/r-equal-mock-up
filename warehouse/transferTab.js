@@ -1,4 +1,4 @@
-// 🚚 倉庫間移動: 自分の倉庫の在庫を、別の倉庫へ送る（パックを作る → 商品を探して入れる → パッキング → 明細出力 → 発送伝票・CSV出力 → 発送）／自分の倉庫あての商品を受け取る。
+// 倉庫間移動: 自分の倉庫の在庫を、別の倉庫へ送る（パックを作る → 商品を探して入れる → パッキング → 明細出力 → 発送伝票・CSV出力 → 発送）／自分の倉庫あての商品を受け取る。
 // 送った商品は「輸送中」になり、受け取るまで、どちらの倉庫の在庫にも数えない。
 import { incoming, outgoing } from '../src/warehouseTransfer.js';
 import { warehouseById } from '../src/warehouseMaster.js';
@@ -43,9 +43,9 @@ export function transferTab(full, master, { pk, tr }, me, now = Date.now()) {
   const work = openPackOf(full, pk, 'transfer') ? packWork(full, master, me, pk, now, 'transfer') : '';
   return `<div class="grid xl:grid-cols-[minmax(32rem,40rem)_1fr] gap-4 items-start">${work || packList(full, master, me, pk, 'transfer')}
     <div class="space-y-4">
-      <section class="rounded-xl border bg-white p-4 space-y-3"><h2 class="font-bold text-lg">📥 受け取り待ち（${inc.length}件）</h2>
+      <section class="rounded-xl border bg-white p-4 space-y-3"><h2 class="font-bold text-lg">受け取り待ち（${inc.length}件）</h2>
         ${inc.length ? inc.map((t) => incomingCard(t, full, master, tr, me)).join('') : '<p class="text-sm text-slate-500">あなたの倉庫あての輸送中の商品はありません。</p>'}</section>
-      <section class="rounded-xl border bg-white p-4 space-y-3"><h2 class="font-bold text-lg">🚚 送った商品・輸送中（${out.length}件）</h2>
+      <section class="rounded-xl border bg-white p-4 space-y-3"><h2 class="font-bold text-lg">送った商品・輸送中（${out.length}件）</h2>
         ${out.length ? out.map((t) => outgoingCard(t, full)).join('') : '<p class="text-sm text-slate-500">輸送中の商品はありません。</p>'}</section>
       <section class="rounded-xl border bg-white p-4 space-y-2"><h2 class="font-bold text-lg">移動の履歴</h2>
         <table class="w-full text-sm"><tbody>${history.length ? history.map((t) => `<tr class="border-b"><td>${mdTime(t.receivedAt)}</td><td>${esc(t.fromName)} → ${esc(t.toName)}${t.carrier ? `<div class="text-xs text-slate-500">${shipInfo(t)}</div>` : ''}</td><td class="!whitespace-normal">${itemNames(t, byCode)}</td><td class="text-xs text-slate-500">${esc(t.sentBy)} → ${esc(t.receivedBy)}</td></tr>`).join('') : '<tr><td class="text-slate-400">履歴はありません。</td></tr>'}</tbody></table></section>

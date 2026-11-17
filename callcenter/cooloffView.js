@@ -32,7 +32,7 @@ function productCard(c, r, sel) {
 
 function contractCard(c, sel) {
   return `<section class="space-y-1.5">
-    <div class="flex flex-wrap items-baseline gap-2 border-b pb-0.5"><b>${esc(c.customerName)} 様</b><span class="text-sm font-bold text-teal-700">${mdw(c.date)}買取</span><span class="text-xs text-slate-500">${c.store ? '店頭買取' : `期間 ${md(c.coolEnd)}まで`}・${c.rows.length}点 ${yen(c.total)}</span>${c.phones?.length ? `<span class="text-xs text-slate-700">📞 ${c.phones.map(esc).join(' ／ ')}</span>` : ''}</div>
+    <div class="flex flex-wrap items-baseline gap-2 border-b pb-0.5"><b>${esc(c.customerName)} 様</b><span class="text-sm font-bold text-teal-700">${mdw(c.date)}買取</span><span class="text-xs text-slate-500">${c.store ? '店頭買取' : `期間 ${md(c.coolEnd)}まで`}・${c.rows.length}点 ${yen(c.total)}</span>${c.phones?.length ? `<span class="text-xs text-slate-700">${c.phones.map(esc).join(' ／ ')}</span>` : ''}</div>
     <div class="space-y-1.5">${c.rows.map((r) => productCard(c, r, sel)).join('')}</div>
   </section>`;
 }
@@ -65,7 +65,7 @@ export function zoomHtml(contract, row) {
     <div class="relative bg-white rounded-xl p-4 max-w-xl w-full space-y-2 shadow-xl">
       <img src="${photoOf(u)}" alt="${esc(u.name)}" class="w-full max-h-[60vh] object-contain rounded bg-slate-100" />
       <div class="font-bold text-lg">${esc(u.name)}</div>
-      <div class="text-sm text-slate-700">${esc(u.category)}　${yen(u.price)}　${esc(contract.customerName)} 様${contract.phones?.length ? `（📞 ${contract.phones.map(esc).join(' ／ ')}）` : ''}　${mdw(contract.date)}買取　<span class="font-mono">${esc(u.code)}</span></div>
+      <div class="text-sm text-slate-700">${esc(u.category)}　${yen(u.price)}　${esc(contract.customerName)} 様${contract.phones?.length ? `（${contract.phones.map(esc).join(' ／ ')}）` : ''}　${mdw(contract.date)}買取　<span class="font-mono">${esc(u.code)}</span></div>
       <div>${badge(KIND_CLS[row.check.kind], esc(row.check.label))}</div>
       <button class="b b-sec" data-co-zoomclose>閉じる</button>
     </div></div>`;
@@ -126,7 +126,7 @@ export function cooloffPage({ q, filtersInner, resultsInner, formInner, progress
   return `<div class="grid grid-cols-[minmax(30rem,42rem)_1fr] grid-rows-[minmax(0,1fr)] gap-4 p-4 overflow-hidden h-[calc(100vh-52px)]">
     <section class="space-y-3 overflow-y-auto pr-1">
       <div class="rounded-xl border bg-white p-3 space-y-2">
-        <div class="font-bold">📞 クーリングオフの受電${helpIcon('専用の番号に電話が入ったら、お客様の手がかりで商品を探し、写真を見ながら「これですか」と確認して、依頼を作ります。\n依頼は倉庫に届き、倉庫が回答・返送します。')}</div>
+        <div class="font-bold">クーリングオフの受電${helpIcon('専用の番号に電話が入ったら、お客様の手がかりで商品を探し、写真を見ながら「これですか」と確認して、依頼を作ります。\n依頼は倉庫に届き、倉庫が回答・返送します。')}</div>
         <label class="text-xs font-bold block">お名前・電話番号・商品名・商品の種類・シールNo.${helpIcon('空白やハイフンは気にしなくて大丈夫です。')}<input class="inp mt-0.5 font-normal" data-co-q value="${esc(q)}" placeholder="例: 山田、090-1234-5678、時計、ロレックス" /></label>
       </div>
       <div id="co-filters">${filtersInner}</div>

@@ -74,7 +74,7 @@ export function employeesPanelHtml(ctx) {
   const counts = countByRole(employees);
   const tab = (key, label) => `<button class="b !min-h-0 !py-1.5 !px-3 text-sm ${ui.role === key ? 'on' : 'b-sec'}" data-role="${key}">${esc(label)} <b>${counts[key || 'all']}</b></button>`;
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">👥 社員（${employees.filter((u) => u.active).length}名）${helpIcon(`社員は、このシステムを使う社内の人です（会社「${COMPANY.name}」の、いずれかの部署に属します）。役割はひとつで、使う画面が決まります。倉庫担当・オペレーター・査定員は、ここで登録した人が、各画面に反映されます。`)}</h2>
+      <h2 class="font-bold text-lg">社員（${employees.filter((u) => u.active).length}名）${helpIcon(`社員は、このシステムを使う社内の人です（会社「${COMPANY.name}」の、いずれかの部署に属します）。役割はひとつで、使う画面が決まります。倉庫担当・オペレーター・査定員は、ここで登録した人が、各画面に反映されます。`)}</h2>
       <details class="text-xs text-slate-700"><summary class="cursor-pointer font-bold">役割と、使う画面</summary>
         <ul class="mt-1 grid sm:grid-cols-2 gap-x-6">${ROLES.map((r) => `<li><b>${esc(r.label)}</b> … ${esc(r.where)}</li>`).join('')}</ul></details>
       <div class="flex flex-wrap items-center gap-2">${tab('', 'すべて')}${ROLES.map((r) => tab(r.key, r.label)).join('')}</div>

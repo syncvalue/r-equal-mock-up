@@ -1,4 +1,4 @@
-// 💹 売上管理: 売れた商品の売上・原価・手数料・送料・利益を、期間別・販売先別・カテゴリ別に確認する。
+// 売上管理: 売れた商品の売上・原価・手数料・送料・利益を、期間別・販売先別・カテゴリ別に確認する。
 import { salesRows, salesStats, salesByWarehouse, scopeState, dateOf, channelOf } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
@@ -26,7 +26,7 @@ export function salesTab(full, master, { period, salesScope }, me, now = Date.no
   const st = salesStats(salesRows(scopeState(full, scope, master)), keyOf(period, now));
   const chip = (value, label) => `<button class="b b-sec ${scope === value ? 'on' : ''}" data-sales-scope="${esc(value)}">${esc(label)}</button>`;
   return `
-  <div class="flex flex-wrap items-center gap-2"><span class="text-sm font-bold">集計の対象</span>${chip('all', '🏢 会社全体')}${master.warehouses.map((w) => chip(w.id, `${w.name}${w.id === me.warehouseId ? '（自分の倉庫）' : ''}`)).join('')}</div>
+  <div class="flex flex-wrap items-center gap-2"><span class="text-sm font-bold">集計の対象</span>${chip('all', '会社全体')}${master.warehouses.map((w) => chip(w.id, `${w.name}${w.id === me.warehouseId ? '（自分の倉庫）' : ''}`)).join('')}</div>
   <div class="flex items-center gap-2">${PERIODS.map(([k, l]) => `<button class="b b-sec ${period === k ? 'on' : ''}" data-period="${k}">${l}</button>`).join('')}${helpIcon('利益 ＝ 売価 − 原価（お客様への買取額）− 手数料 − 送料。\n返品（クーリングオフ）になった商品は、売上に含まれません。鑑定士の経費・人件費などは含めていません。')}</div>
   <div class="flex flex-wrap gap-3">
     ${card('売上', yen(st.revenue))}${card('原価（買取額）', yen(st.cost), 'text-slate-700')}${card('手数料・送料', yen(st.fee + st.shipping), 'text-slate-700')}

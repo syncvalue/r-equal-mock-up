@@ -3,11 +3,11 @@ import { FIXED_KEY } from './store.js';
 import { newId } from './workday.js';
 
 export const FIXED_TYPES = [
-  { key: 'rent', icon: '🏢', label: '家賃' },
-  { key: 'payroll', icon: '👥', label: '人件費' },
-  { key: 'utility', icon: '💡', label: '水道光熱費' },
-  { key: 'system', icon: '🖥️', label: '通信・システム費' },
-  { key: 'other', icon: '📝', label: 'その他' },
+  { key: 'rent', label: '家賃' },
+  { key: 'payroll', label: '人件費' },
+  { key: 'utility', label: '水道光熱費' },
+  { key: 'system', label: '通信・システム費' },
+  { key: 'other', label: 'その他' },
 ];
 export const fixedTypeOf = (key) => FIXED_TYPES.find((t) => t.key === key) ?? FIXED_TYPES.at(-1);
 

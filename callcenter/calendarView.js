@@ -33,7 +33,7 @@ function barHtml({ areaId, mode, weekStart, date, staff = [], staffSel = [], sta
     : `<button class="b b-sec !min-h-0 !py-1" data-calshift="-1" title="前の日">◀</button><b class="text-sm">${dateLabel(date)}</b><button class="b b-sec !min-h-0 !py-1" data-calshift="1" title="次の日">▶</button><button class="b b-sec !min-h-0 !py-1 text-xs" data-calweek>週の表に戻る</button>`;
   return `<div class="flex flex-wrap items-center gap-2"><span class="flex flex-wrap items-center gap-1"><span class="text-xs font-bold text-slate-500">エリア</span>${areas}</span>
     <span class="flex items-center gap-2">${nav}<button class="b b-sec !min-h-0 !py-1 text-xs" data-caltoday>今日</button></span></div>
-    <div><div class="flex flex-wrap items-center gap-2"><button class="chip ${staffSel.length ? 'on' : ''}" data-calstaffpanel>👥 鑑定士を絞る ${staffOpen ? '▲' : '▼'}</button>
+    <div><div class="flex flex-wrap items-center gap-2"><button class="chip ${staffSel.length ? 'on' : ''}" data-calstaffpanel>鑑定士を絞る ${staffOpen ? '▲' : '▼'}</button>
       <span class="text-xs ${staffSel.length ? 'font-bold text-teal-700' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${staff.filter((u) => staffSel.includes(u.id)).map((u) => esc(u.name)).join('・')}` : `全員（${staff.length}名）を表示`}</span>
       ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-calstaffclear>解除</button>' : ''}</div>
       ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((u) => `<button class="chip ${staffSel.includes(u.id) ? 'on' : ''}" data-calstaff="${u.id}">${esc(u.name)}</button>`).join('')}</div>` : ''}</div>`;

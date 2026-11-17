@@ -1,4 +1,4 @@
-// 🛒 販売（出品）: 在庫をフリマ・業者に出品し、出品中の商品の価格変更・売却登録・取り下げを行う。
+// 販売（出品）: 在庫をフリマ・業者に出品し、出品中の商品の価格変更・売却登録・取り下げを行う。
 import { CHANNELS, channelOf, feeFor, dateOf } from '../src/warehouse.js';
 import { moneyInputHtml } from '../src/moneyInput.js';
 import { yen, esc } from '../src/format.js';
@@ -16,7 +16,7 @@ function listForm(sellable, lf) {
   const est = unit ? lf.price - unit.price - fee : 0;
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">🛒 出品する${helpIcon('フリマ・業者への直接販売の出品です。業者への委託は、下のパックで行います。')}</h2>
+    <h2 class="font-bold text-lg">出品する${helpIcon('フリマ・業者への直接販売の出品です。業者への委託は、下のパックで行います。')}</h2>
     ${sellable.length ? `
     <label class="text-sm font-bold block">商品（クーリングオフ期間が過ぎた在庫）<select class="inp mt-1 font-normal" data-f="lf.code">
       <option value="">選んでください（${sellable.length}点）</option>
@@ -45,7 +45,7 @@ function sellForm(row, sf) {
 function consignedTable(consigned, sf, now, packs) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">🚚 委託中の商品（${consigned.length}点）${helpIcon('委託中の商品は、倉庫の外にあります。\n売れたら「売れた（入金）」で入金額を登録します。売れ残って商品が戻ってきたら「売れ残り」を押すと、倉庫の在庫に戻り、再び出品できます。')}</h2>
+    <h2 class="font-bold text-lg">委託中の商品（${consigned.length}点）${helpIcon('委託中の商品は、倉庫の外にあります。\n売れたら「売れた（入金）」で入金額を登録します。売れ残って商品が戻ってきたら「売れ残り」を押すと、倉庫の在庫に戻り、再び出品できます。')}</h2>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>商品</th><th>委託先</th><th>委託日</th><th class="text-right">原価</th><th>希望価格</th><th>操作</th></tr></thead><tbody>
       ${consigned.length ? consigned.map((r) => {
         const { unit, rec } = r;
@@ -63,7 +63,7 @@ function consignedTable(consigned, sf, now, packs) {
 function listedTable(listed, sf) {
   return `
   <section class="rounded-xl border bg-white p-4 space-y-3">
-    <h2 class="font-bold text-lg">📣 出品中の商品（${listed.length}点）${helpIcon('手数料率はダミーです（メルカリ・ヤフオク 10%、ラクマ 6.6%、業者オークション 3%、業者へ直接販売 0%）。\n売れたら「売れた」から、実際の売価・送料を登録すると、売上管理に反映されます。')}</h2>
+    <h2 class="font-bold text-lg">出品中の商品（${listed.length}点）${helpIcon('手数料率はダミーです（メルカリ・ヤフオク 10%、ラクマ 6.6%、業者オークション 3%、業者へ直接販売 0%）。\n売れたら「売れた」から、実際の売価・送料を登録すると、売上管理に反映されます。')}</h2>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>商品</th><th>販売先</th><th>出品日</th><th class="text-right">原価</th><th>出品価格</th><th class="text-right">見込み利益</th><th>操作</th></tr></thead><tbody>
       ${listed.length ? listed.map((r) => {
         const { unit, rec } = r;

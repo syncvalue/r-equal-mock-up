@@ -8,22 +8,22 @@ const SEED_CARRYOVER = 50000; // 初回（前日の記録がない場合）の�
 const SEED_DEPOSIT = 300000; // 毎日 朝に振り込まれる定例の補充金（ダミー）
 
 export const EXPENSE_TYPES = [
-  { key: 'gas', icon: '⛽', label: 'ガソリン代' },
-  { key: 'lunch', icon: '🍱', label: '昼食代' },
-  { key: 'supply', icon: '🛒', label: '備品購入' },
-  { key: 'toll', icon: '🅿️', label: '高速・駐車場' },
-  { key: 'transit', icon: '🚃', label: '交通費' },
-  { key: 'other', icon: '📝', label: 'その他' },
+  { key: 'gas', icon: '', label: 'ガソリン代' },
+  { key: 'lunch', icon: '', label: '昼食代' },
+  { key: 'supply', icon: '', label: '備品購入' },
+  { key: 'toll', icon: '', label: '高速・駐車場' },
+  { key: 'transit', icon: '', label: '交通費' },
+  { key: 'other', icon: '', label: 'その他' },
 ];
-export const PURCHASE_TYPE = { key: 'purchase', icon: '💰', label: '買取代金' };
+export const PURCHASE_TYPE = { key: 'purchase', icon: '', label: '買取代金' };
 export const typeOf = (key) => [...EXPENSE_TYPES, PURCHASE_TYPE].find((t) => t.key === key) ?? EXPENSE_TYPES.at(-1);
 
 // 訪問したが、買取の手続きに進めなかった場合の記録。訪問実績には数え、鑑定士の業績（成約率など）には影響させない
 export const VISIT_OUTCOMES = [
-  { key: 'absent', icon: '🚪', label: '不在', hint: 'インターホンや電話でも応答がなかった' },
-  { key: 'resched', icon: '📅', label: '日程変更の依頼', hint: '玄関口で、別の日時での訪問を希望された' },
-  { key: 'declined', icon: '🙅', label: 'お客様都合のキャンセル', hint: '玄関口で、売却をやめると言われた' },
-  { key: 'other', icon: '📝', label: 'その他', hint: '上記以外（理由をメモに記入）' },
+  { key: 'absent', icon: '', label: '不在', hint: 'インターホンや電話でも応答がなかった' },
+  { key: 'resched', icon: '', label: '日程変更の依頼', hint: '玄関口で、別の日時での訪問を希望された' },
+  { key: 'declined', icon: '', label: 'お客様都合のキャンセル', hint: '玄関口で、売却をやめると言われた' },
+  { key: 'other', icon: '', label: 'その他', hint: '上記以外（理由をメモに記入）' },
 ];
 export const outcomeOf = (key) => VISIT_OUTCOMES.find((o) => o.key === key) ?? VISIT_OUTCOMES.at(-1);
 export const blankOutcomeDraft = () => ({ type: '', memo: '', date: '', time: '' });
@@ -31,14 +31,14 @@ export const outcomeReady = (d) => Boolean(d.type && (d.type !== 'other' || d.me
 
 // 始業時の点検項目（記録に残る）
 export const START_CHECKS = [
-  { key: 'alcohol', icon: '🍺', text: '飲酒していない（前日の酒気が残っていない）' },
-  { key: 'health', icon: '🌡️', text: '体調は良好で、業務に支障がない' },
-  { key: 'appearance', icon: '👔', text: '身だしなみ（服装・髪型・清潔感）を整えた' },
-  { key: 'idcard', icon: '🪪', text: '社員証・名刺を携帯している' },
-  { key: 'car', icon: '🚗', text: '車両の点検（燃料・外観・運転免許証）をした' },
-  { key: 'tablet', icon: '📱', text: 'タブレットの充電・通信状況を確認した' },
-  { key: 'supplies', icon: '📦', text: '買取用資材（シール・契約書・梱包材）が揃っている' },
-  { key: 'compliance', icon: '📢', text: '本社からのお知らせ・注意事項を確認した' },
+  { key: 'alcohol', icon: '', text: '飲酒していない（前日の酒気が残っていない）' },
+  { key: 'health', icon: '', text: '体調は良好で、業務に支障がない' },
+  { key: 'appearance', icon: '', text: '身だしなみ（服装・髪型・清潔感）を整えた' },
+  { key: 'idcard', icon: '', text: '社員証・名刺を携帯している' },
+  { key: 'car', icon: '', text: '車両の点検（燃料・外観・運転免許証）をした' },
+  { key: 'tablet', icon: '', text: 'タブレットの充電・通信状況を確認した' },
+  { key: 'supplies', icon: '', text: '買取用資材（シール・契約書・梱包材）が揃っている' },
+  { key: 'compliance', icon: '', text: '本社からのお知らせ・注意事項を確認した' },
 ];
 
 // 終業時の点検項目

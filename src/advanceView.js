@@ -12,7 +12,7 @@ const unreadTotal = (s) => (s.advRequests ?? []).reduce((n, r) => n + advUnread(
 export function advanceButton(s) {
   const pending = (s.advRequests ?? []).filter((r) => r.status === 'open').length;
   const unread = unreadTotal(s);
-  return `<button class="btn btn-secondary w-full !min-h-[52px] mb-2 flex items-center justify-center gap-2 flex-wrap" data-action="adv-open">🙋 補充を依頼する${pending ? `<span class="rounded bg-amber-400 text-slate-900 text-xs font-bold px-2 py-0.5">やり取り中 ${pending}</span>` : ''}${unread ? `<span class="rounded-full bg-rose-600 text-white text-xs font-bold px-2 py-0.5">💬 新着 ${unread}</span>` : ''}</button>`;
+  return `<button class="btn btn-secondary w-full !min-h-[52px] mb-2 flex items-center justify-center gap-2 flex-wrap" data-action="adv-open">補充を依頼する${pending ? `<span class="rounded bg-amber-400 text-slate-900 text-xs font-bold px-2 py-0.5">やり取り中 ${pending}</span>` : ''}${unread ? `<span class="rounded-full bg-rose-600 text-white text-xs font-bold px-2 py-0.5">新着 ${unread}</span>` : ''}</button>`;
 }
 
 // 送信ボタン（入力のたびに差し替え）
@@ -27,12 +27,12 @@ export function advanceModalView(s) {
   const sel = list.find((r) => r.id === s.advSel) ?? list[0] ?? null;
   const row = (r) => `<div class="flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm cursor-pointer ${r.id === sel?.id ? 'border-teal-500 bg-teal-50' : ''}" data-action="adv-pick" data-id="${r.id}">
     <span class="text-xs text-slate-500">${md(r.at)} ${fmtTime(r.at).slice(0, 5)}</span><b>${yen(r.amount)}</b><span class="flex-1"></span>
-    ${advUnread(s.chats ?? {}, r.id, 'sales') ? `<span class="rounded-full bg-rose-600 text-white text-[11px] font-bold px-1.5">💬 新着 ${advUnread(s.chats ?? {}, r.id, 'sales')}</span>` : ''}
+    ${advUnread(s.chats ?? {}, r.id, 'sales') ? `<span class="rounded-full bg-rose-600 text-white text-[11px] font-bold px-1.5">新着 ${advUnread(s.chats ?? {}, r.id, 'sales')}</span>` : ''}
     <span class="rounded text-[11px] font-bold px-1.5 py-0.5 ${REQUEST_STATUS[r.status].cls}">${REQUEST_STATUS[r.status].label}</span></div>`;
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl w-full max-w-4xl p-4 max-h-[96dvh] flex flex-col gap-3">
-      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">🙋 補充の依頼</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
+      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">補充の依頼</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
       <div class="flex-1 min-h-0 overflow-y-auto grid md:grid-cols-[2fr_3fr] gap-3 items-start" data-scroll="advance">
         <div class="space-y-2">
           <div class="rounded-xl border-2 p-3 space-y-2"><div class="font-bold text-sm">新しく依頼する${helpIcon('買取資金が足りなくなりそうなときに、経理部へ補充金の振込を頼みます。振り込まれても、引き出して登録するまで、所持金には入りません。')}</div>
@@ -46,7 +46,7 @@ export function advanceModalView(s) {
           <div class="rounded-lg border p-2 flex flex-wrap items-center gap-2"><b class="text-lg">${yen(sel.amount)}</b><span class="rounded text-xs font-bold px-2 py-0.5 ${REQUEST_STATUS[sel.status].cls}">${REQUEST_STATUS[sel.status].label}</span><span class="flex-1 text-sm text-slate-700 min-w-0">${esc(sel.memo)}</span>
             ${sel.status === 'open' ? `<button class="btn btn-primary !min-h-[40px] !py-1 !px-3 text-sm" data-action="adv-close" data-id="${sel.id}">✓ 完了にする</button>` : `<span class="text-xs text-slate-500">${md(sel.closedAt)} ${fmtTime(sel.closedAt).slice(0, 5)} に完了</span>`}</div>
           
-          <div class="font-bold text-sm">💬 経理部とのやり取り${helpIcon('やり取りが終わったら（振り込まれた場合も、見送りの場合も）「完了にする」を押します。')}</div>
+          <div class="font-bold text-sm">経理部とのやり取り${helpIcon('やり取りが終わったら（振り込まれた場合も、見送りの場合も）「完了にする」を押します。')}</div>
           ${sel.status === 'open'
             ? chatView(advThread(s.chats ?? {}, sel.id), { inputAttrs: 'data-wd="adv-chat"', sendAttrs: 'data-action="adv-chat-send"', draft: s.advChat ?? '', cls: 'field !py-2' })
             : chatView(advThread(s.chats ?? {}, sel.id), { inputAttrs: 'disabled', sendAttrs: 'disabled', draft: '', cls: 'field !py-2' })}` : '<div class="rounded-xl border p-6 text-center text-sm text-slate-500">依頼すると、ここで経理部と相談できます</div>'}</div>

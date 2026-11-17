@@ -72,8 +72,8 @@ function render() {
   <header class="bg-teal-800 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${Object.values(badges).some(Boolean) ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
       <span class="font-bold text-xl">経理部</span><span class="text-teal-700">›</span><span class="font-bold">${tabLabel(st.tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span>
-      ${advPending && st.tab !== 'balance' ? `<button class="ml-2 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-900 text-sm font-bold px-3 py-1 animate-pulse" data-tab="balance">🙋 補充の依頼 ${advPending}件</button>` : ''}
-      ${balls.length ? `<button class="ml-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-ball-jump="${balls[0].date}|${balls[0].userId}" title="${esc(balls[0].why)}">🔔 対応待ち ${balls.length}件</button>` : ''}</div>
+      ${advPending && st.tab !== 'balance' ? `<button class="ml-2 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-900 text-sm font-bold px-3 py-1 animate-pulse" data-tab="balance">補充の依頼 ${advPending}件</button>` : ''}
+      ${balls.length ? `<button class="ml-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-ball-jump="${balls[0].date}|${balls[0].userId}" title="${esc(balls[0].why)}">対応待ち ${balls.length}件</button>` : ''}</div>
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${filter}<button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${VIEWS[st.tab](ctx)}</main>${st.menuOpen ? menuView({ tab: st.tab, badges }) : ''}${st.chatModal ? chatModalView(ctx) : ''}${st.zoom ? zoomView(st.zoom) : ''}</div>`;

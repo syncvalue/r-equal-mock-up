@@ -1,4 +1,5 @@
 // ライト／ダークモード。初回は端末の設定に従い、切り替えは localStorage に保存する（3つの画面で共有）。
+import { icon } from './icons.js';
 const KEY = 'rq-theme';
 const root = document.documentElement;
 
@@ -39,6 +40,6 @@ export function initTheme() {
   });
 }
 
-// 切り替えボタン（ライト時は🌙、ダーク時は☀️をCSSで出し分け）
+// 切り替えボタン（ライト時は月、ダーク時は太陽をCSSで出し分け）
 export const themeToggleHtml = (cls = '') =>
-  `<button data-theme-toggle class="theme-btn ${cls}" aria-label="ダークモード切り替え" title="ダークモード切り替え"><span class="theme-moon">🌙</span><span class="theme-sun">☀️</span></button>`;
+  `<button data-theme-toggle class="theme-btn ${cls}" aria-label="ダークモード切り替え" title="ダークモード切り替え"><span class="theme-moon">${icon('moon', 22)}</span><span class="theme-sun">${icon('sun', 22)}</span></button>`;

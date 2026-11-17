@@ -27,11 +27,11 @@ const diffBox = (diff, label) => diff === 0
 const checkRow = (form, c, done) => `
   <label class="flex items-center gap-3 rounded-xl border-2 px-3 py-2 min-h-[48px] ${form.checks[c.key] ? 'border-teal-400 bg-teal-50' : 'border-slate-200'} ${done ? 'opacity-60' : 'cursor-pointer'}">
     <input type="checkbox" class="w-7 h-7 shrink-0" data-action="wd-check" data-form="${form.name}" data-key="${c.key}" ${form.checks[c.key] ? 'checked' : ''} ${done ? 'disabled' : ''} />
-    ${c.icon ? `<span class="text-2xl">${c.icon}</span>` : ''}<span class="flex-1 ${form.checks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`;
+    <span class="flex-1 ${form.checks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`;
 
 const startButton = (s) => {
   const ready = startReady(s.startForm, s.user);
-  return `<button class="btn btn-primary w-full text-xl !py-3" data-action="wd-start" ${ready ? '' : 'disabled'}>${ready ? '☀ 始業する（点検結果を記録）' : startHint(s, carryoverFor(s.user).amount)}</button>`;
+  return `<button class="btn btn-primary w-full text-xl !py-3" data-action="wd-start" ${ready ? '' : 'disabled'}>${ready ? '始業する（点検結果を記録）' : startHint(s, carryoverFor(s.user).amount)}</button>`;
 };
 // 縦画面では、上から順に（繰越金 → お知らせ → 点検）進められるよう、始業ボタンを画面の一番下に置く
 export const wdStartBottomView = (s) => (s.phase === 'before' ? `<div class="hidden portrait:block">${startButton(s)}</div>` : '');
@@ -49,7 +49,7 @@ export function wdLiveView(s) {
   const diff = closeDiff(day, s.user, s.closeForm.counted);
   return `
     ${s.closeForm.countedSet ? diffBox(diff, '帳簿の残高') : ''}
-    <button class="btn btn-primary w-full text-xl !py-3" data-action="wd-close" ${ready ? '' : 'disabled'}>${ready ? '🌙 日報を提出して終業' : closeHint(s, diff)}</button>`;
+    <button class="btn btn-primary w-full text-xl !py-3" data-action="wd-close" ${ready ? '' : 'disabled'}>${ready ? '日報を提出して終業' : closeHint(s, diff)}</button>`;
 }
 
 const startHint = (s, carry) => {
@@ -74,7 +74,7 @@ function messagesCard(s) {
   const unread = list.filter((m) => !read.has(m.id)).length;
   return `
   <div class="card !p-4 flex-[2] portrait:flex-none flex flex-col gap-2 min-h-0">
-    <div class="flex items-center justify-between"><h2 class="text-lg font-bold">📢 本社からのお知らせ・注意事項</h2>
+    <div class="flex items-center justify-between"><h2 class="text-lg font-bold">本社からのお知らせ・注意事項</h2>
       ${unread ? `<span class="text-xs font-bold rounded-full bg-rose-600 text-white px-2 py-0.5">未読 ${unread}</span>` : '<span class="text-xs text-teal-700 font-bold">すべて確認済み</span>'}</div>
     <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1 portrait:flex-none portrait:max-h-64" data-scroll="wdMsgs">
       ${list.map((m) => `<button class="w-full text-left rounded-xl border-2 px-3 py-2 ${m.important ? 'border-rose-300' : 'border-slate-200'} ${read.has(m.id) ? '' : 'bg-amber-50'}" data-action="msg-open" data-id="${m.id}">
@@ -95,10 +95,10 @@ function startScreen(s) {
   <section class="${SEC} flex gap-3 portrait:flex-col portrait:overflow-y-auto" data-scroll="wdStartPage">
     <div class="card !p-4 w-[28rem] shrink-0 portrait:w-full portrait:flex-none flex flex-col gap-3 min-h-0 overflow-y-auto portrait:overflow-visible" data-scroll="wdStartL">
       <div><div class="text-sm text-slate-500">${dateLabel(dateKey())}</div>
-        <h2 class="text-2xl font-bold">☀ 始業</h2>
+        <h2 class="text-2xl font-bold">始業</h2>
         <p class="text-sm text-slate-700">${esc(u.name)} さん、おはようございます。${helpIcon('点検を済ませると現地買取を始められます。')}</p></div>
       <div class="rounded-xl border-2 p-3 space-y-2">
-        <div class="font-bold">💴 前日からの繰越金の確認</div>
+        <div class="font-bold">前日からの繰越金の確認</div>
         <div class="flex justify-between items-baseline"><span class="text-sm text-slate-700">${carry.from ? `前日（${dateLabel(carry.from)}）の終業時の所持金` : '繰越金（初回のため初期値）'}</span><b class="text-2xl">${yen(carry.amount)}</b></div>
         <label class="block"><span class="font-bold text-sm">いま手元にある現金（実際に数えた金額）</span>
           ${moneyInputHtml({ attrs: 'data-wd="start-counted"', value: form.counted, cls: 'field' })}</label>
@@ -110,7 +110,7 @@ function startScreen(s) {
     <div class="flex-1 min-w-0 flex flex-col gap-3 min-h-0 portrait:flex-none">
     ${messagesCard(s)}
     <div class="card !p-4 flex-[3] portrait:flex-none flex flex-col gap-2 min-h-0">
-      <div class="flex items-center justify-between"><h2 class="text-lg font-bold">✅ 始業点検</h2>
+      <div class="flex items-center justify-between"><h2 class="text-lg font-bold">✓ 始業点検</h2>
         <span class="font-bold ${left ? 'text-amber-800' : 'text-teal-700'}">${START_CHECKS.length - left} / ${START_CHECKS.length}</span></div>
       <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1 portrait:flex-none portrait:overflow-visible" data-scroll="wdChecks">${START_CHECKS.map((c) => checkRow(form, c, false)).join('')}</div>
       <div class="flex justify-end gap-3 text-xs text-slate-400"><button class="underline" data-action="wd-demo-start">（デモ用）すべてチェックして繰越金を一致させる</button></div>
@@ -138,12 +138,12 @@ function reportCard(s, day) {
   return `
   <div class="card !p-4 flex flex-col gap-3 min-h-0 flex-1 min-w-0 overflow-y-auto" data-scroll="wdReport">
     <div class="flex items-center justify-between">
-      <h2 class="text-xl font-bold">📝 日報 <span class="text-base font-normal text-slate-500">${dateLabel(day.date)} ${esc(userById(day.userId).name)}</span></h2>
+      <h2 class="text-xl font-bold">日報 <span class="text-base font-normal text-slate-500">${dateLabel(day.date)} ${esc(userById(day.userId).name)}</span></h2>
       <span class="rounded-full px-3 py-0.5 text-sm font-bold ${closed ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-800'}">${closed ? '提出済み' : '集計中（終業で確定）'}</span></div>
     <div class="text-sm text-slate-700">勤務 ${fmtTime(day.startedAt)} 〜 ${closed ? fmtTime(day.closedAt) : '（業務中）'}</div>
 
     <div class="grid md:grid-cols-2 gap-3">
-      <div class="rounded-xl border p-3"><div class="font-bold mb-1">💴 現金の収支</div>
+      <div class="rounded-xl border p-3"><div class="font-bold mb-1">現金の収支</div>
         <div class="text-sm divide-y">
           ${row('前日繰越金（始業時に確認）', yen(sm.opening))}
           ${row('補充金（経理部から振込）', yen(sm.depositTotal))}
@@ -158,23 +158,23 @@ function reportCard(s, day) {
         ${closed && day.close.diff ? `<div class="text-xs rounded bg-rose-50 p-2 mt-1">差異の理由: ${esc(day.close.note)}</div>` : ''}
         ${day.start.diff ? `<div class="text-xs rounded bg-amber-50 p-2 mt-1">始業時の繰越金の差異 ${signed(day.start.diff)}: ${esc(day.start.note)}</div>` : ''}
       </div>
-      <div class="rounded-xl border p-3"><div class="font-bold mb-1">🧾 経費の内訳</div>
+      <div class="rounded-xl border p-3"><div class="font-bold mb-1">経費の内訳</div>
         ${expenseDetailView(day)}
         <div class="text-sm divide-y mt-2">
           ${sm.byType.length ? '' : '<div class="text-slate-400 py-2">経費の計上はありません</div>'}
-          ${sm.byType.filter((t) => t.key === 'purchase').map((t) => row(`${t.icon} ${t.label}（${t.count}件）`, yen(t.amount))).join('')}
+          ${sm.byType.filter((t) => t.key === 'purchase').map((t) => row(`${t.label}（${t.count}件）`, yen(t.amount))).join('')}
           ${row('合計', yen(sm.expenseTotal), 'text-base')}
         </div>
       </div>
     </div>
 
-    <div class="rounded-xl border p-3"><div class="font-bold mb-1">🏠 訪問・買取${visits.some((v) => v.outcome) ? helpIcon('不在・日程変更などは訪問実績に数え、業績（成約率など）には影響しません。') : ''}　<span class="font-normal text-sm">訪問 ${visits.length}件${visits.some((v) => v.outcome) ? `（うち買取に至らず ${visits.filter((v) => v.outcome).length}件）` : ''} ／ ${visits.reduce((n, v) => n + v.itemCount, 0)}点 ／ 買取金額 <b>${yen(visits.reduce((n, v) => n + v.total, 0))}</b></span></div>
-      ${evalPending ? `<div class="rounded-lg border-2 border-rose-400 bg-rose-50 px-2 py-1.5 text-sm font-bold text-rose-700 mb-1">⭐ お客様の評価が未登録です（${evalPending}件）</div>` : ''}
+    <div class="rounded-xl border p-3"><div class="font-bold mb-1">訪問・買取${visits.some((v) => v.outcome) ? helpIcon('不在・日程変更などは訪問実績に数え、業績（成約率など）には影響しません。') : ''}　<span class="font-normal text-sm">訪問 ${visits.length}件${visits.some((v) => v.outcome) ? `（うち買取に至らず ${visits.filter((v) => v.outcome).length}件）` : ''} ／ ${visits.reduce((n, v) => n + v.itemCount, 0)}点 ／ 買取金額 <b>${yen(visits.reduce((n, v) => n + v.total, 0))}</b></span></div>
+      ${evalPending ? `<div class="rounded-lg border-2 border-rose-400 bg-rose-50 px-2 py-1.5 text-sm font-bold text-rose-700 mb-1">お客様の評価が未登録です（${evalPending}件）</div>` : ''}
       <div class="text-sm divide-y">${visits.length ? visits.map((v) => row(`${fmtTime(v.at).slice(0, 5)}　${esc(v.customerName)} 様${v.outcome ? `<span class="ml-1 text-xs rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">${outcomeOf(v.outcome.type).icon} ${outcomeOf(v.outcome.type).label}</span>${v.outcome.memo ? `<span class="block text-xs text-slate-500 font-normal">${esc(v.outcome.memo)}</span>` : ''}` : `（${v.itemCount}点）${evalBadge(v, evals)}`}`, v.outcome ? '<span class="text-slate-400 font-normal">買取なし</span>' : yen(v.total))).join('') : '<div class="text-slate-400 py-2">完了した訪問はまだありません</div>'}</div></div>
 
-    <div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">✅ 始業点検</div>
+    <div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">✓ 始業点検</div>
       ${START_CHECKS.length}項目すべて確認済み（${fmtTime(day.startedAt).slice(0, 5)}）</div>
-    ${closed ? `<div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">💬 所感・連絡事項</div>${day.close.comment ? `<p class="whitespace-pre-wrap">${esc(day.close.comment)}</p>` : '<span class="text-slate-400">なし</span>'}</div>` : ''}
+    ${closed ? `<div class="rounded-xl border p-3 text-sm"><div class="font-bold mb-1">所感・連絡事項</div>${day.close.comment ? `<p class="whitespace-pre-wrap">${esc(day.close.comment)}</p>` : '<span class="text-slate-400">なし</span>'}</div>` : ''}
     ${closed ? `<div class="rounded-xl bg-teal-50 border-2 border-teal-400 p-4 text-center font-bold text-teal-700">本日の業務は終了しました。お疲れさまでした。<div class="text-sm font-normal">翌日の繰越金 ${yen(day.close.counted)}</div></div>` : ''}
   </div>`;
 }
@@ -183,7 +183,7 @@ function reportCard(s, day) {
 const stockNotice = (s) => {
   const n = pendingCount(s);
   return n
-    ? `<div class="rounded-xl bg-amber-50 border-2 border-amber-400 p-2 text-sm text-amber-800 flex items-center gap-2"><span class="flex-1">📦 倉庫に入庫していない買取商品が <b>${n}点</b> あります（持ち越しも可）。</span><button class="btn btn-secondary !min-h-[40px] !py-1 !px-3 !text-sm" data-action="nav" data-value="return">入庫へ</button></div>`
+    ? `<div class="rounded-xl bg-amber-50 border-2 border-amber-400 p-2 text-sm text-amber-800 flex items-center gap-2"><span class="flex-1">倉庫に入庫していない買取商品が <b>${n}点</b> あります（持ち越しも可）。</span><button class="btn btn-secondary !min-h-[40px] !py-1 !px-3 !text-sm" data-action="nav" data-value="return">入庫へ</button></div>`
     : '';
 };
 
@@ -193,14 +193,14 @@ function cashCountView(form) {
   return `
     <div class="font-bold text-sm">実際に所持している現金</div>
     <div class="grid grid-cols-2 gap-x-3 gap-y-1.5">
-      ${DENOMINATIONS.map((d) => `<label class="flex items-center gap-2 text-sm"><span class="flex-1 ${d.kind === 'bill' ? 'font-bold' : ''}">${d.kind === 'bill' ? '💴' : '🪙'} ${d.label}</span>
+      ${DENOMINATIONS.map((d) => `<label class="flex items-center gap-2 text-sm"><span class="flex-1 ${d.kind === 'bill' ? 'font-bold' : ''}">${d.kind === 'bill' ? '' : ''} ${d.label}</span>
         <input class="field !py-1 !min-h-[40px] w-16 text-right font-bold" type="text" inputmode="numeric" autocomplete="off" data-wd="close-count" data-value="${d.value}" value="${form.counts?.[d.value] || ''}" placeholder="0" aria-label="${d.label}の枚数" /><span class="text-xs text-slate-500">枚</span></label>`).join('')}</div>
     <div id="close-total" class="text-right border-t pt-1">${cashTotalView(form)}</div>
     <div><div class="font-bold text-sm mb-1">現金の写真<span class="text-rose-700 ml-1">必須</span></div>
       ${form.cashPhoto
         ? `<div class="flex items-center gap-3"><img src="${form.cashPhoto}" alt="現金の写真" class="h-24 rounded-lg border" /><button class="btn btn-secondary !min-h-[44px] !py-1 !px-3 text-sm" data-action="close-photo-clear">撮り直す</button></div>`
         : `<div class="grid grid-cols-2 gap-2">
-            <label class="btn btn-primary !min-h-[48px] !py-2 !px-2 text-center cursor-pointer flex items-center justify-center">📷 撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-cash-photo /></label>
+            <label class="btn btn-primary !min-h-[48px] !py-2 !px-2 text-center cursor-pointer flex items-center justify-center">撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-cash-photo /></label>
             <button class="btn btn-secondary !min-h-[48px] !py-2 !px-2" data-action="close-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>`;
 }
 
@@ -214,7 +214,7 @@ function expenseDetailView(day) {
     ${noPhoto ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-2 py-1 text-xs font-bold text-rose-700">⚠ レシートのない経費が ${noPhoto}件あります</div>` : ''}
     ${list.map((e) => { const t = typeOf(e.type); return `
       <div class="flex items-center gap-2 rounded-lg border px-2 py-1.5">
-        <span class="text-xs text-slate-500 w-10">${fmtTime(e.at).slice(0, 5)}</span><span class="text-xl">${t.icon}</span>
+        <span class="text-xs text-slate-500 w-10">${fmtTime(e.at).slice(0, 5)}</span>
         <span class="flex-1 min-w-0 text-sm"><b>${t.label}</b>${e.invoice ? '<span class="ml-1 text-[11px] rounded bg-teal-100 text-teal-700 px-1.5">インボイス</span>' : ''}<span class="block text-xs text-slate-500 truncate">${esc(e.memo)}</span></span>
         ${e.photo ? `<button class="w-12 h-12 rounded-lg overflow-hidden border shrink-0" data-action="exp-view" data-id="${e.id}" aria-label="レシートを拡大"><img src="${e.photo}" alt="レシート" class="w-full h-full object-cover" /></button>` : '<span class="w-12 text-[11px] text-rose-700 font-bold text-center leading-tight">写真なし</span>'}
         <b class="w-20 text-right text-rose-700 text-sm">−${yen(e.amount)}</b></div>`; }).join('')}
@@ -232,10 +232,10 @@ function closeScreen(s) {
   <section class="${SEC} flex gap-3 portrait:flex-col">
     ${reportCard(s, day)}
     <div class="card !p-4 w-[28rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[55%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="wdCloseR">
-      <h2 class="text-xl font-bold">🌙 終業手続き</h2>
+      <h2 class="text-xl font-bold">終業手続き</h2>
       ${isVisiting(s) ? '<div class="rounded-xl bg-amber-50 border-2 border-amber-400 p-2 text-sm text-amber-800 font-bold">訪問中です。終了してから終業してください。</div>' : ''}
       <div class="rounded-xl border-2 p-3 space-y-2">
-        <div class="font-bold">💴 現金の締め</div>
+        <div class="font-bold">現金の締め</div>
         <div class="text-sm divide-y">
           <div class="flex justify-between py-0.5"><span>前日繰越金</span><span>${yen(sm.opening)}</span></div>
           <div class="flex justify-between py-0.5"><span>＋ 引き出し金額</span><span>${yen(sm.withdrawalTotal)}</span></div>
@@ -270,10 +270,10 @@ const stat = (label, val, cls = '') => `<div class="card !p-3 flex-1 text-right"
 const aiBadge = (d, key) => (d.ai?.filled?.[key] ? '<span class="ml-1 rounded bg-slate-700 text-white text-[10px] font-bold px-1.5 py-0.5">AI</span>' : '');
 function aiStatus(ai) {
   if (!ai) return '';
-  if (ai.status === 'reading') return '<div class="mt-2 rounded-lg bg-slate-100 p-2 text-sm font-bold animate-pulse">🤖 AIがレシートを読み取り中…</div>';
+  if (ai.status === 'reading') return '<div class="mt-2 rounded-lg bg-slate-100 p-2 text-sm font-bold animate-pulse">AIがレシートを読み取り中…</div>';
   const low = ai.sample.confidence < 70;
   return `<div class="mt-2 rounded-lg border-2 ${low ? 'border-amber-400 bg-amber-50' : 'border-slate-200'} p-2 text-sm flex items-center justify-between gap-2">
-    <span>${low ? '<b class="text-amber-800">⚠ 読み取りに自信がありません。金額を確認してください。</b>' : '🤖 読み取りました。内容を確認してください。'}<span class="block text-xs text-slate-500">${esc(ai.sample.store)} ／ ${yen(ai.sample.amount)} ／ 信頼度 ${ai.sample.confidence}%</span>${ai.sample.invoiceNo ? `<span class="block text-xs text-teal-700 font-bold">登録番号 ${esc(ai.sample.invoiceNo)} を読み取り、インボイス対応にチェックしました</span>` : ''}</span>
+    <span>${low ? '<b class="text-amber-800">⚠ 読み取りに自信がありません。金額を確認してください。</b>' : '読み取りました。内容を確認してください。'}<span class="block text-xs text-slate-500">${esc(ai.sample.store)} ／ ${yen(ai.sample.amount)} ／ 信頼度 ${ai.sample.confidence}%</span>${ai.sample.invoiceNo ? `<span class="block text-xs text-teal-700 font-bold">登録番号 ${esc(ai.sample.invoiceNo)} を読み取り、インボイス対応にチェックしました</span>` : ''}</span>
     <button class="btn btn-secondary !min-h-[36px] !py-0 !px-3 text-xs shrink-0" data-action="exp-ai-retry">再読取</button></div>`;
 }
 
@@ -307,23 +307,23 @@ function ledgerRows(s) {
   ].sort((a, b) => a.at - b.at);
   const base = `<div class="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-lg text-sm"><span class="w-12 text-slate-500">始業</span><span class="flex-1 font-bold">前日繰越金（始業時に確認）</span><b>${yen(sm.opening)}</b></div>`;
   const line = (r) => {
-    if (r.kind === 'dep') return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50"><span class="w-12 text-xs text-slate-500">${fmtTime(r.at).slice(0, 5)}</span><span class="text-xl">🏦</span><span class="flex-1"><b>補充金（経理部から振込）</b>${sm.undrawn > 0 ? '<span class="ml-1 text-[11px] rounded bg-amber-400 text-slate-900 font-bold px-1.5">未引き出し</span>' : '<span class="ml-1 text-[11px] rounded bg-teal-100 text-teal-700 font-bold px-1.5">引き出し済み</span>'}<span class="block text-xs text-slate-500">${esc(r.d.memo || '')}　${sm.undrawn > 0 ? '引き出すまで、所持金に入りません' : '引き出した分が、所持金に入っています'}</span></span><b class="text-slate-700">${yen(r.d.amount)}</b></div>`;
-    if (r.kind === 'wdr') return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border border-teal-200 bg-teal-50"><span class="w-12 text-xs text-slate-500">${fmtTime(r.at).slice(0, 5)}</span><span class="text-xl">🏧</span><span class="flex-1"><b>引き出し</b><span class="block text-xs text-slate-500">${esc(r.w.memo || '')}</span></span><b class="text-teal-700">+${yen(r.w.amount)}</b><button class="w-9 h-9 rounded-lg text-slate-400 hover:bg-slate-100" data-action="wdr-remove" data-id="${r.w.id}" aria-label="引き出しを削除">🗑</button></div>`;
+    if (r.kind === 'dep') return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50"><span class="w-12 text-xs text-slate-500">${fmtTime(r.at).slice(0, 5)}</span><span class="flex-1"><b>補充金（経理部から振込）</b>${sm.undrawn > 0 ? '<span class="ml-1 text-[11px] rounded bg-amber-400 text-slate-900 font-bold px-1.5">未引き出し</span>' : '<span class="ml-1 text-[11px] rounded bg-teal-100 text-teal-700 font-bold px-1.5">引き出し済み</span>'}<span class="block text-xs text-slate-500">${esc(r.d.memo || '')}　${sm.undrawn > 0 ? '引き出すまで、所持金に入りません' : '引き出した分が、所持金に入っています'}</span></span><b class="text-slate-700">${yen(r.d.amount)}</b></div>`;
+    if (r.kind === 'wdr') return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border border-teal-200 bg-teal-50"><span class="w-12 text-xs text-slate-500">${fmtTime(r.at).slice(0, 5)}</span><span class="flex-1"><b>引き出し</b><span class="block text-xs text-slate-500">${esc(r.w.memo || '')}</span></span><b class="text-teal-700">+${yen(r.w.amount)}</b><button class="w-9 h-9 rounded-lg text-slate-400 hover:bg-slate-100" data-action="wdr-remove" data-id="${r.w.id}" aria-label="引き出しを削除"></button></div>`;
     const e = r.e;
     const t = typeOf(e.type);
     return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg border">
-      <span class="w-12 text-xs text-slate-500">${fmtTime(e.at).slice(0, 5)}</span><span class="text-xl">${t.icon}</span>
+      <span class="w-12 text-xs text-slate-500">${fmtTime(e.at).slice(0, 5)}</span>
       <span class="flex-1 min-w-0"><b>${t.label}</b>${e.invoice ? '<span class="ml-1 text-[11px] rounded bg-teal-100 text-teal-700 px-1.5">インボイス</span>' : ''}${e.auto ? '<span class="ml-1 text-[11px] rounded bg-slate-100 text-slate-900 px-1.5">自動計上</span>' : ''}<span class="block text-xs text-slate-500 truncate">${esc(e.memo)}</span></span>
       ${e.photo ? `<button class="w-12 h-12 rounded-lg overflow-hidden border shrink-0" data-action="exp-view" data-id="${e.id}" aria-label="レシートを見る"><img src="${e.photo}" alt="レシート" class="w-full h-full object-cover" /></button>` : '<span class="w-12 text-[11px] text-slate-400 text-center leading-tight">契約書で確認</span>'}
       <b class="w-28 text-right text-rose-700">−${yen(e.amount)}</b>
-      ${e.auto ? '<span class="w-9"></span>' : `<button class="w-9 h-9 rounded-lg text-slate-400 hover:bg-slate-100" data-action="exp-remove" data-id="${e.id}" aria-label="削除">🗑</button>`}</div>`;
+      ${e.auto ? '<span class="w-9"></span>' : `<button class="w-9 h-9 rounded-lg text-slate-400 hover:bg-slate-100" data-action="exp-remove" data-id="${e.id}" aria-label="削除">✕</button>`}</div>`;
   };
   return base + rows.map(line).join('');
 }
 
 export function expenseView(s) {
   if (s.phase !== 'open') {
-    return `<section class="${SEC} flex flex-col items-center justify-center gap-3 overflow-y-auto"><div class="w-full max-w-2xl space-y-3"><div class="card max-w-md mx-auto text-center space-y-3"><div class="text-5xl">💴</div>
+    return `<section class="${SEC} flex flex-col items-center justify-center gap-3 overflow-y-auto"><div class="w-full max-w-2xl space-y-3"><div class="card max-w-md mx-auto text-center space-y-3">
       <p class="font-bold text-lg">${s.phase === 'before' ? '始業登録後に、経費を計上できます' : '終業済みです。経費は明日の始業後に計上できます'}${helpIcon('始業時の現金確認から、所持金の管理が始まります。')}</p>
       <button class="btn btn-primary" data-action="nav" data-value="workday">${s.phase === 'before' ? '始業へ' : '本日の日報を見る'}</button></div>${reviseSection(s)}</div></section>`;
   }
@@ -332,7 +332,7 @@ export function expenseView(s) {
   return `
   <section class="${SEC} flex flex-col gap-3">
     ${reviseSection(s)}
-    ${sm.undrawn > 0 ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3 flex flex-wrap items-center gap-3" role="alert"><span class="text-2xl">🏦</span>
+    ${sm.undrawn > 0 ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3 flex flex-wrap items-center gap-3" role="alert">
       <div class="flex-1 min-w-[16rem]"><div class="font-bold text-amber-800">経理部から補充金 ${yen(sm.depositTotal)} が振り込まれています（未引き出し ${yen(sm.undrawn)}）${helpIcon('登録すると、はじめて所持金に加わります。引き出すまで所持金ではありません。')}</div><div class="text-sm text-amber-800">引き出したら、下の「引き出し金額」に登録してください。</div></div>
       <button class="btn btn-primary !min-h-[48px]" data-action="wdr-rest">未引き出し分 ${yen(sm.undrawn)} を、引き出した</button></div>` : ''}
     <div class="flex gap-3">
@@ -340,8 +340,8 @@ export function expenseView(s) {
       <div class="card !p-3 flex-1 text-right !bg-teal-600 text-white"><div class="text-xs text-teal-700">現在の所持金（帳簿）</div><div class="text-3xl font-bold">${yen(sm.balance)}</div>${sm.balance < 0 ? '<div class="text-xs font-bold text-amber-800">⚠ 残高がマイナスです。引き出し金額・計上を確認してください</div>' : ''}</div>
     </div>
     <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
-      <div class="card !p-3 flex-1 min-w-0 flex flex-col min-h-0"><h2 class="font-bold text-lg mb-2">📒 今日の入出金</h2>
-        <div class="rounded-xl border-2 p-2 mb-2 space-y-1.5"><div class="font-bold text-sm">🏧 引き出し金額${helpIcon('経理部から振り込まれた補充金のうち、いくら引き出したかを入力します。通常は、補充金と同じ金額です。引き出した分が、所持金になります。')}</div>
+      <div class="card !p-3 flex-1 min-w-0 flex flex-col min-h-0"><h2 class="font-bold text-lg mb-2">今日の入出金</h2>
+        <div class="rounded-xl border-2 p-2 mb-2 space-y-1.5"><div class="font-bold text-sm">引き出し金額${helpIcon('経理部から振り込まれた補充金のうち、いくら引き出したかを入力します。通常は、補充金と同じ金額です。引き出した分が、所持金になります。')}</div>
           <div id="wdr-live" class="space-y-1.5">${withdrawLiveView(s)}</div></div>
         ${advanceButton(s)}
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="expLedger">${ledgerRows(s)}</div></div>
@@ -351,11 +351,11 @@ export function expenseView(s) {
           ${d.photo
             ? `<div class="flex items-center gap-3"><img src="${d.photo}" alt="レシート" class="h-24 rounded-lg border" /><button class="btn btn-secondary !min-h-[44px] !py-1 !px-3 text-sm" data-action="exp-photo-clear">撮り直す</button></div>${aiStatus(d.ai)}`
             : `<div class="grid grid-cols-2 gap-2">
-                <label class="btn btn-primary !min-h-[56px] !py-2 !px-2 text-center text-base cursor-pointer flex items-center justify-center">📷 撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-exp-photo /></label>
+                <label class="btn btn-primary !min-h-[56px] !py-2 !px-2 text-center text-base cursor-pointer flex items-center justify-center">撮影する<input type="file" accept="image/*" capture="environment" class="hidden" data-exp-photo /></label>
                 <button class="btn btn-secondary !min-h-[56px] !py-2 !px-2 text-base" data-action="exp-photo-dummy">（デモ用）ダミー写真</button></div>`}</div>
         <div class="text-xs font-bold text-slate-500 -mb-1">② 内容を確認${helpIcon('撮影すると、AIが自動入力します。')}</div>
         <div><div class="font-bold text-sm mb-1">種別${aiBadge(d, 'type')}</div><div class="grid grid-cols-3 gap-1.5">
-          ${EXPENSE_TYPES.map((t) => `<button class="chip !px-1 !py-1 flex flex-col items-center leading-tight ${d.type === t.key ? 'active' : ''}" data-action="exp-type" data-value="${t.key}"><span class="text-xl">${t.icon}</span><span class="text-xs">${t.label}</span></button>`).join('')}</div></div>
+          ${EXPENSE_TYPES.map((t) => `<button class="chip !px-1 !py-1 flex flex-col items-center leading-tight ${d.type === t.key ? 'active' : ''}" data-action="exp-type" data-value="${t.key}"><span class="text-sm">${t.label}</span></button>`).join('')}</div></div>
         <label class="block"><span class="font-bold text-sm">金額${aiBadge(d, 'amount')}</span>${moneyInputHtml({ attrs: 'data-wd="exp-amount"', value: d.amount, cls: 'field' })}</label>
         <label class="flex items-center gap-2 rounded-lg border p-2 cursor-pointer"><input type="checkbox" class="w-6 h-6" data-action="exp-invoice" ${d.invoice ? 'checked' : ''} />
           <span class="font-bold text-sm">インボイス対応のレシート${aiBadge(d, 'invoice')}${helpIcon('適格請求書発行事業者の登録番号（T＋13桁）が印字されているレシートです。撮影して番号が読めると、自動でチェックします。')}</span></label>
@@ -379,11 +379,11 @@ export function outcomeModalView(s) {
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl w-full max-w-2xl p-5 max-h-[96dvh] flex flex-col gap-3">
-      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">🚪 訪問できなかった場合の記録${helpIcon('訪問実績として記録します。鑑定士の責任ではないため、業績には影響しません。')}</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
+      <div class="flex justify-between items-center"><h2 class="text-xl font-bold">訪問できなかった場合の記録${helpIcon('訪問実績として記録します。鑑定士の責任ではないため、業績には影響しません。')}</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
       <div class="overflow-y-auto min-h-0 flex-1 space-y-3" data-scroll="outcome">
         <div class="grid grid-cols-2 gap-2">${VISIT_OUTCOMES.map((o) => `
           <button class="rounded-xl border-2 p-3 text-left ${d.type === o.key ? 'border-teal-600 bg-teal-50' : 'border-slate-200'}" data-action="oc-type" data-value="${o.key}">
-            <span class="block font-bold text-lg">${o.icon} ${o.label}</span><span class="block text-xs text-slate-500">${o.hint}</span></button>`).join('')}</div>
+            <span class="block font-bold text-lg">${o.label}</span><span class="block text-xs text-slate-500">${o.hint}</span></button>`).join('')}</div>
         ${d.type === 'resched' ? `<div class="grid grid-cols-2 gap-3 rounded-xl border p-3">
           <div class="col-span-2 font-bold text-sm">お客様の希望日時<span class="font-normal text-xs text-slate-500">（わかる範囲で）</span></div>
           <input type="date" class="field !py-2" data-wd="oc-date" value="${esc(d.date)}" aria-label="希望日" />
@@ -402,7 +402,6 @@ export function outcomeResultView(s) {
   const t = outcomeOf(o.type);
   return `
   <section class="h-full flex flex-col items-center justify-center gap-4 p-6">
-    <div class="text-6xl">${t.icon}</div>
     <h1 class="text-3xl font-bold">「${t.label}」として記録しました${helpIcon('日報に反映し、本社にも共有します。業績には影響しません。')}</h1>
     <div class="card !p-4 w-full max-w-md space-y-1 text-sm">
       <div class="font-bold text-lg">${esc(s.customer.name)} 様</div>
@@ -423,7 +422,7 @@ export function receiptModalView(s) {
   return `
   <div class="fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl p-4 max-w-xl w-full max-h-[96dvh] flex flex-col gap-2">
-      <div class="flex justify-between items-center"><h3 class="font-bold text-lg">${t.icon} ${t.label}　${yen(e.amount)}</h3><button class="btn btn-secondary !min-h-[44px] !py-1" data-action="close-modal">閉じる</button></div>
+      <div class="flex justify-between items-center"><h3 class="font-bold text-lg">${t.label}　${yen(e.amount)}</h3><button class="btn btn-secondary !min-h-[44px] !py-1" data-action="close-modal">閉じる</button></div>
       <div class="text-sm text-slate-500">${fmtTime(e.at)}　${esc(e.memo)}</div>
       <img src="${e.photo}" alt="レシート" class="rounded-lg border min-h-0 object-contain" />
     </div>

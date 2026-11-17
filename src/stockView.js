@@ -37,7 +37,7 @@ const unitRow = (u) => `
       <div class="text-xs ${u.status === 'stored' ? 'text-slate-400' : 'text-slate-500'}"><span class="font-mono">${esc(u.code)}</span> ／ ${esc(u.category)} ／ ランク${esc(u.rank)} ／ ${yen(u.price)}${isHonshaItem(u) ? ' ／ <b class="text-slate-700">高額品（あとで本社へ移動）</b>' : ''}</div>
     </div>
     ${u.status === 'stored'
-      ? `<div class="text-right text-xs text-slate-500"><div class="font-bold">📍 ${esc(u.location)}</div><div>${fmtTime(u.storedAt)}</div></div>`
+      ? `<div class="text-right text-xs text-slate-500"><div class="font-bold">${esc(u.location)}</div><div>${fmtTime(u.storedAt)}</div></div>`
       : u.status === 'missing'
         ? '<span class="text-xs text-rose-700">シールを読み取れば入庫できます</span>'
         : `<button class="btn btn-secondary !py-1 !px-3 !min-h-[40px] !text-sm text-rose-700" data-action="stock-missing" data-code="${esc(u.code)}">所在不明</button>`}
@@ -56,7 +56,7 @@ function groupedList(list) {
       <div class="font-bold text-slate-700 border-b pb-0.5">${dateLabel(d)}</div>
       ${[...visits.filter(open), ...visits.filter((r) => !open(r))].map((rows) => `
         <div class="space-y-1 ${open(rows) ? '' : 'opacity-80'}">
-          <div class="text-sm text-slate-700 flex justify-between"><span>🏠 ${esc(rows[0].customerName)} 様（${fmtTime(rows[0].at).slice(0, 5)} 訪問終了）</span><span>${rows.filter((u) => u.status === 'stored').length} / ${rows.length} 点 入庫</span></div>
+          <div class="text-sm text-slate-700 flex justify-between"><span>${esc(rows[0].customerName)} 様（${fmtTime(rows[0].at).slice(0, 5)} 訪問終了）</span><span>${rows.filter((u) => u.status === 'stored').length} / ${rows.length} 点 入庫</span></div>
           ${rows.map(unitRow).join('')}
         </div>`).join('')}
     </div>`;
@@ -79,7 +79,7 @@ function listCard(s, mine) {
   return `
   <div class="card !p-4 flex-1 min-w-0 flex flex-col gap-2 min-h-0">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="text-xl font-bold">📦 商品の入庫</h2>
+      <h2 class="text-xl font-bold">商品の入庫</h2>
       <div class="text-sm text-slate-700">未入庫 <b class="text-lg text-amber-800">${todo.length}</b> 点　入庫済み <b class="text-lg">${stored}</b> 点</div>
     </div>
     ${mine.length ? scopeChips(s, mine) : ''}
@@ -100,7 +100,7 @@ function actionCard(s, mine) {
   return `
   <div class="card !p-4 w-[24rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[50%] flex flex-col gap-3 min-h-0 overflow-y-auto" data-scroll="stockR">
     <h3 class="font-bold text-lg">入庫する${helpIcon('シールの色が紫・赤の高額品も、ここでは、ほかの商品と同じように倉庫に入庫します。\nそのあと、倉庫の担当が、倉庫間移動で本社へ移します。')}</h3>
-    <button class="btn btn-primary w-full text-xl !py-5" data-action="stock-scan" ${todo.length ? '' : 'disabled'}>📷 QRを読み取って入庫</button>
+    <button class="btn btn-primary w-full text-xl !py-5" data-action="stock-scan" ${todo.length ? '' : 'disabled'}>QRを読み取って入庫</button>
     <p class="text-xs text-slate-500 -mt-2">対象：${s.stock.scope === 'all' ? 'すべての日付' : dateLabel(s.stock.scope)}の入庫待ち ${todo.length} 点</p>
     ${last && !last.ok ? `<div class="rounded-xl border-2 p-3 text-sm font-bold bg-rose-50 border-rose-400 text-rose-700">⚠ ${esc(last.text)}</div>` : ''}
     <label class="block"><span class="font-bold text-sm">シールNo.を入力（QRが読めないとき）</span>

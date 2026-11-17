@@ -13,7 +13,7 @@ export const dayLabel = (key) => { const d = new Date(`${key}T00:00:00`); return
 export function headerHtml({ store, staff, date, summary, themeHtml }) {
   const chip = (label, value) => `<span class="rounded bg-white/15 px-2 py-0.5 text-xs">${label} <b class="text-sm">${value}</b></span>`;
   return `<header class="bg-slate-800 text-white px-6 h-[52px] flex justify-between items-center">
-    <div class="flex items-center gap-3"><span class="font-bold text-xl">🏬 ${esc(storeLabel(store))}</span><span class="text-xs bg-white/20 rounded px-2 py-0.5">ダミー画面</span><span class="text-sm">${esc(dayLabel(date))}</span>
+    <div class="flex items-center gap-3"><span class="font-bold text-xl">${esc(storeLabel(store))}</span><span class="text-xs bg-white/20 rounded px-2 py-0.5">ダミー画面</span><span class="text-sm">${esc(dayLabel(date))}</span>
       ${chip('来店', `${summary.visits}組`)}${chip('買取', `${summary.purchased}件`)}${chip('成約率', summary.done ? `${Math.round(summary.rate * 100)}%` : '-')}${chip('買取額', yen(summary.total))}${helpIcon('来店は、来店済み（待ち・対応中・完了）の組数です。成約率は、完了した来店のうち、買取に至った割合です。取消・来ずは数えません。')}</div>
     <div class="flex items-center gap-3 text-sm"><span>${esc(staff.name)}</span>${themeHtml}<button class="underline text-white/80 text-xs" data-logout>ログアウト</button></div>
   </header>`;
@@ -35,7 +35,7 @@ function card(v, { profileOf, tone }) {
   const cancelNote = v.status === 'cancelled' ? `<span class="text-xs text-slate-500">理由: ${esc(v.cancelReason)}（${esc(v.cancelledBy)}）</span>` : '';
   return `<div class="rounded-lg border bg-white p-3 space-y-1 ${tone}">
     <div class="flex flex-wrap items-center gap-2"><b>${esc(v.customer.name)} 様</b>${marks(p)}<span class="text-xs text-slate-500">${when}</span>${v.status === 'serving' ? `<span class="text-xs text-slate-700 font-bold">対応: ${esc(v.staffName)}</span>` : ''}${result}${v.status === 'noshow' ? '<span class="text-xs text-slate-500">来ず</span>' : ''}</div>
-    <div class="text-xs text-slate-700">${v.customer.phone ? `📞 ${esc(v.customer.phone)}` : '電話番号: 未入力'}${v.wants ? ` ／ 売りたいもの: <span class="whitespace-pre-line">${esc(v.wants)}</span>` : ''}${v.source === 'reserved' && v.createdBy ? ` ／ 受付: ${esc(v.createdBy)}` : ''}</div>
+    <div class="text-xs text-slate-700">${v.customer.phone ? `${esc(v.customer.phone)}` : '電話番号: 未入力'}${v.wants ? ` ／ 売りたいもの: <span class="whitespace-pre-line">${esc(v.wants)}</span>` : ''}${v.source === 'reserved' && v.createdBy ? ` ／ 受付: ${esc(v.createdBy)}` : ''}</div>
     ${cancelNote}${ops ? `<div class="flex flex-wrap gap-2 pt-1">${ops}</div>` : ''}</div>`;
 }
 
@@ -61,12 +61,12 @@ export function boardHtml(ctx) {
     ${walkInForm(ctx.walk)}
     <div class="grid lg:grid-cols-3 gap-4">
       ${section('⏳ 待ち', board.waiting, ctx, 'border-amber-300', '待っているお客様は、いません')}
-      ${section('🗣 対応中', board.serving, ctx, 'border-slate-400', '対応中のお客様は、いません')}
-      ${section('📅 これから来店の予約', board.reserved, ctx, 'border-slate-300', '今日の予約は、ありません')}
+      ${section('対応中', board.serving, ctx, 'border-slate-400', '対応中のお客様は、いません')}
+      ${section('これから来店の予約', board.reserved, ctx, 'border-slate-300', '今日の予約は、ありません')}
     </div>
     <div class="grid lg:grid-cols-2 gap-4">
-      ${section('✅ 完了', board.done, ctx, 'border-teal-300', 'まだありません')}
-      ${section(`🚫 ${STATUS_LABEL.cancelled}・${STATUS_LABEL.noshow}`, board.cancelled, ctx, 'border-slate-300 opacity-80', 'ありません')}
+      ${section('✓ 完了', board.done, ctx, 'border-teal-300', 'まだありません')}
+      ${section(`${STATUS_LABEL.cancelled}・${STATUS_LABEL.noshow}`, board.cancelled, ctx, 'border-slate-300 opacity-80', 'ありません')}
     </div>
   </div>`;
 }

@@ -15,15 +15,15 @@ export const tick = (at, label) => (at ? `<span class="text-teal-700 text-xs fon
 
 const TEXT = {
   transfer: {
-    title: '📤 他の倉庫へ送る（パックを作る）', dest: '送り先の倉庫', list: '明細', listBtn: '明細を出力（印刷）', ship: (n) => `🚚 発送する（${n}へ）`, to: (n) => `${n} へ`,
+    title: '他の倉庫へ送る（パックを作る）', dest: '送り先の倉庫', list: '明細', listBtn: '明細を出力（印刷）', ship: (n) => `発送する（${n}へ）`, to: (n) => `${n} へ`,
     note: (wh) => `送れるのは、あなたの倉庫（${wh}）の在庫です。`, listHint: '商品と一緒に入れる、送付明細です。受け取る倉庫が、実物と照合します。',
   },
   consign: {
-    title: '📤 業者に委託する（パックを作る）', dest: '委託先（業者）', list: '委託明細', listBtn: '委託明細を出力（印刷）', ship: (n) => `📤 委託する（${n}へ）`, to: (n) => `${n} へ委託`,
+    title: '業者に委託する（パックを作る）', dest: '委託先（業者）', list: '委託明細', listBtn: '委託明細を出力（印刷）', ship: (n) => `委託する（${n}へ）`, to: (n) => `${n} へ委託`,
     note: (wh) => `委託できるのは、あなたの倉庫（${wh}）の在庫です。委託すると、商品は「委託中」になります（売れたら入金、売れ残ったら倉庫に戻ります）。`, listHint: '商品と一緒に入れる、委託明細です。委託先に渡すので、希望価格だけを載せます（原価・お客様の情報は載せません）。',
   },
   sale: {
-    title: '📦 売れた商品を発送する（パックを作る）', dest: '購入者', list: '納品書', listBtn: '納品書を出力（印刷）', ship: (n) => `🚚 発送する（${n} 様へ）`, to: (n) => `${n} 様へ`,
+    title: '売れた商品を発送する（パックを作る）', dest: '購入者', list: '納品書', listBtn: '納品書を出力（印刷）', ship: (n) => `発送する（${n} 様へ）`, to: (n) => `${n} 様へ`,
     note: (wh) => `発送できるのは、あなたの倉庫（${wh}）で売れた商品です（フリマ・業者への直接販売）。`, listHint: '購入者に同梱する納品書です。商品名と金額（売価）だけを載せます（原価・買い取ったお客様の情報は載せません）。',
   },
 };
@@ -98,7 +98,7 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
   const noPrice = consign && pack.codes.some((code) => !(pack.prices?.[code] > 0));
   const ready = pack.codes.length > 0 && Boolean(pack.carrier) && !noPrice;
   return `<section class="rounded-xl border-2 border-slate-400 bg-white p-4 space-y-4">
-    <div class="flex flex-wrap items-center gap-2"><h2 class="font-bold text-lg">📦 パック（${esc(pack.fromName)} → ${esc(destName(pack))}）</h2><span class="font-mono text-xs text-slate-500">${esc(pack.id)}</span>
+    <div class="flex flex-wrap items-center gap-2"><h2 class="font-bold text-lg">パック（${esc(pack.fromName)} → ${esc(destName(pack))}）</h2><span class="font-mono text-xs text-slate-500">${esc(pack.id)}</span>
       <button class="ml-auto b b-sec !min-h-0 !py-1 !px-3 text-sm" data-pk-close>← パックの一覧へ</button></div>
 
     ${sale ? `<div class="rounded-lg border bg-slate-50 p-3 space-y-2"><div class="text-sm font-bold">お届け先（購入者）</div><div class="grid sm:grid-cols-2 gap-2">${[['name', '購入者名'], ['zip', '郵便番号'], ['address', '住所'], ['phone', '電話番号']].map(([k, label]) => `<label class="text-xs font-bold">${label}<input class="inp mt-1 font-normal ${k === 'zip' ? 'font-mono' : ''}" data-pack-buyer="${k}" value="${esc(pack.buyer?.[k] ?? '')}" /></label>`).join('')}</div></div>` : ''}
@@ -106,7 +106,7 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
       <div class="flex flex-wrap items-center gap-2">
         <input class="inp !w-64" data-pk-q placeholder="商品名・シールNo.・お客様名で絞り込み" value="${esc(pk.q)}" autocomplete="off" />
         <input class="inp !w-52 font-mono" data-pk-scan-input placeholder="QR読取／シールNo.＋Enter" autocomplete="off" />
-        <button class="b b-pri" data-pk-scan>追加</button><button class="b b-pri !bg-teal-700" data-cam-pack>📷 カメラで読み取って追加</button></div>
+        <button class="b b-pri" data-pk-scan>追加</button><button class="b b-pri !bg-teal-700" data-cam-pack>カメラで読み取って追加</button></div>
       ${pk.last ? `<div class="rounded-lg border-2 p-2 text-sm font-bold ${pk.last.ok ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-rose-50 border-rose-400 text-rose-700'}">${pk.last.ok ? '✓' : '⚠'} ${esc(pk.last.text)}</div>` : ''}
       <div class="max-h-64 overflow-y-auto border rounded"><table class="w-full text-sm"><tbody>
         ${cand.rows.length && sale ? cand.rows.map((r) => `<tr class="border-b"><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500"><span class="font-mono">${esc(r.unit.code)}</span></div></td><td class="text-xs">${esc(r.rec.buyer || '購入者名なし')}</td><td class="text-right">${yen(r.rec.soldPrice)}</td><td><button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-pk-add="${esc(r.unit.code)}">パックに入れる</button></td></tr>`).join('') : cand.rows.length ? cand.rows.map((r) => `<tr class="border-b"><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500"><span class="font-mono">${esc(r.unit.code)}</span> ${sealBadge(r.unit)}</div></td>
@@ -135,11 +135,11 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
     </div>
 
     <div class="space-y-2">${step(3, `${tx.list}を出力`, tx.listHint)}
-      <div class="flex flex-wrap items-center gap-3"><button class="b b-pri" data-pk-print-list ${pack.codes.length ? '' : 'disabled'}>🖨 ${tx.listBtn}</button>${tick(pack.listPrintedAt, tx.list)}</div></div>
+      <div class="flex flex-wrap items-center gap-3"><button class="b b-pri" data-pk-print-list ${pack.codes.length ? '' : 'disabled'}>${tx.listBtn}</button>${tick(pack.listPrintedAt, tx.list)}</div></div>
 
     <div class="space-y-2">${step(4, `発送伝票・CSVを出力して、${consign ? '委託' : '発送'}`, `配送業者のシステム（${CARRIERS.filter((x) => x.csvLabel).map((x) => x.label).join('・')}）には、CSVを取り込んで送り状を出力します。CSVの列は、仮の並びです（実際の取込形式に合わせて調整します）。`)}
       ${problems.length ? `<div class="rounded bg-amber-50 border border-amber-300 p-2 text-xs text-amber-800">伝票・CSVに必要な情報が足りません: ${problems.map(esc).join('、')}。「マスタ管理」の倉庫で登録してください。</div>` : ''}
-      <div class="flex flex-wrap items-center gap-3"><button class="b b-pri" data-pk-print-label ${ready ? '' : 'disabled'}>🖨 発送伝票を出力（印刷）</button>${tick(pack.labelPrintedAt, '発送伝票')}
+      <div class="flex flex-wrap items-center gap-3"><button class="b b-pri" data-pk-print-label ${ready ? '' : 'disabled'}>発送伝票を出力（印刷）</button>${tick(pack.labelPrintedAt, '発送伝票')}
         ${c?.csvLabel ? `<button class="b b-sec" data-pk-csv="${c.key}" ${ready ? '' : 'disabled'}>⬇ CSV出力（${esc(c.csvLabel)}）</button>` : ''}</div>
       <div class="flex flex-wrap items-end gap-3 pt-1"><label class="text-xs font-bold">追跡番号（わかれば）<input class="inp mt-1 font-normal font-mono !w-64" data-pk-tracking value="${esc(pk.tracking)}" placeholder="配送業者から発行された番号" /></label>
         <button class="b b-pri" data-pk-ship ${ready ? '' : 'disabled'}>${tx.ship(esc(destName(pack)))}</button>

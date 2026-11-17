@@ -75,7 +75,7 @@ export function warehousesPanelHtml({ wmaster, holding, offices, ui }) {
   const only = offices.filter((o) => o.active && !linked.has(o.id)).map((o) => officeLabel(o));
   const data = { master: wmaster, holding, offices };
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🏭 倉庫（${wmaster.warehouses.filter((w) => w.active).length}か所）${helpIcon('倉庫は、営業所とは独立した施設です。営業所と一体の倉庫、倉庫のみの施設があり、倉庫のない営業所（鑑定士のみ）もあります。倉庫担当の所属は、社員で変更します。')}</h2>
+      <h2 class="font-bold text-lg">倉庫（${wmaster.warehouses.filter((w) => w.active).length}か所）${helpIcon('倉庫は、営業所とは独立した施設です。営業所と一体の倉庫、倉庫のみの施設があり、倉庫のない営業所（鑑定士のみ）もあります。倉庫担当の所属は、社員で変更します。')}</h2>
       ${only.length ? `<p class="text-xs text-slate-500">いま倉庫のない営業所: ${esc(only.join('・'))}</p>` : ''}
       ${warehouseTable(data)}${warehouseForm(ui.mw, offices)}${highValueForm(data, ui.hv)}
     </section>`;
@@ -83,7 +83,7 @@ export function warehousesPanelHtml({ wmaster, holding, offices, ui }) {
 
 export function vendorsPanelHtml({ wmaster, ui }) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🤝 委託先（業者）（${(wmaster.vendors ?? []).filter((v) => v.active).length}社）${helpIcon('業者オークションなど、商品を委託して販売してもらう業者です。販売（出品）の「業者に委託する」で、委託先に選びます。')}</h2>
+      <h2 class="font-bold text-lg">委託先（業者）（${(wmaster.vendors ?? []).filter((v) => v.active).length}社）${helpIcon('業者オークションなど、商品を委託して販売してもらう業者です。販売（出品）の「業者に委託する」で、委託先に選びます。')}</h2>
       ${vendorTable({ master: wmaster })}${vendorForm(ui.mv)}
     </section>`;
 }

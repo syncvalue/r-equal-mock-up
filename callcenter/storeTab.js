@@ -77,7 +77,7 @@ function listHtml(upcoming, stores) {
   return days.map((day) => `<div class="space-y-1"><div class="font-bold text-sm border-b pb-0.5">${dayLabel(day)}</div>
     ${upcoming.filter((v) => v.date === day).map((v) => `<div class="rounded-lg border bg-white p-2 flex flex-wrap items-center gap-3">
       <b class="w-12">${esc(v.time)}</b><span class="rounded bg-slate-100 text-slate-900 text-xs font-bold px-2 py-0.5">${esc(storeNameOf(v.storeId, stores))}</span>
-      <span class="font-bold">${esc(v.customer.name)} 様</span><span class="text-xs text-slate-500">📞 ${esc(v.customer.phone)}${v.wants ? ` ／ <span class="whitespace-pre-line">${esc(v.wants)}</span>` : ''} ／ 受付: ${esc(v.createdBy)}</span>
+      <span class="font-bold">${esc(v.customer.name)} 様</span><span class="text-xs text-slate-500">${esc(v.customer.phone)}${v.wants ? ` ／ <span class="whitespace-pre-line">${esc(v.wants)}</span>` : ''} ／ 受付: ${esc(v.createdBy)}</span>
       <span class="ml-auto flex items-center gap-1"><select class="inp !w-40 !py-1 text-xs" data-st-reason="${esc(v.id)}">${CANCEL_REASONS.map((r) => `<option>${esc(r)}</option>`).join('')}</select><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs text-rose-700" data-st-cancel="${esc(v.id)}">取消</button></span></div>`).join('')}</div>`).join('');
 }
 

@@ -31,7 +31,7 @@ function form(mo) {
 // ctx: { offices: 営業所マスタ, warehouses: 倉庫の一覧, ui: { mo } }
 export function officesPanelHtml({ offices, warehouses, ui }) {
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
-      <h2 class="font-bold text-lg">🏢 営業所（${offices.filter((o) => o.active).length}か所）${helpIcon('鑑定士が所属する拠点です。営業所ごとに、担当の都道府県を持ちます。倉庫の「営業所との関係」の選択肢になります。\nモックのため、訪問先のエリア判定・配車・鑑定士の所属には、まだつながっていません。')}</h2>
+      <h2 class="font-bold text-lg">営業所（${offices.filter((o) => o.active).length}か所）${helpIcon('鑑定士が所属する拠点です。営業所ごとに、担当の都道府県を持ちます。倉庫の「営業所との関係」の選択肢になります。\nモックのため、訪問先のエリア判定・配車・鑑定士の所属には、まだつながっていません。')}</h2>
       ${table(offices, warehouses)}${form(ui.mo)}
     </section>`;
 }

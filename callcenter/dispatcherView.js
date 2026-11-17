@@ -113,7 +113,7 @@ export function customerModalHtml({ rid, reservations, now }) {
         <button class="b b-sec !min-h-0 !py-1" data-custclose title="閉じる（Esc）">✕ 閉じる</button></div>
       ${box(`お客様の評価${helpIcon('お客様情報に紐づく評価です。訪問ごとの評価とは別です。')}`, `${customerProfileHtml(p)}${customerEvalEditor(p, r.customer.phone || r.customer.phone2)}`)}
       <section class="space-y-1 rounded-lg border-2 ${d.declined.length ? 'border-slate-400 bg-slate-50' : 'border-slate-200 bg-slate-50'} p-2 ${d.declined.length ? 'shadow-sm' : ''}">
-        <h3 class="text-xs font-bold ${d.declined.length ? 'text-slate-900' : 'text-slate-500'}">📦 査定したが売らなかったもの${helpIcon('お手元に持っている可能性があります。')}${d.declined.length ? `<span class="ml-2 rounded-full bg-slate-600 px-2 py-0.5 text-[11px] text-white">${d.declined.reduce((n, i) => n + (i.qty ?? 1), 0)}点</span>` : ''}</h3>
+        <h3 class="text-xs font-bold ${d.declined.length ? 'text-slate-900' : 'text-slate-500'}">査定したが売らなかったもの${helpIcon('お手元に持っている可能性があります。')}${d.declined.length ? `<span class="ml-2 rounded-full bg-slate-600 px-2 py-0.5 text-[11px] text-white">${d.declined.reduce((n, i) => n + (i.qty ?? 1), 0)}点</span>` : ''}</h3>
         ${declinedCardHtml(d.declined, { empty: true })}</section>
       ${box('誰を当てるかの判断の手がかり', `${assignAdvice(p) || '<div class="text-xs text-slate-500">特に注意する点はありません</div>'}
         <div class="text-xs"><span class="text-slate-500">これまでの担当：</span>${d.staff.length ? d.staff.map((n) => `<b>${esc(n)}</b>`).join('、') : '<span class="text-slate-500">なし（新規・担当の記録なし）</span>'}</div>`)}
@@ -148,7 +148,7 @@ function legsHtml(legs) {
   return legs.map((l) => {
     const gapPx = Math.max(0, topOf(l.to.start) - topOf(l.from.end));
     const y = topOf(l.from.end) + gapPx / 2;
-    return `<div class="pointer-events-none absolute left-1/2 z-[25] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-1.5 text-[10px] font-bold leading-4 shadow-sm ${l.tight ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-300 bg-white/95 text-slate-700'}" style="top:${y}px" title="${esc(`${l.from.label}から${l.to.label}へ ${l.km}km・約${l.min}分（訪問の間隔 ${l.gap}分）${l.tight ? '　移動が間隔に収まりません' : ''}`)}">${l.tight ? '⚠ ' : '🚗 '}${l.km}km・${l.min}分</div>`;
+    return `<div class="pointer-events-none absolute left-1/2 z-[25] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-1.5 text-[10px] font-bold leading-4 shadow-sm ${l.tight ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-300 bg-white/95 text-slate-700'}" style="top:${y}px" title="${esc(`${l.from.label}から${l.to.label}へ ${l.km}km・約${l.min}分（訪問の間隔 ${l.gap}分）${l.tight ? '　移動が間隔に収まりません' : ''}`)}">${l.tight ? '⚠ ' : ''}${l.km}km・${l.min}分</div>`;
   }).join('');
 }
 
@@ -178,7 +178,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const head = cols.map((c) => {
     const t = c.mine.filter(isTentative).length;
     return `<div class="border-b bg-slate-50 px-1 py-0.5 text-center"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id))}
-      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-700' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div>${c.travel.legs.length ? `<div class="text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-800' : 'text-slate-700'}" title="その日の訪問から訪問への移動の合計（概算）">🚗 計${c.travel.km}km・約${c.travel.min}分</div>` : ''}</div>`;
+      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-700' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div>${c.travel.legs.length ? `<div class="text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-800' : 'text-slate-700'}" title="その日の訪問から訪問への移動の合計（概算）">計${c.travel.km}km・約${c.travel.min}分</div>` : ''}</div>`;
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => `<div class="relative border-l" data-bcol="${c.user.id}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW}px)`}">
@@ -211,7 +211,7 @@ function boardDetailHtml(r, reservations, now) {
       <div class="text-xs text-slate-700">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
       <div class="text-xs">売りたいもの：${esc(r.hearing.wants)}</div>
       ${r.customer.phone ? customerProfileHtml(profileOf(r.customer), { advice: true }) : ''}
-      <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">👤 お客様の詳細（買取履歴・評価・これまでの担当）</button></div>
+      <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">お客様の詳細（買取履歴・評価・これまでの担当）</button></div>
       <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
       ${travel ? `<div class="text-[11px] leading-tight text-slate-700">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}
       ${revertedHtml(r)}</div>

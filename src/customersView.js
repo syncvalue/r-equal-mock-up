@@ -7,6 +7,7 @@ import { callHistory } from './callHistory.js';
 import { loadReservations } from './reservations.js';
 import { userById } from './dashboard.js';
 import { loadCustNotes, notesOf } from './customerNotes.js';
+import { icon } from './icons.js';
 
 export const NEAR_KM = 5;
 const SORTS = [['days', '前回の訪問から長い順'], ['total', '過去の買取金額順'], ['declined', '買取できなかった商品数順'], ['near', '近い順'], ['call', '電話していない順']];
@@ -38,13 +39,13 @@ export function customerListHtml(s) {
       <button class="min-w-0 flex-1 text-left flex items-center gap-3 p-3 active:bg-teal-50" data-action="cust-open" data-phone="${esc(r.phone)}" data-name="${esc(r.name)}">
         <div class="min-w-0 flex-1">
           <div class="flex items-baseline gap-2 flex-wrap"><span class="text-lg font-bold">${esc(r.name)} 様</span><span class="text-xs text-slate-400">${esc(r.kana)}</span></div>
-          <div class="text-sm text-slate-700 truncate">📍 ${esc(r.address)}</div>
+          <div class="text-sm text-slate-700 truncate">${esc(r.address)}</div>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
             <span>前回 ${date(r.lastVisitAt)}（<b class="${r.days >= 90 ? 'text-teal-700' : ''}">${r.days}日前</b>）</span><span>訪問 ${r.visitCount}回</span><span>買取計 ${yen(r.total)}</span>${r.declinedCount ? `<span class="text-amber-800">見送り ${r.declinedCount}点</span>` : ''}${callBadge(r, now)}</div>
-          ${r.memo ? `<div class="mt-1 text-xs rounded bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 break-words">📝 自分用　${esc(clip(r.memo))}</div>` : ''}
-          ${r.callMemo ? `<div class="mt-1 text-xs rounded bg-slate-50 border border-slate-200 text-slate-900 px-2 py-0.5 break-words">📞 ${new Date(r.callMemo.at).getMonth() + 1}/${new Date(r.callMemo.at).getDate()}の電話メモ　${esc(clip(r.callMemo.memo))}</div>` : ''}</div>
+          ${r.memo ? `<div class="mt-1 text-xs rounded bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 break-words">自分用　${esc(clip(r.memo))}</div>` : ''}
+          ${r.callMemo ? `<div class="mt-1 text-xs rounded bg-slate-50 border border-slate-200 text-slate-900 px-2 py-0.5 break-words">${new Date(r.callMemo.at).getMonth() + 1}/${new Date(r.callMemo.at).getDate()}の電話メモ　${esc(clip(r.callMemo.memo))}</div>` : ''}</div>
         <div class="text-right shrink-0">${r.distanceKm !== null ? `<div class="text-lg font-bold ${r.distanceKm <= NEAR_KM ? 'text-teal-700' : 'text-slate-500'}">${km(r.distanceKm)}</div><div class="text-[11px] text-slate-400">現在地から</div>` : ''}
-          <div class="text-2xl">📞</div></div></button>
+          <div>${icon('phone', 24)}</div></div></button>
       <button class="w-14 shrink-0 text-3xl border-l ${r.favorite ? 'text-amber-800 bg-amber-50' : 'text-slate-300'} active:bg-amber-100" data-action="cust-fav" data-phone="${esc(r.phone)}" aria-label="${r.favorite ? 'お気に入りを外す' : 'お気に入りに登録'}">${r.favorite ? '★' : '☆'}</button></div>`).join('')}</div>`;
 }
 
@@ -56,14 +57,14 @@ export function customersView(s) {
   return `
   <section class="h-full min-h-0 overflow-y-auto p-4 space-y-3" data-scroll="customers">
     <div class="flex flex-wrap items-end justify-between gap-2">
-      <div><h2 class="text-2xl font-bold">📇 顧客検索${helpIcon('自分が担当したお客様だけが出ます。\n電話した結果は記録すると、オペレーターを含む他の人にも見えます（しつこいと思われないようにするため）。')}</h2>
+      <div><h2 class="text-2xl font-bold">顧客検索${helpIcon('自分が担当したお客様だけが出ます。\n電話した結果は記録すると、オペレーターを含む他の人にも見えます（しつこいと思われないようにするため）。')}</h2>
         <p class="text-sm text-slate-500">自分のお客様 ${total}人</p></div></div>
-    <input class="field" id="cust-q" type="search" enterkeyhint="search" autocomplete="off" data-cust="q" placeholder="🔍 氏名・フリガナ・電話番号・住所で検索" value="${esc(c.q)}" />
+    <input class="field" id="cust-q" type="search" enterkeyhint="search" autocomplete="off" data-cust="q" placeholder="氏名・フリガナ・電話番号・住所で検索" value="${esc(c.q)}" />
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-xs text-slate-500">並び順</span>${SORTS.map(([k, l]) => chip(c.sort === k, l, `data-action="cust-sort" data-value="${k}"`)).join('')}</div>
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-xs text-slate-500">前回の訪問から</span>${DAYS.map(([d, l]) => chip(c.minDays === d, l, `data-action="cust-days" data-value="${d}"`)).join('')}
-      <span class="mx-1 text-slate-300">|</span>${chip(c.near, `📍 近く（${NEAR_KM}km以内）`, 'data-action="cust-near"')}${chip(c.favOnly, '★ お気に入りだけ', 'data-action="cust-favonly"')}</div>
+      <span class="mx-1 text-slate-300">|</span>${chip(c.near, `近く（${NEAR_KM}km以内）`, 'data-action="cust-near"')}${chip(c.favOnly, '★ お気に入りだけ', 'data-action="cust-favonly"')}</div>
     ${s.geo?.pending ? '<p class="text-xs text-slate-500">現在地を確認しています…</p>' : !s.geo?.ok ? '<p class="text-xs text-amber-800 font-bold">現在地を取得できないため、距離は出せません（位置情報の許可を確認してください）</p>' : ''}
     <div id="cust-list">${customerListHtml(s)}</div>
   </section>`;
@@ -87,14 +88,14 @@ export function customerCallModal(s) {
     <dl class="text-sm space-y-1">
       ${info('フリガナ', esc(row.kana) || '-')}${info('電話番号', esc(row.phone))}${info('住所', `${esc(row.address)} <a class="ml-1 underline text-teal-700 font-normal" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${row.lat},${row.lng}">地図</a>${row.distanceKm !== null ? `<span class="ml-2 text-teal-700">現在地から ${km(row.distanceKm)}</span>` : ''}`)}
       ${info('自分の訪問', `${row.visitCount}回・前回 ${date(row.lastVisitAt)}（${row.days}日前）・買取計 ${yen(row.total)}${row.declinedCount ? `・買取できなかった商品 ${row.declinedCount}点` : ''}`)}</dl>
-    ${ng ? '<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-2 text-sm font-bold text-rose-700">🚫 「今後の連絡は不要」と言われています（電話は控えてください）</div>'
+    ${ng ? '<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-2 text-sm font-bold text-rose-700">「今後の連絡は不要」と言われています（電話は控えてください）</div>'
       : soon ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-2 text-sm font-bold text-amber-800">⚠ ${daysSince(last.at, now)}日前に電話しています（${esc(last.kind)}・${esc(last.by ?? '')}）。しつこいと思われないよう、ご注意ください</div>` : ''}
-    <a class="btn btn-primary flex w-full items-center justify-center !min-h-[52px] !py-2 text-lg" href="tel:${esc(row.phone.replace(/[^\d+]/g, ''))}">📞 ${esc(row.phone)} に電話をかける</a>
-    <label class="block rounded-xl border border-amber-300 bg-amber-50 p-3"><span class="font-bold text-sm">📝 自分用のメモ${helpIcon('自分だけに見えます。入力すると自動で保存されます。')}</span>
+    <a class="btn btn-primary flex w-full items-center justify-center !min-h-[52px] !py-2 text-lg" href="tel:${esc(row.phone.replace(/[^\d+]/g, ''))}">${esc(row.phone)} に電話をかける</a>
+    <label class="block rounded-xl border border-amber-300 bg-amber-50 p-3"><span class="font-bold text-sm">自分用のメモ${helpIcon('自分だけに見えます。入力すると自動で保存されます。')}</span>
       <textarea class="field mt-1" rows="2" data-cust="note" placeholder="電話しやすい時間・好み・次に提案したいもの など">${esc(row.memo)}</textarea></label>
     <div class="rounded-xl border p-3 space-y-2">
       <div class="font-bold">電話の結果を記録${helpIcon('記録すると、オペレーターを含む他の人にも見えます。\n電話をかけたら、必ず記録してください。')}</div>
-      <div class="grid grid-cols-2 gap-2">${Object.entries(CALL_RESULTS).map(([k, l]) => `<button class="rounded-xl border-2 px-2 py-2 text-sm font-bold text-left ${f.result === k ? 'border-teal-600 bg-teal-50' : 'border-slate-200'}" data-action="cust-result" data-value="${k}">${f.result === k ? '✅ ' : ''}${l}</button>`).join('')}</div>
+      <div class="grid grid-cols-2 gap-2">${Object.entries(CALL_RESULTS).map(([k, l]) => `<button class="rounded-xl border-2 px-2 py-2 text-sm font-bold text-left ${f.result === k ? 'border-teal-600 bg-teal-50' : 'border-slate-200'}" data-action="cust-result" data-value="${k}">${f.result === k ? '✓ ' : ''}${l}</button>`).join('')}</div>
       ${f.result === 'appo' ? `<label class="block text-sm font-bold">再訪の希望日時<span class="text-rose-700 ml-1 text-xs">必須</span><input class="field mt-1" data-cust="wish" value="${esc(f.wish)}" placeholder="例: 12/5（金）午後" /></label>` : ''}
       <label class="block text-sm font-bold">メモ<span class="ml-1 text-xs font-normal text-slate-500">任意</span><textarea class="field mt-1" rows="2" data-cust="memo" placeholder="お客様から伝えられたこと など">${esc(f.memo)}</textarea></label>
       <button class="btn btn-primary w-full !min-h-[48px] !py-2" data-action="cust-save" ${ready ? '' : 'disabled'}>電話の結果を記録する</button></div>
