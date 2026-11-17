@@ -6,9 +6,9 @@ const digits = (s) => String(s ?? '').replace(/\D/g, '');
 // 確定に足りない項目の名前を返す（空なら確定できる）。areaConfirmed=Googleマップで確認して営業エリアを確定済み／selected=担当の鑑定士が決まっている
 export function missingFields(form, { areaConfirmed, selected, today }) {
   const missing = [];
+  if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
   if (form.chirashi === null) missing.push(form.flyerId.trim() ? 'チラシのID（該当なし）' : '来電のきっかけ（チラシのID）');
   if (!hasWants(form)) missing.push('売りたいもの');
-  if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
   if (!form.name.trim()) missing.push('お名前');
   if (!form.kana.trim()) missing.push('フリガナ');
   if (!form.gender) missing.push('性別');
@@ -18,6 +18,14 @@ export function missingFields(form, { areaConfirmed, selected, today }) {
   if (!form.date || form.date < today) missing.push('希望日（今日以降）');
   if (!selected) missing.push('担当の鑑定士');
   return missing;
+}
+
+// 受電の入口の段階。電話番号が入るまで＝wait、その番号で受け付け済みの予約がある＝open（変更・取消を先に出す）、それ以外＝new（入力を出す）
+// forceNew=予約があっても、新しい受付を入力する／editing=受け付け済みの予約を変更中
+export function entryStage({ phone, open = [], forceNew = false, editing = false }) {
+  if (editing) return 'new';
+  if (!/^0\d{9,10}$/.test(digits(phone))) return 'wait';
+  return open.length && !forceNew ? 'open' : 'new';
 }
 
 // 同席者の記録用の文字（あり の場合は、誰が同席するかも）
@@ -32,8 +40,8 @@ export const wantsText = (form) => [mainSummary(form).join('、'), form.cats.joi
 // ---- 聞き取りの確認（聞き忘れ防止） ---------------------------------------------------------
 // 項目ごとに「聞いた／まだ聞いていない」を返す。「なし」「特になし」と聞いた場合も、聞いた扱い。
 export const CHECK_ITEMS = [
-  ['adType', '広告種別'], ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'],
-  ['phone', '電話番号1'], ['phone2', '電話番号2'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['age', '年齢'], ['zip', '郵便番号'], ['address', '住所'],
+  ['phone', '電話番号1'], ['adType', '広告種別'], ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'],
+  ['phone2', '電話番号2'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['age', '年齢'], ['zip', '郵便番号'], ['address', '住所'],
   ['when', '希望日時'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'],
   ['large', '大型品'], ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
 ];

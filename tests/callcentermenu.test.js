@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 const { TABS, tabLabel, menuView } = await import('../callcenter/menu.js');
 
-test('コールセンターのメニュー: 新規受付・訪問カレンダー・配車確定・クーリングオフ・来店予約の5つ。選んだものが強調され、件数の印が出る', () => {
-  assert.deepEqual(TABS.map((t) => [t.key, t.label]), [['new', '新規受付'], ['calendar', '訪問カレンダー'], ['dispatch', '配車確定（配車係）'], ['cooloff', 'クーリングオフ'], ['store', '来店予約（店舗）']]);
+test('コールセンターのメニュー: 受電・訪問カレンダー・配車確定・クーリングオフ・来店予約の5つ。選んだものが強調され、件数の印が出る', () => {
+  assert.deepEqual(TABS.map((t) => [t.key, t.label]), [['new', '受電'], ['calendar', '訪問カレンダー'], ['dispatch', '配車確定（配車係）'], ['cooloff', 'クーリングオフ'], ['store', '来店予約（店舗）']]);
   assert.equal(tabLabel('store'), '来店予約（店舗）');
   assert.equal(tabLabel('nope'), '');
   const html = menuView({ tab: 'dispatch', badges: { dispatch: [{ cls: 'bg-amber-500', text: '仮確定 3' }], cooloff: [{ cls: 'bg-rose-600', text: '回答待ち 2' }], calendar: [{ cls: 'bg-rose-600', text: '前日確認 未4' }] } });

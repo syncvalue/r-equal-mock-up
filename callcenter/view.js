@@ -138,7 +138,8 @@ export function flyerResultHtml(id) {
   return f ? `<span class="text-emerald-700 font-bold">✔ ${esc(CHIRASHI[f.chirashi])}</span>` : '<span class="text-amber-700 font-bold">該当なし。IDをご確認ください</span>';
 }
 
-export function formHtml(f, today, list = []) {
+// part: 'all'（全体）／'body'（電話番号の欄より下だけ。電話番号を入力中に、入力欄を作り直さないため）
+export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = {}) {
   const st = Object.fromEntries(list.map((x) => [x.key, x]));
   const b = (key) => `<span data-badge="${key}" class="ml-1">${badgeHtml(Boolean(st[key]?.asked), Boolean(st[key]?.estimated))}</span>`;
   const none = (key, label) => `<button class="chip !py-0 !text-[11px]" data-none="${key}" title="聞いたが、特にない場合">${label}</button>`;
@@ -146,8 +147,7 @@ export function formHtml(f, today, list = []) {
   for (let m = WORK_START; m < WORK_END; m += SLOT_STEP) times.push(m);
   const customer = sec('③ お客様', `
     <div class="grid grid-cols-2 gap-2">
-      ${lbl(`電話番号1${b('phone')}`, inp('phone', f.phone, { type: 'tel', ph: '090-0000-0000' }), { req: true })}<div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">電話番号2${b('phone2')}</span><button class="chip !py-0 !text-[11px] ${f.phone2None ? 'on' : ''}" data-phone2none title="電話番号が1つだけの場合">なし</button></div>${inp('phone2', f.phone2, { type: 'tel', ph: '06-0000-0000' })}</div>
-      <div id="hint" class="col-span-2 empty:hidden"></div>
+      <div class="col-span-2"><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">電話番号2${b('phone2')}</span><button class="chip !py-0 !text-[11px] ${f.phone2None ? 'on' : ''}" data-phone2none title="電話番号が1つだけの場合">なし</button></div>${inp('phone2', f.phone2, { type: 'tel', ph: '06-0000-0000' })}</div>
       ${lbl(`お名前${b('name')}`, inp('name', f.name, { ph: '山田 太郎' }), { req: true })}${lbl(`フリガナ${b('kana')}`, inp('kana', f.kana, { ph: 'ヤマダ タロウ' }), { req: true })}
     </div>
     <div class="flex items-center gap-2" title="担当鑑定士の公平な配分に使います（女性のお客様は、特定の鑑定士に偏らないようにします）">
@@ -197,7 +197,11 @@ export function formHtml(f, today, list = []) {
     <div class="grid grid-cols-3 items-end gap-2">${yn('companion', 'ご同席者', '立ち会う人のほかに、同席する人がいるか')}${yn('parking', '駐車スペース')}${yn('nameplate', '表札')}</div>
     ${f.companion === 'あり' ? inp('companionNote', f.companionNote, { ph: 'ご同席者は誰ですか？（例: ご主人、娘様）' }) : ''}
     <div><div class="text-xs font-bold">前日確認の連絡時間${b('contact')}</div><div class="flex items-center gap-1.5 mt-0.5">${time('contactFrom')}<span>〜</span>${time('contactTo')}</div></div>`);
-  return `<div id="checklist" class="sticky top-0 z-10">${checklistHtml(list)}</div>${flyerSec}${wantsSec}${customer}${when}${notes}`;
+  const entry = `<section class="bg-white rounded-lg shadow p-3 space-y-2">${lbl(`電話番号${b('phone')}`, inp('phone', f.phone, { type: 'tel', ph: '090-0000-0000', extra: 'autofocus' }), { req: true })}<div id="hint" class="empty:hidden space-y-2"></div></section>`;
+  const body = stage === 'new' ? `${flyerSec}${wantsSec}${customer}${when}${notes}`
+    : stage === 'open' ? '<button class="b b-sec w-full" data-newform>＋ 新しい受付として入力する</button>' : '';
+  if (part === 'body') return body;
+  return `<div id="checklist" class="sticky top-0 z-10">${checklistHtml(list)}</div>${entry}<div id="form-body" class="flex flex-col gap-2">${body}</div>`;
 }
 
 export function hintHtml(found, applied, summary = null, profile = null) {

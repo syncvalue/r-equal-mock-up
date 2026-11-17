@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { missingFields, companionText, wantsText, hasWants, mainSummary, hearingChecklist, profileText, fullName } from '../callcenter/intake.js';
+import { missingFields, companionText, wantsText, hasWants, mainSummary, hearingChecklist, profileText, fullName, entryStage } from '../callcenter/intake.js';
 import { flyerOf } from '../callcenter/master.js';
 
 const TODAY = '2026-10-24';
@@ -18,7 +18,7 @@ test('手入力だけで、必須項目がそろえば確定できる（備考�
 
 test('足りない項目を、それぞれ指摘する', () => {
   const blank = { ...typed, phone: '', name: '  ', kana: '  ', age: '', ageEst: '', gender: '', address: '', chirashi: null, flyerId: '', cats: [], wants: '', date: '' };
-  assert.deepEqual(missingFields(blank, { ...ready, areaConfirmed: false, selected: null }), ['来電のきっかけ（チラシのID）', '売りたいもの', '電話番号', 'お名前', 'フリガナ', '性別', '年齢（聞けない場合は、推測の年代）', '訪問先の住所', '希望日（今日以降）', '担当の鑑定士']);
+  assert.deepEqual(missingFields(blank, { ...ready, areaConfirmed: false, selected: null }), ['電話番号', '来電のきっかけ（チラシのID）', '売りたいもの', 'お名前', 'フリガナ', '性別', '年齢（聞けない場合は、推測の年代）', '訪問先の住所', '希望日（今日以降）', '担当の鑑定士']);
 });
 
 test('エリア未確認・存在しないチラシID・過去の日付', () => {
@@ -93,4 +93,20 @@ test('電話番号2も聞き取りの項目。番号を聞くか、「なし」�
   assert.equal(st({ phone2: '', phone2None: true }).asked, true);
   assert.equal(st({}).required, false);
   assert.deepEqual(missingFields({ ...typed, phone2: '', phone2None: false }, ready), []); // 電話番号2が未入力でも、確定できる
+});
+
+test('受電の入口: 電話番号が入るまでは待つ。予約のある番号は「予約あり」、なければ「新規の入力」。予約ありでも、新しい受付を選べる。変更中は入力を出す', () => {
+  const one = [{ id: 'r1' }];
+  assert.equal(entryStage({ phone: '', open: [] }), 'wait');
+  assert.equal(entryStage({ phone: '090-1234-56', open: [] }), 'wait'); // 桁が足りない
+  assert.equal(entryStage({ phone: '090-1234-5678', open: [] }), 'new');
+  assert.equal(entryStage({ phone: '0612345678', open: [] }), 'new'); // 固定電話（10桁）
+  assert.equal(entryStage({ phone: '090-1234-5678', open: one }), 'open');
+  assert.equal(entryStage({ phone: '090-1234-5678', open: one, forceNew: true }), 'new');
+  assert.equal(entryStage({ phone: '', open: [], editing: true }), 'new');
+  assert.equal(entryStage({ phone: '090-1234-5678', open: one, editing: true }), 'new');
+});
+
+test('聞き取りの順は、電話番号が最初（番号から、新規か変更かを判定する）', () => {
+  assert.deepEqual(hearingChecklist(typed).slice(0, 3).map((x) => x.key), ['phone', 'adType', 'flyer']);
 });

@@ -19,7 +19,7 @@ import { saveCustomerEval } from '../src/customerEval.js';
 import { purchaseSummary, customerProfile, historyCustomers } from '../src/customerHistory.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
-import { missingFields, companionText, wantsText, hearingChecklist, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
+import { missingFields, companionText, wantsText, hearingChecklist, entryStage, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 import { cooloffPage, filtersHtml, resultsHtml, formHtml as cooloffFormHtml, progressHtml, zoomHtml, REJECT_TEXT } from './cooloffView.js';
 import { RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY, STORE_VISITS_KEY } from '../src/store.js';
@@ -73,6 +73,8 @@ let calMode = 'week'; // 空きカレンダーの表示: week=週 / day=日別�
 let weekStart = addDays(0); // 空きカレンダーの先頭の日（1週間ずつ動かす）
 let callLogOpen = false; // 受電履歴を開いているか
 let editBy = null; // 変更を始めた人（オペレーター／配車係）
+let forceNew = false; // 予約のある電話番号でも、新しい受付を入力するとき
+let bodyStage = 'wait'; // 電話番号の欄より下に、いま出している段階
 let editId = null; // 受付済みの予約の日時を変更しているとき、その予約
 let custInfoRid = null; // 配車係が、お客様の詳細をモーダルで見ている予約
 let staffInfoId = null; // 顔写真を押して、詳細をモーダルで見ている鑑定士
@@ -305,6 +307,9 @@ function renderHint() {
   const past = findPast(form);
   const calls = callHistory([form.phone, form.phone2, past?.phone, past?.phone2], loadReservations());
   if (el) el.innerHTML = hintHtml(past, quoted, past ? purchaseSummary([form.phone, form.phone2, past.phone, past.phone2]) : null) + callLogHtml(calls, callLogOpen) + openResHtml(openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())));
+  const fresh = !past && !editId && /^0\d{9,10}$/.test(digits(form.phone)) && !openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())).length;
+  if (el && fresh) el.innerHTML = '<div class="text-xs font-bold text-emerald-700">🆕 この番号の受付・買取はありません</div>' + el.innerHTML;
+  syncBody();
 }
 
 // 左に入力欄（①お客様 → ②日時 → ③ヒアリングを縦一列）、右に配車。それぞれ、はみ出す場合だけ縦にスクロールする
@@ -416,7 +421,7 @@ function onField(e) {
   form = { ...form, [k]: NUMERIC.has(k) ? Number(e.target.value) : e.target.value };
   if (k === 'date' || k === 'start') form = { ...form, whenAsked: true };
   if (k === 'contactFrom' || k === 'contactTo') { form = syncContact(form, k); updateChecklist(); refresh(); return; }
-  if (k === 'phone' || k === 'phone2') quoted = false;
+  if (k === 'phone' || k === 'phone2') { quoted = false; forceNew = false; }
   if (k === 'phone2' && e.target.value && form.phone2None) { form = { ...form, phone2None: false }; document.querySelector('[data-phone2none]')?.classList.remove('on'); } // 番号を入れたら、「なし」は外す
   if (k === 'age' && e.target.value) { form = { ...form, ageEst: '' }; const sel = document.querySelector('[data-f="ageEst"]'); if (sel) sel.value = ''; } // 年齢を聞けたら、推測の年代は外す
   if (k === 'ageEst' && e.target.value) { form = { ...form, age: '' }; refresh(); return; } // 年代を選んだら、年齢の欄は空にする
@@ -493,8 +498,21 @@ document.addEventListener('pointermove', (e) => {
 });
 document.addEventListener('pointerup', () => { drag = null; });
 
-const formMarkup = () => (editId ? editBannerHtml(loadReservations().find((r) => r.id === editId), editBy) : '') + formHtml(form, ymdOf(new Date()), hearingChecklist(form));
+// 受電の入口: 電話番号から、新規の入力か、受け付け済みの予約の変更・取消かを分ける
+const stageNow = () => entryStage({ phone: form.phone, open: openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())), forceNew, editing: Boolean(editId) });
+const formMarkup = () => {
+  bodyStage = stageNow();
+  return (editId ? editBannerHtml(loadReservations().find((r) => r.id === editId), editBy) : '') + formHtml(form, ymdOf(new Date()), hearingChecklist(form), { stage: bodyStage });
+};
 const refresh = () => { $('#form').innerHTML = formMarkup(); renderDispatch(); };
+// 電話番号を入力中は、欄を作り直さず、その下だけを、段階が変わったときに入れ替える
+function syncBody() {
+  const el = $('#form-body');
+  const next = stageNow();
+  if (!el || next === bodyStage) return;
+  bodyStage = next;
+  el.innerHTML = formHtml(form, ymdOf(new Date()), hearingChecklist(form), { stage: next, part: 'body' });
+}
 
 // 聞き取り状況（✔聞いた／未）を、入力に合わせて更新する。入力欄は作り直さない（入力中の文字を壊さない）
 function updateChecklist() {
@@ -561,8 +579,9 @@ document.addEventListener('click', (e) => {
       quoted = true; refresh();
     }
   }
+  else if ('newform' in d) { forceNew = true; syncBody(); }
   else if ('confirm' in d) confirmReservation();
-  else if ('new' in d) { editId = null; stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
+  else if ('new' in d) { editId = null; forceNew = false; stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }
   else if ('calllog' in d) { callLogOpen = !callLogOpen; renderHint(); }
   else if (d.chg) startEdit(d.chg);
   else if (d.calarea) { cvArea = d.calarea; cvStaff = []; calSel = null; render(); } // エリアを変えたら、鑑定士の絞り込みは外す
@@ -585,7 +604,7 @@ document.addEventListener('click', (e) => {
     callDraft = { result: 'reached', memo: '' };
     flash(`${r.customer.name} 様の前日確認を記録しました`);
   }
-  else if ('editcancel' in d) { editId = null; form = blankForm(); weekStart = addDays(0); render(); }
+  else if ('editcancel' in d) { editId = null; forceNew = false; form = blankForm(); weekStart = addDays(0); render(); }
   else if ('saveedit' in d) saveEdit();
   else if (d.cancelres) { cancelId = d.cancelres; cancelReason = CANCEL_REASONS[0]; render(); }
   else if ('cancelclose' in d) { cancelId = null; render(); }
