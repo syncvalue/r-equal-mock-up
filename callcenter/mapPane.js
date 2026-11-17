@@ -1,7 +1,7 @@
 // 訪問先の地図（Leaflet + OpenStreetMap）。地図を押すとピンを置け、ドラッグで動かせる。画面側には、ピンが変わるたびに知らせる
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { roundPin, validPin } from './pin.js';
+import { roundPin, validPin, addressQueries } from './pin.js';
 
 const PIN_ICON = L.divIcon({ className: 'pin-icon', html: '<div class="pin-dot"></div>', iconSize: [24, 24], iconAnchor: [12, 24] });
 
@@ -29,10 +29,13 @@ export function mountPinMap(el, { pin, center, onPin }) {
   };
 }
 
-// 住所から、場所を探す（OpenStreetMapのNominatim）。見つからなければ null
+// 住所から、場所を探す（OpenStreetMapのNominatim）。細かい番地で見つからなければ、番地を削って、順に広げて探す。見つからなければ null
 export async function searchAddress(address) {
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&q=${encodeURIComponent(address)}`);
-  if (!res.ok) throw new Error(`検索に失敗しました（${res.status}）`);
-  const hit = (await res.json())[0];
-  return hit ? { lat: Number(hit.lat), lng: Number(hit.lon) } : null;
+  for (const q of addressQueries(address)) {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`検索に失敗しました（${res.status}）`);
+    const hit = (await res.json())[0];
+    if (hit) return { lat: Number(hit.lat), lng: Number(hit.lon) };
+  }
+  return null;
 }

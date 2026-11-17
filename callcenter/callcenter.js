@@ -334,6 +334,7 @@ function openPinMap(el) {
   const area = compute().confirmed ?? AREAS[0];
   const center = locateAddress(form.address, area) ?? area;
   pinMap = mountPinMap($('#pin-map'), { pin: form.pin, center, onPin: setPin });
+  if (!form.pin) searchPin(); // ピンがなければ、住所の場所へ地図を動かす
 }
 function closePinMap() { if (pinMap) { pinMap.destroy(); pinMap = null; } }
 function setPin(pin) {
