@@ -35,7 +35,7 @@ test('サンプルの受付: 鑑定士の予定が重ならず、欠勤の鑑定
 test('サンプルの受付: 全項目を、変更用の入力に戻せる。必須項目がそろっている', () => {
   list.forEach((r) => {
     const f = formFromRecord(r, blankForm(NOW));
-    assert.ok(f.lastName && f.firstName && f.lastKana && f.firstKana && f.phone && f.gender && f.age && f.address, r.id);
+    assert.ok(f.name && f.kana && f.phone && f.gender && f.age && f.address, r.id);
     assert.ok(f.chirashi !== null && (f.cats.length || Object.values(f.mainItems).some((n) => n > 0) || f.wants), r.id);
   });
 });

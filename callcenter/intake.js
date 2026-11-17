@@ -1,20 +1,20 @@
 // 受付の入力チェック（画面に依存しない純関数）。オペレーターが手で入力して確定できる条件をここで決める。
-import { MAIN_ITEMS, qtyLabel, joinName } from './master.js';
+import { MAIN_ITEMS, qtyLabel } from './master.js';
 
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 
 // 確定に足りない項目の名前を返す（空なら確定できる）。areaConfirmed=Googleマップで確認して営業エリアを確定済み／selected=担当の鑑定士が決まっている
 export function missingFields(form, { areaConfirmed, selected, today }) {
   const missing = [];
+  if (form.chirashi === null) missing.push(form.flyerId.trim() ? 'チラシのID（該当なし）' : '来電のきっかけ（チラシのID）');
+  if (!hasWants(form)) missing.push('売りたいもの');
   if (!/^0\d{9,10}$/.test(digits(form.phone))) missing.push('電話番号');
-  if (!form.lastName.trim() || !form.firstName.trim()) missing.push('お名前（姓・名）');
-  if (!form.lastKana.trim() || !form.firstKana.trim()) missing.push('フリガナ（セイ・メイ）');
+  if (!form.name.trim()) missing.push('お名前');
+  if (!form.kana.trim()) missing.push('フリガナ');
   if (!form.gender) missing.push('性別');
   if (!String(form.age ?? '').trim() && !form.ageEst) missing.push('年齢（聞けない場合は、推測の年代）');
   if (!form.address.trim()) missing.push('訪問先の住所');
   else if (!areaConfirmed) missing.push('営業エリアの確認（Googleマップ）');
-  if (form.chirashi === null) missing.push(form.flyerId.trim() ? 'チラシのID（該当なし）' : '来電のきっかけ（チラシのID）');
-  if (!hasWants(form)) missing.push('売りたいもの');
   if (!form.date || form.date < today) missing.push('希望日（今日以降）');
   if (!selected) missing.push('担当の鑑定士');
   return missing;
@@ -32,8 +32,9 @@ export const wantsText = (form) => [mainSummary(form).join('、'), form.cats.joi
 // ---- 聞き取りの確認（聞き忘れ防止） ---------------------------------------------------------
 // 項目ごとに「聞いた／まだ聞いていない」を返す。「なし」「特になし」と聞いた場合も、聞いた扱い。
 export const CHECK_ITEMS = [
+  ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'],
   ['phone', '電話番号1'], ['phone2', '電話番号2'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['age', '年齢'], ['zip', '郵便番号'], ['address', '住所'],
-  ['when', '希望日時'], ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'],
+  ['when', '希望日時'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'],
   ['large', '大型品'], ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
 ];
 // 確定に必須の項目（足りないと確定できない）。それ以外は、聞き忘れの注意だけ出す
@@ -42,7 +43,7 @@ export const REQUIRED_CHECKS = new Set(['phone', 'name', 'kana', 'gender', 'age'
 export function hearingChecklist(form) {
   const filled = (v) => String(v ?? '').trim() !== '';
   const asked = {
-    phone: /^0\d{9,10}$/.test(digits(form.phone)), phone2: filled(form.phone2) || Boolean(form.phone2None), name: filled(form.lastName) && filled(form.firstName), kana: filled(form.lastKana) && filled(form.firstKana), gender: filled(form.gender), age: filled(form.age) || filled(form.ageEst), zip: filled(form.zip), address: filled(form.address),
+    phone: /^0\d{9,10}$/.test(digits(form.phone)), phone2: filled(form.phone2) || Boolean(form.phone2None), name: filled(form.name), kana: filled(form.kana), gender: filled(form.gender), age: filled(form.age) || filled(form.ageEst), zip: filled(form.zip), address: filled(form.address),
     when: Boolean(form.whenAsked), flyer: form.chirashi !== null, wants: hasWants(form), attendee: filled(form.attendee), companion: filled(form.companion),
     large: filled(form.large), parking: filled(form.parking), nameplate: filled(form.nameplate), contact: filled(form.contactFrom) || filled(form.contactTo), notes: filled(form.notes),
   };
@@ -59,8 +60,9 @@ export function wantedCategories(form) {
 }
 export const matchedSpecialties = (specialties, form) => { const w = wantedCategories(form); return specialties.filter((s) => w.includes(s)); };
 
-export const fullName = (form) => joinName(form.lastName, form.firstName);
-export const fullKana = (form) => joinName(form.lastKana, form.firstKana);
+const oneSpace = (v) => String(v ?? '').trim().replace(/[\s　]+/g, ' ');
+export const fullName = (form) => oneSpace(form.name);
+export const fullKana = (form) => oneSpace(form.kana);
 
 // 鑑定士のタブレットに出す、お客様の性別・年齢（聞けずに声色から推測した場合は、その旨）
 export function profileText(form, genderLabel) {

@@ -1,6 +1,6 @@
 // 受付の記録の組み立て・復元・差分（画面に依存しない純関数）。
 // 受付時の入力（form）をそのまま記録に残す（formData）ので、あとから全ての項目を変更できる。
-import { ATTENDEES, flyerOf, normalizeFlyerId, triggerText, contactText, splitName } from './master.js';
+import { ATTENDEES, flyerOf, normalizeFlyerId, triggerText, contactText, joinName } from './master.js';
 import { fullName, fullKana, wantsText, companionText, profileText } from './intake.js';
 import { minToHHMM } from '../src/reservations.js';
 
@@ -20,7 +20,7 @@ export function buildRecordFields(form, { area, pos }) {
       profile: profileText(form, genderLabel), companion: companionText(form), parking: form.parking || '未確認', nameplate: form.nameplate || '未確認', contact: contactText(form.contactFrom, form.contactTo),
     },
     customer: {
-      name: fullName(form), lastName: form.lastName.trim(), firstName: form.firstName.trim(), kana: fullKana(form), lastKana: form.lastKana.trim(), firstKana: form.firstKana.trim(),
+      name: fullName(form), kana: fullKana(form),
       phone: form.phone.trim(), phone2: form.phone2.trim(), zip: form.zip.trim(), address: form.address.trim(),
     },
     formData: { ...form }, // 変更するときに、入力欄をそのまま戻すため
@@ -29,19 +29,20 @@ export function buildRecordFields(form, { area, pos }) {
 
 const toMin = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
 
+// 姓・名を別に持っていた古い記録は、1つの欄にまとめる
+const legacyNames = (fd) => (fd.name === undefined && fd.lastName !== undefined ? { ...fd, name: joinName(fd.lastName, fd.firstName), kana: joinName(fd.lastKana, fd.firstKana) } : fd);
+
 // 記録から、入力（form）を戻す。formData がない古い記録は、残っている内容から、できる範囲で戻す
 export function formFromRecord(r, blank) {
   const base = r.formData
-    ? { ...blank, ...r.formData }
+    ? { ...blank, ...legacyNames(r.formData) }
     : (() => {
       const c = r.customer;
-      const [last, first] = c.lastName !== undefined ? [c.lastName, c.firstName] : splitName(c.name);
-      const [lastK, firstK] = c.lastKana !== undefined ? [c.lastKana, c.firstKana] : splitName(c.kana);
       const flyer = flyerOf(r.flyerId);
       const h = r.hearing ?? {};
       const known = (v) => (v && v !== '未確認' ? v : '');
       return {
-        ...blank, phone: c.phone ?? '', phone2: c.phone2 ?? '', lastName: last, firstName: first, lastKana: lastK, firstKana: firstK, zip: c.zip ?? '',
+        ...blank, phone: c.phone ?? '', phone2: c.phone2 ?? '', name: c.name ?? '', kana: c.kana ?? '', zip: c.zip ?? '',
         flyerId: flyer ? flyer.id : '', chirashi: flyer ? flyer.chirashi : null, wants: known(h.wants), mainItems: { ...blank.mainItems, ...(h.mainItems ?? {}) },
         attendee: ATTENDEES.includes(h.attendee) ? h.attendee : '', large: known(h.large), notes: known(h.notes) === '特になし' ? '' : known(h.notes),
         companion: ['あり', 'なし'].includes(String(h.companion).slice(0, 2)) ? String(h.companion).slice(0, 2) : '', parking: known(h.parking), nameplate: known(h.nameplate),

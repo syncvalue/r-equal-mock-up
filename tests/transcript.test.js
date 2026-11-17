@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { extractFromUtterance as ex, changedFields, DEMO_SCRIPT, dateOf, startOf, contactRangeOf } from '../callcenter/transcript.js';
 
 const NOW = new Date(2026, 9, 24, 9, 0); // 2026-10-24（土）
-const blank = { lastName: '', firstName: '', cats: [], wants: '', mainItems: { 背広: 0, 婦人服: 0, 婦人靴: 0, 紳士靴: 0 } };
+const blank = { name: '', kana: '', cats: [], wants: '', mainItems: { 背広: 0, 婦人服: 0, 婦人靴: 0, 紳士靴: 0 } };
 
 test('チラシはIDで特定する。号の日付を訪問日と取り違えず、IDなしの発言ではチラシを決めない', () => {
   const p = ex('10月19日のチラシを見て電話しました。', blank, NOW);
@@ -22,12 +22,12 @@ test('IDのない広告は、言葉から判定する', () => {
 
 test('名前・フリガナ・電話番号', () => {
   const p = ex('姓は山田、名は花子です。フリガナはヤマダ、ハナコです。', blank, NOW);
-  assert.deepEqual([p.lastName, p.firstName, p.lastKana, p.firstKana], ['山田', '花子', 'ヤマダ', 'ハナコ']);
+  assert.deepEqual([p.name, p.kana], ['山田 花子', 'ヤマダ ハナコ']);
   assert.equal(ex('電話番号は090-1234-5678です。', blank, NOW).phone, '090-1234-5678');
   const w = ex('山田花子と申します。フリガナはヤマダハナコです。', blank, NOW); // 分けずに名乗った場合は、姓を2文字として分ける
-  assert.deepEqual([w.lastName, w.firstName, w.lastKana, w.firstKana], ['山田', '花子', 'ヤマダ', 'ハナコ']);
-  assert.deepEqual([ex('山田 太郎と申します', blank, NOW).lastName, ex('山田 太郎と申します', blank, NOW).firstName], ['山田', '太郎']);
-  assert.equal(ex('私は田中と申します', blank, NOW).lastName, '田中');
+  assert.deepEqual([w.name, w.kana], ['山田 花子', 'ヤマダ ハナコ']);
+  assert.deepEqual(ex('山田 太郎と申します', blank, NOW).name, '山田 太郎');
+  assert.equal(ex('私は田中と申します', blank, NOW).name, '田中');
   assert.equal(ex('電話番号は０９０－１１１１－２２２２です', blank, NOW).phone, '090-1111-2222');
 });
 
@@ -71,7 +71,7 @@ test('日付と時刻', () => {
 test('デモ台本を流すと、必須項目がそろう', () => {
   let form = { ...blank };
   for (const l of DEMO_SCRIPT.filter((x) => x.who === 'cu')) form = { ...form, ...ex(l.text, form, NOW) };
-  assert.deepEqual([form.lastName, form.firstName, form.age, form.phone, form.phone2], ['山田', '花子', '62', '090-2468-1357', '06-1234-5678']);
+  assert.deepEqual([form.name, form.age, form.phone, form.phone2], ['山田 花子', '62', '090-2468-1357', '06-1234-5678']);
   assert.equal(form.gender, 'f');
   assert.equal(form.date, '2026-10-31');
   assert.equal(form.start, 780); // 午前中 → 午後1時に変更
@@ -79,7 +79,7 @@ test('デモ台本を流すと、必須項目がそろう', () => {
 });
 
 test('変わった項目だけ返す', () => {
-  assert.deepEqual(changedFields({ lastName: 'A', lastKana: 'B' }, { lastName: 'A', lastKana: '' }), ['lastKana']);
+  assert.deepEqual(changedFields({ name: 'A', kana: 'B' }, { name: 'A', kana: '' }), ['kana']);
 });
 
 test('チラシのIDの正規化と、チラシの特定', async () => {
@@ -94,7 +94,7 @@ test('チラシのIDの正規化と、チラシの特定', async () => {
 
 test('フリガナの長音は壊さない', () => {
   const k = ex('フリガナはサトウユーコです', blank, NOW); // 長音「ー」を壊さず、姓の読み（サトウ）で分ける
-  assert.deepEqual([k.lastKana, k.firstKana], ['サトウ', 'ユーコ']);
+  assert.deepEqual(k.kana, 'サトウ ユーコ');
 });
 
 test('デモ台本: マップでのエリア確認が住所のあとにあり、電話を切る発話で終わる', () => {
@@ -164,10 +164,10 @@ test('フルネーム・フルのフリガナを言われたら、姓と名・�
 
 test('反映ボタンで入れた発話: フルネームが姓の欄に入らず、姓と名に分かれる', () => {
   const p = ex('佐々木美咲と申します。フリガナはササキミサキです。', blank, NOW);
-  assert.deepEqual([p.lastName, p.firstName, p.lastKana, p.firstKana], ['佐々木', '美咲', 'ササキ', 'ミサキ']);
+  assert.deepEqual([p.name, p.kana], ['佐々木 美咲', 'ササキ ミサキ']);
   const q = ex('お名前は山田花子です。', blank, NOW);
-  assert.deepEqual([q.lastName, q.firstName], ['山田', '花子']);
+  assert.deepEqual(q.name, '山田 花子');
   const kanaOnly = ex('フリガナはヤマダハナコです', blank, NOW); // 名前を言わず、フリガナだけの発話でも分ける
-  assert.deepEqual([kanaOnly.lastKana, kanaOnly.firstKana], ['ヤマダ', 'ハナコ']);
-  assert.equal(ex('私は主婦です。', blank, NOW).lastName, undefined); // 「私は〜です」を、名前と取り違えない
+  assert.deepEqual(kanaOnly.kana, 'ヤマダ ハナコ');
+  assert.equal(ex('私は主婦です。', blank, NOW).name, undefined); // 「私は〜です」を、名前と取り違えない
 });

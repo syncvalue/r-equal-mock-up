@@ -144,12 +144,11 @@ export function formHtml(f, today, list = []) {
   const none = (key, label) => `<button class="chip !py-0 !text-[11px]" data-none="${key}" title="聞いたが、特にない場合">${label}</button>`;
   const times = [];
   for (let m = WORK_START; m < WORK_END; m += SLOT_STEP) times.push(m);
-  const customer = sec('① お客様', `
+  const customer = sec('③ お客様', `
     <div class="grid grid-cols-2 gap-2">
       ${lbl(`電話番号1${b('phone')}`, inp('phone', f.phone, { type: 'tel', ph: '090-0000-0000' }), { req: true })}<div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">電話番号2${b('phone2')}</span><button class="chip !py-0 !text-[11px] ${f.phone2None ? 'on' : ''}" data-phone2none title="電話番号が1つだけの場合">なし</button></div>${inp('phone2', f.phone2, { type: 'tel', ph: '06-0000-0000' })}</div>
       <div id="hint" class="col-span-2 empty:hidden"></div>
-      ${lbl(`姓${b('name')}`, inp('lastName', f.lastName, { ph: '山田' }), { req: true })}${lbl('名', inp('firstName', f.firstName, { ph: '太郎' }), { req: true })}
-      ${lbl(`セイ${b('kana')}`, inp('lastKana', f.lastKana, { ph: 'ヤマダ' }), { req: true })}${lbl('メイ', inp('firstKana', f.firstKana, { ph: 'タロウ' }), { req: true })}
+      ${lbl(`お名前${b('name')}`, inp('name', f.name, { ph: '山田 太郎' }), { req: true })}${lbl(`フリガナ${b('kana')}`, inp('kana', f.kana, { ph: 'ヤマダ タロウ' }), { req: true })}
     </div>
     <div class="flex items-center gap-2" title="担当鑑定士の公平な配分に使います（女性のお客様は、特定の鑑定士に偏らないようにします）">
       <span class="text-xs font-bold shrink-0">性別<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>${b('gender')}</span>
@@ -164,36 +163,39 @@ export function formHtml(f, today, list = []) {
       ${lbl(`訪問先の住所${b('address')}`, `<div class="flex gap-1">${inp('address', f.address, { ph: '大阪府大阪市阿倍野区…' })}<button class="b b-sec mt-0.5 shrink-0 !px-2" data-map title="Googleマップで開く">🗺</button></div>`, { req: true, cls: 'col-span-2' })}
     </div>
     <div id="zip-cands" class="empty:hidden">${zipCandidatesHtml(f)}</div>`);
-  const when = sec('② 訪問の希望日時', `
+  const when = sec('④ 訪問の希望日時', `
     <div class="grid grid-cols-2 gap-2">
       ${lbl(`希望日${b('when')}`, inp('date', f.date, { type: 'date', extra: `min="${today}"` }), { req: true })}
       ${lbl('開始時刻', `<select class="inp mt-0.5" data-f="start">${times.map((m) => `<option value="${m}" ${m === f.start ? 'selected' : ''}>${minToHHMM(m)}</option>`).join('')}</select>`, { req: true })}
     </div>
     <div class="flex items-center gap-1.5 flex-wrap"><span class="text-xs font-bold">所要時間</span>${DURATIONS.map((d) => `<button class="chip ${f.dur === d ? 'on' : ''}" data-dur="${d}">${d}分</button>`).join('')}
       <span class="text-xs text-slate-500">→ ${minToHHMM(f.start)}〜${minToHHMM(f.start + f.dur)}</span></div>`);
-  const hearing = sec('③ ヒアリング', `
+  const flyerSec = sec('① 来電のきっかけ', `
     <div><div class="text-xs font-bold">来電のきっかけ<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>${b('flyer')}</div>
       <div class="flex items-center gap-2 mt-0.5"><div class="w-36 shrink-0">${inp('flyerId', f.flyerId, { ph: 'チラシID（N1019）' })}</div><div id="flyer-result" class="text-xs">${flyerResultHtml(f.flyerId)}</div></div>
-      <div class="flex flex-wrap items-center gap-1 mt-1"><span class="text-xs text-slate-500">IDなし</span>${CHIRASHI.map((c, i) => (isFlyerIndex(i) ? '' : `<button class="chip ${f.chirashi === i ? 'on' : ''}" data-chirashi="${i}">${esc(c)}</button>`)).join('')}</div></div>
+      <div class="flex flex-wrap items-center gap-1 mt-1"><span class="text-xs text-slate-500">IDなし</span>${CHIRASHI.map((c, i) => (isFlyerIndex(i) ? '' : `<button class="chip ${f.chirashi === i ? 'on' : ''}" data-chirashi="${i}">${esc(c)}</button>`)).join('')}</div></div>`);
+  const wantsSec = sec('② 売りたいもの', `
     <div><div class="text-xs font-bold">売りたいもの<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>${b('wants')}</div>
       <div class="text-[11px] text-slate-500 mt-0.5">メイン商材</div>
       <div class="grid grid-cols-2 gap-1 mt-0.5">${MAIN_ITEMS.map((k) => `<div class="flex"><span class="w-14 shrink-0 flex items-center justify-center rounded-l border border-r-0 border-slate-400 bg-slate-100 text-xs font-bold">${k}</span>
         <select class="inp !rounded-l-none ${f.mainItems[k] ? 'sel' : ''}" data-main="${k}"><option value="0">(数量)</option>${MAIN_BANDS.map((b) => `<option value="${b.min}" ${f.mainItems[k] === b.min ? 'selected' : ''}>${b.label}</option>`).join('')}</select></div>`).join('')}</div>
       <div class="text-[11px] text-slate-500 mt-1.5">その他の商材</div>
       <div class="flex flex-wrap gap-1 mt-0.5">${CATEGORIES.map((c) => `<button class="chip ${f.cats.includes(c) ? 'on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-      <textarea class="inp mt-1" rows="4" data-f="wants" placeholder="ブランド・点数などの詳細（例: ヴィトン 3点、ロレックス 2本）">${esc(f.wants)}</textarea></div>
+      <textarea class="inp mt-1" rows="4" data-f="wants" placeholder="ブランド・点数などの詳細（例: ヴィトン 3点、ロレックス 2本）">${esc(f.wants)}</textarea></div>`);
+  const restHtml = `
     <div class="grid grid-cols-2 gap-2">
       ${lbl(`当日の立会い${b('attendee')}`, `<select class="inp mt-0.5" data-f="attendee"><option value="">（未確認）</option>${ATTENDEES.map((a) => `<option ${a === f.attendee ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`)}
       <div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">大型品・その他の確認${b('large')}</span>${none('large', '特になし')}</div>${inp('large', f.large, { ph: '例: ゴルフクラブも売れるか' })}</div>
     </div>
-    <div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">訪問時の注意${b('notes')}</span>${none('notes', '特になし')}</div><textarea class="inp mt-0.5" rows="2" data-f="notes" placeholder="例: 1階エントランスで待ち合わせ。午前中が電話がつながりやすい">${esc(f.notes)}</textarea></div>`);
+    <div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">訪問時の注意${b('notes')}</span>${none('notes', '特になし')}</div><textarea class="inp mt-0.5" rows="2" data-f="notes" placeholder="例: 1階エントランスで待ち合わせ。午前中が電話がつながりやすい">${esc(f.notes)}</textarea></div>`;
   const yn = (key, label, hint = '') => `<div title="${hint}"><div class="text-xs font-bold whitespace-nowrap">${label}${b(key)}</div><div class="flex gap-1 mt-0.5">${YESNO.map((o) => `<button class="b b-sec flex-1 !px-1 ${f[key] === o ? 'on' : ''}" data-yn="${key}|${o}">${o}</button>`).join('')}</div></div>`;
   const time = (key) => `<select class="inp" data-f="${key}"><option value="">（未確認）</option><option value="none" ${f[key] === 'none' ? 'selected' : ''}>指定なし</option>${CONTACT_TIMES.map((t) => `<option ${t === f[key] ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
-  const notes = sec('④ 備考・補足など', `
+  const notes = sec('⑤ 確認・備考', `
+    ${restHtml}
     <div class="grid grid-cols-3 items-end gap-2">${yn('companion', 'ご同席者', '立ち会う人のほかに、同席する人がいるか')}${yn('parking', '駐車スペース')}${yn('nameplate', '表札')}</div>
     ${f.companion === 'あり' ? inp('companionNote', f.companionNote, { ph: 'ご同席者は誰ですか？（例: ご主人、娘様）' }) : ''}
     <div><div class="text-xs font-bold">前日確認の連絡時間${b('contact')}</div><div class="flex items-center gap-1.5 mt-0.5">${time('contactFrom')}<span>〜</span>${time('contactTo')}</div></div>`);
-  return `<div id="checklist" class="sticky top-0 z-10">${checklistHtml(list)}</div>${customer}${when}${hearing}${notes}`;
+  return `<div id="checklist" class="sticky top-0 z-10">${checklistHtml(list)}</div>${flyerSec}${wantsSec}${customer}${when}${notes}`;
 }
 
 export function hintHtml(found, applied, summary = null, profile = null) {

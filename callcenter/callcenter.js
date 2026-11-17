@@ -9,7 +9,7 @@ import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { initHelp } from '../src/help.js';
 import { esc } from '../src/format.js';
-import { CANCEL_REASONS, blankMain, joinName, splitName, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
+import { CANCEL_REASONS, blankMain, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml, zipCandidatesHtml } from './view.js';
 import { dispatcherHtml, staffModalHtml, customerModalHtml, BOARD_ROW } from './dispatcherView.js';
 import { blankForm as makeBlankForm } from './form.js';
@@ -195,7 +195,7 @@ const FLASH = { mainItems: '[data-main].sel', companion: '[data-yn^="companion|"
 function flashFields(keys) {
   keys.forEach((k) => document.querySelectorAll(FLASH[k] ?? `[data-f="${k}"]`).forEach((el) => {
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
-    if (k === 'phone' || k === 'lastName') el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (k === 'phone' || k === 'name') el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }));
 }
 
@@ -556,9 +556,7 @@ document.addEventListener('click', (e) => {
   else if ('quote' in d) {
     const c = findPast(form);
     if (c) {
-      const [last, first] = c.lastName !== undefined ? [c.lastName, c.firstName] : splitName(c.name);
-      const [lastK, firstK] = c.lastKana !== undefined ? [c.lastKana, c.firstKana] : splitName(c.kana);
-      form = { ...form, lastName: last, firstName: first, lastKana: lastK, firstKana: firstK, phone2: form.phone2 || c.phone2 || '', zip: c.zip, address: c.address };
+      form = { ...form, name: c.name ?? '', kana: c.kana ?? '', phone2: form.phone2 || c.phone2 || '', zip: c.zip, address: c.address };
       quoted = true; refresh();
     }
   }

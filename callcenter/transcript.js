@@ -1,11 +1,11 @@
 // 通話の文字起こしから、ヒアリング項目を拾い出す（デモ）。実際は音声認識＋AIで行う処理を、キーワードと正規表現で代用している。
 // 画面に依存しない純関数。お客様の発話を1つ渡すと、入力欄にセットする項目だけを返す。
-import { CATEGORIES, MAIN_ITEMS, snapQty, flyerOf, normalizeFlyerId } from './master.js';
+import { CATEGORIES, MAIN_ITEMS, snapQty, flyerOf, normalizeFlyerId, joinName, splitName } from './master.js';
 import { splitFullName, splitFullKana } from './surnames.js';
 import { ymdOf } from '../src/reservations.js';
 
 export const FIELD_LABELS = {
-  phone: '電話番号', phone2: '電話番号2', lastName: 'お名前', firstName: 'お名前', lastKana: 'フリガナ', firstKana: 'フリガナ', age: '年齢', ageEst: '年齢', gender: '性別', zip: '郵便番号', address: '住所', chirashi: '来電のきっかけ', flyerId: 'チラシのID',
+  phone: '電話番号', phone2: '電話番号2', name: 'お名前', kana: 'フリガナ', age: '年齢', ageEst: '年齢', gender: '性別', zip: '郵便番号', address: '住所', chirashi: '来電のきっかけ', flyerId: 'チラシのID',
   cats: '売りたいもの', mainItems: 'メイン商材（数量）', wants: '点数・ブランド', attendee: '当日の立会い', companion: 'ご同席者', companionNote: 'ご同席者', parking: '駐車スペース', nameplate: '表札', contactFrom: '前日確認の連絡時間', contactTo: '前日確認の連絡時間', large: '大型品', notes: '訪問時の注意', date: '希望日', start: '開始時刻',
 };
 
@@ -138,15 +138,15 @@ export function extractFromUtterance(text, form, now = new Date(), dur = 90) {
     if (address) patch.address = address[0];
     const split = s.match(/姓は([^\s、。]+)[、,\s]*名は([^\s、。]+?)(?:です|と申|。|$)/); // 「姓は山田、名は花子です」
     const whole = s.match(/お?名前は([^、。]{2,10}?)(?:です|といいます|と申します)/) ?? s.match(/([^、。]{2,10}?)(?:と申します|といいます)/);
-    if (split) { patch.lastName = split[1]; patch.firstName = split[2]; }
+    if (split) patch.name = joinName(split[1], split[2]);
     else if (whole) { // 姓と名を分けずに名乗った場合は、空白・姓の辞書で分ける（辞書にない姓は、2文字の姓として分ける）
       const full = whole[1].replace(/^(?:私|わたし|わたくし)は?/, '').replace(/^お?名前は/, '');
-      [patch.lastName, patch.firstName] = splitFullName(full);
+      patch.name = joinName(...splitFullName(full));
     }
     const kana = s.match(/(?:フリガナ|ふりがな|読み方?)(?:は|を)\s*([ァ-ヶー]+)(?:[、,\s]+([ァ-ヶー]+))?/);
     if (kana) {
-      if (kana[2]) { patch.lastKana = kana[1]; patch.firstKana = kana[2]; }
-      else [patch.lastKana, patch.firstKana] = splitFullKana(kana[1], patch.lastName ?? form.lastName, patch.firstName ?? form.firstName); // 続けて言われた場合は、姓の読みで分ける
+      if (kana[2]) patch.kana = joinName(kana[1], kana[2]);
+      else patch.kana = joinName(...splitFullKana(kana[1], ...splitName(patch.name ?? form.name))); // 続けて言われた場合は、姓の読みで分ける
     }
     const age = s.match(/(\d{1,3})\s*歳/) ?? s.match(/([2-9]0)代/);
     if (age && !/歳.*(年|月)|築|歳月/.test(s)) { patch.age = /歳/.test(age[0]) ? age[1] : `${age[1]}代`; patch.ageEst = ''; } // 本人から聞けた年齢（推測の年代は外す）
