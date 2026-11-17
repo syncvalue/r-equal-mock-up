@@ -6,7 +6,7 @@ export function blankForm(now = new Date()) {
   const tomorrow = ymdOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
   return {
     phone: '', phone2: '', phone2None: false, name: '', kana: '', gender: '', genderEst: false, age: '', ageEst: '', zip: '', address: '', areaId: null, areaAddr: '',
-    chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '',
+    inquiryType: '電話', adType: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '',
     contactFrom: '', contactTo: '', date: tomorrow, start: 10 * 60, dur: 90, userId: null,
   };
 }

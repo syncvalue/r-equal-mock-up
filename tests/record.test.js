@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildRecordFields, formFromRecord, diffRecords } from '../callcenter/record.js';
-import { blankMain } from '../callcenter/master.js';
+import { blankMain, INQUIRY_TYPES, AD_TYPES } from '../callcenter/master.js';
 
 const blank = () => ({
   phone: '', phone2: '', phone2None: false, name: ' ', kana: ' ', gender: '', genderEst: false, age: '', ageEst: '', zip: '', address: '', areaId: null, areaAddr: '',
-  chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '',
+  inquiryType: '電話', adType: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '',
   contactFrom: '', contactTo: '', date: '2026-10-26', start: 600, dur: 90, userId: null,
 });
 const area = { id: 'osaka', lat: 34.69, lng: 135.5 };
@@ -51,4 +51,18 @@ test('変更前後の差分: 変わった項目だけ、項目名つきで出る
   assert.deepEqual(d.map((x) => x.label), ['訪問日時', '担当鑑定士', '訪問先', '駐車スペース']);
   assert.deepEqual([d[1].from, d[1].to], ['松田 亮', '西田 翼']);
   assert.deepEqual(diffRecords(before, rec(filled), (id) => names[id]), []); // 変更なしなら、差分なし
+});
+
+test('問合せ種別と広告種別を記録する。きっかけの文には、広告種別と、電話以外の問合せ種別を入れる', () => {
+  const r = rec({ ...filled, inquiryType: 'LINE', adType: '婦人ふく' });
+  assert.deepEqual([r.hearing.inquiryType, r.hearing.adType], ['LINE', '婦人ふく']);
+  assert.equal(r.hearing.trigger, 'LINE ／ 婦人ふく ／ 新聞折込チラシ（10/19号）（ID: N1019）');
+  assert.equal(rec({ ...filled, adType: '' }).hearing.trigger, '新聞折込チラシ（10/19号）（ID: N1019）'); // 電話で広告種別なしなら、これまでどおり
+  assert.deepEqual([formFromRecord(r, blank()).inquiryType, formFromRecord(r, blank()).adType], ['LINE', '婦人ふく']);
+});
+
+test('選択肢: 問合せ種別・広告種別', () => {
+  assert.deepEqual(INQUIRY_TYPES, ['電話', '店舗来店', '催事', '営業からの紹介依頼', 'HP（メール）', 'LINE', '持ち込み']);
+  assert.equal(AD_TYPES.length, 12);
+  assert.ok(AD_TYPES.includes('婦人ふく') && AD_TYPES.includes('げんえきやHP'));
 });

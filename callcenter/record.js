@@ -15,7 +15,7 @@ export function buildRecordFields(form, { area, pos }) {
     gender: form.gender, areaId: area?.id ?? null, lat: (pos ?? area)?.lat ?? 0, lng: (pos ?? area)?.lng ?? 0,
     flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyer),
     hearing: {
-      trigger: triggerText(form.chirashi, flyer), attendee: form.attendee || '未確認', wants: wantsText(form), mainItems: { ...form.mainItems },
+      inquiryType: form.inquiryType ?? '電話', adType: form.adType ?? '', trigger: triggerLine(form, flyer), attendee: form.attendee || '未確認', wants: wantsText(form), mainItems: { ...form.mainItems },
       large: form.large.trim() || '未確認', notes: form.notes.trim() || '未確認',
       profile: profileText(form, genderLabel), companion: companionText(form), parking: form.parking || '未確認', nameplate: form.nameplate || '未確認', contact: contactText(form.contactFrom, form.contactTo),
     },
@@ -28,6 +28,9 @@ export function buildRecordFields(form, { area, pos }) {
 }
 
 const toMin = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
+
+// きっかけの文: 広告種別と、電話以外の問合せ種別を、先頭に足す（鑑定士・配車係の画面は、この文を出す）
+const triggerLine = (form, flyer) => [form.inquiryType && form.inquiryType !== '電話' ? form.inquiryType : '', form.adType, triggerText(form.chirashi, flyer)].filter(Boolean).join(' ／ ');
 
 // 姓・名を別に持っていた古い記録は、1つの欄にまとめる
 const legacyNames = (fd) => (fd.name === undefined && fd.lastName !== undefined ? { ...fd, name: joinName(fd.lastName, fd.firstName), kana: joinName(fd.lastKana, fd.firstKana) } : fd);
@@ -43,7 +46,7 @@ export function formFromRecord(r, blank) {
       const known = (v) => (v && v !== '未確認' ? v : '');
       return {
         ...blank, phone: c.phone ?? '', phone2: c.phone2 ?? '', name: c.name ?? '', kana: c.kana ?? '', zip: c.zip ?? '',
-        flyerId: flyer ? flyer.id : '', chirashi: flyer ? flyer.chirashi : null, wants: known(h.wants), mainItems: { ...blank.mainItems, ...(h.mainItems ?? {}) },
+        inquiryType: h.inquiryType ?? '電話', adType: h.adType ?? '', flyerId: flyer ? flyer.id : '', chirashi: flyer ? flyer.chirashi : null, wants: known(h.wants), mainItems: { ...blank.mainItems, ...(h.mainItems ?? {}) },
         attendee: ATTENDEES.includes(h.attendee) ? h.attendee : '', large: known(h.large), notes: known(h.notes) === '特になし' ? '' : known(h.notes),
         companion: ['あり', 'なし'].includes(String(h.companion).slice(0, 2)) ? String(h.companion).slice(0, 2) : '', parking: known(h.parking), nameplate: known(h.nameplate),
       };

@@ -32,7 +32,7 @@ export const wantsText = (form) => [mainSummary(form).join('、'), form.cats.joi
 // ---- 聞き取りの確認（聞き忘れ防止） ---------------------------------------------------------
 // 項目ごとに「聞いた／まだ聞いていない」を返す。「なし」「特になし」と聞いた場合も、聞いた扱い。
 export const CHECK_ITEMS = [
-  ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'],
+  ['adType', '広告種別'], ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'],
   ['phone', '電話番号1'], ['phone2', '電話番号2'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['age', '年齢'], ['zip', '郵便番号'], ['address', '住所'],
   ['when', '希望日時'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'],
   ['large', '大型品'], ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
@@ -44,7 +44,7 @@ export function hearingChecklist(form) {
   const filled = (v) => String(v ?? '').trim() !== '';
   const asked = {
     phone: /^0\d{9,10}$/.test(digits(form.phone)), phone2: filled(form.phone2) || Boolean(form.phone2None), name: filled(form.name), kana: filled(form.kana), gender: filled(form.gender), age: filled(form.age) || filled(form.ageEst), zip: filled(form.zip), address: filled(form.address),
-    when: Boolean(form.whenAsked), flyer: form.chirashi !== null, wants: hasWants(form), attendee: filled(form.attendee), companion: filled(form.companion),
+    when: Boolean(form.whenAsked), adType: filled(form.adType), flyer: form.chirashi !== null, wants: hasWants(form), attendee: filled(form.attendee), companion: filled(form.companion),
     large: filled(form.large), parking: filled(form.parking), nameplate: filled(form.nameplate), contact: filled(form.contactFrom) || filled(form.contactTo), notes: filled(form.notes),
   };
   // 聞けなくて、声色から推測した性別・年齢は、入力済みとして数えるが、「推測」として区別する

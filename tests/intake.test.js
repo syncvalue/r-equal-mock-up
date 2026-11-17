@@ -52,6 +52,8 @@ test('聞き取りの確認: 何も聞いていなければ全て未、「なし
   assert.deepEqual([asked.large, asked.notes, asked.parking, asked.companion, asked.contact, asked.attendee, asked.when, asked.nameplate], [true, true, true, true, true, true, true, false]);
   assert.equal(st({ ...blank, chirashi: 2 }).flyer, true);
   assert.equal(st({ ...blank, mainItems: { 背広: 6 } }).wants, true);
+  assert.equal(hearingChecklist({ ...blank, adType: '' }).find((x) => x.key === 'adType').asked, false); // 広告種別も、聞き忘れの確認に出る（必須ではない）
+  assert.equal(hearingChecklist({ ...blank, adType: '背広' }).find((x) => x.key === 'adType').asked, true);
   assert.equal(hearingChecklist(blank).filter((x) => x.required).length, 8); // 必須は、電話・名前・フリガナ・性別・年齢・住所・きっかけ・売りたいもの
 });
 

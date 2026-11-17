@@ -10,7 +10,7 @@ import { isTentative, isCancelled, isReverted } from '../src/reservations.js';
 import { loadCurrentTrips, tripAreas } from '../src/trips.js';
 import { specialtiesOf, AREAS, areaById, conflictOf, conflictText, WORK_START, WORK_END, DURATIONS, SLOT_STEP } from '../src/dispatch.js';
 import { minToHHMM } from '../src/reservations.js';
-import { CHIRASHI, CATEGORIES, AGE_BANDS, MAIN_ITEMS, MAIN_BANDS, ATTENDEES, YESNO, CONTACT_TIMES, flyerOf, isFlyerIndex } from './master.js';
+import { CHIRASHI, INQUIRY_TYPES, AD_TYPES, CATEGORIES, AGE_BANDS, MAIN_ITEMS, MAIN_BANDS, ATTENDEES, YESNO, CONTACT_TIMES, flyerOf, isFlyerIndex } from './master.js';
 import { FIELD_LABELS } from './transcript.js';
 import { addressCandidates, normalizeZip, ZIP_TABLE } from '../src/zipAddress.js';
 import { fullName } from './intake.js';
@@ -170,7 +170,9 @@ export function formHtml(f, today, list = []) {
     </div>
     <div class="flex items-center gap-1.5 flex-wrap"><span class="text-xs font-bold">所要時間</span>${DURATIONS.map((d) => `<button class="chip ${f.dur === d ? 'on' : ''}" data-dur="${d}">${d}分</button>`).join('')}
       <span class="text-xs text-slate-500">→ ${minToHHMM(f.start)}〜${minToHHMM(f.start + f.dur)}</span></div>`);
+  const pick = (key, label, list, blankLabel) => lbl(`${label}${b(key)}`, `<select class="inp mt-0.5" data-f="${key}"><option value="">${blankLabel}</option>${list.map((o) => `<option ${o === f[key] ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`);
   const flyerSec = sec('① 来電のきっかけ', `
+    <div class="grid grid-cols-2 gap-2">${lbl('問合せ種別', `<select class="inp mt-0.5" data-f="inquiryType">${INQUIRY_TYPES.map((o) => `<option ${o === f.inquiryType ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`)}${pick('adType', '広告種別', AD_TYPES, '（選択しない）')}</div>
     <div><div class="text-xs font-bold">来電のきっかけ<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>${b('flyer')}</div>
       <div class="flex items-center gap-2 mt-0.5"><div class="w-36 shrink-0">${inp('flyerId', f.flyerId, { ph: 'チラシID（N1019）' })}</div><div id="flyer-result" class="text-xs">${flyerResultHtml(f.flyerId)}</div></div>
       <div class="flex flex-wrap items-center gap-1 mt-1"><span class="text-xs text-slate-500">IDなし</span>${CHIRASHI.map((c, i) => (isFlyerIndex(i) ? '' : `<button class="chip ${f.chirashi === i ? 'on' : ''}" data-chirashi="${i}">${esc(c)}</button>`)).join('')}</div></div>`);
