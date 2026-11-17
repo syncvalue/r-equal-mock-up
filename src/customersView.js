@@ -89,7 +89,7 @@ export function customerCallModal(s) {
       ${info('自分の訪問', `${row.visitCount}回・前回 ${date(row.lastVisitAt)}（${row.days}日前）・買取計 ${yen(row.total)}${row.declinedCount ? `・買取できなかった商品 ${row.declinedCount}点` : ''}`)}</dl>
     ${ng ? '<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-2 text-sm font-bold text-rose-700">🚫 「今後の連絡は不要」と言われています（電話は控えてください）</div>'
       : soon ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-2 text-sm font-bold text-amber-800">⚠ ${daysSince(last.at, now)}日前に電話しています（${esc(last.kind)}・${esc(last.by ?? '')}）。しつこいと思われないよう、ご注意ください</div>` : ''}
-    <a class="btn btn-primary w-full text-center !min-h-[52px] !py-2 text-lg" href="tel:${esc(row.phone.replace(/[^\d+]/g, ''))}">📞 ${esc(row.phone)} に電話をかける</a>
+    <a class="btn btn-primary flex w-full items-center justify-center !min-h-[52px] !py-2 text-lg" href="tel:${esc(row.phone.replace(/[^\d+]/g, ''))}">📞 ${esc(row.phone)} に電話をかける</a>
     <label class="block rounded-xl border border-yellow-300 bg-yellow-50 p-3"><span class="font-bold text-sm">📝 自分用のメモ${helpIcon('自分だけに見えます。入力すると自動で保存されます。')}</span>
       <textarea class="field mt-1" rows="2" data-cust="note" placeholder="電話しやすい時間・好み・次に提案したいもの など">${esc(row.memo)}</textarea></label>
     <div class="rounded-xl border p-3 space-y-2">
