@@ -145,6 +145,7 @@ function startEdit(id) {
   const r = loadReservations().find((x) => x.id === id);
   if (!r || isCancelled(r)) return;
   stopDemo();
+  done = null; // 直前の「仮確定しました」の画面が残っていると、右のカレンダーが出ず、入力欄も薄いままになる
   editId = id;
   editBy = tab === 'dispatch' ? '配車係' : operator;
   form = formFromRecord(r, blankForm()); // 受付時の入力を、そのまま戻す（全項目を変更できる）
