@@ -197,7 +197,7 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
     <div class="grid grid-cols-3 items-end gap-2">${yn('companion', 'ご同席者', '立ち会う人のほかに、同席する人がいるか')}${yn('parking', '駐車スペース')}${yn('nameplate', '表札')}</div>
     ${f.companion === 'あり' ? inp('companionNote', f.companionNote, { ph: 'ご同席者は誰ですか？（例: ご主人、娘様）' }) : ''}
     <div><div class="text-xs font-bold">前日確認の連絡時間${b('contact')}</div><div class="flex items-center gap-1.5 mt-0.5">${time('contactFrom')}<span>〜</span>${time('contactTo')}</div></div>`);
-  const entry = `<section class="bg-white rounded-lg shadow p-3 space-y-2">${lbl(`電話番号${b('phone')}`, inp('phone', f.phone, { type: 'tel', ph: '090-0000-0000', extra: 'autofocus' }), { req: true })}${f.phone ? '' : demoPhonesHtml()}<div id="hint" class="empty:hidden space-y-2"></div></section>`;
+  const entry = `<section class="bg-white rounded-lg shadow p-3 space-y-2"><div class="grid grid-cols-[1fr_8rem] gap-2">${lbl(`電話番号${b('phone')}`, inp('phone', f.phone, { type: 'tel', ph: '090-0000-0000', extra: 'autofocus' }), { req: true })}${lbl(`顧客ID${helpIcon('お客様を1人に決める番号です。電話番号から自動で入ります。IDを入れて、お客様を探すこともできます。\n新しいお客様は、受付を確定するときに発行されます。')}`, inp('customerId', f.customerId, { ph: '新規（自動）', extra: 'autocomplete="off"' }))}</div>${f.phone ? '' : demoPhonesHtml()}<div id="hint" class="empty:hidden space-y-2"></div></section>`;
   const body = stage === 'new' ? `${flyerSec}${wantsSec}${customer}${when}${notes}`
     : stage === 'open' ? '<button class="b b-sec w-full" data-newform>＋ 新しい受付として入力する</button>' : '';
   if (part === 'body') return body;
@@ -207,7 +207,7 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
 export function hintHtml(found, applied) {
   if (!found) return '';
   return `<section class="flex items-center justify-between gap-2 px-2 py-1.5"><span class="min-w-0 truncate"><b>${esc(found.name)} 様</b><span class="ml-1 text-slate-500">${esc(found.address)}</span></span>
-    ${applied ? '<span class="shrink-0 text-slate-500">反映済み</span>' : '<button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0" data-quote>引用</button>'}</section>`;
+    ${applied ? '<span class="shrink-0 text-slate-500">入力済み</span>' : `<span class="shrink-0"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-quote>前回の内容を入力</button>${helpIcon('お名前・フリガナ・郵便番号・住所を、前回の記録から入れます。入れたあとも、自由に直せます。')}</span>`}</section>`;
 }
 
 // ---- 配車（候補・空き状況） ----------------------------------------------------------
@@ -420,6 +420,7 @@ export function doneHtml(r) {
     <div class="text-2xl font-bold text-teal-700">✓ 仮確定しました${helpIcon('担当鑑定士は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、鑑定士のタブレットの予定に追加されます。')}</div>
     <dl class="text-sm grid grid-cols-[7rem_1fr] gap-y-1">
       <dt class="text-slate-500">受付番号</dt><dd class="font-bold">${esc(r.receptionNo)}</dd>
+      ${r.customer.customerId ? `<dt class="text-slate-500">顧客ID</dt><dd class="font-bold">${esc(r.customer.customerId)}</dd>` : ''}
       <dt class="text-slate-500">訪問日時</dt><dd class="font-bold">${esc(r.date)} ${esc(r.start)}〜${esc(r.end)}</dd>
       <dt class="text-slate-500">お客様</dt><dd class="font-bold">${esc(r.customer.name)} 様${genderParen(r.gender)}　${esc(r.customer.phone)}${r.customer.phone2 ? ` ／ ${esc(r.customer.phone2)}` : ''}</dd>
       <dt class="text-slate-500">訪問先</dt><dd>${esc(r.customer.address)}</dd>
@@ -445,7 +446,7 @@ export const statusBadge = (r) => {
 // お客様から折り返しの電話があったとき（やめる・日を変えたい）に、その番号で受け付け済みの予約を出す
 export function openResHtml(list) {
   if (!list.length) return '';
-  return `<section class="space-y-1 px-2 py-1.5"><div class="font-bold text-slate-900">これからの予約${helpIcon('変更・取消はここから行います')}</div>${list.map((r) => `<div class="flex items-center gap-2">
+  return `<section class="space-y-1 px-2 py-1.5"><div class="font-bold text-slate-900">訪問予定${helpIcon('変更・取消はここから行います')}</div>${list.map((r) => `<div class="flex items-center gap-2">
     <span class="min-w-0 flex-1 truncate"><b>${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}</b>　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</span>
     <button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0" data-chg="${r.id}">変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0 !text-rose-700" data-cancelres="${r.id}">取消</button></div>`).join('')}</section>`;
 }

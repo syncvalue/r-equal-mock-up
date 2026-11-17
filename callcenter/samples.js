@@ -5,6 +5,7 @@ import { ymdOf } from '../src/reservations.js';
 import { blankForm } from './form.js';
 import { blankMain, flyerOf } from './master.js';
 import { buildRecordFields } from './record.js';
+import { seedCustomerIds } from '../src/customerHistory.js';
 
 const SAMPLES = [
   // 翌々日（配車係が主に確定する日）
@@ -33,13 +34,17 @@ const stampOf = (d) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${
 export function sampleReservations(now = new Date()) {
   const day = (off) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + off);
   const list = [];
+  const digitsOf = (p) => String(p ?? '').replace(/\D/g, '');
+  const known = new Map(seedCustomerIds().map((c) => [digitsOf(c.phones[0]), c.id]));
+  let nextId = 200; // 過去の履歴にないお客様は、C000201 から順に付ける（同じ電話番号は同じID）
+  const idOfSample = (phone) => { const k = digitsOf(phone); if (!known.has(k)) known.set(k, `C${String(++nextId).padStart(6, '0')}`); return known.get(k); };
   const daysTo = (ymd) => Math.round((new Date(`${ymd}T00:00:00`) - day(0)) / 86400000);
   SAMPLES.forEach((sp0, i) => {
     const sp = { ...sp0, off: sp0.on ? daysTo(sp0.on) : sp0.off }; // on=日付で指定（買取の履歴に合わせる過去の訪問）
     const area = areaById(sp.area);
     const flyer = flyerOf(sp.f.flyerId);
     const form = {
-      ...blankForm(now), ...sp.f, date: ymdOf(day(sp.off)), start: sp.start, dur: sp.dur, areaId: area.id, areaAddr: sp.f.address,
+      ...blankForm(now), ...sp.f, customerId: idOfSample(sp.f.phone), date: ymdOf(day(sp.off)), start: sp.start, dur: sp.dur, areaId: area.id, areaAddr: sp.f.address,
       chirashi: sp.f.chirashi ?? flyer?.chirashi ?? null, cats: sp.f.cats ?? [], mainItems: { ...blankMain(), ...(sp.f.main ?? {}) }, phone2: sp.f.phone2 ?? '', whenAsked: true,
     };
     const pos = locateAddress(form.address, area);

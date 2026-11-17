@@ -16,8 +16,9 @@ import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
 import { callHistory } from '../src/callHistory.js';
 import { saveCustomerEval } from '../src/customerEval.js';
-import { customerProfile, historyCustomers, historyOf, declinedList } from '../src/customerHistory.js';
+import { customerProfile, historyCustomers, historyOf, declinedList, seedCustomerIds } from '../src/customerHistory.js';
 import { pastVisitRows } from './phoneTimeline.js';
+import { buildIdIndex, customerOfId, idOfPhones, issueCustomerId } from './customerId.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
 import { missingFields, companionText, wantsText, hearingChecklist, entryStage, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
@@ -101,6 +102,20 @@ let timer = null;
 let demoOpen = false; // 通話デモのウィンドウ
 let demoPos = { x: Math.max(8, window.innerWidth - 26 * 16 - 16), y: 64 };
 
+// 顧客ID: 過去のお客様と、これまでの受付から作る一覧。電話番号から引く／IDから引く／新しいIDを発行する
+const idIndex = () => buildIdIndex({ seeds: seedCustomerIds(), reservations: loadReservations() });
+// 電話番号から、顧客IDを入れ直す（知らない番号なら空。確定のときに発行する）
+function syncCustomerId() {
+  if (editId) return; // 受け付け済みの予約を直しているあいだは、お客様のIDを変えない
+  const id = idOfPhones(idIndex(), [form.phone, form.phone2]) ?? '';
+  if (id === form.customerId) return;
+  form = { ...form, customerId: id };
+  const el = document.querySelector('[data-f="customerId"]');
+  if (el) el.value = id;
+}
+// 確定のとき: 電話番号で知っているお客様ならそのID、知らなければ新しく発行する
+const resolveCustomerId = () => { const index = idIndex(); return idOfPhones(index, [form.phone, form.phone2]) ?? customerOfId(index, form.customerId)?.id ?? issueCustomerId(index); };
+
 // 電話番号が一致する、過去のお客様（既存の訪問予定・コールセンターの予約から探す）
 function findPast(f) {
   const mine = [f.phone, f.phone2].map(digits).filter((d) => d.length >= 10);
@@ -163,6 +178,7 @@ function saveEdit() {
   const x = compute();
   const before = loadReservations().find((r) => r.id === editId);
   if (!before || x.missing.length || !x.selected) return;
+  form = { ...form, customerId: resolveCustomerId() };
   const area = x.confirmed;
   const fields = { ...buildRecordFields(form, { area, pos: locateAddress(form.address, area) }), userId: x.selected.user.id };
   const nameOf = (id) => USERS.find((u) => u.id === id)?.name ?? id;
@@ -179,6 +195,7 @@ function saveEdit() {
 function confirmReservation() {
   const x = compute();
   if (x.missing.length || !x.selected) return;
+  form = { ...form, customerId: resolveCustomerId() };
   const reservations = x.reservations;
   const past = findPast(form);
   const area = x.confirmed;
@@ -427,7 +444,12 @@ function onField(e) {
   form = { ...form, [k]: NUMERIC.has(k) ? Number(e.target.value) : e.target.value };
   if (k === 'date' || k === 'start') form = { ...form, whenAsked: true };
   if (k === 'contactFrom' || k === 'contactTo') { form = syncContact(form, k); updateChecklist(); refresh(); return; }
-  if (k === 'phone' || k === 'phone2') { quoted = false; forceNew = false; }
+  if (k === 'customerId') { // IDを入れて探す: 知っているIDなら、電話番号を入れて、そのお客様の画面にする
+    const c = customerOfId(idIndex(), e.target.value);
+    if (c) { form = { ...form, customerId: c.id, phone: c.phones[0] ?? form.phone, phone2: form.phone2 || c.phones[1] || '' }; quoted = false; forceNew = false; refresh(); }
+    return;
+  }
+  if (k === 'phone' || k === 'phone2') { quoted = false; forceNew = false; syncCustomerId(); }
   if (k === 'phone2' && e.target.value && form.phone2None) { form = { ...form, phone2None: false }; document.querySelector('[data-phone2none]')?.classList.remove('on'); } // 番号を入れたら、「なし」は外す
   if (k === 'age' && e.target.value) { form = { ...form, ageEst: '' }; const sel = document.querySelector('[data-f="ageEst"]'); if (sel) sel.value = ''; } // 年齢を聞けたら、推測の年代は外す
   if (k === 'ageEst' && e.target.value) { form = { ...form, age: '' }; refresh(); return; } // 年代を選んだら、年齢の欄は空にする

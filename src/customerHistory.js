@@ -17,7 +17,7 @@ const SEED = {
   '090-2468-1357': {
     declined: [{ at: at('2026-04-12'), items: [{ name: 'ロレックス エクスプローラー', category: '腕時計', qty: 1, price: 450000 }] }],
     profile: { rank: 'A', trouble: { level: 'none', tags: [] }, cooloff: [] },
-    customer: { name: '山田 花子', kana: 'ヤマダ ハナコ', zip: '545-0052', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3', occupation: '主婦', birth: '1964-02-11' },
+    customer: { id: 'C000101', name: '山田 花子', kana: 'ヤマダ ハナコ', zip: '545-0052', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3', occupation: '主婦', birth: '1964-02-11' },
     visits: [
       { at: at('2026-08-03'), items: 'ブランドバッグ', total: 185000, lines: [L('ルイ・ヴィトン スピーディ30', 95000), L('シャネル マトラッセ チェーンウォレット', 90000)] },
       { at: at('2026-04-12'), items: '腕時計', total: 420000, lines: [L('ロレックス デイトジャスト', 380000), L('オメガ シーマスター（ベルト・箱付き）', 40000)] },
@@ -32,7 +32,7 @@ const SEED = {
   },
   // 予約はなく、過去の買取だけがあるお客様の見本（受電画面のデモ番号）
   '080-7777-0001': {
-    customer: { name: '小林 和子', kana: 'コバヤシ カズコ', zip: '560-0001', address: '大阪府豊中市桜の町1-2-3' },
+    customer: { id: 'C000103', name: '小林 和子', kana: 'コバヤシ カズコ', zip: '560-0001', address: '大阪府豊中市桜の町1-2-3' },
     visits: [
       { at: at('2026-06-10'), items: '着物・帯', total: 128000, lines: [L('訪問着', 78000), L('袋帯', 50000)] },
       { at: at('2025-12-02'), items: 'ブランドバッグ', total: 64000, lines: [L('コーチ ショルダーバッグ', 36000), L('ケイト・スペード トート', 28000)] }],
@@ -63,7 +63,7 @@ const SEED = {
   // 以下は、サンプルの受付のお客様（ランク・厄介度・クーリングオフ歴の見本）
   '090-5050-6060': {
     declined: [{ at: at('2026-09-12'), items: [{ name: 'パテック・フィリップ カラトラバ', category: '腕時計', qty: 1, price: 1200000 }, { name: 'ルイ・ヴィトン トランク（大）', category: 'ブランドバッグ', qty: 1, price: 150000 }] }, { at: at('2026-02-18'), items: [{ name: 'ダイヤ ネックレス 2.0ct', category: 'ジュエリー・貴金属', qty: 1, price: 780000 }] }],
-    customer: { name: '前川 玲子', kana: 'マエカワ レイコ', zip: '543-0001', address: '大阪府大阪市天王寺区上本町6-3-2' },
+    customer: { id: 'C000102', name: '前川 玲子', kana: 'マエカワ レイコ', zip: '543-0001', address: '大阪府大阪市天王寺区上本町6-3-2' },
     profile: { rank: 'S', trouble: { level: 'alert', tags: ['クレームが多い', '売却に至らないことが多い'], memo: '資産は多いが、査定額への不満が強く、成約まで時間がかかる。リーダーなど経験のある鑑定士が対応する' }, cooloff: [{ at: at('2026-06-20'), items: 'エルメス', memo: '契約の3日後に、金額への不満でクーリングオフ' }, { at: at('2025-12-04'), items: '宝飾品', memo: '契約の翌日に、家族の意向で' }] },
     visits: [
       { at: at('2026-09-12'), items: 'ブランドバッグ・時計', total: 1250000, lines: [L('エルメス バーキン30', 520000), L('エルメス ケリー28', 330000), L('ルイ・ヴィトン モノグラム トランク', 120000), L('ロレックス サブマリーナ', 180000), L('カルティエ タンク', 60000), L('シャネル ボーイシャネル', 40000)] },
@@ -79,25 +79,25 @@ const SEED = {
   },
   '06-6334-9988': {
     declined: [{ at: at('2026-08-25'), items: [{ name: 'ダイヤ リング 3.0ct', category: 'ジュエリー・貴金属', qty: 1, price: 900000 }] }],
-    customer: { name: '小山 敏子', kana: 'コヤマ トシコ', zip: '561-0881', address: '大阪府豊中市庄内西町3-4-5' },
+    customer: { id: 'C000104', name: '小山 敏子', kana: 'コヤマ トシコ', zip: '561-0881', address: '大阪府豊中市庄内西町3-4-5' },
     profile: { rank: 'S', trouble: { level: 'none', tags: [] }, cooloff: [] },
     visits: [{ at: at('2026-08-25'), items: 'ジュエリー', total: 980000 }, { at: at('2026-03-30'), items: '貴金属', total: 420000 }],
     evals: [],
   },
   '080-3322-1180': {
-    customer: { name: '中川 昭夫', kana: 'ナカガワ アキオ', zip: '590-0956', address: '大阪府堺市堺区南花田口町2-1-8' },
+    customer: { id: 'C000105', name: '中川 昭夫', kana: 'ナカガワ アキオ', zip: '590-0956', address: '大阪府堺市堺区南花田口町2-1-8' },
     profile: { rank: 'B', trouble: { level: 'caution', tags: ['価格交渉が強い'], memo: '相場より高い金額を求められる' }, cooloff: [] },
     visits: [{ at: at('2026-07-02'), items: '腕時計', total: 260000 }],
     evals: [],
   },
   '090-9922-3344': {
-    customer: { name: '藤本 雅子', kana: 'フジモト マサコ', zip: '530-0016', address: '大阪府大阪市北区中崎西2-4-12' },
+    customer: { id: 'C000106', name: '藤本 雅子', kana: 'フジモト マサコ', zip: '530-0016', address: '大阪府大阪市北区中崎西2-4-12' },
     profile: { rank: 'B', trouble: { level: 'alert', tags: ['文句が多い', '売るまでに時間がかかる'], memo: '訪問のたびに、条件への不満を言われる。時間に余裕をもって訪問する' }, cooloff: [{ at: at('2026-04-09'), items: '着物', memo: '契約の2日後に、やはり手元に残したいとのことで' }] },
     visits: [{ at: at('2026-06-01'), items: '着物', total: 230000 }],
     evals: [],
   },
   '090-4411-2201': {
-    customer: { name: '田村 恵子', kana: 'タムラ ケイコ', zip: '564-0053', address: '大阪府吹田市江坂町1-12-3' },
+    customer: { id: 'C000107', name: '田村 恵子', kana: 'タムラ ケイコ', zip: '564-0053', address: '大阪府吹田市江坂町1-12-3' },
     profile: { rank: 'C', trouble: { level: 'none', tags: [] }, cooloff: [] },
     visits: [{ at: at('2026-05-14'), items: '婦人服', total: 48000 }],
     evals: [],
@@ -105,6 +105,8 @@ const SEED = {
 };
 
 // 履歴にお客様の情報（氏名・住所など）を持つ人。コールセンターが、電話番号から「過去にご利用あり」を出すのに使う
+// 顧客ID（callcenter/customerId.js）の元になる、過去のお客様のID。電話番号は1つ
+export const seedCustomerIds = () => Object.entries(SEED).filter(([, v]) => v.customer?.id).map(([phone, v]) => ({ id: v.customer.id, name: v.customer.name, phones: [phone] }));
 export const historyCustomers = () => Object.entries(SEED).filter(([, v]) => v.customer).map(([phone, v]) => ({ ...v.customer, phone }));
 
 // 指定した鑑定士が担当した（評価を残した）お客様と、その鑑定士の訪問だけ。顧客検索（鑑定士が、自分の顧客に電話する）に使う。他の鑑定士の訪問は含めない

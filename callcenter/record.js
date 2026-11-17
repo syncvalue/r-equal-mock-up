@@ -20,7 +20,7 @@ export function buildRecordFields(form, { area, pos }) {
       profile: profileText(form, genderLabel), companion: companionText(form), parking: form.parking || '未確認', nameplate: form.nameplate || '未確認', contact: contactText(form.contactFrom, form.contactTo),
     },
     customer: {
-      name: fullName(form), kana: fullKana(form),
+      customerId: form.customerId || '', name: fullName(form), kana: fullKana(form),
       phone: form.phone.trim(), phone2: form.phone2.trim(), zip: form.zip.trim(), address: form.address.trim(),
     },
     formData: { ...form }, // 変更するときに、入力欄をそのまま戻すため
@@ -45,7 +45,7 @@ export function formFromRecord(r, blank) {
       const h = r.hearing ?? {};
       const known = (v) => (v && v !== '未確認' ? v : '');
       return {
-        ...blank, phone: c.phone ?? '', phone2: c.phone2 ?? '', name: c.name ?? '', kana: c.kana ?? '', zip: c.zip ?? '',
+        ...blank, phone: c.phone ?? '', phone2: c.phone2 ?? '', customerId: c.customerId ?? '', name: c.name ?? '', kana: c.kana ?? '', zip: c.zip ?? '',
         inquiryType: h.inquiryType ?? '電話', adType: h.adType ?? '', flyerId: flyer ? flyer.id : '', chirashi: flyer ? flyer.chirashi : null, wants: known(h.wants), mainItems: { ...blank.mainItems, ...(h.mainItems ?? {}) },
         attendee: ATTENDEES.includes(h.attendee) ? h.attendee : '', large: known(h.large), notes: known(h.notes) === '特になし' ? '' : known(h.notes),
         companion: ['あり', 'なし'].includes(String(h.companion).slice(0, 2)) ? String(h.companion).slice(0, 2) : '', parking: known(h.parking), nameplate: known(h.nameplate),

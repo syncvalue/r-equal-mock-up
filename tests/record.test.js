@@ -5,7 +5,7 @@ import { blankMain, INQUIRY_TYPES, AD_TYPES } from '../callcenter/master.js';
 
 const blank = () => ({
   phone: '', phone2: '', phone2None: false, name: ' ', kana: ' ', gender: '', genderEst: false, age: '', ageEst: '', zip: '', address: '', areaId: null, areaAddr: '',
-  inquiryType: '電話', adType: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '',
+  customerId: '', inquiryType: '電話', adType: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '',
   contactFrom: '', contactTo: '', date: '2026-10-26', start: 600, dur: 90, userId: null,
 });
 const area = { id: 'osaka', lat: 34.69, lng: 135.5 };
@@ -65,4 +65,13 @@ test('選択肢: 問合せ種別・広告種別', () => {
   assert.deepEqual(INQUIRY_TYPES, ['電話', '店舗来店', '催事', '営業からの紹介依頼', 'HP（メール）', 'LINE', '持ち込み']);
   assert.equal(AD_TYPES.length, 12);
   assert.ok(AD_TYPES.includes('婦人ふく') && AD_TYPES.includes('げんえきやHP'));
+});
+
+test('顧客ID: 記録に残り、変更用の入力に戻る。IDのない古い記録は空', () => {
+  const r = rec({ ...filled, customerId: 'C000101' });
+  assert.equal(r.customer.customerId, 'C000101');
+  assert.equal(formFromRecord(r, blank()).customerId, 'C000101');
+  assert.equal(rec({ ...filled, customerId: '' }).customer.customerId, '');
+  const old = { id: 'o', userId: 'u02', date: '2026-10-26', start: '10:00', end: '11:30', gender: 'm', areaId: 'osaka', hearing: {}, customer: { name: '田中 太郎', kana: 'タナカ タロウ', phone: '090-0000-1111', address: '大阪府堺市1-1', zip: '' } };
+  assert.equal(formFromRecord(old, blank()).customerId, '');
 });

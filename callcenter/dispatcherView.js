@@ -107,7 +107,7 @@ export function customerModalHtml({ rid, reservations, now }) {
   return `<div class="fixed inset-0 z-[60] flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/40" data-custclose></div>
     <div data-custmodal class="relative z-10 max-h-[92vh] w-[48rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">
       <div class="flex items-start justify-between gap-3">
-        <div class="space-y-1"><div class="text-lg font-bold">${esc(r.customer.name)} 様 <span class="text-sm font-normal text-slate-500">${esc(r.customer.kana ?? '')}</span></div>
+        <div class="space-y-1"><div class="text-lg font-bold">${esc(r.customer.name)} 様 <span class="text-sm font-normal text-slate-500">${esc(r.customer.kana ?? '')}</span>${r.customer.customerId ? `<span class="ml-2 text-xs font-normal text-slate-500">顧客ID ${esc(r.customer.customerId)}</span>` : ''}</div>
           <div class="flex flex-wrap items-center gap-1.5">${custRankBadge(p)}${troubleBadge(p)}${cooloffBadge(p)}${h.profile ? `<span class="text-xs ${String(h.profile).includes('未確認') ? 'text-slate-400' : 'text-slate-700'}" title="受電時に聞き取った、お客様の性別・年齢（聞けずに声から推測した場合は「推測」と付きます）">性別・年齢：${esc(h.profile)}</span>` : ''}</div>
           <div class="text-xs text-slate-700">${esc(r.customer.address)} ／ ${esc(phones.join(' ／ '))}</div></div>
         <button class="b b-sec !min-h-0 !py-1" data-custclose title="閉じる（Esc）">✕ 閉じる</button></div>
