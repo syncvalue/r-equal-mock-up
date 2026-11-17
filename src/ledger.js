@@ -2,7 +2,7 @@
 import { LEDGER_KEY } from './store.js';
 import { dateKey, newId } from './workday.js';
 
-export const OPENING_BALANCE = 3000000; // 帳簿の最初の残高（ダミー）。最初の記録より前の残高として扱う
+export const OPENING_BALANCE = 5000000; // 帳簿の最初の残高（ダミー）。最初の記録より前の残高として扱う
 
 export const IN_CATEGORIES = [
   { key: 'sales', label: '販売代金', hint: '商品の販売の入金（原価を入れると、週間収支の粗利になる）' },

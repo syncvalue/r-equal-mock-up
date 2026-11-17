@@ -3,10 +3,10 @@
 import { distanceKm } from './route.js';
 
 const TILE = 256;
-const HALF_W = 240; // 描くタイルの範囲（実際の表示枠より少し広め）
-const HALF_H = 150;
-const SAFE_W = 200; // 現在地をこの範囲に収める（印が枠からはみ出さない）
-const SAFE_H = 100;
+const HALF_W = 400; // 描くタイルの範囲（実際の表示枠より少し広め）
+const HALF_H = 300;
+const SAFE_W = 300; // 現在地をこの範囲に収める（印が枠からはみ出さない）
+const SAFE_H = 150;
 const ZOOMS = [16, 15, 14, 13];
 const DIRS = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
 
