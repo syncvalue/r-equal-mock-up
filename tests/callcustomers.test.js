@@ -109,3 +109,18 @@ test('画面: 顧客検索の一覧と、お客様の詳細（電話の記録・
   save('u01', '鑑定士 鈴木 一郎', 'ng');
   assert.match(V.modalView({ ...s, modal: { type: 'custcall', phone: '090-2468-1357', name: '山田 花子' } }), /今後の連絡は不要/);
 });
+
+test('電話の履歴: 受電か架電か、誰が（役割と名前）、何の目的かが、1件ごとに分かる', () => {
+  const call = makeCall({ ...base, result: 'appo', wish: '12/5午後' }).call;
+  const res = { id: 'r1', operator: '佐藤', receivedAt: '2026/11/01 10:00', date: '2026-11-10', start: '13:00', hearing: { wants: 'バッグ' }, customer: { name: '山田', phone: '090-1111-2222' },
+    confirmCalls: [{ result: 'noanswer', by: '渡辺', at: new Date(2026, 10, 9, 15).getTime(), memo: '' }] };
+  const [sales, confirm, intake] = callHistory(['090-1111-2222'], [res], [call]);
+  assert.deepEqual([sales.dir, sales.who, sales.purpose], ['out', '鑑定士 鈴木 一郎', '再訪の相談']);
+  assert.deepEqual([confirm.dir, confirm.who, confirm.purpose], ['out', 'オペレーター 渡辺', '前日確認']);
+  assert.deepEqual([intake.dir, intake.who, intake.purpose], ['in', 'オペレーター 佐藤', '訪問の予約']);
+});
+
+test('電話の履歴: オペレーターがかけた電話（前日確認）の例が、お客様の履歴に入っている', () => {
+  const list = callHistory(['090-2468-1357'], []);
+  assert.ok(list.some((x) => x.dir === 'out' && x.purpose === '前日確認'));
+});

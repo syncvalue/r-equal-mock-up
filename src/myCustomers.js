@@ -100,4 +100,4 @@ export function sortRows(rows, key) {
 }
 
 // 電話の履歴を、鑑定士に見せるとき: ほかの鑑定士の電話は、名前を伏せる（オペレーターと、自分の電話は、そのまま）
-export const maskOtherSales = (list, userId) => list.map((c) => (c.kind === '鑑定士が架電' && c.userId !== userId ? { ...c, by: '鑑定士（ほかの担当）' } : c));
+export const maskOtherSales = (list, userId) => list.map((c) => (c.kind === '鑑定士が架電' && c.userId !== userId ? { ...c, by: '鑑定士（ほかの担当）', who: '鑑定士（ほかの担当）' } : c));

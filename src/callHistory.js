@@ -7,6 +7,7 @@ const at = (s) => new Date(s.replace(' ', 'T') + ':00').getTime();
 const SEED_CALLS = {
   '090-2468-1357': [
     { at: at('2026-09-18 11:20'), by: '渡辺', kind: '問合せ', note: '着物も買い取れるか質問。「次回の訪問時に、状態を見て相談」とご案内' },
+    { at: at('2026-08-02 17:00'), by: '佐藤', kind: '前日確認の電話', note: 'つながった：8/3 の訪問を確認' },
     { at: at('2026-08-01 13:40'), by: '佐藤', kind: '日時変更', note: '訪問日時 8/2 → 8/3' },
     { at: at('2026-07-28 16:05'), by: '佐藤', kind: '新規受付', note: '8/3 訪問（ブランドバッグ）' },
     { at: at('2026-04-05 10:15'), by: '渡辺', kind: '新規受付', note: '4/12 訪問（腕時計）' },
@@ -17,6 +18,20 @@ const SEED_CALLS = {
     { at: at('2026-05-10 14:10'), by: '渡辺', kind: '取消', note: 'お客様のご都合（やめる）' },
   ],
 };
+
+// 1件ごとの、電話の向き（in＝お客様からの受電／out＝こちらからの架電）と、目的
+const KIND_INFO = {
+  新規受付: { dir: 'in', purpose: '訪問の予約' },
+  日時変更: { dir: 'in', purpose: '予約の変更' },
+  変更: { dir: 'in', purpose: '予約の変更' },
+  取消: { dir: 'in', purpose: '予約の取消' },
+  問合せ: { dir: 'in', purpose: '問い合わせ' },
+  前日確認の電話: { dir: 'out', purpose: '前日確認' },
+  鑑定士が架電: { dir: 'out', purpose: '再訪の相談' },
+};
+// 電話をした／受けた人。鑑定士の名前には、もともと「鑑定士」が付いている
+const whoOf = (c) => (c.kind === '鑑定士が架電' ? c.by : `オペレーター ${c.by ?? ''}`.trim());
+const withInfo = (c) => ({ ...c, ...KIND_INFO[c.kind], who: whoOf(c) });
 
 const CONFIRM_RESULT = { reached: 'つながった', noanswer: 'つながらなかった' };
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
@@ -37,5 +52,5 @@ export function callHistory(phones, reservations, calls = loadCallLog()) {
     if (r.status === 'cancelled') out.push({ at: changeMs(r.cancelledAt), by: r.cancelledBy, kind: '取消', note: r.cancelReason ?? '' });
   });
   callsOfPhones(calls, phones).forEach((c) => out.push({ at: c.at, by: c.by, kind: '鑑定士が架電', note: callNote(c), userId: c.userId }));
-  return out.sort((a, b) => b.at - a.at);
+  return out.sort((a, b) => b.at - a.at).map(withInfo);
 }

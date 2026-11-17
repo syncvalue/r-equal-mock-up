@@ -474,6 +474,6 @@ export function callLogHtml(list, open) {
   if (!list.length) return '';
   const last = list[0];
   return `<div class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs">
-    <button class="flex w-full items-center justify-between gap-2 text-left" data-calllog><span>📞 <b>この電話番号の受電履歴（${list.length}件）</b><span class="ml-2 text-slate-500">直近 ${stampText(last.at)} ${esc(last.kind)}</span></span><span>${open ? '▲' : '▼'}</span></button>
-    ${open ? `<div class="mt-1 max-h-48 space-y-1 overflow-y-auto border-t pt-1">${list.map((c) => `<div class="flex items-start gap-2"><span class="w-28 shrink-0 text-slate-500">${stampText(c.at)}</span><span class="shrink-0 rounded px-1 font-bold ${KIND_CLS[c.kind] ?? 'bg-slate-100'}">${esc(c.kind)}</span><span class="min-w-0 flex-1">${esc(c.note)}<span class="ml-1 text-slate-400">（${esc(c.by ?? '')}）</span></span></div>`).join('')}</div>` : ''}</div>`;
+    <button class="flex w-full items-center justify-between gap-2 text-left" data-calllog><span>📞 <b>この電話番号の受電履歴（${list.length}件）</b><span class="ml-2 text-slate-500">直近 ${stampText(last.at)} ${last.dir === 'out' ? '架電' : '受電'} ${esc(last.purpose ?? last.kind)}</span></span><span>${open ? '▲' : '▼'}</span></button>
+    ${open ? `<div class="mt-1 max-h-48 space-y-1 overflow-y-auto border-t pt-1">${list.map((c) => `<div class="flex items-start gap-2"><span class="w-28 shrink-0 text-slate-500">${stampText(c.at)}</span><span class="shrink-0 rounded px-1 font-bold ${KIND_CLS[c.kind] ?? 'bg-slate-100'}">${c.dir === 'out' ? '架電' : '受電'}</span><span class="min-w-0 flex-1"><b>${esc(c.purpose ?? c.kind)}</b>　${esc(c.note)}<span class="ml-1 text-slate-400">（${esc(c.who ?? c.by ?? '')}）</span></span></div>`).join('')}</div>` : ''}</div>`;
 }
