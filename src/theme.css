@@ -11,7 +11,9 @@ html.dark .bg-slate-100 { background-color: #1e2b42; }
 html.dark .bg-slate-200 { background-color: #2f405a; }
 html.dark .card { background: #172236; box-shadow: none; }
 html.dark .field { background: #0f172a; color: #e2e8f0; border-color: #2f405a; }
-html.dark .field::placeholder, html.dark .inp::placeholder, html.dark textarea::placeholder { color: #64748b; }
+html.dark .field::placeholder, html.dark .inp::placeholder, html.dark textarea::placeholder { color: #475569; }
+/* 入力例（プレースホルダー）は、入力済みの文字と見間違えないよう、薄くする */
+input::placeholder, textarea::placeholder { color: #b8c2d0; opacity: 1; }
 html.dark .btn-secondary, html.dark .chip { background: #1e2b42; color: #e2e8f0; border-color: #2f405a; }
 html.dark .chip.active { background: #0d9488; border-color: #0d9488; color: #fff; }
 html.dark .inp, html.dark .b-sec { background: #0f172a; color: #e2e8f0; border-color: #2f405a; }
