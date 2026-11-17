@@ -1,4 +1,4 @@
-// 商品の持ち帰り（事務所での入庫）の画面。QRコード付きシールを読み取りながら、買取商品を倉庫に入庫する。
+// 商品の入庫（事務所での入庫）の画面。QRコード付きシールを読み取りながら、買取商品を倉庫に入庫する。
 import { esc, yen, fmtTime } from './format.js';
 import { helpIcon } from './help.js';
 import { dateKey } from './workday.js';
@@ -79,7 +79,7 @@ function listCard(s, mine) {
   return `
   <div class="card !p-4 flex-1 min-w-0 flex flex-col gap-2 min-h-0">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="text-xl font-bold">📦 買取商品の持ち帰り</h2>
+      <h2 class="text-xl font-bold">📦 商品の入庫</h2>
       <div class="text-sm text-slate-600">未入庫 <b class="text-lg text-amber-700">${todo.length}</b> 点　入庫済み <b class="text-lg">${stored}</b> 点</div>
     </div>
     ${mine.length ? scopeChips(s, mine) : ''}

@@ -107,7 +107,7 @@ export const MENU = [
   { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
   { key: 'customers', icon: '📇', label: '顧客検索', sub: '自分のお客様に電話して、再訪のアポを取る' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: '前日繰越金・補充金（入）と、経費・買取代金（出）' },
-  { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品のQR読取・倉庫への入庫' },
+  { key: 'return', icon: '📦', label: '商品の入庫', sub: '買取商品のQR読取・倉庫への入庫' },
   { key: 'end', view: 'workday', icon: '🌙', label: '終業・日報', sub: '現金の締めと、日報の提出' },
 ];
 const viewOf = (m) => m.view ?? m.key;

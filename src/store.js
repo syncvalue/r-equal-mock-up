@@ -109,7 +109,7 @@ export const ITEM_CHECK_KEY = 'rq-mock-item-checks'; // 経費精算: 経費・�
 // ログイン（モック）の状態
 export const SESSION_KEY = 'rq-mock-session';
 
-// 買取商品の持ち帰り（実物1点ごとの入庫状況）
+// 買取商品の入庫（実物1点ごとの入庫状況）
 export const STOCK_KEY = 'rq-mock-stock';
 // 倉庫・物流: 商品ごとの出品・売却の記録と、クーリングオフによる返品の記録
 export const WAREHOUSE_KEY = 'rq-mock-warehouse';

@@ -765,7 +765,7 @@ const actions = {
   'wd-demo-close': () => set({
     closeForm: { ...state.closeForm, counted: summaryOf(state.day, state.user).balance, countedSet: true, counts: breakdownOf(summaryOf(state.day, state.user).balance), cashPhoto: state.closeForm.cashPhoto ?? dummyPhoto('CASH'), checks: Object.fromEntries(END_CHECKS.map((c) => [c.key, true])) },
   }),
-  // 商品の持ち帰り（入庫）
+  // 商品の入庫
   'stock-scope': (el) => set({ stock: { ...state.stock, scope: el.dataset.value, last: null } }),
   'stock-submit': () => submitStockCode(),
   'stock-missing': (el) => {
