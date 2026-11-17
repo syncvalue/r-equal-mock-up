@@ -21,7 +21,7 @@ import { pastVisitRows } from './phoneTimeline.js';
 import { buildIdIndex, idOfPhones, issueCustomerId } from './customerId.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
-import { missingFields, companionText, wantsText, hearingChecklist, entryStage, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
+import { missingFields, companionText, wantsText, hearingChecklist, entryStage, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 import { cooloffPage, filtersHtml, resultsHtml, formHtml as cooloffFormHtml, progressHtml, zoomHtml, REJECT_TEXT } from './cooloffView.js';
 import { RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY, STORE_VISITS_KEY } from '../src/store.js';
@@ -154,7 +154,6 @@ function compute() {
     staff: [...full.inArea].sort((a, b) => a.user.id.localeCompare(b.user.id)), staffSel, staffOpen,
     area, proposal, confirmed, extraAreas, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
-    unasked: hearingChecklist(form).filter((x) => !x.asked && !REQUIRED_CHECKS.has(x.key)).map((x) => x.label),
   };
 }
 

@@ -379,7 +379,7 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
 }
 
 export function dispatchHtml(x) {
-  const { area, proposal, confirmed, extraAreas, hasAddress, ranking, calendar, form, selectedId, alt, missing, unasked, showOthers, detail, staff, staffSel, staffOpen } = x;
+  const { area, proposal, confirmed, extraAreas, hasAddress, ranking, calendar, form, selectedId, alt, missing, showOthers, detail, staff, staffSel, staffOpen } = x;
   const card = (c) => candidateRow(c, { selectedId, gender: form.gender, form });
   const freeList = ranking.inArea.filter((c) => c.free); // 空いている鑑定士（担当が少ない順）。選んだ人が、その何番目か
   const freeCount = freeList.length;
@@ -402,12 +402,9 @@ export function dispatchHtml(x) {
     ${x.editing ? `<div class="rounded-lg border-2 border-slate-500 bg-white p-2 space-y-1.5 sticky bottom-0">
       <div class="text-xs text-slate-500">変更前：${dateLabel(x.editing.date)} ${esc(x.editing.start)}〜${esc(x.editing.end)}　${esc(USERS.find((u) => u.id === x.editing.userId)?.name ?? '')}</div>
       ${sel ? `<div class="text-sm">変更後：担当（仮）<b class="text-base">${esc(sel.user.name)}</b>　${dateLabel(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
-      ${missing.length ? `<div class="text-xs text-rose-700">未入力：${missing.map(esc).join('、')}</div>` : ''}
       <button class="b b-pri w-full ${isTentative(x.editing) || x.editBy === '配車係' ? '!bg-slate-600' : '!bg-rose-600'}" data-saveedit ${sel && !missing.length ? '' : 'disabled'}>${x.editBy === '配車係' ? `変更を保存する（${isTentative(x.editing) ? '仮確定' : '確定'}のまま）` : isTentative(x.editing) ? '変更を保存する（仮確定のまま）' : '変更を保存する（仮確定に戻り、配車係に知らされます）'}</button>
     </div>` : `<div class="rounded-lg border-2 border-teal-600 bg-white p-2 space-y-1.5 sticky bottom-0">
       ${sel ? `<div class="text-sm">担当（仮）：<b class="text-base">${esc(sel.user.name)}</b>　${esc(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}　${esc(fullName(form) || 'お客様')} 様（${genderLabel(form.gender) || '性別未選択'}）</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
-      ${missing.length ? `<div class="text-xs text-rose-700">未入力：${missing.map(esc).join('、')}</div>` : ''}
-      ${unasked.length ? `<div class="text-xs text-amber-800">⚠ 聞き忘れ：${unasked.map(esc).join('、')}</div>` : ''}
       <button class="b b-pri w-full" data-confirm ${missing.length ? 'disabled' : ''} title="オペレーターは仮確定まで。担当の確定は配車係が行います">仮確定する</button>
     </div>`}
   </div>`;
