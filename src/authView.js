@@ -7,7 +7,7 @@ const input = (label, key, value, { type = 'text', placeholder = '', autocomplet
   <label class="block"><span class="font-bold text-sm">${label}</span>
     <input class="field mt-1" type="${type}" data-auth="${key}" value="${esc(value)}" placeholder="${placeholder}" autocomplete="${autocomplete}" ${inputmode ? `inputmode="${inputmode}"` : ''} ${maxlength ? `maxlength="${maxlength}"` : ''} autocapitalize="none" spellcheck="false" /></label>`;
 
-const message = (a) => `${a.error ? `<div class="rounded-xl bg-rose-50 border-2 border-rose-300 p-3 text-sm font-bold text-rose-700" role="alert">${esc(a.error)}</div>` : ''}${a.info ? `<div class="rounded-xl bg-emerald-50 border-2 border-emerald-300 p-3 text-sm font-bold text-emerald-800">${esc(a.info)}</div>` : ''}`;
+const message = (a) => `${a.error ? `<div class="rounded-xl bg-rose-50 border-2 border-rose-300 p-3 text-sm font-bold text-rose-700" role="alert">${esc(a.error)}</div>` : ''}${a.info ? `<div class="rounded-xl bg-teal-50 border-2 border-teal-300 p-3 text-sm font-bold text-teal-700">${esc(a.info)}</div>` : ''}`;
 const link = (action, label) => `<button class="text-sm underline text-slate-500" data-action="${action}">${label}</button>`;
 
 // 受信したSMS（モック）。実際はSMSで届くため、この表示はデモ用
@@ -36,7 +36,7 @@ function smsScreen(a, forgot) {
   const phone = p?.userId ? maskPhone(ACCOUNTS.find((x) => x.userId === p.userId).phone) : 'ご登録の電話番号';
   return `
     ${message(a)}
-    <p class="text-sm text-slate-600">${esc(phone)} 宛に、6桁の認証コードをSMSで送りました。</p>
+    <p class="text-sm text-slate-700">${esc(phone)} 宛に、6桁の認証コードをSMSで送りました。</p>
     ${smsPreview(p)}
     ${input('認証コード（6桁）', 'code', a.code, { inputmode: 'numeric', maxlength: 6, autocomplete: 'one-time-code', placeholder: '000000' })}
     <button class="btn btn-primary w-full" data-action="auth-verify">${forgot ? '次へ' : 'ログイン'}</button>
@@ -46,14 +46,14 @@ function smsScreen(a, forgot) {
 
 const forgotScreen = (a) => `
     ${message(a)}
-    <p class="text-sm text-slate-600">ログインIDを入力してください。登録の電話番号に認証コードを送ります。</p>
+    <p class="text-sm text-slate-700">ログインIDを入力してください。登録の電話番号に認証コードを送ります。</p>
     ${input('ログインID', 'id', a.id, { placeholder: '例: sales01', autocomplete: 'username' })}
     <button class="btn btn-primary w-full" data-action="auth-forgot-send">認証コードを送る</button>
     <div class="text-center">${link('auth-back', '← ログインに戻る')}</div>`;
 
 const newPwScreen = (a) => `
     ${message(a)}
-    <p class="text-sm text-slate-600">新しいパスワード（8文字以上・英字と数字を含む）</p>
+    <p class="text-sm text-slate-700">新しいパスワード（8文字以上・英字と数字を含む）</p>
     ${input('新しいパスワード', 'newPw', a.newPw, { type: 'password', autocomplete: 'new-password' })}
     ${input('新しいパスワード（確認）', 'newPw2', a.newPw2, { type: 'password', autocomplete: 'new-password' })}
     <button class="btn btn-primary w-full" data-action="auth-setpw">パスワードを変更する</button>`;

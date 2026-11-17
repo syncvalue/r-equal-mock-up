@@ -13,7 +13,7 @@ function table(stores, warehouses, staffCount) {
     ${stores.map((s) => `<tr class="border-b ${s.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(storeLabel(s))}</td>
       <td class="!whitespace-normal text-xs">${esc(s.zip ?? '')} ${esc(s.address ?? '')}<br>${esc(s.phone ?? '')}</td><td class="text-xs">${esc(s.hours ?? '')}</td><td class="text-xs font-mono">${esc(s.licenseNo ?? '')}</td>
       <td class="text-xs">${esc(warehouses.find((w) => w.id === s.warehouseId)?.name ?? '（不明）')}</td><td class="text-right">${staffCount[s.id] ?? 0}名</td>
-      <td>${s.active ? badge('bg-emerald-100 text-emerald-800', '有効') : badge('bg-slate-200 text-slate-600', '無効')}</td>
+      <td>${s.active ? badge('bg-teal-100 text-teal-700', '有効') : badge('bg-slate-200 text-slate-700', '無効')}</td>
       <td><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-ms-edit="${esc(s.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-ms-toggle="${esc(s.id)}">${s.active ? '無効にする' : '有効にする'}</button></td></tr>`).join('')}
   </tbody></table>`;
 }

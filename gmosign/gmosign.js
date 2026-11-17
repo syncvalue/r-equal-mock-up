@@ -9,11 +9,11 @@ import { yen, fmtDateTime, esc } from '../src/format.js';
 
 const $ = (s) => document.querySelector(s);
 const authed = () => sessionStorage.getItem('gmo-auth') === '1';
-const STATUS_CLS = { 本人確認待ち: 'bg-amber-100 text-amber-800', 印刷待ち: 'bg-sky-100 text-sky-800', 印刷済み: 'bg-emerald-100 text-emerald-800' };
+const STATUS_CLS = { 本人確認待ち: 'bg-amber-100 text-amber-800', 印刷待ち: 'bg-slate-100 text-slate-900', 印刷済み: 'bg-teal-100 text-teal-700' };
 const badge = (st) => `<span class="rounded px-2 py-0.5 text-sm font-bold ${STATUS_CLS[st]}">${st}</span>`;
 
 const topbar = () => `
-  <header class="bg-sky-800 text-white px-6 py-3 flex justify-between items-center">
+  <header class="bg-slate-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">GMOサイン <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面</span></div>
     <span class="flex items-center gap-3">${themeToggleHtml()}<button class="underline" data-act="logout">ログアウト</button></span>
   </header>`;
@@ -23,7 +23,7 @@ function loginView() {
   <div class="fixed top-3 right-3">${themeToggleHtml()}</div>
   <div class="min-h-screen flex items-center justify-center p-4">
     <form class="bg-white shadow rounded-lg p-8 w-full max-w-sm space-y-4" data-form="login">
-      <h1 class="text-2xl font-bold text-sky-800">GMOサイン ログイン${helpIcon('ダミー画面です。任意の値でログインできます。')}</h1>
+      <h1 class="text-2xl font-bold text-slate-900">GMOサイン ログイン${helpIcon('ダミー画面です。任意の値でログインできます。')}</h1>
       <label class="block text-sm font-bold">メールアドレス<input class="inp mt-1" value="staff@example.com" /></label>
       <label class="block text-sm font-bold">パスワード<input class="inp mt-1" type="password" value="password" /></label>
       <button class="b b-pri w-full">ログイン</button>
@@ -38,11 +38,11 @@ function listView() {
     <h1 class="text-2xl font-bold">契約一覧</h1>
     <div class="bg-white shadow rounded-lg overflow-hidden">
       <table class="w-full text-left">
-        <thead class="bg-slate-100 text-sm text-slate-600"><tr><th class="p-3">契約No.</th><th>お客様</th><th>買取金額</th><th>送信日時</th><th>状態</th></tr></thead>
+        <thead class="bg-slate-100 text-sm text-slate-700"><tr><th class="p-3">契約No.</th><th>お客様</th><th>買取金額</th><th>送信日時</th><th>状態</th></tr></thead>
         <tbody>${
           list.length
-            ? list.map((c) => `<tr class="border-t hover:bg-sky-50 cursor-pointer" data-go="#detail/${c.id}">
-                <td class="p-3 font-mono text-sky-700 underline">${esc(c.id)}</td><td>${esc(c.customer.name)}</td>
+            ? list.map((c) => `<tr class="border-t hover:bg-slate-50 cursor-pointer" data-go="#detail/${c.id}">
+                <td class="p-3 font-mono text-slate-700 underline">${esc(c.id)}</td><td>${esc(c.customer.name)}</td>
                 <td>${yen(c.total)}</td><td>${fmtDateTime(c.sentAt)}</td><td>${badge(c.status)}</td></tr>`).join('')
             : '<tr><td colspan="5" class="p-8 text-center text-slate-400">契約がありません。</td></tr>'
         }</tbody>
@@ -58,7 +58,7 @@ function detailView(c) {
   const printed = c.status === '印刷済み';
   return `${topbar()}
   <main class="max-w-5xl mx-auto p-6 space-y-5">
-    <a class="text-sky-700 underline" href="#list">← 契約一覧</a>
+    <a class="text-slate-700 underline" href="#list">← 契約一覧</a>
     <div class="flex items-center gap-3"><h1 class="text-2xl font-bold">契約詳細 <span class="font-mono">${esc(c.id)}</span></h1>${badge(c.status)}</div>
     <div class="grid md:grid-cols-2 gap-5">
       <section class="bg-white shadow rounded-lg p-5 space-y-2">
@@ -66,18 +66,18 @@ function detailView(c) {
         <p>${esc(c.customer.name)} 様（${esc(c.customer.phone)}）<br><span class="text-sm text-slate-500">${esc(c.customer.zip)} ${esc(c.customer.address)}</span></p>
         <table class="w-full text-sm"><tbody>${c.items.map((i) => `<tr class="border-t"><td class="py-1">${esc(i.name)}<div class="text-xs font-mono text-slate-500">${i.codes.map(esc).join(' / ')}</div></td>
           <td>${i.rank}</td><td>×${i.qty}</td><td class="text-right">${yen(i.price)}</td></tr>`).join('')}</tbody></table>
-        <div class="text-right text-2xl font-bold text-sky-800">${yen(c.total)}</div>
+        <div class="text-right text-2xl font-bold text-slate-900">${yen(c.total)}</div>
       </section>
       <section class="bg-white shadow rounded-lg p-5 space-y-3">
         <h2 class="font-bold text-lg">① 本人確認書類の登録</h2>
         ${c.kyc
-          ? `<p class="text-emerald-700 font-bold">✅ 登録済み：${esc(c.kyc.type)}（${kycPhotos(c.kyc).length}枚）</p>
+          ? `<p class="text-teal-700 font-bold">✅ 登録済み：${esc(c.kyc.type)}（${kycPhotos(c.kyc).length}枚）</p>
              <div class="flex gap-2">${kycPhotos(c.kyc).map((p, i) => `<img src="${p}" alt="本人確認書類（${SIDES[i]}）" class="h-32 rounded border" />`).join('')}</div>`
           : kycForm()}
         <h2 class="font-bold text-lg pt-2">② 契約書の印刷${helpIcon('印刷した契約書に、お客様がボールペンで「チェック項目への記入」と「署名」をします（この画面では行いません）。')}</h2>
         ${!c.kyc
           ? '<p class="text-slate-400">本人確認書類の登録後に印刷できます。</p>'
-          : `${printed ? `<p class="text-emerald-700 font-bold">✅ 印刷済み（${fmtDateTime(c.printedAt)}）</p>` : ''}
+          : `${printed ? `<p class="text-teal-700 font-bold">✅ 印刷済み（${fmtDateTime(c.printedAt)}）</p>` : ''}
              <div class="flex gap-2"><button class="b b-sec flex-1" data-act="preview">プレビュー</button>
              <button class="b b-pri flex-1" data-act="print">${printed ? '再印刷' : '印刷（会社控え・お客様控え）'}</button></div>`}
       </section>
@@ -92,7 +92,7 @@ const kycForm = () => `
   <select class="inp" id="kyc-type">${ID_TYPES.map((t) => `<option${t === draft.type ? ' selected' : ''}>${t}</option>`).join('')}</select>
   <div class="grid grid-cols-2 gap-2">${SIDES.map((side, i) => `
     <div class="space-y-1 text-center"><div class="text-sm font-bold">${side}${i ? '（任意）' : '（必須）'}</div>
-      ${draft.photos[i] ? `<img src="${draft.photos[i]}" alt="${side}" class="h-24 mx-auto rounded border" /><button class="text-xs text-sky-700 underline" data-act="kyc-clear" data-i="${i}">選び直す</button>`
+      ${draft.photos[i] ? `<img src="${draft.photos[i]}" alt="${side}" class="h-24 mx-auto rounded border" /><button class="text-xs text-slate-700 underline" data-act="kyc-clear" data-i="${i}">選び直す</button>`
         : `<label class="b b-sec cursor-pointer block">ファイル選択<input type="file" accept="image/*" class="hidden" data-kyc-file="${i}" /></label>`}</div>`).join('')}</div>
   <div class="flex gap-2"><button class="b b-pri flex-1" data-act="kyc-save"${draft.photos[0] ? '' : ' disabled'}>登録する</button>
   <button class="b b-sec" data-act="kyc-dummy">ダミー画像（2枚）で登録</button></div>`;

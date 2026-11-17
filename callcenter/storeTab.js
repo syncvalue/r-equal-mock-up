@@ -25,11 +25,11 @@ export function pastCustomerHtml(phone) {
   const s = purchaseSummary([phone]);
   if (!s.count) return '<div class="text-xs text-slate-500">この電話番号の、過去の買取は見つかりません（初めてのお客様）</div>';
   const p = customerProfile([phone]);
-  return `<div class="text-xs rounded bg-indigo-50 border border-indigo-200 p-2 flex flex-wrap items-center gap-2"><b class="text-indigo-800">過去のお客様</b>買取 ${s.count}回・総額 ${yen(s.total)}${custRankBadge(p)}${troubleBadge(p)}${cooloffBadge(p)}</div>`;
+  return `<div class="text-xs rounded bg-slate-50 border border-slate-200 p-2 flex flex-wrap items-center gap-2"><b class="text-slate-900">過去のお客様</b>買取 ${s.count}回・総額 ${yen(s.total)}${custRankBadge(p)}${troubleBadge(p)}${cooloffBadge(p)}</div>`;
 }
 
 const WEEKDAY = ['日', '月', '火', '水', '木', '金', '土'];
-const dayHead = (date) => { const [y, m, d] = date.split('-').map(Number); const w = new Date(y, m - 1, d).getDay(); return { md: `${m}/${d}`, w: WEEKDAY[w], cls: w === 0 ? 'text-rose-600' : w === 6 ? 'text-sky-600' : '' }; };
+const dayHead = (date) => { const [y, m, d] = date.split('-').map(Number); const w = new Date(y, m - 1, d).getDay(); return { md: `${m}/${d}`, w: WEEKDAY[w], cls: w === 0 ? 'text-rose-700' : w === 6 ? 'text-slate-700' : '' }; };
 
 // 空き状況のカレンダー（縦=時刻・横=日付）。空いている枠を押すと、来店の日・時刻に入る。埋まっているほど濃く、満席と過ぎた枠は押せない
 function slotsHtml(f, cal) {
@@ -41,14 +41,14 @@ function slotsHtml(f, cal) {
     const on = d.date === f.date && time === f.time;
     if (sl.past) return '<td class="p-0.5"><div class="h-6 rounded bg-slate-100"></div></td>';
     const h = heatStyle(sl.ratio);
-    return `<td class="p-0.5"><button class="block h-6 w-full rounded text-xs font-bold ${sl.full ? 'cursor-not-allowed bg-slate-300 text-slate-600' : `${h.fg} hover:ring-2 hover:ring-teal-600`} ${on ? 'ring-2 ring-amber-400' : ''}" ${sl.full ? 'disabled' : `style="background:${h.bg}" data-st-slot="${d.date}|${time}"`} title="${esc(`${dayHead(d.date).md} ${time}　予約 ${sl.booked}件／受けられる ${capacity}件`)}">${sl.full ? '満' : `空${sl.free}`}</button></td>`;
+    return `<td class="p-0.5"><button class="block h-6 w-full rounded text-xs font-bold ${sl.full ? 'cursor-not-allowed bg-slate-300 text-slate-700' : `${h.fg} hover:ring-2 hover:ring-teal-600`} ${on ? 'ring-2 ring-amber-400' : ''}" ${sl.full ? 'disabled' : `style="background:${h.bg}" data-st-slot="${d.date}|${time}"`} title="${esc(`${dayHead(d.date).md} ${time}　予約 ${sl.booked}件／受けられる ${capacity}件`)}">${sl.full ? '満' : `空${sl.free}`}</button></td>`;
   }).join('')}</tr>`).join('');
   return `<div class="space-y-1"><div class="flex flex-wrap items-center gap-2">
       <b class="text-sm">空き状況（${esc(storeName)}）</b>
       <button class="b b-sec !min-h-0 !py-0.5" data-st-week="-7" title="前の週">◀</button><button class="b b-sec !min-h-0 !py-0.5" data-st-week="7" title="次の週">▶</button><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-st-weektoday>今日</button>
       <span class="text-xs text-slate-500">${dayHead(weekStart).md}〜　同じ時刻に ${capacity} 組まで</span></div>
     <div class="overflow-x-auto"><table class="w-full table-fixed border-separate border-spacing-0" style="min-width:36rem"><colgroup><col style="width:3.2rem" />${days.map(() => '<col />').join('')}</colgroup><thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="text-xs text-slate-600">選んだ来店：<b>${f.date ? `${dayHead(f.date).md}（${dayHead(f.date).w}） ${esc(f.time)}` : '未選択'}</b></div></div>`;
+    <div class="text-xs text-slate-700">選んだ来店：<b>${f.date ? `${dayHead(f.date).md}（${dayHead(f.date).w}） ${esc(f.time)}` : '未選択'}</b></div></div>`;
 }
 
 function formHtml(f, stores, cal) {
@@ -61,8 +61,8 @@ function formHtml(f, stores, cal) {
     </div>
     ${slotsHtml(f, cal)}
     <div class="grid sm:grid-cols-3 gap-3">
-      <label class="text-sm font-bold">電話番号<span class="text-rose-600">＊</span><input class="inp mt-1 font-normal" data-st="phone" value="${esc(f.phone)}" placeholder="090-0000-0000" inputmode="tel" /></label>
-      <label class="text-sm font-bold">お名前<span class="text-rose-600">＊</span><input class="inp mt-1 font-normal" data-st="name" value="${esc(f.name)}" placeholder="例: 山田 花子" /></label>
+      <label class="text-sm font-bold">電話番号<span class="text-rose-700">＊</span><input class="inp mt-1 font-normal" data-st="phone" value="${esc(f.phone)}" placeholder="090-0000-0000" inputmode="tel" /></label>
+      <label class="text-sm font-bold">お名前<span class="text-rose-700">＊</span><input class="inp mt-1 font-normal" data-st="name" value="${esc(f.name)}" placeholder="例: 山田 花子" /></label>
       <label class="text-sm font-bold">フリガナ<input class="inp mt-1 font-normal" data-st="kana" value="${esc(f.kana)}" placeholder="ヤマダ ハナコ" /></label>
       <label class="text-sm font-bold sm:col-span-3">売りたいもの<textarea class="inp mt-1 font-normal" rows="4" data-st="wants" placeholder="例: 腕時計 2本&#10;ブランドバッグ（ヴィトン）">${esc(f.wants)}</textarea></label>
     </div>
@@ -76,7 +76,7 @@ function listHtml(upcoming, stores) {
   const days = [...new Set(upcoming.map((v) => v.date))];
   return days.map((day) => `<div class="space-y-1"><div class="font-bold text-sm border-b pb-0.5">${dayLabel(day)}</div>
     ${upcoming.filter((v) => v.date === day).map((v) => `<div class="rounded-lg border bg-white p-2 flex flex-wrap items-center gap-3">
-      <b class="w-12">${esc(v.time)}</b><span class="rounded bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-0.5">${esc(storeNameOf(v.storeId, stores))}</span>
+      <b class="w-12">${esc(v.time)}</b><span class="rounded bg-slate-100 text-slate-900 text-xs font-bold px-2 py-0.5">${esc(storeNameOf(v.storeId, stores))}</span>
       <span class="font-bold">${esc(v.customer.name)} 様</span><span class="text-xs text-slate-500">📞 ${esc(v.customer.phone)}${v.wants ? ` ／ <span class="whitespace-pre-line">${esc(v.wants)}</span>` : ''} ／ 受付: ${esc(v.createdBy)}</span>
       <span class="ml-auto flex items-center gap-1"><select class="inp !w-40 !py-1 text-xs" data-st-reason="${esc(v.id)}">${CANCEL_REASONS.map((r) => `<option>${esc(r)}</option>`).join('')}</select><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs text-rose-700" data-st-cancel="${esc(v.id)}">取消</button></span></div>`).join('')}</div>`).join('');
 }

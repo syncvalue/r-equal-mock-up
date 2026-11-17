@@ -29,7 +29,7 @@ function action(r, data) {
   if (['stock', 'listed', 'consigned'].includes(r.stage) && warehouseIdOf(unit, data.master) !== data.me.warehouseId) return '<span class="text-xs text-slate-500">他の倉庫の商品</span>';
   if (r.canList) return `<button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-go-list="${esc(unit.code)}">出品する</button>`;
   if (r.stage === 'stock' && r.cooling) {
-    return `<span class="text-xs text-amber-700 font-bold">${md(r.coolEnd)} まで出品不可</span>`;
+    return `<span class="text-xs text-amber-800 font-bold">${md(r.coolEnd)} まで出品不可</span>`;
   }
   if (r.stage === 'listed') return `<span class="text-xs">${esc(channelOf(rec.channel)?.label)}で ${yen(rec.listPrice)}</span>`;
   if (r.stage === 'consigned') return `<span class="text-xs">${esc(rec.vendor || '委託先')}に委託中（${md(dateOf(rec.listedAt))}〜）</span>`;
@@ -50,7 +50,7 @@ function scanResult(data, scan, rl) {
   const r = findByCode(data.allRows, scan.raw); // 読み取りは、他の倉庫の商品も探す
   if (!r) return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 text-sm font-bold text-rose-700 flex items-center">⚠ ${esc(scan.raw)} は、買取商品として登録されていません<button class="ml-auto b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>`;
   const { unit } = r;
-  return `<section class="rounded-xl border-2 border-sky-400 bg-white p-4 space-y-3">${scan.notice ? `<div class="rounded bg-amber-50 border border-amber-300 p-2 text-sm font-bold text-amber-800">${esc(scan.notice)}</div>` : ''}
+  return `<section class="rounded-xl border-2 border-slate-400 bg-white p-4 space-y-3">${scan.notice ? `<div class="rounded bg-amber-50 border border-amber-300 p-2 text-sm font-bold text-amber-800">${esc(scan.notice)}</div>` : ''}
     <div class="flex flex-wrap items-center gap-2"><span class="text-xs font-mono text-slate-500">${esc(unit.code)}</span><b class="text-lg">${esc(unit.name)}</b>${badge(STAGE_CLS[r.stage], STAGES[r.stage])}${r.stage === 'stock' && r.cooling ? badge('bg-amber-100 text-amber-800', `${md(r.coolEnd)} まで保管（出品不可）`) : ''}
       <span class="ml-auto">${action(r, data)}</span><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-qr-close>閉じる</button></div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1 text-sm">
@@ -61,11 +61,11 @@ function scanResult(data, scan, rl) {
     </div>
     <div class="flex flex-wrap items-center gap-3 rounded bg-slate-50 p-2">${photoSlot(unit, 'h-24 w-24')}
       <div class="text-sm space-y-1"><div class="font-bold">商品の写真</div>
-        <div class="text-xs text-slate-600">${unit.photo ? `登録済み（${unit.photoBy ? `${esc(unit.photoBy)}・` : ''}${unit.photoAt ? mdTime(unit.photoAt) : ''}）` : '未登録です（いまは仮の絵）'}${helpIcon(`${unit.photo ? '写真を押すと撮り直せます。' : '写真を押して、撮影・選択して登録してください。'}\nクーリングオフの電話で、お客様と商品を確認するときに使います。`)}</div>
+        <div class="text-xs text-slate-700">${unit.photo ? `登録済み（${unit.photoBy ? `${esc(unit.photoBy)}・` : ''}${unit.photoAt ? mdTime(unit.photoAt) : ''}）` : '未登録です（いまは仮の絵）'}${helpIcon(`${unit.photo ? '写真を押すと撮り直せます。' : '写真を押して、撮影・選択して登録してください。'}\nクーリングオフの電話で、お客様と商品を確認するときに使います。`)}</div>
         <div class="flex gap-2"><button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-photo-sample="${esc(unit.code)}">（デモ用）サンプル写真を登録</button>${unit.photo ? `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-photo-clear="${esc(unit.code)}">写真を削除</button>` : ''}</div></div></div>
     ${['incoming', 'missing', 'stock'].includes(r.stage) ? (rl.code === unit.code ? relabelForm(rl, unit) : `<button class="b b-sec !min-h-0 !py-1 !px-3 text-xs" data-rl-open="${esc(unit.code)}">🏷 シール貼り替え（色の間違いなど）</button>`) : ''}
     ${siblingsHtml(data, unit.code)}
-    <ol class="text-sm border-l-2 border-slate-200 pl-3 space-y-1">${historyOf(data.full, unit.code).map((e) => `<li><span class="text-xs text-slate-500">${mdTime(e.at)}</span> <b>${e.label}</b> <span class="text-slate-600">${esc(e.detail)}</span></li>`).join('')}</ol>
+    <ol class="text-sm border-l-2 border-slate-200 pl-3 space-y-1">${historyOf(data.full, unit.code).map((e) => `<li><span class="text-xs text-slate-500">${mdTime(e.at)}</span> <b>${e.label}</b> <span class="text-slate-700">${esc(e.detail)}</span></li>`).join('')}</ol>
   </section>`;
 }
 
@@ -76,11 +76,11 @@ const where = (r, data) => (r.stage === 'consigned' ? '倉庫の外（委託中�
 function pager(pg, unit, pageSize) {
   const btn = (label, page, { on = false, off = false } = {}) => `<button class="b b-sec !min-h-[36px] !py-0.5 !px-3 text-sm ${on ? 'on' : ''}" data-page="${page}" ${off ? 'disabled' : ''}>${label}</button>`;
   return `<div class="flex flex-wrap items-center gap-2 text-sm" aria-label="ページ送り">
-    <span class="text-slate-600">全 <b>${pg.total}</b> ${unit}${pg.total ? `中 ${pg.from}–${pg.to} ${unit}を表示` : ''}</span>
+    <span class="text-slate-700">全 <b>${pg.total}</b> ${unit}${pg.total ? `中 ${pg.from}–${pg.to} ${unit}を表示` : ''}</span>
     <div class="flex flex-wrap items-center gap-1 ml-auto">${btn('‹ 前へ', pg.page - 1, { off: pg.page <= 1 })}
       ${pageNumbers(pg.page, pg.pages).map((n) => (n === '…' ? '<span class="px-1 text-slate-400">…</span>' : btn(n, n, { on: n === pg.page }))).join('')}
       ${btn('次へ ›', pg.page + 1, { off: pg.page >= pg.pages })}
-      <label class="ml-2 text-xs text-slate-500">1ページ <select class="rounded border px-1 py-1 text-sm text-slate-800" data-page-size>${PAGE_SIZES.map((n) => `<option value="${n}" ${n === pageSize ? 'selected' : ''}>${n}${unit}</option>`).join('')}</select></label></div>
+      <label class="ml-2 text-xs text-slate-500">1ページ <select class="rounded border px-1 py-1 text-sm text-slate-900" data-page-size>${PAGE_SIZES.map((n) => `<option value="${n}" ${n === pageSize ? 'selected' : ''}>${n}${unit}</option>`).join('')}</select></label></div>
   </div>`;
 }
 
@@ -112,12 +112,12 @@ export function stockTab(data, { filter, q, scan, view, rl, page, pageSize }) {
   </div>
   ${scanResult(data, scan, rl)}
   <div class="flex flex-wrap gap-3">
-    ${card('すぐ出品できる在庫', `${sum.stock - sum.cooling} 点`, 'text-emerald-700')}
-    ${card('保管期間中', `${sum.cooling} 点`, sum.cooling ? 'text-amber-700' : '')}
-    ${card('出品中', `${sum.listed} 点`, 'text-sky-700')}
-    ${card('委託中（倉庫の外）', `${sum.consigned} 点`, 'text-violet-700')}
-    ${card('輸送中（倉庫間の移動）', `${sum.transit} 点`, sum.transit ? 'text-amber-700' : '')}
-    ${card('入庫待ち・所在不明', `${sum.incoming + sum.missing} 点`, sum.missing ? 'text-rose-600' : '')}
+    ${card('すぐ出品できる在庫', `${sum.stock - sum.cooling} 点`, 'text-teal-700')}
+    ${card('保管期間中', `${sum.cooling} 点`, sum.cooling ? 'text-amber-800' : '')}
+    ${card('出品中', `${sum.listed} 点`, 'text-slate-700')}
+    ${card('委託中（倉庫の外）', `${sum.consigned} 点`, 'text-slate-700')}
+    ${card('輸送中（倉庫間の移動）', `${sum.transit} 点`, sum.transit ? 'text-amber-800' : '')}
+    ${card('入庫待ち・所在不明', `${sum.incoming + sum.missing} 点`, sum.missing ? 'text-rose-700' : '')}
     ${card('倉庫の在庫の原価', yen(sum.inventoryCost))}
     ${card('委託中の原価', yen(sum.consignedCost))}
   </div>

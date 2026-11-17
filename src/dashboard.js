@@ -65,7 +65,7 @@ const seeded = (str) => {
 
 // 訪問の結果。不在・日程変更の依頼は、鑑定士の責任ではないため、訪問数・成約率には含めない（業績対象外）
 export const RESULTS = {
-  won: { label: '成約', cls: 'bg-emerald-100 text-emerald-800' },
+  won: { label: '成約', cls: 'bg-teal-100 text-teal-700' },
   lost: { label: '不成約', cls: 'bg-slate-200 text-slate-700' },
   absent: { label: '不在', cls: 'bg-amber-100 text-amber-800', excluded: true },
   resched: { label: '日程変更の依頼', cls: 'bg-amber-100 text-amber-800', excluded: true },

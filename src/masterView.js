@@ -6,7 +6,7 @@ import { countBy, highlight, popularProducts, searchProducts, tokensOf } from '.
 const PAGE = 40;
 
 const tab = (s, key, label) =>
-  `<button class="flex-1 py-2 rounded-lg font-bold ${s.mtab === key ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="mtab" data-value="${key}">${label}</button>`;
+  `<button class="flex-1 py-2 rounded-lg font-bold ${s.mtab === key ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'}" data-action="mtab" data-value="${key}">${label}</button>`;
 
 const chip = (active, label, count, action, value) =>
   `<button class="chip !min-h-[40px] !py-1 !px-3 text-sm whitespace-nowrap ${active ? 'active' : ''}" data-action="${action}" data-value="${esc(value)}">${esc(label)}${count != null ? `<span class="opacity-70 ml-1">${count}</span>` : ''}</button>`;

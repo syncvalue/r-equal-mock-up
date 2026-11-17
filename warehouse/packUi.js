@@ -11,7 +11,7 @@ import { helpIcon } from '../src/help.js';
 import { badge, md, mdTime, sealBadge } from './ui.js';
 
 export const shipInfo = (t) => `${carrierOf(t.carrier)?.label ?? '配送業者未設定'}${t.size ? `・${esc(t.size)}サイズ` : ''}${(t.boxes ?? 1) > 1 ? `・${t.boxes}個口` : ''}${t.tracking ? `・追跡番号 <b class="font-mono">${esc(t.tracking)}</b>` : ''}`;
-export const tick = (at, label) => (at ? `<span class="text-emerald-700 text-xs font-bold">✓ ${label}（${mdTime(at)}）</span>` : `<span class="text-slate-400 text-xs">${label}: 未出力</span>`);
+export const tick = (at, label) => (at ? `<span class="text-teal-700 text-xs font-bold">✓ ${label}（${mdTime(at)}）</span>` : `<span class="text-slate-400 text-xs">${label}: 未出力</span>`);
 
 const TEXT = {
   transfer: {
@@ -68,7 +68,7 @@ export function packList(full, master, me, pk, mode = 'transfer') {
 // ---- パックの作業（① 商品を探す ② パッキング ③ 明細 ④ 発送伝票・CSV・発送）
 const dateOfMs = (ms) => dateOf(ms);
 const carrierSource = (r) => `${r.rec.channel ? channelOf(r.rec.channel)?.label ?? '' : ''}で売却`;
-const step = (n, title, help = '') => `<h3 class="font-bold flex items-center gap-2"><span class="inline-flex w-6 h-6 rounded-full bg-sky-700 text-white text-sm items-center justify-center">${n}</span>${title}${help ? helpIcon(help) : ''}</h3>`;
+const step = (n, title, help = '') => `<h3 class="font-bold flex items-center gap-2"><span class="inline-flex w-6 h-6 rounded-full bg-slate-700 text-white text-sm items-center justify-center">${n}</span>${title}${help ? helpIcon(help) : ''}</h3>`;
 
 function candidates(full, master, me, pack, q, now) {
   const needle = q.trim().toLowerCase();
@@ -97,7 +97,7 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
   const c = carrierOf(pack.carrier);
   const noPrice = consign && pack.codes.some((code) => !(pack.prices?.[code] > 0));
   const ready = pack.codes.length > 0 && Boolean(pack.carrier) && !noPrice;
-  return `<section class="rounded-xl border-2 border-sky-400 bg-white p-4 space-y-4">
+  return `<section class="rounded-xl border-2 border-slate-400 bg-white p-4 space-y-4">
     <div class="flex flex-wrap items-center gap-2"><h2 class="font-bold text-lg">📦 パック（${esc(pack.fromName)} → ${esc(destName(pack))}）</h2><span class="font-mono text-xs text-slate-500">${esc(pack.id)}</span>
       <button class="ml-auto b b-sec !min-h-0 !py-1 !px-3 text-sm" data-pk-close>← パックの一覧へ</button></div>
 
@@ -107,7 +107,7 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
         <input class="inp !w-64" data-pk-q placeholder="商品名・シールNo.・お客様名で絞り込み" value="${esc(pk.q)}" autocomplete="off" />
         <input class="inp !w-52 font-mono" data-pk-scan-input placeholder="QR読取／シールNo.＋Enter" autocomplete="off" />
         <button class="b b-pri" data-pk-scan>追加</button><button class="b b-pri !bg-teal-700" data-cam-pack>📷 カメラで読み取って追加</button></div>
-      ${pk.last ? `<div class="rounded-lg border-2 p-2 text-sm font-bold ${pk.last.ok ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-rose-50 border-rose-400 text-rose-700'}">${pk.last.ok ? '✓' : '⚠'} ${esc(pk.last.text)}</div>` : ''}
+      ${pk.last ? `<div class="rounded-lg border-2 p-2 text-sm font-bold ${pk.last.ok ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-rose-50 border-rose-400 text-rose-700'}">${pk.last.ok ? '✓' : '⚠'} ${esc(pk.last.text)}</div>` : ''}
       <div class="max-h-64 overflow-y-auto border rounded"><table class="w-full text-sm"><tbody>
         ${cand.rows.length && sale ? cand.rows.map((r) => `<tr class="border-b"><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500"><span class="font-mono">${esc(r.unit.code)}</span></div></td><td class="text-xs">${esc(r.rec.buyer || '購入者名なし')}</td><td class="text-right">${yen(r.rec.soldPrice)}</td><td><button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-pk-add="${esc(r.unit.code)}">パックに入れる</button></td></tr>`).join('') : cand.rows.length ? cand.rows.map((r) => `<tr class="border-b"><td class="font-bold">${esc(r.unit.name)}<div class="text-xs font-normal text-slate-500"><span class="font-mono">${esc(r.unit.code)}</span> ${sealBadge(r.unit)}</div></td>
           <td class="text-xs">${md(r.unit.date)}<br>${esc(r.unit.customerName)} 様</td><td class="text-xs">${esc(r.unit.location)}</td><td class="text-right">${yen(r.unit.price)}</td>
@@ -143,7 +143,7 @@ export function packWork(full, master, me, pk, now, mode = 'transfer') {
         ${c?.csvLabel ? `<button class="b b-sec" data-pk-csv="${c.key}" ${ready ? '' : 'disabled'}>⬇ CSV出力（${esc(c.csvLabel)}）</button>` : ''}</div>
       <div class="flex flex-wrap items-end gap-3 pt-1"><label class="text-xs font-bold">追跡番号（わかれば）<input class="inp mt-1 font-normal font-mono !w-64" data-pk-tracking value="${esc(pk.tracking)}" placeholder="配送業者から発行された番号" /></label>
         <button class="b b-pri" data-pk-ship ${ready ? '' : 'disabled'}>${tx.ship(esc(destName(pack)))}</button>
-        ${ready ? '' : `<span class="text-xs text-rose-600 font-bold">${noPrice ? '希望価格が未設定の商品があります' : '商品を入れて、配送業者を選んでください'}</span>`}</div>
+        ${ready ? '' : `<span class="text-xs text-rose-700 font-bold">${noPrice ? '希望価格が未設定の商品があります' : '商品を入れて、配送業者を選んでください'}</span>`}</div>
     </div>
   </section>`;
 }

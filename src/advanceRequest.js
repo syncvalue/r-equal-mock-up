@@ -7,7 +7,7 @@ import { post, threadOf, unreadCount, markRead } from './expenseChat.js';
 
 export const REQUEST_STATUS = {
   open: { label: 'やり取り中', cls: 'bg-amber-100 text-amber-800' },
-  closed: { label: '完了', cls: 'bg-emerald-100 text-emerald-800' },
+  closed: { label: '完了', cls: 'bg-teal-100 text-teal-700' },
 };
 
 const readJson = (key, fallback) => {

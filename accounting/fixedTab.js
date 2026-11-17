@@ -21,10 +21,10 @@ function fixedSection(st) {
     <div class="flex flex-wrap items-center gap-2"><h2 class="font-bold text-lg">🏢 固定費</h2>
       <button class="b b-sec !min-h-0 !py-1 !px-3" data-month="-1" aria-label="前の月">◀</button><b>${monthLabel(st.month)}</b><button class="b b-sec !min-h-0 !py-1 !px-3" data-month="1" aria-label="次の月">▶</button>
       ${helpIcon('毎月の固定費を登録しておき、支払日に「支払う」を押すと、入出金の帳簿に「固定費」の支払として載ります（残高・週間収支に反映）。支払日は1〜28日。')}</div>
-    <div class="flex flex-wrap gap-3">${card('今月の固定費', yen(t.total))}${card('支払済み', yen(t.paid), 'text-emerald-700')}${card('未払い', yen(t.unpaid), t.unpaid ? 'text-amber-700' : '')}</div>
+    <div class="flex flex-wrap gap-3">${card('今月の固定費', yen(t.total))}${card('支払済み', yen(t.paid), 'text-teal-700')}${card('未払い', yen(t.unpaid), t.unpaid ? 'text-amber-800' : '')}</div>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>支払日</th><th>種類</th><th>名前</th><th class="text-right">金額</th><th>状況</th><th></th></tr></thead><tbody>
       ${rows.map((r) => `<tr class="border-b ${r.active ? '' : 'text-slate-400'}"><td>${md(r.due)}</td><td>${fixedTypeOf(r.type).icon} ${fixedTypeOf(r.type).label}</td><td class="font-bold">${esc(r.name)}${r.active ? '' : '（無効）'}</td><td class="text-right">${yen(r.paid?.amount ?? r.amount)}</td>
-        <td>${r.paid ? badge('bg-emerald-100 text-emerald-800', `支払済み ${md(r.paid.date)}`) : r.overdue ? badge('bg-rose-100 text-rose-700', '支払日を過ぎています') : badge('bg-slate-100 text-slate-600', '未払い')}</td>
+        <td>${r.paid ? badge('bg-teal-100 text-teal-700', `支払済み ${md(r.paid.date)}`) : r.overdue ? badge('bg-rose-100 text-rose-700', '支払日を過ぎています') : badge('bg-slate-100 text-slate-700', '未払い')}</td>
         <td class="space-x-1">${r.paid ? '' : `<button class="b b-pri !min-h-0 !py-1 !px-2 text-xs" data-fix-pay="${r.id}">支払う</button>`}<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-fix-edit="${r.id}">編集</button><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-fix-toggle="${r.id}">${r.active ? '無効にする' : '有効にする'}</button></td></tr>`).join('') || '<tr><td colspan="6" class="text-slate-400">固定費の登録はありません。</td></tr>'}
     </tbody></table>
     <div class="rounded-lg bg-slate-50 p-3 space-y-2"><div class="text-sm font-bold">${f.id ? '固定費を変更する' : '固定費を登録する'}</div>

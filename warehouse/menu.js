@@ -13,7 +13,7 @@ export const tabLabel = (key) => TABS.find((t) => t.key === key)?.label ?? '';
 
 // badges: { receive: 入庫待ちの点数, transfer: 受け取り待ちの件数, return: 返品の未対応の件数 }
 export function menuView({ tab, badges, staff, warehouseName }) {
-  const badge = { receive: ['bg-amber-500', '入庫待ち'], transfer: ['bg-sky-500', '受け取り待ち'], return: ['bg-rose-600', '未対応'] };
+  const badge = { receive: ['bg-amber-500', '入庫待ち'], transfer: ['bg-slate-500', '受け取り待ち'], return: ['bg-rose-600', '未対応'] };
   return `
   <div class="fixed inset-0 z-[55]">
     <button class="absolute inset-0 bg-black/50 cursor-default" data-menu-close aria-label="メニューを閉じる"></button>
@@ -24,7 +24,7 @@ export function menuView({ tab, badges, staff, warehouseName }) {
       </div>
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
         ${TABS.map((t) => `
-        <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === t.key ? 'bg-sky-700' : 'hover:bg-white/10 active:bg-white/20'}" data-tab="${t.key}">
+        <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === t.key ? 'bg-slate-700' : 'hover:bg-white/10 active:bg-white/20'}" data-tab="${t.key}">
           <span class="text-3xl">${t.icon}</span>
           <span class="flex-1"><span class="block font-bold text-lg leading-tight">${t.label}</span><span class="text-xs text-slate-300">${t.sub}</span></span>
           ${badges[t.key] ? `<span class="text-xs font-bold rounded-full ${badge[t.key][0]} px-2 py-0.5 whitespace-nowrap">${badge[t.key][1]} ${badges[t.key]}</span>` : ''}

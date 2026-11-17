@@ -10,7 +10,7 @@ import { loadRequests, openRequests, requestBall, REQUEST_STATUS, advThread, adv
 import { loadChats } from '../src/expenseChat.js';
 import { LEVEL, signed, signedYen, badge, card, mdw } from './ui.js';
 
-const PHASE = { before: ['未始業', 'bg-slate-200 text-slate-600'], open: ['業務中', 'bg-emerald-100 text-emerald-800'], closed: ['終業済み', 'bg-indigo-100 text-indigo-800'] };
+const PHASE = { before: ['未始業', 'bg-slate-200 text-slate-700'], open: ['業務中', 'bg-teal-100 text-teal-700'], closed: ['終業済み', 'bg-slate-100 text-slate-900'] };
 const MANUAL = { in: IN_CATEGORIES, out: OUT_CATEGORIES.filter((c) => c.key !== 'fixed') }; // 固定費は、固定費の画面から
 
 const ledgerForm = (c) => {
@@ -40,14 +40,14 @@ const dailyTable = (c) => {
   <section class="rounded-xl border bg-white p-4 space-y-2">
     <h2 class="font-bold text-lg">📅 日次残高（直近14日）${helpIcon('残高 ＝ 前日の残高 ＋ 入金 − 支払。行を押すと、その日の入出金の明細が出ます。')}</h2>
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>日付</th><th class="text-right">前日残高</th><th class="text-right">入金</th><th class="text-right">支払</th><th class="text-right">残高</th></tr></thead><tbody>
-    ${rows.map((r) => `<tr class="border-b ${r.count ? 'cursor-pointer hover:bg-slate-50' : 'text-slate-400'}" ${r.count ? `data-sel-day="${r.date}"` : ''}><td>${mdw(r.date)}${r.date === to ? ' <span class="text-xs text-teal-700 font-bold">今日</span>' : ''}</td><td class="text-right">${yen(r.opening)}</td><td class="text-right text-emerald-700">${r.in ? `+${yen(r.in)}` : '-'}</td><td class="text-right text-rose-700">${r.out ? `−${yen(r.out)}` : '-'}</td><td class="text-right font-bold ${r.balance < 0 ? 'text-rose-600' : ''}">${signedYen(r.balance)}</td></tr>
+    ${rows.map((r) => `<tr class="border-b ${r.count ? 'cursor-pointer hover:bg-slate-50' : 'text-slate-400'}" ${r.count ? `data-sel-day="${r.date}"` : ''}><td>${mdw(r.date)}${r.date === to ? ' <span class="text-xs text-teal-700 font-bold">今日</span>' : ''}</td><td class="text-right">${yen(r.opening)}</td><td class="text-right text-teal-700">${r.in ? `+${yen(r.in)}` : '-'}</td><td class="text-right text-rose-700">${r.out ? `−${yen(r.out)}` : '-'}</td><td class="text-right font-bold ${r.balance < 0 ? 'text-rose-700' : ''}">${signedYen(r.balance)}</td></tr>
       ${c.st.selDay === r.date ? dayDetail(c, r.date) : ''}`).join('')}
     </tbody></table>
   </section>`;
 };
 
 const dayDetail = (c, date) => `<tr class="bg-slate-50"><td colspan="5" class="!whitespace-normal"><table class="w-full text-xs">
-  ${c.st.ledger.filter((e) => e.date === date).sort((a, b) => a.at - b.at).map((e) => `<tr class="border-b"><td>${fmtTime(e.at).slice(0, 5)}</td><td>${badge(e.kind === 'in' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700', e.kind === 'in' ? '入金' : '支払')} ${esc(categoryOf(e.category)?.label ?? '')}</td><td class="text-right">${yen(e.amount)}</td><td class="!whitespace-normal">${esc(e.memo)}${e.userId ? `（${esc(c.withOffice(userById(e.userId)))}）` : ''}</td>${e.category === 'sales' ? `<td class="text-slate-500">原価 ${yen(e.cost)}</td>` : '<td></td>'}</tr>`).join('')}
+  ${c.st.ledger.filter((e) => e.date === date).sort((a, b) => a.at - b.at).map((e) => `<tr class="border-b"><td>${fmtTime(e.at).slice(0, 5)}</td><td>${badge(e.kind === 'in' ? 'bg-teal-100 text-teal-700' : 'bg-rose-100 text-rose-700', e.kind === 'in' ? '入金' : '支払')} ${esc(categoryOf(e.category)?.label ?? '')}</td><td class="text-right">${yen(e.amount)}</td><td class="!whitespace-normal">${esc(e.memo)}${e.userId ? `（${esc(c.withOffice(userById(e.userId)))}）` : ''}</td>${e.category === 'sales' ? `<td class="text-slate-500">原価 ${yen(e.cost)}</td>` : '<td></td>'}</tr>`).join('')}
 </table></td></tr>`;
 
 export function advanceTable(c) {
@@ -65,10 +65,10 @@ export function advanceTable(c) {
       const { user, day, phase, summary: sm, cash } = r;
       return `<tr class="border-b ${sm ? 'cursor-pointer hover:bg-slate-50' : ''}" ${sm ? `data-sel-user="${user.id}"` : ''}>
         <td class="font-bold">${esc(user.name)}</td><td>${esc(c.officeOf(user.id))}</td><td>${badge(PHASE[phase][1], PHASE[phase][0])}</td>
-        <td class="text-right">${yen(cash.opening)}${sm ? '' : '<div class="text-xs text-slate-400">前日繰越</div>'}</td><td class="text-right">${yen(cash.depositTotal)}</td><td class="text-right ${cash.depositTotal !== cash.withdrawalTotal ? 'text-amber-700 font-bold' : ''}">${yen(cash.withdrawalTotal)}</td><td class="text-right">${yen(cash.expenseTotal)}</td>
-        <td class="text-right font-bold ${cash.balance < 0 ? 'text-rose-600' : ''}">${signedYen(cash.balance)}</td>
-        <td class="text-right font-bold ${day?.close?.diff ? 'text-rose-600' : 'text-emerald-700'}">${day?.closedAt ? signed(day.close.diff) : '-'}</td>
-        <td class="!whitespace-normal">${r.flags.length ? badge(r.flags.some((f) => f.level === 'danger') ? LEVEL.danger : LEVEL.warn, `${r.flags.length}件`) : sm ? '<span class="text-emerald-700 text-xs font-bold">問題なし</span>' : '-'}</td></tr>
+        <td class="text-right">${yen(cash.opening)}${sm ? '' : '<div class="text-xs text-slate-400">前日繰越</div>'}</td><td class="text-right">${yen(cash.depositTotal)}</td><td class="text-right ${cash.depositTotal !== cash.withdrawalTotal ? 'text-amber-800 font-bold' : ''}">${yen(cash.withdrawalTotal)}</td><td class="text-right">${yen(cash.expenseTotal)}</td>
+        <td class="text-right font-bold ${cash.balance < 0 ? 'text-rose-700' : ''}">${signedYen(cash.balance)}</td>
+        <td class="text-right font-bold ${day?.close?.diff ? 'text-rose-700' : 'text-teal-700'}">${day?.closedAt ? signed(day.close.diff) : '-'}</td>
+        <td class="!whitespace-normal">${r.flags.length ? badge(r.flags.some((f) => f.level === 'danger') ? LEVEL.danger : LEVEL.warn, `${r.flags.length}件`) : sm ? '<span class="text-teal-700 text-xs font-bold">問題なし</span>' : '-'}</td></tr>
         ${c.st.selUser === user.id && sm ? `<tr class="bg-slate-50"><td colspan="10" class="!whitespace-normal text-sm">${r.flags.length ? r.flags.map((f) => badge(LEVEL[f.level], esc(f.text))).join(' ') : '確認が必要な事項はありません。'}</td></tr>` : ''}`;
     }).join('')}
     </tbody></table>
@@ -92,7 +92,7 @@ function customerPayments(c) {
     <table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>登録</th><th>お客様</th><th class="text-right">金額</th><th>理由・担当</th><th>状況</th></tr></thead><tbody>
       ${pays.length ? pays.map((p) => `<tr class="border-b"><td>${fmtTime(p.at).slice(0, 5)}</td><td class="font-bold">${esc(p.customerName)} 様</td><td class="text-right">${yen(p.amount)}</td>
         <td class="!whitespace-normal text-xs">${esc(reasonOf(p.reason).label)}${p.userId ? `／${esc(c.withOffice(userById(p.userId)))}` : ''}${p.memo ? `<br><span class="text-slate-500">${esc(p.memo)}</span>` : ''}</td>
-        <td>${p.status === 'done' ? badge('bg-emerald-100 text-emerald-800', `振込済 ${fmtTime(p.paidAt).slice(0, 5)}`) : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-pay-done="${p.id}">振込済みにする</button>`}</td></tr>`).join('')
+        <td>${p.status === 'done' ? badge('bg-teal-100 text-teal-700', `振込済 ${fmtTime(p.paidAt).slice(0, 5)}`) : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-pay-done="${p.id}">振込済みにする</button>`}</td></tr>`).join('')
         : '<tr><td colspan="5" class="text-slate-400">登録はありません。</td></tr>'}
     </tbody></table>
   </section>`;
@@ -127,7 +127,7 @@ export function balanceTab(c) {
   const pending = loadCustomerPayments().filter((p) => p.status === 'pending').length;
   return `
   <div class="flex flex-wrap gap-3">
-    ${card('今日の残高', signedYen(bal.balance), bal.balance < 0 ? 'text-rose-600' : '')}${card('今日の入金', yen(t.in), 'text-emerald-700')}${card('今日の支払', yen(t.out), 'text-rose-700')}${card('振込待ち', `${pending} 件`, pending ? 'text-amber-700' : '')}
+    ${card('今日の残高', signedYen(bal.balance), bal.balance < 0 ? 'text-rose-700' : '')}${card('今日の入金', yen(t.in), 'text-teal-700')}${card('今日の支払', yen(t.out), 'text-rose-700')}${card('振込待ち', `${pending} 件`, pending ? 'text-amber-800' : '')}
   </div>
   ${advanceRequests(c)}
   <div class="grid xl:grid-cols-2 gap-4">${ledgerForm(c)}${dailyTable(c)}</div>

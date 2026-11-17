@@ -13,7 +13,7 @@ test('鑑定士のタブレット: 訪問前に、お客様のランク・厄介
 test('鑑定士のタブレット: 要注意・クーリングオフ2回以上は赤い枠。新規のお客様は、新規と出す', () => {
   assert.match(salesCustomerCard(profile({ trouble: { level: 'alert', tags: ['クレームが多い'], memo: '' } })), /border-rose-300/);
   assert.match(salesCustomerCard(profile({ cooloff: [{ at: 1, items: 'a' }, { at: 2, items: 'b' }] })), /border-rose-300/);
-  assert.match(salesCustomerCard(profile()), /border-fuchsia-300/);
+  assert.match(salesCustomerCard(profile()), /border-slate-300/);
   assert.match(text(salesCustomerCard({ known: false, rank: null, trouble: { level: 'none', tags: [] }, cooloff: [], purchase: { count: 0, total: 0 } })), /新規のお客様/);
   assert.equal(salesCustomerCard(null), '');
 });

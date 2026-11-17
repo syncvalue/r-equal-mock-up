@@ -22,7 +22,7 @@ const badge = (cls, label) => `<span class="rounded-full px-2 py-0.5 text-xs fon
 
 // 役割ごとの、所属・担当の表示
 function belongs(u, warehouses, stores) {
-  if (u.role === 'sales') return `${esc(groupName(u.groups?.[0]))} ／ ${esc(officeShort(u.id))}営業所${u.leader ? ` ${badge('bg-sky-100 text-sky-800', 'グループリーダー')}` : ''}`;
+  if (u.role === 'sales') return `${esc(groupName(u.groups?.[0]))} ／ ${esc(officeShort(u.id))}営業所${u.leader ? ` ${badge('bg-slate-100 text-slate-900', 'グループリーダー')}` : ''}`;
   if (u.role === 'warehouse') return esc(warehouses.find((w) => w.id === u.warehouseId)?.name ?? '（所属不明）');
   if (u.role === 'store') return esc(storeNameOf(u.storeId, stores) || '（所属不明）');
   if (u.role === 'appraiser') return `担当 ${(u.groups ?? []).map((g) => esc(groupName(g))).join('・')}`;
@@ -35,7 +35,7 @@ function row(u, warehouses, departments, stores) {
     ? '<span class="text-xs text-slate-400">参照のみ</span>'
     : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-edit="${esc(u.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-toggle="${esc(u.id)}">${u.active ? '無効にする' : '有効にする'}</button>`;
   return `<tr class="border-b ${u.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(u.name)}</td><td class="font-mono text-xs">${esc(u.loginId)}</td><td>${esc(departmentName(u.departmentId, departments))}</td><td>${esc(roleLabel(u.role))}</td>
-    <td class="!whitespace-normal text-xs">${belongs(u, warehouses, stores)}</td><td>${u.active ? badge('bg-emerald-100 text-emerald-800', '有効') : badge('bg-slate-200 text-slate-600', '無効')}</td><td>${ops}</td></tr>`;
+    <td class="!whitespace-normal text-xs">${belongs(u, warehouses, stores)}</td><td>${u.active ? badge('bg-teal-100 text-teal-700', '有効') : badge('bg-slate-200 text-slate-700', '無効')}</td><td>${ops}</td></tr>`;
 }
 
 export function listHtml({ employees, warehouses, departments, stores = [], ui }) {
@@ -75,7 +75,7 @@ export function employeesPanelHtml(ctx) {
   const tab = (key, label) => `<button class="b !min-h-0 !py-1.5 !px-3 text-sm ${ui.role === key ? 'on' : 'b-sec'}" data-role="${key}">${esc(label)} <b>${counts[key || 'all']}</b></button>`;
   return `<section class="rounded-xl border bg-white p-4 space-y-3">
       <h2 class="font-bold text-lg">👥 社員（${employees.filter((u) => u.active).length}名）${helpIcon(`社員は、このシステムを使う社内の人です（会社「${COMPANY.name}」の、いずれかの部署に属します）。役割はひとつで、使う画面が決まります。倉庫担当・オペレーター・査定員は、ここで登録した人が、各画面に反映されます。`)}</h2>
-      <details class="text-xs text-slate-600"><summary class="cursor-pointer font-bold">役割と、使う画面</summary>
+      <details class="text-xs text-slate-700"><summary class="cursor-pointer font-bold">役割と、使う画面</summary>
         <ul class="mt-1 grid sm:grid-cols-2 gap-x-6">${ROLES.map((r) => `<li><b>${esc(r.label)}</b> … ${esc(r.where)}</li>`).join('')}</ul></details>
       <div class="flex flex-wrap items-center gap-2">${tab('', 'すべて')}${ROLES.map((r) => tab(r.key, r.label)).join('')}</div>
       <div class="flex flex-wrap items-center gap-3">
@@ -84,7 +84,7 @@ export function employeesPanelHtml(ctx) {
         <select class="inp !w-36" data-status><option value="">すべての状態</option><option value="active" ${ui.status === 'active' ? 'selected' : ''}>有効</option><option value="inactive" ${ui.status === 'inactive' ? 'selected' : ''}>無効</option></select>
         <button class="b b-pri ml-auto" data-new>＋ 新規登録</button>
       </div>
-      ${ui.role === 'sales' ? `<p class="rounded bg-amber-50 border border-amber-300 text-amber-900 text-xs p-2">鑑定士は、ここでは参照のみです。${helpIcon('鑑定士は、業績・担当エリア・始業終業などの記録が、各画面に固定されていて、まだこの名簿とつながっていないためです（登録・変更は、各画面とつなぐときに対応します）。')}</p>` : ''}
+      ${ui.role === 'sales' ? `<p class="rounded bg-amber-50 border border-amber-300 text-amber-800 text-xs p-2">鑑定士は、ここでは参照のみです。${helpIcon('鑑定士は、業績・担当エリア・始業終業などの記録が、各画面に固定されていて、まだこの名簿とつながっていないためです（登録・変更は、各画面とつなぐときに対応します）。')}</p>` : ''}
       <div data-list>${listHtml(ctx)}</div>
     </section>
     ${formHtml(ctx)}`;

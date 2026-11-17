@@ -308,7 +308,7 @@ function renderHint() {
   const calls = callHistory([form.phone, form.phone2, past?.phone, past?.phone2], loadReservations());
   if (el) el.innerHTML = hintHtml(past, quoted, past ? purchaseSummary([form.phone, form.phone2, past.phone, past.phone2]) : null) + callLogHtml(calls, callLogOpen) + openResHtml(openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())));
   const fresh = !past && !editId && /^0\d{9,10}$/.test(digits(form.phone)) && !openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())).length;
-  if (el && fresh) el.innerHTML = '<div class="text-xs font-bold text-emerald-700">🆕 この番号の受付・買取はありません</div>' + el.innerHTML;
+  if (el && fresh) el.innerHTML = '<div class="text-xs font-bold text-teal-700">🆕 この番号の受付・買取はありません</div>' + el.innerHTML;
   syncBody();
 }
 
@@ -351,9 +351,9 @@ function render() {
   $('#root').innerHTML = `
   <header class="bg-teal-800 text-white px-6 h-[52px] flex justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${menuAlert() ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
-      <span class="font-bold text-xl">📞 コールセンター</span><span class="text-teal-200">›</span><span class="font-bold">${tabLabel(tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
+      <span class="font-bold text-xl">📞 コールセンター</span><span class="text-teal-700">›</span><span class="font-bold">${tabLabel(tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
     <div class="text-sm flex items-center gap-3">
-      <label class="text-xs text-white/80">オペレーター <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${ops.map((o) => `<option class="text-slate-800" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
+      <label class="text-xs text-white/80">オペレーター <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${ops.map((o) => `<option class="text-slate-900" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
       ${tab === 'new' && !editId ? `<button class="rounded px-3 py-1 text-xs font-bold bg-amber-400 text-slate-900" data-demo="toggle">🎙 音声入力デモ${demoOpen ? 'を閉じる' : '（今後の拡張）'}</button>` : ''}
       <a class="underline text-white/80 text-xs" href="/tablet/" target="_blank" rel="noopener">鑑定士アプリを開く</a>
       <button class="text-xs underline text-white/70" data-reset>データ初期化</button>${themeToggleHtml()}</div>
@@ -679,7 +679,7 @@ function showGhost(col, t) {
   const v = canPlace(dragging.rec, t.userId, t.start, dragging.all);
   const g = document.createElement('div');
   g.id = 'drop-ghost';
-  g.className = `pointer-events-none absolute inset-x-0 z-30 rounded border-2 text-center text-[10px] font-bold ${v.ok ? 'border-emerald-600 bg-emerald-400/30 text-emerald-800' : 'border-rose-500 bg-rose-400/30 text-rose-700'}`;
+  g.className = `pointer-events-none absolute inset-x-0 z-30 rounded border-2 text-center text-[10px] font-bold ${v.ok ? 'border-teal-600 bg-teal-400/30 text-teal-700' : 'border-rose-500 bg-rose-400/30 text-rose-700'}`;
   g.style.top = `${((t.start - 9 * 60) / 30) * BOARD_ROW}px`;
   g.style.height = `${(dragging.mins / 30) * BOARD_ROW - 1}px`;
   g.textContent = v.ok ? `${minToHHMM(t.start)}〜` : v.reason;

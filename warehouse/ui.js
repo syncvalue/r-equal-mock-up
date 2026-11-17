@@ -6,8 +6,8 @@ import { warehouseById, warehouseIdOf } from '../src/warehouseMaster.js';
 import { sealColorOf } from '../src/stock.js';
 
 export const STAGE_CLS = {
-  incoming: 'bg-slate-200 text-slate-600', missing: 'bg-rose-100 text-rose-700', stock: 'bg-emerald-100 text-emerald-800', listed: 'bg-sky-100 text-sky-800', consigned: 'bg-violet-50 text-violet-800', transit: 'bg-amber-100 text-amber-800',
-  sold: 'bg-indigo-100 text-indigo-800', returning: 'bg-amber-100 text-amber-800', returned: 'bg-slate-100 text-slate-600',
+  incoming: 'bg-slate-200 text-slate-700', missing: 'bg-rose-100 text-rose-700', stock: 'bg-teal-100 text-teal-700', listed: 'bg-slate-100 text-slate-900', consigned: 'bg-slate-50 text-slate-900', transit: 'bg-amber-100 text-amber-800',
+  sold: 'bg-slate-100 text-slate-900', returning: 'bg-amber-100 text-amber-800', returned: 'bg-slate-100 text-slate-700',
 };
 
 export const badge = (cls, text) => `<span class="rounded px-2 py-0.5 text-xs font-bold whitespace-normal ${cls}">${text}</span>`;
@@ -17,7 +17,7 @@ export const md = (date) => { const [, m, d] = date.split('-'); return `${Number
 export const mdw = (date) => { const [y, m, d] = date.split('-').map(Number); return `${m}/${d}(${'日月火水木金土'[new Date(y, m - 1, d).getDay()]})`; };
 export const mdTime = (ms) => `${md(dateOf(ms))} ${fmtTime(ms).slice(0, 5)}`;
 export const yenS = (n) => (n < 0 ? `−${yen(-n)}` : yen(n)); // マイナスは「−」で表す
-export const profitCls = (n) => (n < 0 ? 'text-rose-600' : 'text-emerald-700');
+export const profitCls = (n) => (n < 0 ? 'text-rose-700' : 'text-teal-700');
 // 商品が入庫されている倉庫の名前（入庫前は「-」）
 export const whName = (unit, master) => (unit.status === 'stored' ? warehouseById(master, warehouseIdOf(unit, master))?.name ?? '-' : '-');
 // シールの色の表示（紫・赤は本社管理の高額品）

@@ -54,16 +54,16 @@ const tabBody = (full, now) => {
   const data = { ...state, rows: buildRows(state, now), master, allRows: buildRows(full, now), full, me: staff };
   // 出品・売却・返品は、自分の倉庫の商品だけ扱える（他の倉庫の商品は、先に移動する）
   const own = scopeState(full, staff.warehouseId, master);
-  const ownNotice = `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">扱える商品: あなたの倉庫（${esc(myWarehouse().name)}）の分だけ${helpIcon('この画面で扱えるのは、あなたの倉庫の商品だけです。他の倉庫の商品は、先に「🚚 倉庫間移動」で、自分の倉庫に移してください。')}</div>`;
+  const ownNotice = `<div class="text-xs rounded bg-slate-50 border border-slate-200 p-2">扱える商品: あなたの倉庫（${esc(myWarehouse().name)}）の分だけ${helpIcon('この画面で扱えるのは、あなたの倉庫の商品だけです。他の倉庫の商品は、先に「🚚 倉庫間移動」で、自分の倉庫に移してください。')}</div>`;
   if (tab === 'receive') return receiveTab(full, ui, myWarehouse(), master);
   if (tab === 'transfer') return transferTab(full, master, ui, staff, now);
   if (tab === 'list') return ownNotice + listTab({ ...own, rows: buildRows(own, now) }, ui, now, { full, master, me: staff });
   if (tab === 'sales') return salesTab(full, master, ui, staff, now);
-  if (tab === 'return') return `<div class="text-xs rounded bg-sky-50 border border-sky-200 p-2">扱える依頼: あなたの倉庫（${esc(myWarehouse().name)}）の商品の分だけ${helpIcon('ここで扱えるのは、あなたの倉庫の商品の依頼だけです。依頼は、コールセンターの「クーリングオフ」タブで受電して作ります。')}</div>${returnTab(own, ui, now, { full, master })}`;
+  if (tab === 'return') return `<div class="text-xs rounded bg-slate-50 border border-slate-200 p-2">扱える依頼: あなたの倉庫（${esc(myWarehouse().name)}）の商品の分だけ${helpIcon('ここで扱えるのは、あなたの倉庫の商品の依頼だけです。依頼は、コールセンターの「クーリングオフ」タブで受電して作ります。')}</div>${returnTab(own, ui, now, { full, master })}`;
   return stockTab(data, ui);
 };
 
-const scopeSelect = () => `<label class="text-xs">対象の倉庫 <select class="rounded px-2 py-1 text-sm text-slate-800" data-scope><option value="all" ${ui.scope === 'all' ? 'selected' : ''}>全倉庫</option>
+const scopeSelect = () => `<label class="text-xs">対象の倉庫 <select class="rounded px-2 py-1 text-sm text-slate-900" data-scope><option value="all" ${ui.scope === 'all' ? 'selected' : ''}>全倉庫</option>
   ${master.warehouses.map((w) => `<option value="${esc(w.id)}" ${ui.scope === w.id ? 'selected' : ''}>${esc(w.name)}${w.id === staff.warehouseId ? '（自分の倉庫）' : ''}${w.active ? '' : '（無効）'}</option>`).join('')}</select></label>`;
 
 function render() {
@@ -82,7 +82,7 @@ function render() {
   const menuBadge = badges.receive + badges.transfer > 0;
   // タブレットの幅でも崩れないよう、見出しは折り返し、本文が残りの高さを使う
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
-  <header class="bg-sky-900 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
+  <header class="bg-slate-900 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${menuBadge ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
       <span class="font-bold text-xl">倉庫・物流</span><span class="text-slate-300">›</span><span class="font-bold">${esc(tabLabel(tab))}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${tab === 'stock' ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter(isOpenReturn).length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>👤 ${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>

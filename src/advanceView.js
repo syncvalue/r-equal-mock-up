@@ -43,7 +43,7 @@ export function advanceModalView(s) {
           <div class="font-bold text-sm">これまでの依頼</div>
           <div class="space-y-1">${list.length ? list.map(row).join('') : '<div class="text-sm text-slate-400">まだ依頼はありません。</div>'}</div></div>
         <div class="space-y-2">${sel ? `
-          <div class="rounded-lg border p-2 flex flex-wrap items-center gap-2"><b class="text-lg">${yen(sel.amount)}</b><span class="rounded text-xs font-bold px-2 py-0.5 ${REQUEST_STATUS[sel.status].cls}">${REQUEST_STATUS[sel.status].label}</span><span class="flex-1 text-sm text-slate-600 min-w-0">${esc(sel.memo)}</span>
+          <div class="rounded-lg border p-2 flex flex-wrap items-center gap-2"><b class="text-lg">${yen(sel.amount)}</b><span class="rounded text-xs font-bold px-2 py-0.5 ${REQUEST_STATUS[sel.status].cls}">${REQUEST_STATUS[sel.status].label}</span><span class="flex-1 text-sm text-slate-700 min-w-0">${esc(sel.memo)}</span>
             ${sel.status === 'open' ? `<button class="btn btn-primary !min-h-[40px] !py-1 !px-3 text-sm" data-action="adv-close" data-id="${sel.id}">✓ 完了にする</button>` : `<span class="text-xs text-slate-500">${md(sel.closedAt)} ${fmtTime(sel.closedAt).slice(0, 5)} に完了</span>`}</div>
           
           <div class="font-bold text-sm">💬 経理部とのやり取り${helpIcon('やり取りが終わったら（振り込まれた場合も、見送りの場合も）「完了にする」を押します。')}</div>

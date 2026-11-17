@@ -5,7 +5,7 @@ import { mdTime } from './ui.js';
 
 const SIDE = {
   callcenter: { label: 'コールセンター', wrap: 'justify-start', bubble: 'bg-teal-50 border-teal-300' },
-  warehouse: { label: '倉庫', wrap: 'justify-end', bubble: 'bg-sky-100 border-sky-300' },
+  warehouse: { label: '倉庫', wrap: 'justify-end', bubble: 'bg-slate-100 border-slate-300' },
 };
 
 // 時系列の吹き出し。コールセンターは左・倉庫は右・システムの記録は中央

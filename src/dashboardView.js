@@ -15,12 +15,12 @@ const pct = (n) => `${Math.round(n * 100)}%`;
 const delta = (cur, prev, onDark = false) => {
   if (!prev) return '';
   const d = (cur - prev) / prev;
-  return `<span class="text-xs font-bold ${onDark ? 'text-white' : d >= 0 ? 'text-emerald-700' : 'text-rose-600'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(d * 100))}%</span>`;
+  return `<span class="text-xs font-bold ${onDark ? 'text-white' : d >= 0 ? 'text-teal-700' : 'text-rose-700'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(d * 100))}%</span>`;
 };
 
 // 主役は買取金額。ほかの指標は小さめに
 const kpi = (label, value, sub, hero = false) => `
-  <div class="card !p-3 min-w-0 text-right ${hero ? 'md:col-span-2 !bg-teal-600 text-white' : ''}"><div class="text-xs ${hero ? 'text-teal-100' : 'text-slate-500'}">${label}</div>
+  <div class="card !p-3 min-w-0 text-right ${hero ? 'md:col-span-2 !bg-teal-600 text-white' : ''}"><div class="text-xs ${hero ? 'text-teal-700' : 'text-slate-500'}">${label}</div>
     <div class="${hero ? 'text-4xl' : 'text-xl'} font-bold leading-tight truncate">${value}</div><div class="min-h-[18px]">${sub ?? ''}</div></div>`;
 
 function barChart(series, todayKey) {
@@ -46,7 +46,7 @@ function barChart(series, todayKey) {
 
 function progressBar(p) {
   return `<div class="relative h-4 rounded-full bg-slate-200 overflow-hidden">
-    <div class="absolute inset-y-0 left-0 rounded-full ${p.rate >= p.pace ? 'bg-emerald-500' : 'bg-amber-500'}" style="width:${Math.min(100, p.rate * 100).toFixed(1)}%"></div>
+    <div class="absolute inset-y-0 left-0 rounded-full ${p.rate >= p.pace ? 'bg-teal-500' : 'bg-amber-500'}" style="width:${Math.min(100, p.rate * 100).toFixed(1)}%"></div>
     <div class="absolute inset-y-0 w-0.5 bg-slate-900" style="left:${(p.pace * 100).toFixed(1)}%" title="今日までの経過に応じた目安"></div></div>`;
 }
 
@@ -56,15 +56,15 @@ function memberTable(s, members, range, now) {
     .sort((a, b) => b.st.amount - a.st.amount);
   return `
   <div class="card !p-0 overflow-hidden">
-    <table class="w-full text-sm"><thead class="bg-slate-100 text-slate-600"><tr>
+    <table class="w-full text-sm"><thead class="bg-slate-100 text-slate-700"><tr>
       <th class="p-2 text-left">順位</th><th class="text-left">メンバー</th><th class="text-right">訪問</th><th class="text-right">契約</th><th class="text-right">再訪</th><th class="text-right">成約率</th><th class="text-right">買取金額</th><th class="text-right">粗利</th><th class="w-48 text-left pl-3">今月の目標達成</th></tr></thead>
       <tbody>${rows.map(({ u, st, pr }, i) => `
-        <tr class="border-t cursor-pointer hover:bg-indigo-50" data-action="dash-member" data-id="${u.id}">
+        <tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-member" data-id="${u.id}">
           <td class="p-2 font-bold">${i + 1}</td>
-          <td><b>${esc(u.name)}</b>${isLeader(u) ? ' <span class="text-xs rounded bg-indigo-100 text-indigo-800 px-1.5 py-0.5 font-bold">リーダー</span>' : ''}</td>
+          <td><b>${esc(u.name)}</b>${isLeader(u) ? ' <span class="text-xs rounded bg-slate-100 text-slate-900 px-1.5 py-0.5 font-bold">リーダー</span>' : ''}</td>
           <td class="text-right">${st.visits}</td><td class="text-right">${st.contracts}</td><td class="text-right">${st.revisits}</td><td class="text-right">${pct(st.rate)}</td>
           <td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right">${yen(st.gross)}</td>
-          <td class="pl-3"><div class="flex items-center gap-2">${`<div class="flex-1">${progressBar(pr)}</div>`}<span class="w-10 text-right font-bold ${pr.rate >= pr.pace ? 'text-emerald-700' : 'text-amber-700'}">${pct(pr.rate)}</span></div></td></tr>`).join('')}
+          <td class="pl-3"><div class="flex items-center gap-2">${`<div class="flex-1">${progressBar(pr)}</div>`}<span class="w-10 text-right font-bold ${pr.rate >= pr.pace ? 'text-teal-700' : 'text-amber-800'}">${pct(pr.rate)}</span></div></td></tr>`).join('')}
       </tbody></table></div>
   `;
 }
@@ -99,7 +99,7 @@ function messageCard(s, { key, icon, title, msgs, canSend }) {
             <span class="text-xs text-slate-400 shrink-0">${fmtDateTime(m.sentAt).replace(/:\d+$/, '').replace(/^\d+年/, '')}</span></button>`;
         }).join('') : '<p class="text-slate-400 text-center py-3">メッセージはありません</p>'}
       </div>
-      ${msgs.length > 2 ? `<div data-msgmore class="absolute inset-x-0 bottom-0 h-9 flex items-end justify-center pointer-events-none bg-gradient-to-t from-white via-white/90 to-transparent"><span class="text-xs font-bold text-slate-600 pb-0.5">▼ 他${msgs.length - 2}件（下へスクロール）</span></div>` : ''}
+      ${msgs.length > 2 ? `<div data-msgmore class="absolute inset-x-0 bottom-0 h-9 flex items-end justify-center pointer-events-none bg-gradient-to-t from-white via-white/90 to-transparent"><span class="text-xs font-bold text-slate-700 pb-0.5">▼ 他${msgs.length - 2}件（下へスクロール）</span></div>` : ''}
     </div>` : ''}
   </div>`;
 }
@@ -129,14 +129,14 @@ function yearCard(users, now) {
       ${m.gross ? `<rect x="${(x + bw * 0.18).toFixed(1)}" y="${H - 52 - h}" width="${(bw * 0.64).toFixed(1)}" height="${h}" rx="3" class="${cur ? 'fill-amber-500' : 'fill-teal-600'}"/>
       <text x="${(x + bw / 2).toFixed(1)}" y="${H - 56 - h}" text-anchor="middle" font-size="11" class="fill-slate-600">${man(m.gross)}</text>` : ''}
       <text x="${(x + bw / 2).toFixed(1)}" y="${H - 34}" text-anchor="middle" font-size="12" class="fill-slate-500">${m.month}月</text>
-      <text x="${(x + bw / 2).toFixed(1)}" y="${H - 14}" text-anchor="middle" font-size="13" font-weight="700" class="fill-indigo-700">${m.visits ? m.revisits : '-'}</text></g>`;
+      <text x="${(x + bw / 2).toFixed(1)}" y="${H - 14}" text-anchor="middle" font-size="13" font-weight="700" class="fill-slate-700">${m.visits ? m.revisits : '-'}</text></g>`;
   }).join('');
   return `<div class="card !p-3 space-y-1">
     <div class="flex flex-wrap items-end justify-between gap-2">
-      <div class="font-bold text-sm">${y.year}年の粗利<span class="font-normal text-slate-500">（棒＝月別の粗利、<span class="text-indigo-700 font-bold">下の数字＝再訪数</span>）</span>${helpIcon('棒は月別の粗利、下の数字は月別の再訪数です。\n粗利は、モックのダミーデータです。')}</div>
+      <div class="font-bold text-sm">${y.year}年の粗利<span class="font-normal text-slate-500">（棒＝月別の粗利、<span class="text-slate-700 font-bold">下の数字＝再訪数</span>）</span>${helpIcon('棒は月別の粗利、下の数字は月別の再訪数です。\n粗利は、モックのダミーデータです。')}</div>
       <div class="flex gap-4 text-right">
         <div><div class="text-xs text-slate-500">年間粗利</div><div class="text-2xl font-bold text-teal-700">${yen(y.total.gross)}</div></div>
-        <div><div class="text-xs text-slate-500">年間の再訪数</div><div class="text-2xl font-bold text-indigo-700">${y.total.revisits}<span class="text-sm font-normal">件</span></div></div></div></div>
+        <div><div class="text-xs text-slate-500">年間の再訪数</div><div class="text-2xl font-bold text-slate-700">${y.total.revisits}<span class="text-sm font-normal">件</span></div></div></div></div>
     <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="月別の粗利と再訪数">
       <line x1="${pad}" x2="${W - pad}" y1="${H - 46}" y2="${H - 46}" class="stroke-slate-300" stroke-width="1"/>
       ${cols}</svg></div>`;
@@ -158,7 +158,7 @@ export function dashboardView(s) {
   const subject =
     scope === 'group' ? GROUPS.find((g) => g.id === user.group).name : scope === 'member' ? `${userById(memberId).name}（メンバー詳細）` : `${user.name}（自分）`;
 
-  const tab = (key, label) => `<button class="flex-1 py-2 rounded-lg font-bold ${scope === key || (key === 'group' && scope === 'member') ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="dash-scope" data-value="${key}">${label}</button>`;
+  const tab = (key, label) => `<button class="flex-1 py-2 rounded-lg font-bold ${scope === key || (key === 'group' && scope === 'member') ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'}" data-action="dash-scope" data-value="${key}">${label}</button>`;
 
   return `
   <section class="h-full min-h-0 overflow-y-auto p-4 space-y-3" data-scroll="dash">
@@ -169,17 +169,17 @@ export function dashboardView(s) {
         <p class="text-sm text-slate-500">${esc(subject)} ／ ${range.start.getMonth() + 1}/${range.start.getDate()}${range.start.getTime() === range.end.getTime() ? '' : `〜${range.end.getMonth() + 1}/${range.end.getDate()}`}</p></div>
       <div class="flex items-center gap-2">
         <button class="btn btn-secondary !min-h-[40px] !py-1 !px-3 text-sm whitespace-nowrap" data-action="dash-reports">📝 日報を見る</button>
-        <div class="flex gap-1 w-64">${PERIODS.map(([k, l]) => `<button class="flex-1 py-2 rounded-lg font-bold ${s.dash.period === k ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="dash-period" data-value="${k}">${l}</button>`).join('')}</div></div>
+        <div class="flex gap-1 w-64">${PERIODS.map(([k, l]) => `<button class="flex-1 py-2 rounded-lg font-bold ${s.dash.period === k ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'}" data-action="dash-period" data-value="${k}">${l}</button>`).join('')}</div></div>
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
       ${leader
         ? `<div class="flex gap-1 w-80">${tab('me', '自分')}${tab('group', 'グループ全体')}</div>`
-        : '<span class="text-sm rounded-lg bg-slate-100 text-slate-600 px-3 py-1.5">🔒 あなたの業績のみ表示されます</span>'}
+        : '<span class="text-sm rounded-lg bg-slate-100 text-slate-700 px-3 py-1.5">🔒 あなたの業績のみ表示されます</span>'}
       ${scope === 'member' ? '<button class="text-teal-700 font-bold underline" data-action="dash-scope" data-value="group">← グループ全体に戻る</button>' : ''}
       <details class="ml-auto text-xs text-slate-500" ${s.dash.demoOpen ? 'open' : ''}><summary class="cursor-pointer text-right underline" data-action="dash-demo">デモ用：表示するロール</summary><div class="mt-1 flex flex-wrap items-center justify-end gap-2">
       <div class="flex items-center gap-1">表示するロール
-        ${[['member', 'メンバー'], ['leader', 'グループリーダー']].map(([k, l]) => `<button class="rounded-lg px-3 py-1.5 font-bold ${(leader ? 'leader' : 'member') === k ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="dash-viewas" data-value="${k}">${l}</button>`).join('')}</div>
+        ${[['member', 'メンバー'], ['leader', 'グループリーダー']].map(([k, l]) => `<button class="rounded-lg px-3 py-1.5 font-bold ${(leader ? 'leader' : 'member') === k ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-700'}" data-action="dash-viewas" data-value="${k}">${l}</button>`).join('')}</div>
       </div></details>
     </div>
 
@@ -197,10 +197,10 @@ export function dashboardView(s) {
       <div class="card !p-3"><div class="font-bold text-sm mb-1">日別の買取金額${s.dash.period === 'today' ? '（直近7日）' : ''}${helpIcon('バーをタップすると、その日の訪問結果を表示します。')}</div>${barChart(series, ymd(now))}</div>
       <div class="card !p-3 space-y-2">
         <div class="font-bold text-sm">今月の目標達成</div>
-        <div class="flex items-end justify-between"><span class="text-3xl font-bold ${prog.rate >= prog.pace ? 'text-emerald-700' : 'text-amber-700'}">${pct(prog.rate)}</span>
+        <div class="flex items-end justify-between"><span class="text-3xl font-bold ${prog.rate >= prog.pace ? 'text-teal-700' : 'text-amber-800'}">${pct(prog.rate)}</span>
           <span class="text-xs text-slate-500 text-right">${yen(prog.amount)} / 目標 ${yen(prog.target)}</span></div>
         ${progressBar(prog)}
-        <div class="text-xs ${prog.rate >= prog.pace ? 'text-emerald-700' : 'text-amber-700'} font-bold">${prog.rate >= prog.pace ? '目安を上回っています' : '目安を下回っています'}<span class="font-normal text-slate-400">（縦線＝今日までの経過 ${pct(prog.pace)}）</span></div>
+        <div class="text-xs ${prog.rate >= prog.pace ? 'text-teal-700' : 'text-amber-800'} font-bold">${prog.rate >= prog.pace ? '目安を上回っています' : '目安を下回っています'}<span class="font-normal text-slate-400">（縦線＝今日までの経過 ${pct(prog.pace)}）</span></div>
       </div>
     </div>
 
@@ -229,11 +229,11 @@ export function dashVisitsModal(s) {
     body: `
     <div class="flex flex-wrap gap-2 text-sm">
       <span class="rounded-lg bg-slate-100 px-3 py-1">訪問実績 <b>${recs.length}件</b></span>
-      <span class="rounded-lg bg-emerald-100 text-emerald-800 px-3 py-1">成約 <b>${count('won')}</b></span>
+      <span class="rounded-lg bg-teal-100 text-teal-700 px-3 py-1">成約 <b>${count('won')}</b></span>
       <span class="rounded-lg bg-slate-200 text-slate-700 px-3 py-1">不成約 <b>${count('lost')}</b></span>
       <span class="rounded-lg bg-amber-100 text-amber-800 px-3 py-1">業績対象外 <b>${excluded}</b>（不在・日程変更）</span>${helpIcon('不在・日程変更は訪問実績に数え、訪問数・成約率には含みません。')}</div>
     ${recs.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm">
-      <thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">日時</th>${showWho ? '<th class="text-left">鑑定士</th>' : ''}<th class="text-left">お客様</th><th class="text-left">商材</th><th class="text-left">結果</th><th class="text-right pr-3">買取金額</th></tr></thead>
+      <thead class="bg-slate-100 text-slate-700"><tr><th class="p-2 text-left">日時</th>${showWho ? '<th class="text-left">鑑定士</th>' : ''}<th class="text-left">お客様</th><th class="text-left">商材</th><th class="text-left">結果</th><th class="text-right pr-3">買取金額</th></tr></thead>
       <tbody>${recs.map((r) => `<tr class="border-t align-top">
         <td class="p-2 whitespace-nowrap">${r.date.getMonth() + 1}/${r.date.getDate()} ${r.time}</td>${showWho ? `<td class="whitespace-nowrap">${esc(userById(r.userId).name)}</td>` : ''}
         <td class="whitespace-nowrap">${esc(r.customer)} 様</td><td>${esc(r.items)}</td>
@@ -285,7 +285,7 @@ function reportDetail(r) {
   <div class="grid md:grid-cols-2 gap-3">
     <div class="rounded-xl border p-3"><div class="font-bold mb-1">現金の収支</div><div class="text-sm divide-y">
       ${row('前日繰越金', yen(r.opening))}${row('補充金（経理部から振込）', yen(r.depositTotal))}${row('引き出し金額', `+${yen(r.withdrawalTotal)}`)}${row('経費（買取代金を含む）', `−${yen(r.expenseTotal)}`)}${row('帳簿上の残高', yen(r.balance), 'text-base')}
-      ${r.closed ? `${row('実際の所持金', yen(r.counted))}${row('過不足', `<span class="${r.diff ? 'text-rose-600' : 'text-emerald-700'}">${signedYen(r.diff)}</span>`)}` : ''}</div>
+      ${r.closed ? `${row('実際の所持金', yen(r.counted))}${row('過不足', `<span class="${r.diff ? 'text-rose-700' : 'text-teal-700'}">${signedYen(r.diff)}</span>`)}` : ''}</div>
       ${r.closed && r.diff ? `<div class="text-xs rounded bg-rose-50 p-2 mt-1">差異の理由: ${esc(r.diffNote)}</div>` : ''}</div>
     <div class="rounded-xl border p-3"><div class="font-bold mb-1">経費の内訳</div><div class="text-sm divide-y">
       ${r.expenses.length ? r.expenses.map((e) => row(`${esc(e.label)}${e.memo ? `<span class="text-xs text-slate-400 ml-1">${esc(e.memo)}</span>` : ''}`, yen(e.amount))).join('') : '<div class="text-slate-400 py-2">計上なし</div>'}</div></div>
@@ -320,11 +320,11 @@ export function dashReportsModal(s) {
   if (!user) {
     const rows = users.map((u) => ({ u, st: stats3(listFor(u)) }));
     return { title: `📝 日報　${period}${helpIcon('メンバーを選ぶと、期間中の日報を見られます。')}`, body: `
-      <div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">メンバー</th><th class="text-right">日報</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right pr-3">差異のあった日</th></tr></thead>
-        <tbody>${rows.map(({ u, st }) => `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-user" data-id="${u.id}"><td class="p-2 font-bold">${esc(u.name)}</td><td class="text-right">${st.days}日</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right pr-3 ${st.diffDays ? 'text-rose-600 font-bold' : 'text-slate-400'}">${st.diffDays ? `${st.diffDays}日` : 'なし'}</td></tr>`).join('')}</tbody></table></div>` };
+      <div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-700"><tr><th class="p-2 text-left">メンバー</th><th class="text-right">日報</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right pr-3">差異のあった日</th></tr></thead>
+        <tbody>${rows.map(({ u, st }) => `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-user" data-id="${u.id}"><td class="p-2 font-bold">${esc(u.name)}</td><td class="text-right">${st.days}日</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right pr-3 ${st.diffDays ? 'text-rose-700 font-bold' : 'text-slate-400'}">${st.diffDays ? `${st.diffDays}日` : 'なし'}</td></tr>`).join('')}</tbody></table></div>` };
   }
   const list = listFor(user);
   return { title: `📝 ${esc(user.name)}の日報　${period}${helpIcon('行をタップすると、その日の日報を表示します。')}`, body: `${back}
-    ${list.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-600"><tr><th class="p-2 text-left">日付</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right">経費</th><th class="text-right pr-3">現金の過不足</th></tr></thead>
-      <tbody>${list.map((r) => { const st = stats3([r]); return `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-day" data-date="${ymd(r.date)}"><td class="p-2 font-bold whitespace-nowrap">${dLabel(r.date)}${r.closed ? '' : ' <span class="text-xs rounded bg-amber-100 text-amber-800 px-1.5">集計中</span>'}</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right">${yen(r.expenseTotal)}</td><td class="text-right pr-3 font-bold ${!r.closed ? 'text-slate-400' : r.diff ? 'text-rose-600' : 'text-emerald-700'}">${r.closed ? signedYen(r.diff) : '-'}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="text-slate-400 text-center py-8">この期間の日報はありません</p>'}` };
+    ${list.length ? `<div class="rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-slate-100 text-slate-700"><tr><th class="p-2 text-left">日付</th><th class="text-right">訪問</th><th class="text-right">成約</th><th class="text-right">買取金額</th><th class="text-right">経費</th><th class="text-right pr-3">現金の過不足</th></tr></thead>
+      <tbody>${list.map((r) => { const st = stats3([r]); return `<tr class="border-t cursor-pointer hover:bg-slate-50" data-action="dash-rep-day" data-date="${ymd(r.date)}"><td class="p-2 font-bold whitespace-nowrap">${dLabel(r.date)}${r.closed ? '' : ' <span class="text-xs rounded bg-amber-100 text-amber-800 px-1.5">集計中</span>'}</td><td class="text-right">${st.visits}</td><td class="text-right">${st.won}</td><td class="text-right font-bold">${yen(st.amount)}</td><td class="text-right">${yen(r.expenseTotal)}</td><td class="text-right pr-3 font-bold ${!r.closed ? 'text-slate-400' : r.diff ? 'text-rose-700' : 'text-teal-700'}">${r.closed ? signedYen(r.diff) : '-'}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="text-slate-400 text-center py-8">この期間の日報はありません</p>'}` };
 }

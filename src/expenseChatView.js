@@ -2,8 +2,8 @@
 import { esc, fmtTime } from './format.js';
 
 const SIDE_LABEL = { accounting: '経理部', sales: '鑑定士' };
-const KIND = { returned: ['bg-rose-50 border-rose-300 text-rose-800', '↩ 差戻し'], ok: ['bg-emerald-50 border-emerald-300 text-emerald-800', '✓ チェック済み'], revised: ['bg-sky-50 border-sky-300 text-sky-800', '✎ 修正'],
-  closed: ['bg-emerald-50 border-emerald-300 text-emerald-800', '✓ 完了'] };
+const KIND = { returned: ['bg-rose-50 border-rose-300 text-rose-700', '↩ 差戻し'], ok: ['bg-teal-50 border-teal-300 text-teal-700', '✓ チェック済み'], revised: ['bg-slate-50 border-slate-300 text-slate-900', '✎ 修正'],
+  closed: ['bg-teal-50 border-teal-300 text-teal-700', '✓ 完了'] };
 const clock = (at) => fmtTime(at).slice(0, 5);
 
 function bubble(m) {
@@ -12,7 +12,7 @@ function bubble(m) {
   }
   const mine = m.from === 'accounting'; // 経理部は右、鑑定士は左
   return `<div class="flex ${mine ? 'justify-end' : 'justify-start'}"><div class="max-w-[80%]"><div class="text-[11px] text-slate-500 ${mine ? 'text-right' : ''}">${esc(m.by || SIDE_LABEL[m.from])}　${clock(m.at)}</div>
-    <div class="rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${mine ? 'bg-teal-600 text-white rounded-tr-sm' : 'bg-slate-200 text-slate-800 rounded-tl-sm'}">${esc(m.text)}</div></div></div>`;
+    <div class="rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${mine ? 'bg-teal-600 text-white rounded-tr-sm' : 'bg-slate-200 text-slate-900 rounded-tl-sm'}">${esc(m.text)}</div></div></div>`;
 }
 
 // inputAttrs・sendAttrs: 入力欄・送信ボタンにつける属性（画面ごとに違う）。draft: 入力中の文章

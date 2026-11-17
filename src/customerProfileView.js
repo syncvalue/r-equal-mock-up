@@ -5,9 +5,9 @@ import { helpIcon } from "./help.js";
 
 // 顧客ランクは、鑑定士のランクと見分けがつくよう、紫で「顧客S」のように出す。厄介度は、ランクとは別の軸（注意＝橙、要注意＝赤）
 export const CRANK_CLS = {
-  S: "bg-fuchsia-700 text-white",
-  A: "bg-fuchsia-500 text-white",
-  B: "bg-fuchsia-200 text-fuchsia-900",
+  S: "bg-slate-700 text-white",
+  A: "bg-slate-500 text-white",
+  B: "bg-slate-200 text-slate-900",
   C: "bg-slate-200 text-slate-700",
 };
 export const dateYmd = (ms) => {
@@ -19,11 +19,11 @@ export const custRankBadge = (p) =>
   p?.rank
     ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${CRANK_CLS[p.rank]}" title="顧客ランク（資産・売却の見込み）${p.rankAuto ? "。総買取額から自動で決めています" : ""}">顧客${esc(p.rank)}</span>`
     : p?.known === false
-      ? '<span class="inline-block rounded bg-sky-100 px-1.5 text-[11px] font-bold leading-4 text-sky-800" title="買取の実績がありません">新規</span>'
+      ? '<span class="inline-block rounded bg-slate-100 px-1.5 text-[11px] font-bold leading-4 text-slate-900" title="買取の実績がありません">新規</span>'
       : "";
 export const troubleBadge = (p) =>
   p && p.trouble.level !== "none"
-    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${p.trouble.level === "alert" ? "bg-rose-600 text-white" : "bg-amber-200 text-amber-900"}" title="${esc(`${p.trouble.tags.join("、")}${p.trouble.memo ? `　${p.trouble.memo}` : ""}`)}">${p.trouble.level === "alert" ? "🚨 要注意" : "⚠ 注意"}</span>`
+    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${p.trouble.level === "alert" ? "bg-rose-600 text-white" : "bg-amber-200 text-amber-800"}" title="${esc(`${p.trouble.tags.join("、")}${p.trouble.memo ? `　${p.trouble.memo}` : ""}`)}">${p.trouble.level === "alert" ? "🚨 要注意" : "⚠ 注意"}</span>`
     : "";
 export const cooloffBadge = (p) =>
   p?.cooloff.length
@@ -34,7 +34,7 @@ export const cooloffBadge = (p) =>
 export const customerMarks = (p) =>
   !p?.known
     ? ""
-    : `<span class="ml-0.5 inline-flex gap-0.5 align-middle">${p.rank ? `<i class="rounded bg-white/90 px-1 text-[9px] font-bold not-italic text-fuchsia-700" title="顧客ランク">顧${esc(p.rank)}</i>` : ""}${p.trouble.level !== "none" ? `<i class="rounded px-1 text-[9px] font-bold not-italic ${p.trouble.level === "alert" ? "bg-rose-600 text-white" : "bg-amber-200 text-amber-900"}" title="${esc(p.trouble.tags.join("、"))}">${p.trouble.level === "alert" ? "要注意" : "注意"}</i>` : ""}${p.cooloff.length ? `<i class="rounded bg-white/90 px-1 text-[9px] font-bold not-italic text-rose-700" title="クーリングオフ歴">CO${p.cooloff.length}</i>` : ""}${p.declined ? `<i class="rounded bg-violet-200 px-1 text-[9px] font-bold not-italic text-violet-900" title="査定したが売らなかったものがあります">見送${p.declined}</i>` : ""}</span>`;
+    : `<span class="ml-0.5 inline-flex gap-0.5 align-middle">${p.rank ? `<i class="rounded bg-white/90 px-1 text-[9px] font-bold not-italic text-slate-700" title="顧客ランク">顧${esc(p.rank)}</i>` : ""}${p.trouble.level !== "none" ? `<i class="rounded px-1 text-[9px] font-bold not-italic ${p.trouble.level === "alert" ? "bg-rose-600 text-white" : "bg-amber-200 text-amber-800"}" title="${esc(p.trouble.tags.join("、"))}">${p.trouble.level === "alert" ? "要注意" : "注意"}</i>` : ""}${p.cooloff.length ? `<i class="rounded bg-white/90 px-1 text-[9px] font-bold not-italic text-rose-700" title="クーリングオフ歴">CO${p.cooloff.length}</i>` : ""}${p.declined ? `<i class="rounded bg-slate-200 px-1 text-[9px] font-bold not-italic text-slate-900" title="査定したが売らなかったものがあります">見送${p.declined}</i>` : ""}</span>`;
 
 // お客様の評価のまとめ（詳細）
 // 誰を当てるかの目安の文（要注意・クーリングオフが多い・資産が多いお客様）
@@ -42,7 +42,7 @@ export function assignAdvice(p) {
   if (!p) return "";
   const hot = p.trouble.level === "alert" || p.cooloff.length >= 2;
   if (!hot && p.rank !== "S") return "";
-  return `<div class="font-bold text-fuchsia-800">${hot ? "要注意のお客様です。上位ランクの鑑定士をおすすめします" : "資産の多いお客様です。上位ランクの鑑定士をおすすめします"}</div>`;
+  return `<div class="font-bold text-slate-900">${hot ? "要注意のお客様です。上位ランクの鑑定士をおすすめします" : "資産の多いお客様です。上位ランクの鑑定士をおすすめします"}</div>`;
 }
 
 export function customerProfileHtml(p, { advice = false } = {}) {
@@ -60,9 +60,9 @@ export function customerProfileHtml(p, { advice = false } = {}) {
 export function salesCustomerCard(p) {
   if (!p) return "";
   if (!p.known)
-    return '<div class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm"><span class="font-bold text-sky-800">新規のお客様</span><span class="ml-2 text-xs text-slate-500">買取の実績はありません</span></div>';
+    return '<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"><span class="font-bold text-slate-900">新規のお客様</span><span class="ml-2 text-xs text-slate-500">買取の実績はありません</span></div>';
   const alert = p.trouble.level === "alert" || p.cooloff.length >= 2;
-  return `<div class="space-y-1 rounded-xl border ${alert ? "border-rose-300 bg-rose-50/60" : "border-fuchsia-300 bg-fuchsia-50/40"} px-3 py-2"><div class="text-sm font-bold ${alert ? "text-rose-800" : "text-fuchsia-900"}">👤 お客様の評価${helpIcon("お客様情報に紐づく評価です。訪問前にご確認ください。鑑定士用の画面にだけ出ます（お客様には見せません）。")}</div>${customerProfileHtml(p)}</div>`;
+  return `<div class="space-y-1 rounded-xl border ${alert ? "border-rose-300 bg-rose-50/60" : "border-slate-300 bg-slate-50/40"} px-3 py-2"><div class="text-sm font-bold ${alert ? "text-rose-700" : "text-slate-900"}">👤 お客様の評価${helpIcon("お客様情報に紐づく評価です。訪問前にご確認ください。鑑定士用の画面にだけ出ます（お客様には見せません）。")}</div>${customerProfileHtml(p)}</div>`;
 }
 
 // 査定したが、売らなかったもの（見送り品）。お客様が手元に持っている可能性がある、有力な情報（鑑定士の訪問前の把握・配車係の当てはめの判断用。お客様には見せない）
@@ -82,12 +82,12 @@ export function declinedCardHtml(items, { empty = false } = {}) {
     else byDate.push({ at: i.at, visitId: i.visitId, items: [i] });
   });
   return `<div class="space-y-1 text-xs"><div class="flex flex-wrap items-center gap-x-3 gap-y-0.5"><span><b>${count}点</b>　査定額の合計 <b>${yen(total)}</b></span>
-      ${cats.map((c) => `<span class="rounded bg-violet-100 px-1.5 text-[11px] font-bold text-violet-900">${esc(c)}</span>`).join("")}</div>
+      ${cats.map((c) => `<span class="rounded bg-slate-100 px-1.5 text-[11px] font-bold text-slate-900">${esc(c)}</span>`).join("")}</div>
     <div class="max-h-48 space-y-1 overflow-y-auto rounded border bg-white p-1.5">${byDate.map((g) => `<div><div class="font-bold text-slate-500">${dateYmd(g.at)}の訪問</div>${g.items.map((i) => `<div class="flex items-start gap-2 border-t py-0.5 first:border-t-0"><span class="min-w-0 flex-1">${esc(i.name)}${(i.qty ?? 1) > 1 ? ` ×${i.qty}` : ""}</span><b class="shrink-0">${yen(i.price * (i.qty ?? 1))}</b></div>`).join("")}</div>`).join("")}</div></div>`;
 }
 
 // 鑑定士のタブレット用のカード
 export function salesDeclinedCard(items) {
   if (!items?.length) return "";
-  return `<div class="space-y-1 rounded-xl border border-violet-300 bg-violet-50/50 px-3 py-2"><div class="text-sm font-bold text-violet-900">📦 前に査定したが、売らなかったもの${helpIcon("手元に持っている可能性があります。")}</div>${declinedCardHtml(items)}</div>`;
+  return `<div class="space-y-1 rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2"><div class="text-sm font-bold text-slate-900">📦 前に査定したが、売らなかったもの${helpIcon("手元に持っている可能性があります。")}</div>${declinedCardHtml(items)}</div>`;
 }

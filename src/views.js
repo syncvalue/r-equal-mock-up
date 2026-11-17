@@ -50,7 +50,7 @@ const STATUS = (s) =>
   s.visitEndedAt
     ? { label: '訪問完了', cls: 'bg-slate-500' }
     : s.visitStartedAt
-      ? { label: '訪問中', cls: 'bg-emerald-500' }
+      ? { label: '訪問中', cls: 'bg-teal-500' }
       : { label: '訪問前', cls: 'bg-amber-500' };
 
 
@@ -60,7 +60,7 @@ const commentBadge = (s) => {
   if (!s.comments.length) return '';
   const n = unackedComments(s).length;
   return n
-    ? `<button class="relative bg-rose-600 rounded-full w-11 h-11 text-2xl font-bold animate-pulse" data-action="open-comments" aria-label="本社からのコメント">❗<span class="absolute -top-1 -right-1 bg-white text-rose-600 text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center">${n}</span></button>`
+    ? `<button class="relative bg-rose-600 rounded-full w-11 h-11 text-2xl font-bold animate-pulse" data-action="open-comments" aria-label="本社からのコメント">❗<span class="absolute -top-1 -right-1 bg-white text-rose-700 text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center">${n}</span></button>`
     : '<button class="bg-slate-700 rounded-full w-11 h-11 text-xl" data-action="open-comments" aria-label="本社からのコメント">💬</button>';
 };
 
@@ -68,13 +68,13 @@ const commentBadge = (s) => {
 const apTag = (s, itemId) => {
   const t = threadFor(s.appraisals, s.visitId, itemId);
   if (!t) return '';
-  const [label, cls] = { 依頼中: ['査定中', 'bg-amber-100 text-amber-800'], 回答済み: ['返信あり', 'bg-sky-100 text-sky-800'], 完結: ['査定完結', 'bg-emerald-100 text-emerald-800'] }[t.status];
+  const [label, cls] = { 依頼中: ['査定中', 'bg-amber-100 text-amber-800'], 回答済み: ['返信あり', 'bg-slate-100 text-slate-900'], 完結: ['査定完結', 'bg-teal-100 text-teal-700'] }[t.status];
   return `<span class="ml-1 rounded whitespace-nowrap inline-block ${cls} text-xs font-bold px-2 py-0.5">${label}</span>`;
 };
 
 const itemWarn = (s, itemId) => {
   const t = threadFor(s.appraisals, s.visitId, itemId);
-  return s.comments.some((c) => c.itemId === itemId && !c.ack) || (t && hasUnread(t, 'sales')) ? '<span class="text-rose-600 text-xl ml-1" title="査定部からのコメント・返信">❗</span>' : '';
+  return s.comments.some((c) => c.itemId === itemId && !c.ack) || (t && hasUnread(t, 'sales')) ? '<span class="text-rose-700 text-xl ml-1" title="査定部からのコメント・返信">❗</span>' : '';
 };
 
 // 査定の前に、お客様へ説明する事項。説明したことを記録してから査定に進む
@@ -116,7 +116,7 @@ export const viewTitle = (s) => (s.view === 'workday' ? (s.phase === 'before' ? 
 
 const menuBadge = (s) =>
   (s.visitStartedAt && !s.visitEndedAt && s.view !== 'visit') || s.balls?.length || s.undrawn > 0
-    ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900"></span>'
+    ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-teal-400 border-2 border-slate-900"></span>'
     : '';
 
 // 始業は始業前だけ、終業・日報は始業後だけ使える
@@ -192,7 +192,7 @@ export function headerView(s) {
       </div>
     </div>
     ${s.view !== 'visit' ? '' : `<ol class="flex bg-slate-800 text-xs">
-      ${STEPS.map((n, i) => `<li class="flex-1 text-center py-1 ${i === s.step ? 'bg-teal-600 font-bold' : i < s.step ? 'text-teal-300' : 'text-slate-400'}">${i + 1}. ${n}</li>`).join('')}
+      ${STEPS.map((n, i) => `<li class="flex-1 text-center py-1 ${i === s.step ? 'bg-teal-600 font-bold' : i < s.step ? 'text-teal-700' : 'text-slate-400'}">${i + 1}. ${n}</li>`).join('')}
     </ol>`}
   </header>`;
 }
@@ -203,7 +203,7 @@ export function footerView(s) {
   return `
   <footer class="shrink-0 bg-white border-t px-4 py-1.5 flex justify-between items-center">
     <button class="btn btn-secondary w-40" data-action="back">← 戻る</button>
-    <span class="flex-1 min-w-0 px-3 text-center text-sm font-bold text-rose-600">${ok ? '' : hint(s)}</span>
+    <span class="flex-1 min-w-0 px-3 text-center text-sm font-bold text-rose-700">${ok ? '' : hint(s)}</span>
     ${s.step === STEPS.length - 2
       ? `<button class="btn btn-primary" data-action="send-gmo" ${ok ? '' : 'disabled'}>確定してGMOサインに送信 →</button>`
       : `<button class="btn btn-primary w-40" data-action="next" ${ok ? '' : 'disabled'}>次へ →</button>`}
@@ -233,7 +233,7 @@ const hint = (s) =>
 
 const field = (label, key, value, { type = 'text', placeholder = '', required = false } = {}) => `
   <label class="block">
-    <span class="font-bold text-base">${label}${required ? '<span class="text-rose-600 ml-1">必須</span>' : ''}</span>
+    <span class="font-bold text-base">${label}${required ? '<span class="text-rose-700 ml-1">必須</span>' : ''}</span>
     <input class="field mt-1" data-field="${key}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" />
   </label>`;
 
@@ -250,13 +250,13 @@ function arrivalMap(s, ev) {
   return `<div class="w-full max-w-3xl space-y-1 flex-1 min-h-[300px] flex flex-col">
     <div class="relative flex-1 min-h-[280px] rounded-2xl overflow-hidden border-2 border-teal-600 bg-slate-200 select-none">
       ${v.tiles.map((t) => `<img src="${tileUrl(t)}" alt="" draggable="false" class="absolute max-w-none pointer-events-none" style="${at(t.left, t.top)};width:256px;height:256px;margin:0" />`).join('')}
-      ${v.me ? `<span class="absolute -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-sky-500 border-[3px] border-white shadow-lg ring-4 ring-sky-400/40" style="${at(v.me.x, v.me.y)}" title="現在地"></span>` : ''}
+      ${v.me ? `<span class="absolute -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-500 border-[3px] border-white shadow-lg ring-4 ring-slate-400/40" style="${at(v.me.x, v.me.y)}" title="現在地"></span>` : ''}
       <button class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full flex flex-col items-center active:scale-95" data-action="start" aria-label="訪問先をタップして、訪問開始">
         <span class="rounded-full bg-teal-600 text-white text-sm font-bold px-3 py-1 shadow-lg whitespace-nowrap">タップで訪問開始</span>
         <span class="text-5xl leading-none drop-shadow">📍</span></button>
       <span class="absolute right-1 bottom-0 text-[10px] bg-white/80 px-1 rounded">© OpenStreetMap contributors</span>
     </div>
-    <div class="text-xs text-center ${v.far ? 'text-amber-700 font-bold' : 'text-slate-500'}">${status}</div>
+    <div class="text-xs text-center ${v.far ? 'text-amber-800 font-bold' : 'text-slate-500'}">${status}</div>
   </div>`;
 }
 
@@ -270,7 +270,7 @@ export function startView(s) {
     <button class="card !p-3 w-full max-w-3xl text-center space-y-0.5 border-2 border-teal-600 active:bg-teal-50 shrink-0" data-action="hearing-open" data-id="${ev?.id ?? ''}" ${ev ? '' : 'disabled'}>
       <div class="text-xs text-slate-500">${ev ? `予定 ${ev.start}–${ev.end}` : '訪問先'}</div>
       <div class="text-xl font-bold">${esc(s.customer.name)} 様</div>
-      <div class="text-sm text-slate-600">📍 ${esc(s.customer.address)}</div>
+      <div class="text-sm text-slate-700">📍 ${esc(s.customer.address)}</div>
       ${ev ? '<div class="text-sm font-bold text-teal-700 pt-0.5">📞 受電時のヒアリングを見る ›</div>' : ''}
     </button>
     <button class="btn btn-secondary !min-h-[48px] !py-2 text-base" data-action="oc-open">🚪 不在・日程変更など、訪問できなかった場合</button>
@@ -290,7 +290,7 @@ export function customerView(s) {
         <h2 class="text-2xl font-bold flex items-center gap-3">お客様のご確認 ${repeatBadge(h)}</h2>
         <span class="text-sm text-slate-500">受付 ${esc(call.receptionNo)} ／ ${esc(call.receivedAt)} ／ 担当 ${esc(call.operator)}</span>
       </div>
-      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 鑑定士用の情報（過去の評価）を隠す' : '鑑定士用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
+      ${h.isRepeat ? `<div class="space-y-2"><button class="text-xs underline ${s.showStaff ? 'text-rose-700 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${s.showStaff ? '🔒 鑑定士用の情報（過去の評価）を隠す' : '鑑定士用の情報（過去の評価）を表示'}</button>${s.showStaff ? `${salesCustomerCard(customerProfile([c.phone, c.phone2]))}${salesDeclinedCard(declinedList([c.phone, c.phone2]))}${pastEvalView(h)}` : ''}</div>` : ''}
       <dl class="grid grid-cols-[8rem_1fr] gap-y-2 text-xl">
         ${row('氏名', c.name)}${row('フリガナ', c.kana)}${row('生年月日', c.birth)}
         ${row('電話番号', c.phone2 ? `${c.phone} ／ ${c.phone2}` : c.phone)}${row('住所', `${c.zip} ${c.address}`)}${row('職業', c.occupation)}
@@ -306,20 +306,20 @@ export function customerView(s) {
 
 const sealChip = (s, i) => {
   const n = sealCount(s, i);
-  return n ? `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${n === i.qty ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">🏷 シール ${n}/${i.qty}</span>` : '';
+  return n ? `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${n === i.qty ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-800'}">🏷 シール ${n}/${i.qty}</span>` : '';
 };
 
 // シールの色の選択。紫・赤は、本社で管理する高額品（いったん倉庫に入庫し、倉庫間移動で本社へ移す）。黄・緑・青は、区別しない
 const colorChips = (s, key, size) => `<div class="flex flex-wrap items-center gap-1.5 mt-1.5"><span class="${size === 'xs' ? 'text-xs' : 'text-sm'} font-bold text-slate-500">シールの色</span>
   ${SEAL_COLORS.map((c) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${s.sealColors[key] === c.key ? 'active' : ''}" data-action="seal-color" data-key="${key}" data-value="${c.key}">${c.dot} ${c.label}</button>`).join('')}
-  ${s.sealColors[key] === 'purple' || s.sealColors[key] === 'red' ? '<span class="text-xs font-bold text-violet-700">のちに本社へ移動</span>' : s.sealColors[key] ? '<span class="text-xs text-slate-400">倉庫へ納入</span>' : '<span class="text-xs text-rose-600 font-bold">選んでください</span>'}</div>`;
+  ${s.sealColors[key] === 'purple' || s.sealColors[key] === 'red' ? '<span class="text-xs font-bold text-slate-700">のちに本社へ移動</span>' : s.sealColors[key] ? '<span class="text-xs text-slate-400">倉庫へ納入</span>' : '<span class="text-xs text-rose-700 font-bold">選んでください</span>'}</div>`;
 
 // 商品の写真（必須・複数枚）。査定依頼の写真とは別で、買取商品そのものの記録
 function itemPhotoSection(item) {
   const ph = item.photos ?? [];
   return `
   <div class="rounded-xl border-2 ${ph.length ? 'border-slate-200' : 'border-rose-400 bg-rose-50'} p-2.5">
-    <div class="font-bold text-sm mb-1">📷 商品の写真（${ph.length}枚）<span class="${ph.length ? 'text-slate-500' : 'text-rose-600'} text-xs">　必須</span></div>
+    <div class="font-bold text-sm mb-1">📷 商品の写真（${ph.length}枚）<span class="${ph.length ? 'text-slate-500' : 'text-rose-700'} text-xs">　必須</span></div>
     <div class="flex gap-2 flex-wrap items-center">
       ${ph.map((p, i) => `<div class="relative"><img src="${p}" class="h-16 w-16 object-cover rounded-lg border" alt="商品の写真${i + 1}" />
         <button class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full w-7 h-7" data-action="item-photo-remove" data-id="${item.id}" data-idx="${i}" aria-label="写真を削除">✕</button></div>`).join('')}
@@ -347,7 +347,7 @@ function sealSection(s, item) {
           ? `<span class="text-teal-700 font-bold text-sm">✅済</span><button class="btn btn-secondary !py-1 !min-h-[40px] !px-3 text-sm" data-action="clear-label" data-key="${x.key}">解除</button>`
           : `<button class="btn btn-primary !py-1 !min-h-[40px] !px-3 text-sm" data-action="dummy-scan" data-key="${x.key}">📷 QR読取</button>`}</div>
         ${colorChips(s, x.key, 'xs')}
-        ${err ? `<p class="text-rose-600 font-bold text-xs">${esc(err)}</p>` : ''}</div>`;
+        ${err ? `<p class="text-rose-700 font-bold text-xs">${esc(err)}</p>` : ''}</div>`;
     }).join('')}
   </details>`;
 }
@@ -361,11 +361,11 @@ export function itemsListView(s) {
     <div class="flex items-center gap-2 rounded-xl border-2 border-slate-200 pl-3 pr-2 py-1">
       <div class="flex-1 min-w-0 leading-tight">
         <div class="font-bold text-[15px] line-clamp-2">${esc(i.name)}${itemWarn(s, i.id)}</div>
-        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}点${hasPhoto(i) ? `・📷${i.photos.length}枚` : '<span class="text-rose-600 font-bold">・📷写真なし</span>'}${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
+        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}点${hasPhoto(i) ? `・📷${i.photos.length}枚` : '<span class="text-rose-700 font-bold">・📷写真なし</span>'}${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
       </div>
-      ${i.price ? `<div class="font-bold text-right whitespace-nowrap">${yen(i.price)}</div>` : '<div class="font-bold text-rose-600 text-sm text-right leading-tight">金額<br>未入力</div>'}
+      ${i.price ? `<div class="font-bold text-right whitespace-nowrap">${yen(i.price)}</div>` : '<div class="font-bold text-rose-700 text-sm text-right leading-tight">金額<br>未入力</div>'}
       <button class="${btn} border-slate-300 bg-white text-slate-700" data-action="open-item" data-id="${i.id}" aria-label="詳細を編集">✎<br>編集</button>
-      <button class="${btn} border-indigo-600 bg-indigo-600 text-white" data-action="open-appraisal-item" data-id="${i.id}" aria-label="本社に査定依頼">📨<br>査定</button>
+      <button class="${btn} border-slate-600 bg-slate-600 text-white" data-action="open-appraisal-item" data-id="${i.id}" aria-label="本社に査定依頼">📨<br>査定</button>
     </div>`,
     )
     .join('');
@@ -378,21 +378,21 @@ export function briefingView(s) {
   <section class="${SEC} cust flex items-center justify-center">
     <div class="card w-full max-w-4xl space-y-2 !p-4 max-h-full overflow-y-auto" data-scroll="briefing">
       <div class="flex justify-between items-baseline"><h2 class="text-2xl font-bold">査定前の説明事項</h2>
-        <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${BRIEFING_CHECKS.length - left} / ${BRIEFING_CHECKS.length}</span></div>
+        <span class="font-bold ${left ? 'text-amber-800' : 'text-teal-700'}">${BRIEFING_CHECKS.length - left} / ${BRIEFING_CHECKS.length}</span></div>
       <div class="space-y-1.5">
-        ${BRIEFING_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-1.5 min-h-[46px] cursor-pointer ${b.checks[c.key] ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'}">
+        ${BRIEFING_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-1.5 min-h-[46px] cursor-pointer ${b.checks[c.key] ? 'border-teal-400 bg-teal-50' : 'border-slate-200'}">
           <input type="checkbox" class="w-7 h-7 shrink-0" data-action="brief-check" data-key="${c.key}" ${b.checks[c.key] ? 'checked' : ''} />
           <span class="flex-1 ${b.checks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`).join('')}
       </div>
-      <div class="rounded-xl border-2 p-3 space-y-2 ${b.propose ? 'border-emerald-300' : 'border-amber-400'}">
-        <div class="font-bold">依頼商品以外の買取可能な商品を、ご提案してもよろしいですか？<span class="text-rose-600 ml-1 text-sm">お客様のご回答</span></div>
+      <div class="rounded-xl border-2 p-3 space-y-2 ${b.propose ? 'border-teal-300' : 'border-amber-400'}">
+        <div class="font-bold">依頼商品以外の買取可能な商品を、ご提案してもよろしいですか？<span class="text-rose-700 ml-1 text-sm">お客様のご回答</span></div>
         <div class="grid grid-cols-2 gap-2">${PROPOSE_OPTIONS.map((o) => `
           <button class="rounded-xl border-2 p-3 text-left ${b.propose === o.value ? o.cls + ' ring-2 ring-offset-1 ring-teal-400' : 'border-slate-200'}" data-action="brief-propose" data-value="${o.value}">
             <span class="block font-bold text-lg">${b.propose === o.value ? '✅ ' : ''}${o.label}</span><span class="block text-xs text-slate-500">${o.sub}</span></button>`).join('')}</div>
       </div>
       ${recordingStarted(s)
         ? `<div class="rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 font-bold text-rose-700">${s.rec ? '🔴 録音中です' : '✓ 録音を登録済みです'}</div>`
-        : `<div class="rounded-xl border-2 border-amber-400 p-3 flex items-center justify-between gap-2"><span class="font-bold">録音を開始してください<span class="text-rose-600 ml-1 text-sm">必須</span></span>
+        : `<div class="rounded-xl border-2 border-amber-400 p-3 flex items-center justify-between gap-2"><span class="font-bold">録音を開始してください<span class="text-rose-700 ml-1 text-sm">必須</span></span>
           <button class="btn btn-primary !min-h-[44px] !py-1" data-action="rec-start" ${recordingReady(s.briefing) ? '' : 'disabled'}>🎙 録音を開始</button></div>`}
       <button class="text-xs underline text-slate-400 self-end" data-action="brief-all">（デモ用）すべてチェックして「提案してよい」を選ぶ</button>
     </div>
@@ -411,7 +411,7 @@ export function itemsView(s) {
       <div id="master" class="flex flex-col gap-2 min-h-0 flex-1">${masterBodyView(s)}</div>
     </div>
     <div class="card flex flex-col gap-2 min-h-0 !p-4">
-      <h2 class="text-xl font-bold flex items-center gap-2">買取明細 ${s.briefing.propose ? `<span class="text-xs font-bold rounded-full px-2 py-0.5 ${s.briefing.propose === 'yes' ? 'bg-teal-100 text-teal-800' : 'bg-slate-200 text-slate-700'}">他商品の提案：${s.briefing.propose === 'yes' ? '可' : '不要'}</span>` : ''}</h2>
+      <h2 class="text-xl font-bold flex items-center gap-2">買取明細 ${s.briefing.propose ? `<span class="text-xs font-bold rounded-full px-2 py-0.5 ${s.briefing.propose === 'yes' ? 'bg-teal-100 text-teal-700' : 'bg-slate-200 text-slate-700'}">他商品の提案：${s.briefing.propose === 'yes' ? '可' : '不要'}</span>` : ''}</h2>
       <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="items">${itemsListView(s)}</div>
       <div class="flex justify-between items-center border-t-2 pt-2">
         <span class="font-bold">合計（${s.items.reduce((n, i) => n + i.qty, 0)}点）</span>
@@ -448,9 +448,9 @@ export function aiView(s) {
 
 const APV = {
   none: ['査定部の承認待ち', 'bg-amber-100 text-amber-800'],
-  stale: ['変更あり・再承認待ち', 'bg-orange-100 text-orange-800'],
-  ok: ['✓ 承認済み', 'bg-emerald-100 text-emerald-800'],
-  ng: ['差戻し', 'bg-rose-100 text-rose-800'],
+  stale: ['変更あり・再承認待ち', 'bg-amber-100 text-amber-800'],
+  ok: ['✓ 承認済み', 'bg-teal-100 text-teal-700'],
+  ng: ['差戻し', 'bg-rose-100 text-rose-700'],
 };
 
 // 買取明細の行に出す承認の状態（金額入力後のみ）
@@ -458,14 +458,14 @@ const apvTag = (s, item) => {
   if (!item.price) return '';
   const { state } = approvalOf(s, item);
   if (state === 'none') return '';
-  const [label, cls] = { none: ['承認待ち', 'bg-slate-100 text-slate-600'], stale: ['再承認待ち', 'bg-orange-100 text-orange-800'], ok: ['✓承認', 'bg-emerald-100 text-emerald-800'], ng: ['差戻し', 'bg-rose-100 text-rose-700'] }[state];
+  const [label, cls] = { none: ['承認待ち', 'bg-slate-100 text-slate-700'], stale: ['再承認待ち', 'bg-amber-100 text-amber-800'], ok: ['✓承認', 'bg-teal-100 text-teal-700'], ng: ['差戻し', 'bg-rose-100 text-rose-700'] }[state];
   return `<span class="ml-1 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>`;
 };
 
 // お客様向けの表示。承認済みは「確認済み」、それ以外（承認待ち・再承認・差戻し）は、社内の事情を出さず「確認中」とする
 const confirmTag = (state) => state === 'ok'
-  ? '<span class="ml-2 rounded-full whitespace-nowrap inline-block text-sm font-bold px-3 py-0.5 bg-emerald-600 text-white">✓ 確認済み</span>'
-  : '<span class="ml-2 rounded-full whitespace-nowrap inline-block text-sm font-bold px-3 py-0.5 bg-amber-200 text-amber-900 animate-pulse">⏳ 確認中</span>';
+  ? '<span class="ml-2 rounded-full whitespace-nowrap inline-block text-sm font-bold px-3 py-0.5 bg-teal-600 text-white">✓ 確認済み</span>'
+  : '<span class="ml-2 rounded-full whitespace-nowrap inline-block text-sm font-bold px-3 py-0.5 bg-amber-200 text-amber-800 animate-pulse">⏳ 確認中</span>';
 
 // 買取商品の確認。お客様に画面を見せながら確定する画面。社内向けの情報（査定部の承認・AI査定・本社コメント）は、
 // 「鑑定士用の情報」を開いたときだけ表示する
@@ -484,17 +484,17 @@ export function selectView(s) {
     <div class="card flex flex-col min-h-0 flex-1 !p-4 gap-2">
       <div class="flex items-start justify-between gap-3">
         <div><h2 class="text-2xl font-bold">買取商品のご確認</h2>
-          <p class="text-slate-600">${esc(s.customer.name)} 様、以下の内容で買取いたします。</p></div>
-        <button class="shrink-0 text-xs underline ${staff ? 'text-rose-600 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 鑑定士用の情報を隠す' : '鑑定士用の情報を表示'}</button>
+          <p class="text-slate-700">${esc(s.customer.name)} 様、以下の内容で買取いたします。</p></div>
+        <button class="shrink-0 text-xs underline ${staff ? 'text-rose-700 font-bold' : 'text-slate-400'}" data-action="staff-toggle">${staff ? '🔒 鑑定士用の情報を隠す' : '鑑定士用の情報を表示'}</button>
       </div>
-      ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-900 font-bold">鑑定士用（お客様には見せないでください）　承認 ${okCount} / ${chosen.length}点。</div>` : ''}
+      ${staff ? `<div class="rounded-lg bg-amber-50 border border-amber-300 px-3 py-1.5 text-xs text-amber-800 font-bold">鑑定士用（お客様には見せないでください）　承認 ${okCount} / ${chosen.length}点。</div>` : ''}
       <div class="space-y-2 overflow-y-auto min-h-0 flex-1" data-scroll="select">
       ${s.items
         .map((i) => {
           const a = i.sell ? approvalOf(s, i) : null;
           const [label, cls] = a ? APV[a.state] : ['', ''];
           return `
-      <div class="px-4 py-3 rounded-xl border-2 ${!i.sell ? 'border-slate-200 bg-slate-100 opacity-70' : a.state === 'ok' ? 'border-emerald-500 bg-emerald-50' : 'border-amber-300 bg-amber-50'}">
+      <div class="px-4 py-3 rounded-xl border-2 ${!i.sell ? 'border-slate-200 bg-slate-100 opacity-70' : a.state === 'ok' ? 'border-teal-500 bg-teal-50' : 'border-amber-300 bg-amber-50'}">
         <div class="flex items-center justify-between gap-3">
           <div class="flex-1"><div class="text-lg font-bold ${i.sell ? '' : 'line-through'}">${esc(i.name)}${staff ? itemWarn(s, i.id) : ''}
               ${a ? (staff ? `<span class="ml-2 rounded whitespace-nowrap inline-block text-xs font-bold px-2 py-0.5 ${cls}">${label}</span>` : confirmTag(a.state)) : ''}</div>
@@ -503,14 +503,14 @@ export function selectView(s) {
           <button class="btn w-40 !py-2 ${i.sell ? 'btn-primary' : 'btn-secondary'}" data-action="toggle-sell" data-id="${i.id}">${i.sell ? '✓ 売却する' : '今回は見送る'}</button>
         </div>
         ${staff && a?.state === 'ng' ? `<p class="text-sm text-rose-700 font-bold mt-1">差戻し理由：${esc(a.rec.comment)}</p>` : ''}
-        ${staff && a?.state === 'stale' ? '<p class="text-sm text-orange-700 font-bold mt-1">承認後に変更されたため、再承認が必要です。</p>' : ''}
+        ${staff && a?.state === 'stale' ? '<p class="text-sm text-amber-800 font-bold mt-1">承認後に変更されたため、再承認が必要です。</p>' : ''}
       </div>`;
         })
         .join('')}
       </div>
       <div class="border-t-2 pt-2 flex justify-between items-end gap-3">
         <div class="space-y-1">${staff ? `<div class="text-slate-500 text-sm">査定合計 ${yen(all)} ／ 除外 −${yen(all - sel)}</div>` : ''}
-          <div class="text-sm font-bold ${ready ? 'text-emerald-700' : 'text-amber-700'}">${ready ? '✓ 確認が完了しました' : staff ? `承認待ち ${chosen.length - okCount}点` : '最終確認中です。少々お待ちください…'}</div></div>
+          <div class="text-sm font-bold ${ready ? 'text-teal-700' : 'text-amber-800'}">${ready ? '✓ 確認が完了しました' : staff ? `承認待ち ${chosen.length - okCount}点` : '最終確認中です。少々お待ちください…'}</div></div>
         <span class="text-right"><span class="mr-3 text-lg">買取金額（${chosen.length}点）</span><span class="text-5xl font-bold text-teal-700">${yen(sel)}</span></span>
       </div>
     </div>
@@ -553,9 +553,9 @@ export function scanView(s) {
       <div class="absolute inset-x-0 bottom-6 flex justify-center">
         ${bad ? `<div class="rounded-2xl bg-rose-600 px-6 py-3 text-center shadow-lg max-w-xl"><div class="font-bold text-lg">🚫 ${esc(s.scan.message)}</div><div class="font-mono text-xl tracking-wider">${esc(s.scan.code)}</div></div>`
         : s.scan.status === 'empty'
-          ? '<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">🎉 対象の商品をすべて入庫しました</div><div class="text-sm">「完了」を押してください</div></div>'
+          ? '<div class="rounded-2xl bg-teal-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">🎉 対象の商品をすべて入庫しました</div><div class="text-sm">「完了」を押してください</div></div>'
           : found
-          ? `<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ ${stock ? `入庫しました（${esc(s.scan.name)}）` : pack ? `箱に入れました（${esc(s.scan.name)}）` : '読み取りました'}</div><div class="font-mono text-2xl tracking-wider">${esc(s.scan.code)}</div></div>`
+          ? `<div class="rounded-2xl bg-teal-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ ${stock ? `入庫しました（${esc(s.scan.name)}）` : pack ? `箱に入れました（${esc(s.scan.name)}）` : '読み取りました'}</div><div class="font-mono text-2xl tracking-wider">${esc(s.scan.code)}</div></div>`
           : '<div class="rounded-full bg-black/60 px-5 py-2 text-lg">QRコードを枠内に合わせてください</div>'}
       </div>
     </div>
@@ -588,7 +588,7 @@ export function labelView(s) {
             : `<button class="btn btn-primary !py-2 !min-h-[44px]" data-action="dummy-scan" data-key="${x.key}">📷 QR読取</button>`}
         </div>
         ${colorChips(s, x.key, 'sm')}
-        ${err ? `<p class="text-rose-600 font-bold text-sm">${esc(err)}</p>` : ''}
+        ${err ? `<p class="text-rose-700 font-bold text-sm">${esc(err)}</p>` : ''}
       </div>`;
         })
         .join('')}
@@ -637,7 +637,7 @@ function evalModalView(s) {
     `<div class="grid sm:grid-cols-2 gap-3 items-start">
       <div class="space-y-2.5">
         <div><div class="font-bold text-sm mb-1">総合評価</div><div class="flex gap-1">
-          ${[1, 2, 3, 4, 5].map((n) => `<button class="text-4xl leading-none w-11 h-11 ${n <= d.overall ? 'text-amber-400' : 'text-slate-300'}" data-action="eval-set" data-field="overall" data-value="${n}" aria-label="${n}点">★</button>`).join('')}
+          ${[1, 2, 3, 4, 5].map((n) => `<button class="text-4xl leading-none w-11 h-11 ${n <= d.overall ? 'text-amber-800' : 'text-slate-300'}" data-action="eval-set" data-field="overall" data-value="${n}" aria-label="${n}点">★</button>`).join('')}
           <span class="self-center ml-2 font-bold">${d.overall ? `${d.overall} / 5` : '未評価'}</span></div></div>
         ${single('attitude', 'お客様の態度・対応')}
         ${single('repeat', 'リピート見込み')}
@@ -669,7 +669,7 @@ function recordCard(s) {
   const saved = recordingsOf(loadRecordings(), s.visitId);
   if (s.rec) return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2"><div class="font-bold text-rose-700">🔴 録音中（<span class="font-mono" id="rec-timer-end">${fmtElapsed(s.rec.startedAt)}</span>）</div>
     <button class="btn w-full bg-rose-600 text-white !min-h-[48px] !py-2" data-action="rec-stop">⏹ 録音を停止して登録</button></div>`;
-  if (saved.length) return `<div class="rounded-xl bg-emerald-50 border border-emerald-300 p-3 text-sm text-emerald-800 font-bold">✓ 録音を登録しました（${saved.map((r) => fmtDuration(r.durationSec)).join('・')}）</div>`;
+  if (saved.length) return `<div class="rounded-xl bg-teal-50 border border-teal-300 p-3 text-sm text-teal-700 font-bold">✓ 録音を登録しました（${saved.map((r) => fmtDuration(r.durationSec)).join('・')}）</div>`;
   if (!recordingReady(s.briefing)) return '';
   return '<div class="rounded-xl bg-amber-50 border border-amber-300 p-3 text-sm text-amber-800 flex items-center justify-between gap-2"><span>録音を始めていません。</span><button class="btn btn-secondary !min-h-[40px] !py-1" data-action="rec-start">🎙 録音を開始</button></div>';
 }
@@ -680,13 +680,13 @@ function boxPanel(s, done) {
   const p = boxProgress(s);
   const packed = s.box?.packed ?? [];
   const alert = s.box?.alert;
-  return `<div class="rounded-xl border-2 p-3 space-y-2 ${p.complete ? 'border-emerald-400 bg-emerald-50' : 'border-amber-400 bg-amber-50'}">
+  return `<div class="rounded-xl border-2 p-3 space-y-2 ${p.complete ? 'border-teal-400 bg-teal-50' : 'border-amber-400 bg-amber-50'}">
     <div class="flex items-center justify-between gap-2"><div class="font-bold">📦 持ち帰りの箱詰め${helpIcon('買い取った商品のQRコードを、1点ずつ読み取りながら、持ち帰り用の箱に入れます。\n買い取った商品がすべて箱に入るまで、訪問は終了できません。\n買い取っていない商品のQRを読み取ると、警告が出ます。')}</div>
-      <span class="font-bold ${p.complete ? 'text-emerald-700' : 'text-amber-700'}">${p.done} / ${p.total}点</span></div>
-    ${targets.length ? `<div class="grid sm:grid-cols-2 gap-1">${targets.map((t) => `<div class="flex items-center gap-2 text-sm rounded-lg px-2 py-1 ${packed.includes(t.code) ? 'bg-white text-emerald-800' : 'bg-white/70 text-slate-700 font-bold'}">
+      <span class="font-bold ${p.complete ? 'text-teal-700' : 'text-amber-800'}">${p.done} / ${p.total}点</span></div>
+    ${targets.length ? `<div class="grid sm:grid-cols-2 gap-1">${targets.map((t) => `<div class="flex items-center gap-2 text-sm rounded-lg px-2 py-1 ${packed.includes(t.code) ? 'bg-white text-teal-700' : 'bg-white/70 text-slate-700 font-bold'}">
       <span class="w-5 text-center">${packed.includes(t.code) ? '✅' : '⬜'}</span><span class="min-w-0 flex-1 truncate">${esc(t.name)}${t.qty > 1 ? `（${t.n}/${t.qty}）` : ''}</span><span class="font-mono text-[11px] text-slate-400">${esc(t.code.slice(-4))}</span></div>`).join('')}</div>` : '<div class="text-sm text-slate-500">持ち帰る商品はありません</div>'}
     ${alert ? `<div class="rounded-lg bg-rose-600 text-white px-3 py-2 text-sm font-bold">🚫 ${esc(alert.message)}<span class="block font-mono text-xs font-normal">${esc(alert.code)}</span></div>` : ''}
-    ${p.complete ? (targets.length ? '<div class="text-sm font-bold text-emerald-700">✓ 買い取った商品が、すべて箱に入りました</div>' : '')
+    ${p.complete ? (targets.length ? '<div class="text-sm font-bold text-teal-700">✓ 買い取った商品が、すべて箱に入りました</div>' : '')
       : `<div class="text-sm font-bold text-amber-800">箱に入っていない商品が、あと${p.left}点あります。お客様宅に置き忘れていないか、確認してください</div>`}
     ${done || p.complete ? '' : `<button class="btn btn-primary w-full !min-h-[48px] !py-2" data-action="pack-scan">📷 QRを読み取って、箱に入れる</button>
       <button class="text-xs underline text-slate-400" data-action="pack-scan-foreign">（デモ用）買い取っていない商品のQRを読み取る</button>`}
@@ -707,9 +707,9 @@ export function endView(s) {
         <div class="text-center space-y-1">
           <div class="text-5xl">${done ? '🎉' : '📨'}</div>
           <div class="font-bold text-lg">GMOサインに送信しました${helpIcon('本人確認・契約書の印刷は、GMOサイン管理画面で行います。')}</div>
-          <div class="text-slate-600 text-sm">契約No. ${esc(s.contract.id)}<br>買取金額 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
+          <div class="text-slate-700 text-sm">契約No. ${esc(s.contract.id)}<br>買取金額 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
         </div>
-        <button class="btn w-full bg-sky-600 text-white !min-h-[48px] !py-2" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
+        <button class="btn w-full bg-slate-600 text-white !min-h-[48px] !py-2" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
         ${done ? '' : recordCard(s)}
         ${
           done
@@ -721,13 +721,13 @@ export function endView(s) {
       <div class="card !p-4 flex flex-col gap-2 min-h-0">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-bold">🚪 お客様宅を出る前の確認${helpIcon('すべてチェックすると、訪問を終了できます。')}</h2>
-          <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${LEAVE_TOTAL - left} / ${LEAVE_TOTAL}</span></div>
+          <span class="font-bold ${left ? 'text-amber-800' : 'text-teal-700'}">${LEAVE_TOTAL - left} / ${LEAVE_TOTAL}</span></div>
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="leave">
           ${boxPanel(s, done)}
-          ${auto.map(([t, ok]) => `<div class="flex items-center gap-3 rounded-xl border-2 ${ok ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300'} px-3 py-2 min-h-[48px]">
-              <span class="w-7 h-7 rounded-md flex items-center justify-center text-white font-bold ${ok ? 'bg-emerald-600' : 'bg-rose-500'}">${ok ? '✓' : '!'}</span>
+          ${auto.map(([t, ok]) => `<div class="flex items-center gap-3 rounded-xl border-2 ${ok ? 'border-teal-300 bg-teal-50' : 'border-rose-300'} px-3 py-2 min-h-[48px]">
+              <span class="w-7 h-7 rounded-md flex items-center justify-center text-white font-bold ${ok ? 'bg-teal-600' : 'bg-rose-500'}">${ok ? '✓' : '!'}</span>
               <span class="flex-1">${t}</span><span class="text-xs text-slate-500">自動確認</span></div>`).join('')}
-          ${LEAVE_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-2 min-h-[48px] ${s.leaveChecks[c.key] ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'} ${done ? 'opacity-60' : 'cursor-pointer'}">
+          ${LEAVE_CHECKS.map((c) => `<label class="flex items-center gap-3 rounded-xl border-2 px-3 py-2 min-h-[48px] ${s.leaveChecks[c.key] ? 'border-teal-400 bg-teal-50' : 'border-slate-200'} ${done ? 'opacity-60' : 'cursor-pointer'}">
               <input type="checkbox" class="w-7 h-7 shrink-0" data-action="leave-check" data-key="${c.key}" ${s.leaveChecks[c.key] ? 'checked' : ''} ${done ? 'disabled' : ''} />
               <span class="flex-1 ${s.leaveChecks[c.key] ? '' : 'font-bold'}">${c.text}</span></label>`).join('')}
         </div>
@@ -768,9 +768,9 @@ export function rangeWarn(item) {
   if (!master) return unitLine;
   const { range, history } = master;
   const who = item.qty > 1 ? '1点あたりの金額が' : '';
-  let verdict = '<p class="text-sm font-bold text-emerald-700">✓ マスタ登録レンジ内です</p>';
-  if (u < range.min || u > range.max) verdict = `<p class="text-sm font-bold text-rose-600">⚠ ${who}マスタ登録レンジの範囲外です（${u < range.min ? '安すぎ' : '高すぎ'}）</p>`;
-  else if (u < history.min || u > history.max) verdict = `<p class="text-sm font-bold text-amber-600">レンジ内ですが、${who}過去実績の範囲外です</p>`;
+  let verdict = '<p class="text-sm font-bold text-teal-700">✓ マスタ登録レンジ内です</p>';
+  if (u < range.min || u > range.max) verdict = `<p class="text-sm font-bold text-rose-700">⚠ ${who}マスタ登録レンジの範囲外です（${u < range.min ? '安すぎ' : '高すぎ'}）</p>`;
+  else if (u < history.min || u > history.max) verdict = `<p class="text-sm font-bold text-amber-800">レンジ内ですが、${who}過去実績の範囲外です</p>`;
   return unitLine + verdict;
 }
 
@@ -794,12 +794,12 @@ export function rangeView(item) {
     </div>
     <div class="relative h-9 mx-3 cursor-pointer select-none" style="touch-action:none" data-slider data-id="${item.id}" data-lo="${lo}" data-hi="${hi}" data-step="${step}">
       <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-4 bg-slate-200 rounded pointer-events-none">
-        <div class="absolute inset-0">${band(range.min, range.max, 'bg-sky-300')}</div>
+        <div class="absolute inset-0">${band(range.min, range.max, 'bg-slate-300')}</div>
         <div class="absolute inset-y-1 inset-x-0">${band(history.min, history.max, 'bg-teal-600')}</div>
       </div>
       <div data-thumb class="${item.price ? '' : 'hidden'} absolute top-1/2 w-8 h-8 -mt-4 -ml-4 rounded-full border-4 border-white shadow-lg pointer-events-none ${out ? 'bg-rose-600' : 'bg-slate-900'}" style="left:${pos(u || lo)}"></div>
     </div>
-    <div class="flex gap-3 text-[11px] text-slate-500"><span><span class="inline-block w-3 h-2 bg-sky-300 rounded"></span> マスタレンジ</span><span><span class="inline-block w-3 h-2 bg-teal-600 rounded"></span> 過去実績</span><span><span class="inline-block w-3 h-3 bg-slate-900 rounded-full"></span> 1点あたりの入力額</span></div>
+    <div class="flex gap-3 text-[11px] text-slate-500"><span><span class="inline-block w-3 h-2 bg-slate-300 rounded"></span> マスタレンジ</span><span><span class="inline-block w-3 h-2 bg-teal-600 rounded"></span> 過去実績</span><span><span class="inline-block w-3 h-3 bg-slate-900 rounded-full"></span> 1点あたりの入力額</span></div>
     <div data-warn class="space-y-1">${rangeWarn(item)}</div>
     <div class="flex gap-2 flex-wrap items-center">
       <span class="text-xs text-slate-500">1点あたりを</span>
@@ -817,7 +817,7 @@ export function modalView(s) {
   if (m.type === 'finish-confirm') {
     return modalShell(
       '訪問を終了しますか？',
-      `<p class="text-center text-slate-600">${esc(s.customer.name)} 様の訪問を終了します。終了すると、訪問の内容は変更できません。</p>
+      `<p class="text-center text-slate-700">${esc(s.customer.name)} 様の訪問を終了します。終了すると、訪問の内容は変更できません。</p>
       <div class="grid grid-cols-2 gap-3">
         <button class="btn btn-secondary w-full text-xl !py-3" data-action="close-modal">いいえ</button>
         <button class="btn btn-primary w-full text-xl !py-3" data-action="finish">はい</button></div>`,
@@ -864,7 +864,7 @@ export function modalView(s) {
       ${itemPhotoSection(i)}
       ${sealSection(s, i)}
       <div class="flex gap-3 pt-1">
-        <button class="btn btn-secondary text-rose-600 !min-h-[48px] !py-2" data-action="remove-item" data-id="${i.id}">削除</button>
+        <button class="btn btn-secondary text-rose-700 !min-h-[48px] !py-2" data-action="remove-item" data-id="${i.id}">削除</button>
         <button class="btn btn-primary flex-1 !min-h-[48px] !py-2" data-action="close-modal">完了</button></div>`,
       { wide: true },
     );
@@ -873,7 +873,7 @@ export function modalView(s) {
     const msg = messagesFor(userById(s.user)).find((x) => x.id === m.id);
     if (!msg) return '';
     return modalShell(
-      `${msg.important ? '<span class="text-xs font-bold rounded bg-rose-600 text-white px-2 py-0.5 mr-2 align-middle">重要</span>' : '<span class="text-xs font-bold rounded bg-slate-200 text-slate-600 px-2 py-0.5 mr-2 align-middle">お知らせ</span>'}${esc(msg.title)}`,
+      `${msg.important ? '<span class="text-xs font-bold rounded bg-rose-600 text-white px-2 py-0.5 mr-2 align-middle">重要</span>' : '<span class="text-xs font-bold rounded bg-slate-200 text-slate-700 px-2 py-0.5 mr-2 align-middle">お知らせ</span>'}${esc(msg.title)}`,
       `<div class="text-xs text-slate-500">${esc(msg.sender)}${msg.target !== 'all' ? `（グループ${esc(msg.target)}宛）` : ''} ／ ${fmtDateTime(msg.sentAt)}</div>
        <p class="text-lg whitespace-pre-wrap leading-relaxed">${esc(msg.body)}</p>
        <button class="btn btn-primary w-full" data-action="close-modal">閉じる</button>`,
@@ -898,7 +898,7 @@ export function modalView(s) {
   return '';
 }
 
-const TAG_CLS = { 差戻し: 'bg-rose-600 text-white', 安すぎる: 'bg-sky-100 text-sky-800', 高すぎる: 'bg-rose-100 text-rose-800', 要再確認: 'bg-amber-100 text-amber-800', その他: 'bg-slate-100 text-slate-700' };
+const TAG_CLS = { 差戻し: 'bg-rose-600 text-white', 安すぎる: 'bg-slate-100 text-slate-900', 高すぎる: 'bg-rose-100 text-rose-700', 要再確認: 'bg-amber-100 text-amber-800', その他: 'bg-slate-100 text-slate-700' };
 
 function commentsModalView(s) {
   const list = [...s.comments].sort((a, b) => b.createdAt - a.createdAt);
@@ -914,9 +914,9 @@ function commentsModalView(s) {
           <span class="text-xs text-slate-500">${fmtTime(c.createdAt)}</span></div>
         <p class="text-lg whitespace-pre-wrap">${esc(c.text)}</p>
         ${c.price && item
-          ? `<div class="rounded-lg bg-indigo-50 border border-indigo-200 p-2 flex items-center justify-between gap-2">
-              <span>本社の提案査定額 <b class="text-xl text-indigo-800">${yen(c.price)}</b>（ランク${esc(c.rank)}）</span>
-              ${c.adopted ? '<span class="text-emerald-700 font-bold">✓ 買取金額に反映済み</span>' : `<button class="btn btn-primary !py-2 !min-h-[44px]" data-action="adopt-comment" data-id="${c.id}">買取金額に反映</button>`}</div>`
+          ? `<div class="rounded-lg bg-slate-50 border border-slate-200 p-2 flex items-center justify-between gap-2">
+              <span>本社の提案査定額 <b class="text-xl text-slate-900">${yen(c.price)}</b>（ランク${esc(c.rank)}）</span>
+              ${c.adopted ? '<span class="text-teal-700 font-bold">✓ 買取金額に反映済み</span>' : `<button class="btn btn-primary !py-2 !min-h-[44px]" data-action="adopt-comment" data-id="${c.id}">買取金額に反映</button>`}</div>`
           : ''}
         ${item ? `<button class="underline text-sm text-teal-700" data-action="open-item" data-id="${item.id}">この商品の明細を開く</button>` : ''}
         <label class="flex items-center gap-3 text-lg font-bold min-h-[44px]">
@@ -935,39 +935,39 @@ function chatView(t) {
   const bubbles = msgs.map((m) => {
     const mine = m.from === 'sales';
     return `<div class="flex ${mine ? 'justify-end' : 'justify-start'}">
-      <div class="max-w-[85%] rounded-2xl px-3 py-2 space-y-1 ${mine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-900 rounded-bl-sm'}">
-        <div class="text-xs ${mine ? 'text-indigo-100' : 'text-slate-500'}">${mine ? 'あなた' : '査定部'} ${fmtTime(m.at)}</div>
+      <div class="max-w-[85%] rounded-2xl px-3 py-2 space-y-1 ${mine ? 'bg-slate-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-900 rounded-bl-sm'}">
+        <div class="text-xs ${mine ? 'text-slate-100' : 'text-slate-500'}">${mine ? 'あなた' : '査定部'} ${fmtTime(m.at)}</div>
         ${m.tag ? `<span class="rounded px-2 py-0.5 text-xs font-bold ${TAG_CLS[m.tag] ?? TAG_CLS['その他']}">${esc(m.tag)}</span>` : ''}
         ${m.text ? `<p class="whitespace-pre-wrap">${esc(m.text)}</p>` : ''}
         ${photosHtml(m.photos)}
-        ${m.price ? `<div class="rounded-lg bg-white border border-indigo-200 text-slate-900 p-2 text-sm space-y-1">
-            <div>提案査定額 <b class="text-lg text-indigo-800">${yen(m.price)}</b>（ランク${esc(m.rank)}）</div>
-            ${m.adopted ? '<div class="text-emerald-700 font-bold">✓ 買取金額に反映済み</div>' : `<button class="btn btn-primary !py-1 !min-h-[40px] w-full" data-action="adopt-reply" data-id="${t.id}" data-msg="${m.id}">買取金額に反映</button>`}</div>` : ''}
+        ${m.price ? `<div class="rounded-lg bg-white border border-slate-200 text-slate-900 p-2 text-sm space-y-1">
+            <div>提案査定額 <b class="text-lg text-slate-900">${yen(m.price)}</b>（ランク${esc(m.rank)}）</div>
+            ${m.adopted ? '<div class="text-teal-700 font-bold">✓ 買取金額に反映済み</div>' : `<button class="btn btn-primary !py-1 !min-h-[40px] w-full" data-action="adopt-reply" data-id="${t.id}" data-msg="${m.id}">買取金額に反映</button>`}</div>` : ''}
       </div></div>`;
   }).join('');
   const note = t.status === '完結'
-    ? '<p class="text-center text-sm font-bold text-emerald-700">✓ 査定が完結しました。続きがあれば、下から送ると再開します。</p>'
-    : t.status === '依頼中' ? '<p class="text-center text-sm text-amber-700">査定部の返信をお待ちください…</p>'
-    : '<p class="text-center text-sm text-sky-700">査定部から返信があります。必要なら、続けて送ってください。</p>';
+    ? '<p class="text-center text-sm font-bold text-teal-700">✓ 査定が完結しました。続きがあれば、下から送ると再開します。</p>'
+    : t.status === '依頼中' ? '<p class="text-center text-sm text-amber-800">査定部の返信をお待ちください…</p>'
+    : '<p class="text-center text-sm text-slate-700">査定部から返信があります。必要なら、続けて送ってください。</p>';
   return `<div class="rounded-xl border bg-white p-3 space-y-2">${bubbles}${note}</div>`;
 }
 
 function aiResultView(s, item) {
   const r = item.aiAppraisal;
-  if (s.aiBusy) return '<p class="text-violet-700 font-bold animate-pulse py-6 text-center">🤖 AIが画像から査定中…</p>';
+  if (s.aiBusy) return '<p class="text-slate-700 font-bold animate-pulse py-6 text-center">🤖 AIが画像から査定中…</p>';
   if (!r) return '';
   const adopted = item.price === r.price && item.rank === r.rank;
   return `
-  <div class="rounded-xl border-2 border-violet-300 bg-violet-50 p-3 space-y-2">
+  <div class="rounded-xl border-2 border-slate-300 bg-slate-50 p-3 space-y-2">
     <div class="flex justify-between items-center"><b>🤖 AI査定結果</b><span class="text-xs text-slate-500">${fmtTime(r.at)}</span></div>
     <div class="flex items-end justify-between gap-3">
-      <div><div class="text-sm text-slate-500">推定買取額（数量分の合計）</div><div class="text-3xl font-bold text-violet-800">${yen(r.price)}</div>
+      <div><div class="text-sm text-slate-500">推定買取額（数量分の合計）</div><div class="text-3xl font-bold text-slate-900">${yen(r.price)}</div>
         <div class="text-xs text-slate-500">目安 ${yen(r.min)} 〜 ${yen(r.max)}</div></div>
-      <div class="text-right text-sm"><div>推定ランク <b class="text-xl">${r.rank}</b></div><div>信頼度 <b class="${r.confidence < 70 ? 'text-rose-600' : 'text-emerald-700'}">${r.confidence}%</b></div></div>
+      <div class="text-right text-sm"><div>推定ランク <b class="text-xl">${r.rank}</b></div><div>信頼度 <b class="${r.confidence < 70 ? 'text-rose-700' : 'text-teal-700'}">${r.confidence}%</b></div></div>
     </div>
     <p class="text-sm text-slate-700">${esc(r.reason)}</p>
-    ${r.confidence < 70 ? '<p class="text-sm font-bold text-rose-600">⚠ 信頼度が低めです。本社への査定依頼をおすすめします。</p>' : ''}
-    ${adopted ? '<p class="text-emerald-700 font-bold">✓ 買取金額に反映済み</p>' : `<button class="btn btn-primary w-full !py-2" data-action="ai-adopt" data-id="${item.id}">この査定額・ランクを買取金額に反映</button>`}
+    ${r.confidence < 70 ? '<p class="text-sm font-bold text-rose-700">⚠ 信頼度が低めです。本社への査定依頼をおすすめします。</p>' : ''}
+    ${adopted ? '<p class="text-teal-700 font-bold">✓ 買取金額に反映済み</p>' : `<button class="btn btn-primary w-full !py-2" data-action="ai-adopt" data-id="${item.id}">この査定額・ランクを買取金額に反映</button>`}
   </div>`;
 }
 
@@ -976,7 +976,7 @@ function appraisalComposeView(s, m) {
   const item = s.items.find((i) => i.id === m.itemId);
   const thread = threadFor(s.appraisals, s.visitId, m.itemId);
   const ai = s.apMode === 'ai';
-  const tab = (key, label) => `<button class="flex-1 py-3 rounded-xl font-bold text-lg ${s.apMode === key ? (key === 'ai' ? 'bg-violet-600' : 'bg-indigo-600') + ' text-white' : 'bg-slate-100 text-slate-600'}" data-action="ap-mode" data-value="${key}">${label}</button>`;
+  const tab = (key, label) => `<button class="flex-1 py-3 rounded-xl font-bold text-lg ${s.apMode === key ? (key === 'ai' ? 'bg-slate-600' : 'bg-slate-600') + ' text-white' : 'bg-slate-100 text-slate-700'}" data-action="ap-mode" data-value="${key}">${label}</button>`;
   return modalShell(
     ai ? '🤖 AI査定' : '📨 査定部に査定依頼',
     `<p class="font-bold text-lg">${esc(d.name)}${helpIcon(ai ? '画像からAIが買取額とランクを推定します。' : '写真を査定部に送り、査定を依頼します。やり取りは、査定員が完結するまで続けられます。商品の承認は、査定依頼が完結してからです。')}</p>
@@ -994,7 +994,7 @@ function appraisalComposeView(s, m) {
       <button class="btn btn-secondary !py-1 !min-h-[40px] mt-2" data-action="ap-dummy-photo">（デモ用）ダミー写真を追加</button></div>
     ${ai
       ? `${item ? aiResultView(s, item) : ''}
-         <button class="btn w-full bg-violet-600 text-white" data-action="ai-run" ${d.photos.length && !s.aiBusy ? '' : 'disabled'}>${item?.aiAppraisal ? 'もう一度AI査定する' : 'AI査定を実行'}</button>`
+         <button class="btn w-full bg-slate-600 text-white" data-action="ai-run" ${d.photos.length && !s.aiBusy ? '' : 'disabled'}>${item?.aiAppraisal ? 'もう一度AI査定する' : 'AI査定を実行'}</button>`
       : `<button class="btn btn-primary w-full" data-action="send-appraisal" ${d.note.trim() || d.photos.length ? '' : 'disabled'}>${thread ? '査定部に送る' : '査定部に依頼する'}</button>
          <button class="text-xs underline text-slate-400" data-action="open-hq">（デモ用）本社査定画面を別タブで開く</button>`}`,
   );

@@ -27,20 +27,20 @@ export const pendingCount = (s) => pendingOf(byUser(s.units ?? [], s.user)).leng
 const TAG = {
   pending: '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 whitespace-nowrap">入庫待ち</span>',
   missing: '<span class="rounded bg-rose-100 text-rose-700 text-xs font-bold px-2 py-0.5 whitespace-nowrap">所在不明</span>',
-  stored: '<span class="rounded bg-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 whitespace-nowrap">入庫済み</span>',
+  stored: '<span class="rounded bg-slate-200 text-slate-700 text-xs font-bold px-2 py-0.5 whitespace-nowrap">入庫済み</span>',
 };
 
 const unitRow = (u) => `
   <div class="flex items-center gap-3 rounded-xl border-2 px-3 py-2 min-h-[52px] ${u.status === 'stored' ? 'border-slate-200 bg-slate-100 text-slate-400' : u.status === 'missing' ? 'border-rose-300' : 'border-slate-200'}">
     <div class="flex-1 min-w-0">
       <div class="font-bold text-sm truncate">${esc(u.name)}${u.qty > 1 ? `（${u.n}/${u.qty}）` : ''}</div>
-      <div class="text-xs ${u.status === 'stored' ? 'text-slate-400' : 'text-slate-500'}"><span class="font-mono">${esc(u.code)}</span> ／ ${esc(u.category)} ／ ランク${esc(u.rank)} ／ ${yen(u.price)}${isHonshaItem(u) ? ' ／ <b class="text-violet-700">高額品（あとで本社へ移動）</b>' : ''}</div>
+      <div class="text-xs ${u.status === 'stored' ? 'text-slate-400' : 'text-slate-500'}"><span class="font-mono">${esc(u.code)}</span> ／ ${esc(u.category)} ／ ランク${esc(u.rank)} ／ ${yen(u.price)}${isHonshaItem(u) ? ' ／ <b class="text-slate-700">高額品（あとで本社へ移動）</b>' : ''}</div>
     </div>
     ${u.status === 'stored'
       ? `<div class="text-right text-xs text-slate-500"><div class="font-bold">📍 ${esc(u.location)}</div><div>${fmtTime(u.storedAt)}</div></div>`
       : u.status === 'missing'
-        ? '<span class="text-xs text-rose-600">シールを読み取れば入庫できます</span>'
-        : `<button class="btn btn-secondary !py-1 !px-3 !min-h-[40px] !text-sm text-rose-600" data-action="stock-missing" data-code="${esc(u.code)}">所在不明</button>`}
+        ? '<span class="text-xs text-rose-700">シールを読み取れば入庫できます</span>'
+        : `<button class="btn btn-secondary !py-1 !px-3 !min-h-[40px] !text-sm text-rose-700" data-action="stock-missing" data-code="${esc(u.code)}">所在不明</button>`}
     ${TAG[u.status]}
   </div>`;
 
@@ -56,7 +56,7 @@ function groupedList(list) {
       <div class="font-bold text-slate-700 border-b pb-0.5">${dateLabel(d)}</div>
       ${[...visits.filter(open), ...visits.filter((r) => !open(r))].map((rows) => `
         <div class="space-y-1 ${open(rows) ? '' : 'opacity-80'}">
-          <div class="text-sm text-slate-600 flex justify-between"><span>🏠 ${esc(rows[0].customerName)} 様（${fmtTime(rows[0].at).slice(0, 5)} 訪問終了）</span><span>${rows.filter((u) => u.status === 'stored').length} / ${rows.length} 点 入庫</span></div>
+          <div class="text-sm text-slate-700 flex justify-between"><span>🏠 ${esc(rows[0].customerName)} 様（${fmtTime(rows[0].at).slice(0, 5)} 訪問終了）</span><span>${rows.filter((u) => u.status === 'stored').length} / ${rows.length} 点 入庫</span></div>
           ${rows.map(unitRow).join('')}
         </div>`).join('')}
     </div>`;
@@ -65,7 +65,7 @@ function groupedList(list) {
 
 // 日付の絞り込み（まとめて入庫するとき、どの日の分を対象にするか）
 function scopeChips(s, mine) {
-  const chip = (value, label, n) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${s.stock.scope === value ? 'active' : ''}" data-action="stock-scope" data-value="${value}">${label}${n ? ` <b class="${s.stock.scope === value ? '' : 'text-rose-600'}">${n}</b>` : ''}</button>`;
+  const chip = (value, label, n) => `<button class="chip !min-h-[40px] !py-0 !px-3 text-sm ${s.stock.scope === value ? 'active' : ''}" data-action="stock-scope" data-value="${value}">${label}${n ? ` <b class="${s.stock.scope === value ? '' : 'text-rose-700'}">${n}</b>` : ''}</button>`;
   return `<div class="flex flex-wrap gap-1.5 items-center"><span class="text-sm text-slate-500">対象日</span>
     ${chip('all', 'すべて', pendingOf(mine).length)}
     ${dateKeys(mine).map((d) => chip(d, dateLabel(d), pendingOf(mine.filter((u) => u.date === d)).length)).join('')}</div>`;
@@ -80,7 +80,7 @@ function listCard(s, mine) {
   <div class="card !p-4 flex-1 min-w-0 flex flex-col gap-2 min-h-0">
     <div class="flex items-center justify-between gap-2">
       <h2 class="text-xl font-bold">📦 商品の入庫</h2>
-      <div class="text-sm text-slate-600">未入庫 <b class="text-lg text-amber-700">${todo.length}</b> 点　入庫済み <b class="text-lg">${stored}</b> 点</div>
+      <div class="text-sm text-slate-700">未入庫 <b class="text-lg text-amber-800">${todo.length}</b> 点　入庫済み <b class="text-lg">${stored}</b> 点</div>
     </div>
     ${mine.length ? scopeChips(s, mine) : ''}
     ${scoped.length ? `<div class="flex items-center gap-2"><div class="flex-1 h-3 rounded-full bg-slate-200 overflow-hidden"><div class="h-full bg-teal-600" style="width:${pct}%"></div></div><span class="text-sm font-bold">${stored} / ${scoped.length} 点（${pct}%）</span></div>` : ''}

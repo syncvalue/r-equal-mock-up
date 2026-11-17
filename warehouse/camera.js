@@ -22,10 +22,10 @@ function overlayHtml({ title, subtitle, status, code, message }) {
       ${CORNERS.map((pos) => `<span class="cam-corner" style="${pos};border-color:${col}"></span>`).join('')}
       ${found || status === 'empty' ? '' : '<div class="cam-line"></div>'}</div></div>
     <div class="absolute inset-x-0 bottom-6 flex justify-center">${
-      status === 'empty' ? '<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">読み取る商品がありません</div><div class="text-sm">「閉じる」を押してください</div></div>'
-        : found ? `<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ 読み取りました</div><div class="font-mono text-sm">${esc(code)}</div></div>`
+      status === 'empty' ? '<div class="rounded-2xl bg-teal-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">読み取る商品がありません</div><div class="text-sm">「閉じる」を押してください</div></div>'
+        : found ? `<div class="rounded-2xl bg-teal-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ 読み取りました</div><div class="font-mono text-sm">${esc(code)}</div></div>`
           : '<div class="rounded-2xl bg-black/60 px-6 py-3 text-center">シールのQRコードを枠に合わせてください</div>'}</div>
-    ${message ? `<div class="absolute inset-x-0 top-3 flex justify-center"><div class="rounded-xl px-4 py-2 font-bold ${message.ok ? 'bg-emerald-700' : 'bg-rose-700'}">${message.ok ? '✓' : '⚠'} ${esc(message.text)}</div></div>` : ''}</div>`;
+    ${message ? `<div class="absolute inset-x-0 top-3 flex justify-center"><div class="rounded-xl px-4 py-2 font-bold ${message.ok ? 'bg-teal-700' : 'bg-rose-700'}">${message.ok ? '✓' : '⚠'} ${esc(message.text)}</div></div>` : ''}</div>`;
 }
 
 // カメラ画面（モック）を開く。onFound(code) は、読み取れたとき。continuous なら、続けて次の商品を読み取る（なくなったら終了の表示）。

@@ -51,7 +51,7 @@ function consignedTable(consigned, sf, now, packs) {
         const { unit, rec } = r;
         const days = Math.floor((now - rec.listedAt) / 86400000);
         return `<tr class="border-b"><td class="font-bold">${esc(unit.name)}<div class="text-xs font-normal text-slate-500 font-mono">${esc(unit.code)}</div></td>
-          <td>${badge('bg-violet-50 text-violet-800', esc(rec.vendor || '（未入力）'))}<div class="text-xs text-slate-500">${esc(channelOf(rec.channel)?.label)}</div>${rec.packId && packs.get(rec.packId) ? `<div class="text-xs text-slate-500">${shipInfo(packs.get(rec.packId))}</div>` : ''}</td><td>${md(dateOf(rec.listedAt))}<div class="text-xs text-slate-500">${days}日経過</div></td><td class="text-right">${yen(unit.price)}</td>
+          <td>${badge('bg-slate-50 text-slate-900', esc(rec.vendor || '（未入力）'))}<div class="text-xs text-slate-500">${esc(channelOf(rec.channel)?.label)}</div>${rec.packId && packs.get(rec.packId) ? `<div class="text-xs text-slate-500">${shipInfo(packs.get(rec.packId))}</div>` : ''}</td><td>${md(dateOf(rec.listedAt))}<div class="text-xs text-slate-500">${days}日経過</div></td><td class="text-right">${yen(unit.price)}</td>
           <td><div class="flex items-center gap-1 w-44">${moneyInputHtml({ attrs: `data-reprice-input="${esc(unit.code)}"`, value: rec.listPrice, cls: 'inp !py-1' })}<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-reprice="${esc(unit.code)}">変更</button></div></td>
           <td><button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-sell-open="${esc(unit.code)}">売れた（入金）</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-recall="${esc(unit.code)}">売れ残り（倉庫に戻る）</button></td></tr>
           ${sf.code === unit.code ? sellForm(r, sf) : ''}`;
@@ -69,7 +69,7 @@ function listedTable(listed, sf) {
         const { unit, rec } = r;
         const est = rec.listPrice - unit.price - feeFor(rec.channel, rec.listPrice);
         return `<tr class="border-b"><td class="font-bold">${esc(unit.name)}<div class="text-xs font-normal text-slate-500 font-mono">${esc(unit.code)}</div></td>
-          <td>${badge('bg-sky-100 text-sky-800', esc(channelOf(rec.channel)?.label))}</td><td>${md(dateOf(rec.listedAt))}</td><td class="text-right">${yen(unit.price)}</td>
+          <td>${badge('bg-slate-100 text-slate-900', esc(channelOf(rec.channel)?.label))}</td><td>${md(dateOf(rec.listedAt))}</td><td class="text-right">${yen(unit.price)}</td>
           <td><div class="flex items-center gap-1 w-44">${moneyInputHtml({ attrs: `data-reprice-input="${esc(unit.code)}"`, value: rec.listPrice, cls: 'inp !py-1' })}<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-reprice="${esc(unit.code)}">変更</button></div></td>
           <td class="text-right font-bold ${profitCls(est)}">${yenS(est)}</td>
           <td><button class="b b-pri !min-h-0 !py-1 !px-3 text-sm" data-sell-open="${esc(unit.code)}">売れた</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-delist="${esc(unit.code)}">取り下げ</button></td></tr>

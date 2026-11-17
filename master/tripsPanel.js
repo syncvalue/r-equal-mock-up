@@ -8,8 +8,8 @@ export const formFromTrip = (t) => ({ id: t.id, name: t.name, prefs: t.prefs.joi
 
 const badge = (cls, label) => `<span class="rounded-full px-2 py-0.5 text-xs font-bold ${cls}">${esc(label)}</span>`;
 const STATUS = {
-  ongoing: ['bg-orange-100 text-orange-800', '出張中'], upcoming: ['bg-sky-100 text-sky-800', 'これから'],
-  ended: ['bg-slate-200 text-slate-600', '終了'], inactive: ['bg-slate-200 text-slate-600', '無効'],
+  ongoing: ['bg-amber-100 text-amber-800', '出張中'], upcoming: ['bg-slate-100 text-slate-900', 'これから'],
+  ended: ['bg-slate-200 text-slate-700', '終了'], inactive: ['bg-slate-200 text-slate-700', '無効'],
 };
 const md = (ymd) => `${Number(ymd.slice(5, 7))}/${Number(ymd.slice(8, 10))}`;
 

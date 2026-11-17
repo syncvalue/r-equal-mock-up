@@ -13,7 +13,7 @@ function table(departments, employees) {
   const counts = countByDepartment(employees);
   return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>部署</th><th>会社</th><th class="text-right">社員（有効）</th><th>状態</th><th>操作</th></tr></thead><tbody>
     ${departments.map((d) => `<tr class="border-b ${d.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(d.name)}</td><td>${esc(COMPANY.name)}</td><td class="text-right">${counts[d.id] ?? 0}名</td>
-      <td>${d.active ? badge('bg-emerald-100 text-emerald-800', '有効') : badge('bg-slate-200 text-slate-600', '無効')}</td>
+      <td>${d.active ? badge('bg-teal-100 text-teal-700', '有効') : badge('bg-slate-200 text-slate-700', '無効')}</td>
       <td><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-md-edit="${esc(d.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-md-toggle="${esc(d.id)}">${d.active ? '無効にする' : '有効にする'}</button></td></tr>`).join('')}
   </tbody></table>`;
 }

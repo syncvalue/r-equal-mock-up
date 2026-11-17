@@ -15,9 +15,9 @@ function incomingCard(t, full, master, tr, me) {
   const locs = warehouseById(master, me.warehouseId).locations;
   const loc = tr.locs[t.id] ?? locs[0];
   const ready = t.codes.every((c) => tr.checks.includes(c));
-  return `<div class="rounded-lg border-2 border-sky-300 p-3 space-y-2 text-sm">
-    <div class="flex flex-wrap items-center gap-2"><b>${esc(t.fromName)} から</b>${badge('bg-sky-100 text-sky-800', '受け取り待ち')}<span class="text-xs text-slate-500">${mdTime(t.sentAt)} 発送／${esc(t.sentBy)}</span></div>
-    <div class="text-xs text-slate-600">${shipInfo(t)}</div>
+  return `<div class="rounded-lg border-2 border-slate-300 p-3 space-y-2 text-sm">
+    <div class="flex flex-wrap items-center gap-2"><b>${esc(t.fromName)} から</b>${badge('bg-slate-100 text-slate-900', '受け取り待ち')}<span class="text-xs text-slate-500">${mdTime(t.sentAt)} 発送／${esc(t.sentBy)}</span></div>
+    <div class="text-xs text-slate-700">${shipInfo(t)}</div>
     <div class="space-y-1">${t.codes.map((c) => `<label class="flex items-center gap-2"><input type="checkbox" class="w-5 h-5" data-tr-check="${esc(c)}" ${tr.checks.includes(c) ? 'checked' : ''} />${esc(byCode.get(c)?.name ?? c)}<span class="text-xs text-slate-500 font-mono">${esc(c)}</span></label>`).join('')}</div>
     <div class="flex flex-wrap items-end gap-2">
       <label class="text-xs font-bold">保管場所（${esc(warehouseById(master, me.warehouseId).name)}の棚）<select class="inp mt-1 font-normal" data-tr-loc="${esc(t.id)}">${locs.map((l) => `<option ${loc === l ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
@@ -31,7 +31,7 @@ function outgoingCard(t, full) {
   return `<div class="rounded-lg border p-3 space-y-1 text-sm">
     <div class="flex flex-wrap items-center gap-2"><b>${esc(t.toName)} へ</b>${badge('bg-amber-100 text-amber-800', '輸送中')}<span class="text-xs text-slate-500">${mdTime(t.sentAt)} 発送／${esc(t.sentBy)}</span>
       <button class="ml-auto b b-sec !min-h-0 !py-1 !px-2 text-xs" data-tr-cancel="${esc(t.id)}">取り消す</button></div>
-    <div class="text-xs text-slate-600">${shipInfo(t)}</div>
+    <div class="text-xs text-slate-700">${shipInfo(t)}</div>
     <div>${itemNames(t, byCode)}（${t.codes.length}点）</div></div>`;
 }
 

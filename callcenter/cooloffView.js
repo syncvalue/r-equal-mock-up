@@ -10,7 +10,7 @@ import { bubblesHtml, messageBoxHtml } from '../warehouse/returnChat.js';
 // 依頼を作れなかった商品の理由
 export const REJECT_TEXT = { unknown: '登録のない商品', inProgress: 'すでに依頼中の商品', returned: 'すでに返品済みの商品', inTransit: '倉庫間を輸送中の商品（届いてから依頼してください）', inPacking: '梱包中の商品（発送が済んでから依頼してください）' };
 
-const KIND_CLS = { ok: 'bg-emerald-100 text-emerald-800', expired: 'bg-rose-100 text-rose-700', ask: 'bg-amber-100 text-amber-800', sold: 'bg-slate-200 text-slate-700', busy: 'bg-sky-100 text-sky-800', returned: 'bg-slate-100 text-slate-600', wait: 'bg-slate-200 text-slate-700', store: 'bg-indigo-100 text-indigo-800' };
+const KIND_CLS = { ok: 'bg-teal-100 text-teal-700', expired: 'bg-rose-100 text-rose-700', ask: 'bg-amber-100 text-amber-800', sold: 'bg-slate-200 text-slate-700', busy: 'bg-slate-100 text-slate-900', returned: 'bg-slate-100 text-slate-700', wait: 'bg-slate-200 text-slate-700', store: 'bg-slate-100 text-slate-900' };
 const SELECTABLE = new Set(['ok', 'expired', 'ask', 'sold']); // 依頼にできる商品（売却済みは、対応不可として記録する）
 
 const thumb = (u, cls) => `<img src="${photoOf(u)}" alt="${esc(u.name)}" class="${cls} object-cover rounded border bg-slate-100 shrink-0" />`;
@@ -23,16 +23,16 @@ function productCard(c, r, sel) {
     <button class="shrink-0" data-co-zoom="${esc(r.unit.code)}" aria-label="写真を拡大" title="押すと拡大">${thumb(r.unit, 'h-28 w-28')}</button>
     <label class="flex-1 min-w-0 space-y-0.5 ${can ? 'cursor-pointer' : ''}">
       <div class="flex items-start gap-2"><input type="checkbox" class="mt-1" data-co-code="${esc(r.unit.code)}" data-co-visit="${esc(c.visitId)}" ${mine ? 'checked' : ''} ${can ? '' : 'disabled'} /><b class="text-sm leading-snug">${esc(r.unit.name)}</b></div>
-      <div class="text-xs text-slate-600">${esc(r.unit.category)}　${yen(r.unit.price)}${r.unit.n > 1 || r.unit.qty > 1 ? `　（${r.unit.n}/${r.unit.qty}点目）` : ''}</div>
+      <div class="text-xs text-slate-700">${esc(r.unit.category)}　${yen(r.unit.price)}${r.unit.n > 1 || r.unit.qty > 1 ? `　（${r.unit.n}/${r.unit.qty}点目）` : ''}</div>
       <div>${badge(KIND_CLS[r.check.kind], esc(r.check.label))}</div>
-      <div class="text-xs text-slate-500"><span class="font-mono">${esc(r.unit.code)}</span>　<span class="text-violet-700">${r.unit.status === 'stored' ? esc(r.unit.location) : '入庫前'}</span></div>
+      <div class="text-xs text-slate-500"><span class="font-mono">${esc(r.unit.code)}</span>　<span class="text-slate-700">${r.unit.status === 'stored' ? esc(r.unit.location) : '入庫前'}</span></div>
     </label>
   </div>`;
 }
 
 function contractCard(c, sel) {
   return `<section class="space-y-1.5">
-    <div class="flex flex-wrap items-baseline gap-2 border-b pb-0.5"><b>${esc(c.customerName)} 様</b><span class="text-sm font-bold text-teal-800">${mdw(c.date)}買取</span><span class="text-xs text-slate-500">${c.store ? '店頭買取' : `期間 ${md(c.coolEnd)}まで`}・${c.rows.length}点 ${yen(c.total)}</span>${c.phones?.length ? `<span class="text-xs text-slate-600">📞 ${c.phones.map(esc).join(' ／ ')}</span>` : ''}</div>
+    <div class="flex flex-wrap items-baseline gap-2 border-b pb-0.5"><b>${esc(c.customerName)} 様</b><span class="text-sm font-bold text-teal-700">${mdw(c.date)}買取</span><span class="text-xs text-slate-500">${c.store ? '店頭買取' : `期間 ${md(c.coolEnd)}まで`}・${c.rows.length}点 ${yen(c.total)}</span>${c.phones?.length ? `<span class="text-xs text-slate-700">📞 ${c.phones.map(esc).join(' ／ ')}</span>` : ''}</div>
     <div class="space-y-1.5">${c.rows.map((r) => productCard(c, r, sel)).join('')}</div>
   </section>`;
 }
@@ -52,7 +52,7 @@ export function filtersHtml({ days, categories, criteria }) {
 export function resultsHtml(contracts, criteria, sel) {
   const any = String(criteria.q ?? '').trim() || criteria.dates?.length || criteria.category;
   if (!any) return `<p class="text-xs text-slate-500">お客様の手がかりで探します。${helpIcon('お名前・電話番号・買取日・商品の種類・商品名で探します。うろ覚えでも、買取日だけ、商品の種類だけでも探せます。')}</p>`;
-  if (!contracts.length) return '<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">該当する商品がありません。買い取っていない可能性もあります。名前を外して探し直してください。</div>';
+  if (!contracts.length) return '<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">該当する商品がありません。買い取っていない可能性もあります。名前を外して探し直してください。</div>';
   return `<div class="space-y-3">${contracts.map((c) => contractCard(c, sel)).join('')}</div>`;
 }
 
@@ -65,7 +65,7 @@ export function zoomHtml(contract, row) {
     <div class="relative bg-white rounded-xl p-4 max-w-xl w-full space-y-2 shadow-xl">
       <img src="${photoOf(u)}" alt="${esc(u.name)}" class="w-full max-h-[60vh] object-contain rounded bg-slate-100" />
       <div class="font-bold text-lg">${esc(u.name)}</div>
-      <div class="text-sm text-slate-600">${esc(u.category)}　${yen(u.price)}　${esc(contract.customerName)} 様${contract.phones?.length ? `（📞 ${contract.phones.map(esc).join(' ／ ')}）` : ''}　${mdw(contract.date)}買取　<span class="font-mono">${esc(u.code)}</span></div>
+      <div class="text-sm text-slate-700">${esc(u.category)}　${yen(u.price)}　${esc(contract.customerName)} 様${contract.phones?.length ? `（📞 ${contract.phones.map(esc).join(' ／ ')}）` : ''}　${mdw(contract.date)}買取　<span class="font-mono">${esc(u.code)}</span></div>
       <div>${badge(KIND_CLS[row.check.kind], esc(row.check.label))}</div>
       <button class="b b-sec" data-co-zoomclose>閉じる</button>
     </div></div>`;
@@ -86,7 +86,7 @@ export function formHtml(contracts, sel, form) {
     </div>
     <label class="text-xs font-bold block">受電メモ<input class="inp mt-0.5 font-normal" data-co-field="memo" value="${esc(form.memo)}" placeholder="例: 返送先は、ご自宅（買取時の住所）で確認済み" /></label>
     ${c?.phones?.length ? `<div class="text-xs text-slate-500">買取時の電話番号: ${c.phones.map(esc).join(' ／ ')}</div>` : ''}
-    ${asks.length ? `<div class="text-xs rounded bg-amber-50 border border-amber-200 p-2 text-amber-900">${asks.length}点は、倉庫に問い合わせて、返送できるか回答をもらいます${asks.some((r) => r.check.kind === 'expired') ? '（期間を過ぎた商品は、倉庫が個別に判断します）' : ''}。</div>` : ''}
+    ${asks.length ? `<div class="text-xs rounded bg-amber-50 border border-amber-200 p-2 text-amber-800">${asks.length}点は、倉庫に問い合わせて、返送できるか回答をもらいます${asks.some((r) => r.check.kind === 'expired') ? '（期間を過ぎた商品は、倉庫が個別に判断します）' : ''}。</div>` : ''}
     ${sold.length ? `<div class="text-xs rounded bg-slate-100 border p-2 text-slate-700">売却済みの ${sold.length}点は、対応できません（対応不可として記録します）。</div>` : ''}
     <button class="b b-pri" data-co-create ${rows.length ? '' : 'disabled'}>依頼を作る（倉庫に問い合わせる）</button>
   </div>`;
@@ -105,7 +105,7 @@ function requestCard(r, unitsByCode, chat) {
     ${r.status === 'unavailable' ? `<div class="text-xs rounded bg-slate-50 p-2">${r.unavailable.reason === 'sold' ? '売却済みのため、対応できません。お客様にお伝えください。' : `対応できません。お客様にお伝えください。${r.unavailable.note ? `（${esc(r.unavailable.note)}）` : ''}`}</div>` : ''}
     ${r.status === 'shipped' ? `<div class="text-xs">返送の追跡番号 <b>${esc(r.tracking)}</b>（${mdTime(r.shippedAt)}）。お客様の手元に届いたら、買取代金の返還をお願いします。</div>` : ''}
     ${r.status === 'done' ? `<div class="text-xs text-slate-500">${mdTime(r.doneAt)} 完了（商品が戻り、返金も済みました）</div>` : ''}
-    <div class="pt-1 border-t"><button class="text-xs font-bold text-teal-800 underline" data-co-chat="${esc(r.id)}" aria-expanded="${chat.open.includes(r.id)}">${chat.open.includes(r.id) ? '▼' : '▶'} 倉庫とのやり取り（${(r.messages ?? []).length}件のメッセージ）</button>
+    <div class="pt-1 border-t"><button class="text-xs font-bold text-teal-700 underline" data-co-chat="${esc(r.id)}" aria-expanded="${chat.open.includes(r.id)}">${chat.open.includes(r.id) ? '▼' : '▶'} 倉庫とのやり取り（${(r.messages ?? []).length}件のメッセージ）</button>
       ${chat.open.includes(r.id) ? `<div class="mt-1 space-y-2"><div class="space-y-2 max-h-60 overflow-y-auto rounded border bg-slate-50 p-2">${bubblesHtml(r)}</div>${messageBoxHtml(r.id, chat.draft[r.id], { msg: 'co-msg', send: 'co-send' })}</div>` : ''}</div>
     ${r.status !== 'unavailable' ? `<div class="text-xs">お客様から返していただく買取代金 <b>${yen(r.refund)}</b>${r.groupRefund && r.groupRefund !== r.refund ? `（同じ契約の合計 ${yen(r.groupRefund)}）` : ''}</div>` : ''}
   </div>`;

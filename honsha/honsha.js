@@ -34,25 +34,25 @@ const visitsSorted = () =>
 const commentMark = (list) =>
   !list.length ? '<span class="text-slate-300">-</span>'
   : list.some((c) => !c.ack) ? `<span class="rounded bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">💬${list.length}・未確認</span>`
-  : `<span class="rounded bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-bold">💬${list.length}・確認済</span>`;
+  : `<span class="rounded bg-slate-100 text-slate-700 px-2 py-0.5 text-xs font-bold">💬${list.length}・確認済</span>`;
 
 const APV = {
-  none: ['未承認', 'bg-amber-100 text-amber-800'], stale: ['変更あり・再承認', 'bg-orange-100 text-orange-700'],
-  ok: ['承認済', 'bg-emerald-100 text-emerald-800'], ng: ['差戻し', 'bg-rose-100 text-rose-700'],
+  none: ['未承認', 'bg-amber-100 text-amber-800'], stale: ['変更あり・再承認', 'bg-amber-100 text-amber-800'],
+  ok: ['承認済', 'bg-teal-100 text-teal-700'], ng: ['差戻し', 'bg-rose-100 text-rose-700'],
 };
 const apvState = (v, item, approvals) => approvalState(latestApproval(approvals, v.visitId, item.id), item);
 const apvBadge = (st) => `<span class="rounded px-2 py-0.5 text-xs font-bold ${APV[st][1]}">${APV[st][0]}</span>`;
 // 承認作業が必要な商品（金額が入力済みで、未承認または承認後に変更されたもの）
 const pendingApprovals = (v, approvals) => v.items.filter((i) => i.sell && i.price > 0 && ['none', 'stale'].includes(apvState(v, i, approvals)));
 
-const AP_BADGE = { 依頼中: 'bg-amber-100 text-amber-800', 回答済み: 'bg-sky-100 text-sky-800', 完結: 'bg-emerald-100 text-emerald-800' };
+const AP_BADGE = { 依頼中: 'bg-amber-100 text-amber-800', 回答済み: 'bg-slate-100 text-slate-900', 完結: 'bg-teal-100 text-teal-700' };
 // 承認作業が必要で、かつ査定依頼の条件を満たす（依頼がない、または完結している）商品
 const approvable = (v, approvals, aps) => pendingApprovals(v, approvals).filter((i) => canApprove(aps, v.visitId, i.id).ok);
 
 const apStatus = (t) => (t ? `<span class="rounded px-2 py-0.5 text-xs font-bold ${AP_BADGE[t.status]}">${t.status === '依頼中' ? '返信待ち' : t.status}</span>` : '<span class="text-slate-400">依頼なし</span>');
 // 担当する鑑定士の、今日の予定（時系列）と訪問状況。ダミーの鑑定士は、予定ごとの見本の状況（demoStatus）を使う
 const ST = {
-  done: ['完了', 'bg-slate-200 text-slate-600'], visiting: ['訪問中', 'bg-emerald-100 text-emerald-800'], notyet: ['まだ訪問していない', 'bg-white border border-dashed border-slate-300 text-slate-400'],
+  done: ['完了', 'bg-slate-200 text-slate-700'], visiting: ['訪問中', 'bg-teal-100 text-teal-700'], notyet: ['まだ訪問していない', 'bg-white border border-dashed border-slate-300 text-slate-400'],
 };
 function scheduleRows(visits) {
   const latest = {};
@@ -80,15 +80,15 @@ function sidebar(visits, aps, approvals) {
   };
   const row = ({ e, v, key, label }) => {
     const now = key === 'visiting';
-    const badge = now ? 'bg-emerald-600 text-white font-bold animate-pulse' : v?.outcome ? 'bg-amber-100 text-amber-800' : ST[key][1];
+    const badge = now ? 'bg-teal-600 text-white font-bold animate-pulse' : v?.outcome ? 'bg-amber-100 text-amber-800' : ST[key][1];
     const inner = `
       <div class="flex justify-between items-center gap-2"><span class="font-bold">${e.start}–${e.end}　${esc(e.customer.name)} 様</span>
         <span class="text-xs rounded px-2 py-0.5 shrink-0 ${badge}">${now ? '● ' : ''}${esc(label)}</span></div>
       <div class="text-xs text-slate-500">鑑定士 ${esc(USERS.find((u) => u.id === e.userId)?.name ?? '')} ／ ${esc(e.items)}${v ? ` ／ 開始 ${fmtTime(v.startedAt)}` : ''}</div>
       ${v ? visitCard(v) : ''}`;
-    const nowCls = now ? 'bg-emerald-100 border-l-8 border-l-emerald-600' : 'border-l-8 border-l-transparent';
+    const nowCls = now ? 'bg-teal-100 border-l-8 border-l-teal-600' : 'border-l-8 border-l-transparent';
     return v
-      ? `<button class="w-full text-left p-3 border-b ${nowCls} ${now ? 'hover:bg-emerald-200' : 'hover:bg-indigo-50'} ${v.visitId === visitId ? (now ? 'ring-2 ring-inset ring-indigo-500' : 'bg-indigo-50') : ''}" data-visit="${v.visitId}">${inner}</button>`
+      ? `<button class="w-full text-left p-3 border-b ${nowCls} ${now ? 'hover:bg-teal-200' : 'hover:bg-slate-50'} ${v.visitId === visitId ? (now ? 'ring-2 ring-inset ring-slate-500' : 'bg-slate-50') : ''}" data-visit="${v.visitId}">${inner}</button>`
       : `<div class="p-3 border-b ${nowCls} ${key === 'done' ? 'opacity-60' : ''}">${inner}</div>`;
   };
   const extra = extras.filter((v) => !(hideDone && v.endedAt)).map((v) => row({ e: { start: fmtTime(v.startedAt).slice(0, 5), end: '', customer: { name: v.customerName }, userId: v.userId ?? 'u01', items: '予定外・別日の訪問' }, v, key: v.endedAt ? 'done' : 'visiting', label: v.outcome ? v.outcome.label : v.endedAt ? '完了' : '訪問中' }));
@@ -103,7 +103,7 @@ function evalCard(e) {
   return `
   <div class="rounded-lg border bg-white p-3 space-y-1">
     <div class="flex justify-between items-center"><b>⭐ お客様の評価（鑑定士の記録）</b>
-      <span class="text-amber-400 text-xl tracking-tight">${'★'.repeat(e.overall)}<span class="text-slate-300">${'★'.repeat(5 - e.overall)}</span></span></div>
+      <span class="text-amber-800 text-xl tracking-tight">${'★'.repeat(e.overall)}<span class="text-slate-300">${'★'.repeat(5 - e.overall)}</span></span></div>
     <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm">
       ${row('態度', e.attitude)}${row('リピート見込み', e.repeat)}${row('資力', e.wealth)}${row('次回時期', e.timing)}
     </div>
@@ -119,27 +119,27 @@ function itemsTable(v, aps, cs, approvals) {
     const st = apvState(v, i, approvals);
     const gate = canApprove(aps, v.visitId, i.id);
     const apv = i.price > 0
-      ? `${apvBadge(st)}${['none', 'stale'].includes(st) ? (gate.ok ? ` <button class="ml-1 rounded bg-emerald-600 text-white text-xs font-bold px-2 py-1" data-approve="${i.id}">承認</button>` : ' <span class="text-xs text-slate-500">査定の完結待ち</span>') : ''}`
+      ? `${apvBadge(st)}${['none', 'stale'].includes(st) ? (gate.ok ? ` <button class="ml-1 rounded bg-teal-600 text-white text-xs font-bold px-2 py-1" data-approve="${i.id}">承認</button>` : ' <span class="text-xs text-slate-500">査定の完結待ち</span>') : ''}`
       : '<span class="text-xs text-slate-400">金額未入力</span>';
     return `
-    <tr class="border-t cursor-pointer hover:bg-indigo-50 ${sel?.type === 'item' && sel.id === i.id ? 'bg-indigo-100' : ''}" data-item="${i.id}">
+    <tr class="border-t cursor-pointer hover:bg-slate-50 ${sel?.type === 'item' && sel.id === i.id ? 'bg-slate-100' : ''}" data-item="${i.id}">
       <td class="p-2 ${i.sell ? '' : 'text-slate-400 line-through'}"><b>${esc(i.name)}</b><div class="text-xs text-slate-500 no-underline">${esc(i.category)}</div></td>
       <td class="text-center ${i.sell ? '' : 'text-slate-400'}">${i.rank} ×${i.qty}</td>
       <td class="text-right ${i.sell ? 'font-bold' : 'text-slate-400 line-through'}">${yen(i.price)}</td>
       <td class="text-center ${i.sell ? '' : 'text-slate-400'}">${i.sell ? '売る' : '売らない'}</td>
       <td class="text-center">${apv}</td>
-      <td class="text-center">${apStatus(t)}${t && hasUnread(t, 'hq') ? '<div class="mt-0.5 text-xs font-bold text-rose-600">💬 未読あり</div>' : ''}</td>
+      <td class="text-center">${apStatus(t)}${t && hasUnread(t, 'hq') ? '<div class="mt-0.5 text-xs font-bold text-rose-700">💬 未読あり</div>' : ''}</td>
       <td class="text-center">${commentMark(cs.filter((c) => c.itemId === i.id))}</td></tr>`;
   }).join('');
   const orphans = aps.filter((a) => a.visitId === v.visitId && !v.items.some((i) => i.id === a.itemId));
   return `
   <div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="w-full text-left text-sm"><thead class="bg-slate-100 text-slate-600"><tr>
+    <table class="w-full text-left text-sm"><thead class="bg-slate-100 text-slate-700"><tr>
       <th class="p-2">商品名</th><th>ランク×数</th><th class="text-right">小計</th><th>売却</th><th>承認</th><th>査定依頼</th><th>コメント</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="7" class="p-6 text-center text-slate-400">まだ商品が追加されていません</td></tr>'}</tbody></table>
   </div>
   ${orphans.length ? `<h3 class="font-bold mt-4 mb-1">明細に入っていない査定依頼</h3>
-    <div class="bg-white rounded-lg shadow">${orphans.map((a) => `<button class="w-full text-left p-3 border-t first:border-0 hover:bg-indigo-50 flex justify-between ${sel?.type === 'req' && sel.id === a.id ? 'bg-indigo-100' : ''}" data-req="${a.id}"><span class="font-bold">${esc(a.name)}</span>${apStatus(a)}</button>`).join('')}</div>` : ''}`;
+    <div class="bg-white rounded-lg shadow">${orphans.map((a) => `<button class="w-full text-left p-3 border-t first:border-0 hover:bg-slate-50 flex justify-between ${sel?.type === 'req' && sel.id === a.id ? 'bg-slate-100' : ''}" data-req="${a.id}"><span class="font-bold">${esc(a.name)}</span>${apStatus(a)}</button>`).join('')}</div>` : ''}`;
 }
 
 const emptyDraft = () => ({ tag: '', text: '', price: '', rank: null, reason: '' });
@@ -154,7 +154,7 @@ function sendForm(itemId, item, hasThread = false) {
     <div class="flex items-center gap-2">
       ${item ? `<div class="flex-1 text-sm font-bold flex items-center gap-2 whitespace-nowrap">提案額（任意）
         ${moneyInputHtml({ attrs: 'data-f="price"', value: Number(draft.price) || 0, placeholder: '円・数量分の合計', cls: 'w-full border rounded px-3 py-1.5 font-normal' })}</div>` : '<div class="flex-1"></div>'}
-      <button class="bg-indigo-700 text-white font-bold rounded px-6 py-2" data-send="${itemId ?? ''}">${hasThread ? '返信する' : '送信'}</button>
+      <button class="bg-slate-700 text-white font-bold rounded px-6 py-2" data-send="${itemId ?? ''}">${hasThread ? '返信する' : '送信'}</button>
     </div>
   </div>`;
 }
@@ -167,8 +167,8 @@ function thread(cs, itemId) {
     <div class="text-sm rounded-lg p-2 ${c.ack ? 'bg-white border' : 'bg-rose-50 border border-rose-200'}">
       <div class="flex justify-between"><b>${c.tag ? esc(c.tag) : '査定部'}</b><span class="text-xs text-slate-500">${fmtTime(c.createdAt)}</span></div>
       <div class="whitespace-pre-wrap">${esc(c.text)}</div>
-      ${c.price ? `<div class="mt-1 font-bold text-indigo-800">提案査定額 ${yen(c.price)}（ランク${c.rank}）${c.adopted ? '<span class="text-emerald-700">／ 鑑定士が買取金額に反映済み</span>' : ''}</div>` : ''}
-      <div class="text-xs mt-1 font-bold ${c.ack ? 'text-emerald-700' : 'text-rose-600'}">${c.ack ? `✓ 鑑定士が確認済み（${fmtTime(c.ackAt)}）` : '⏳ 鑑定士は未確認'}</div>
+      ${c.price ? `<div class="mt-1 font-bold text-slate-900">提案査定額 ${yen(c.price)}（ランク${c.rank}）${c.adopted ? '<span class="text-teal-700">／ 鑑定士が買取金額に反映済み</span>' : ''}</div>` : ''}
+      <div class="text-xs mt-1 font-bold ${c.ack ? 'text-teal-700' : 'text-rose-700'}">${c.ack ? `✓ 鑑定士が確認済み（${fmtTime(c.ackAt)}）` : '⏳ 鑑定士は未確認'}</div>
     </div>`).join('')}</div>`;
 }
 
@@ -176,29 +176,29 @@ function thread(cs, itemId) {
 function chatPanel(t) {
   const bubbles = messagesOf(t).map((m) => {
     const mine = m.from === 'hq';
-    return `<div class="flex ${mine ? 'justify-end' : 'justify-start'}"><div class="max-w-[88%] rounded-2xl px-3 py-2 space-y-1 ${mine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-900 rounded-bl-sm'}">
-      <div class="text-xs ${mine ? 'text-indigo-100' : 'text-slate-500'}">${mine ? '査定部' : esc(t.sender ?? '鑑定士')} ${fmtTime(m.at)}${mine ? (t.salesReadAt >= m.at ? '　既読' : '　未読') : ''}</div>
-      ${m.tag ? `<span class="rounded bg-white/90 text-indigo-800 px-2 py-0.5 text-xs font-bold">${esc(m.tag)}</span>` : ''}
+    return `<div class="flex ${mine ? 'justify-end' : 'justify-start'}"><div class="max-w-[88%] rounded-2xl px-3 py-2 space-y-1 ${mine ? 'bg-slate-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-900 rounded-bl-sm'}">
+      <div class="text-xs ${mine ? 'text-slate-100' : 'text-slate-500'}">${mine ? '査定部' : esc(t.sender ?? '鑑定士')} ${fmtTime(m.at)}${mine ? (t.salesReadAt >= m.at ? '　既読' : '　未読') : ''}</div>
+      ${m.tag ? `<span class="rounded bg-white/90 text-slate-900 px-2 py-0.5 text-xs font-bold">${esc(m.tag)}</span>` : ''}
       ${m.text ? `<div class="whitespace-pre-wrap ${mine ? '' : 'font-bold'}">${esc(m.text)}</div>` : ''}
       ${m.photos?.length ? `<div class="grid grid-cols-2 gap-1">${m.photos.map((p, i) => `<img src="${p}" alt="写真${i + 1}" class="w-full rounded border" />`).join('')}</div>` : ''}
-      ${m.price ? `<div class="rounded bg-white text-indigo-800 font-bold text-sm px-2 py-1">提案査定額 ${yen(m.price)}（ランク${esc(m.rank)}）${m.adopted ? '<span class="text-emerald-700">／ 買取金額に反映済み</span>' : ''}</div>` : ''}
+      ${m.price ? `<div class="rounded bg-white text-slate-900 font-bold text-sm px-2 py-1">提案査定額 ${yen(m.price)}（ランク${esc(m.rank)}）${m.adopted ? '<span class="text-teal-700">／ 買取金額に反映済み</span>' : ''}</div>` : ''}
     </div></div>`;
   }).join('');
   const done = t.status === '完結';
   return `
   <div class="border-2 ${t.status === '依頼中' ? 'border-amber-400 shadow-md' : 'border-slate-200'} rounded-lg p-3 space-y-2 bg-white">
-    <div class="flex justify-between items-center"><span class="font-bold">📨 査定依頼</span><span class="flex items-center gap-2">${apStatus(t)}${done ? '' : `<button class="rounded border border-emerald-600 text-emerald-700 text-sm font-bold px-3 py-1 hover:bg-emerald-50" data-close-thread="${t.id}">完結する</button>${helpIcon('完結すると、この商品を承認できます。鑑定士が続けて送ると、再開します。')}`}</span></div>
+    <div class="flex justify-between items-center"><span class="font-bold">📨 査定依頼</span><span class="flex items-center gap-2">${apStatus(t)}${done ? '' : `<button class="rounded border border-teal-600 text-teal-700 text-sm font-bold px-3 py-1 hover:bg-teal-50" data-close-thread="${t.id}">完結する</button>${helpIcon('完結すると、この商品を承認できます。鑑定士が続けて送ると、再開します。')}`}</span></div>
     <div class="space-y-2">${bubbles}</div>
-    ${done ? `<div class="text-sm font-bold text-emerald-700">✓ 完結しました（${fmtTime(t.closedAt)}）。続きを送ると再開します。</div>` : ''}
+    ${done ? `<div class="text-sm font-bold text-teal-700">✓ 完結しました（${fmtTime(t.closedAt)}）。続きを送ると再開します。</div>` : ''}
   </div>`;
 }
 
 function aiCard(item) {
   const r = item?.aiAppraisal;
   if (!r) return '';
-  return `<div class="rounded-lg border-2 border-violet-300 bg-violet-50 p-3 text-sm space-y-1">
+  return `<div class="rounded-lg border-2 border-slate-300 bg-slate-50 p-3 text-sm space-y-1">
     <div class="font-bold">🤖 鑑定士が実行したAI査定</div>
-    <div>推定 <b class="text-lg text-violet-800">${yen(r.price)}</b>（目安 ${yen(r.min)}〜${yen(r.max)}）／ ランク${r.rank} ／ 信頼度 <b>${r.confidence}%</b></div>
+    <div>推定 <b class="text-lg text-slate-900">${yen(r.price)}</b>（目安 ${yen(r.min)}〜${yen(r.max)}）／ ランク${r.rank} ／ 信頼度 <b>${r.confidence}%</b></div>
     <div class="text-slate-700">${esc(r.reason)}</div></div>`;
 }
 
@@ -214,16 +214,16 @@ function approvalBlock(v, item, approvals, aps) {
     <div class="p-3 space-y-2 ${masked ? 'opacity-40 pointer-events-none select-none' : ''}" ${masked ? 'aria-disabled="true"' : ''}>
     <div class="flex justify-between items-center"><b>✅ 買取の承認</b>${item.price > 0 ? apvBadge(st) : '<span class="text-xs text-slate-400">金額未入力</span>'}</div>
     <div class="text-sm">鑑定士の査定：<b>${item.price > 0 ? yen(item.price) : '未入力'}</b>（${item.qty}点分の合計） ／ ランク${item.rank}${item.sell ? '' : '<span class="ml-2 text-slate-500">（売らない）</span>'}</div>
-    ${st === 'stale' ? `<div class="text-sm text-orange-700 font-bold">前回の判断（${yen(rec.price)}・ランク${rec.rank}・${rec.qty}点）から変更されています。</div>` : ''}
-    ${st === 'ok' ? `<div class="text-sm text-emerald-700 font-bold">承認済み（${fmtTime(rec.decidedAt)}）</div>` : ''}
+    ${st === 'stale' ? `<div class="text-sm text-amber-800 font-bold">前回の判断（${yen(rec.price)}・ランク${rec.rank}・${rec.qty}点）から変更されています。</div>` : ''}
+    ${st === 'ok' ? `<div class="text-sm text-teal-700 font-bold">承認済み（${fmtTime(rec.decidedAt)}）</div>` : ''}
     ${st === 'ng' ? `<div class="text-sm text-rose-700"><b>差戻し済み：</b>${esc(rec.comment)}（鑑定士の見直しを待っています）</div>` : ''}
     ${canDecide ? `
       <textarea class="w-full border rounded px-3 py-2 text-sm" rows="2" data-f="reason" placeholder="差戻しの場合は理由を入力（必須）">${esc(draft.reason)}</textarea>
       <div class="grid grid-cols-2 gap-2">
-        <button class="bg-emerald-600 text-white font-bold rounded py-3 disabled:opacity-40 disabled:cursor-not-allowed" data-approve="${item.id}" ${masked ? 'disabled' : ''}>承認する</button>
-        <button class="bg-white border-2 border-rose-500 text-rose-600 font-bold rounded py-3" data-reject="${item.id}" ${masked ? 'disabled' : ''}>差戻し</button></div>` : ''}
+        <button class="bg-teal-600 text-white font-bold rounded py-3 disabled:opacity-40 disabled:cursor-not-allowed" data-approve="${item.id}" ${masked ? 'disabled' : ''}>承認する</button>
+        <button class="bg-white border-2 border-rose-500 text-rose-700 font-bold rounded py-3" data-reject="${item.id}" ${masked ? 'disabled' : ''}>差戻し</button></div>` : ''}
     </div>
-    ${masked ? `<div class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-200/50 p-3 text-center text-sm font-bold text-slate-800">🔒 査定依頼のやり取り中（${esc(threadFor(aps, v.visitId, item.id).status === '依頼中' ? '返信待ち' : '回答済み')}）。完結すると承認できます</div>` : ''}
+    ${masked ? `<div class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-200/50 p-3 text-center text-sm font-bold text-slate-900">🔒 査定依頼のやり取り中（${esc(threadFor(aps, v.visitId, item.id).status === '依頼中' ? '返信待ち' : '回答済み')}）。完結すると承認できます</div>` : ''}
   </div>`;
 }
 
@@ -264,7 +264,7 @@ function composeModal() {
           <select class="border rounded px-2 py-1 font-normal" data-m="target">
             ${[['all', '全員'], ['A', 'グループA'], ['B', 'グループB']].map(([v, l]) => `<option value="${v}" ${compose.target === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       </div>
-      <button class="w-full bg-indigo-700 text-white font-bold rounded py-3" data-compose-send>送信する</button>
+      <button class="w-full bg-slate-700 text-white font-bold rounded py-3" data-compose-send>送信する</button>
     </div>
   </div>`;
 }
@@ -287,9 +287,9 @@ function render() {
   const v = visits.find((x) => x.visitId === visitId);
   const totalPending = aps.filter((a) => a.status === '依頼中').length;
   $('#root').innerHTML = `
-  <header class="bg-indigo-800 text-white px-6 py-3 flex justify-between items-center">
+  <header class="bg-slate-800 text-white px-6 py-3 flex justify-between items-center">
     <div class="font-bold text-xl">査定部 <span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
-    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <label class="ml-3 text-xs text-white/80">査定員 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${appraisers().map((a) => `<option class="text-slate-800" value="${esc(a.id)}" ${a.id === appraiser().id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
+    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>📢 お知らせ送信</button> <label class="ml-3 text-xs text-white/80">査定員 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${appraisers().map((a) => `<option class="text-slate-900" value="${esc(a.id)}" ${a.id === appraiser().id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="ml-2 text-xs underline text-white/70" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
   <div class="grid grid-cols-[19rem_1fr_26rem] h-[calc(100vh-52px)]">
     <aside class="bg-white border-r overflow-y-auto">
@@ -303,9 +303,9 @@ function render() {
       <div class="flex justify-between items-end">
         <div><h1 class="text-2xl font-bold">${esc(v.customerName)} 様 <span class="text-base font-normal text-slate-500">${esc(v.staff)}</span></h1>
           <p class="text-sm text-slate-500">受付 ${esc(v.callInfo?.receptionNo ?? '')} ／ 開始 ${fmtTime(v.startedAt)} ／ 経過 <span data-elapsed="${v.startedAt}" data-end="${v.endedAt ?? ''}">${fmtElapsed(v.startedAt, v.endedAt ?? Date.now())}</span> ／ 最終更新 ${fmtTime(v.updatedAt)}</p></div>
-        <div class="text-right">${approvable(v, approvals, aps).length ? `<button class="mr-3 bg-emerald-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>承認できる${approvable(v, approvals, aps).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-600" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-indigo-800">${yen(sum(v.items))}</div></div>
+        <div class="text-right">${approvable(v, approvals, aps).length ? `<button class="mr-3 bg-teal-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>承認できる${approvable(v, approvals, aps).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-700" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-slate-900">${yen(sum(v.items))}</div></div>
       </div>
-      ${v.briefing?.propose ? `<div class="text-sm rounded-lg bg-slate-50 border px-3 py-1.5">査定前の説明：<b>実施済み</b> ／ 他商品の提案：<b class="${v.briefing.propose === 'yes' ? 'text-teal-700' : 'text-slate-600'}">${v.briefing.propose === 'yes' ? '提案してよい' : '提案は不要（お客様の希望）'}</b></div>` : ''}
+      ${v.briefing?.propose ? `<div class="text-sm rounded-lg bg-slate-50 border px-3 py-1.5">査定前の説明：<b>実施済み</b> ／ 他商品の提案：<b class="${v.briefing.propose === 'yes' ? 'text-teal-700' : 'text-slate-700'}">${v.briefing.propose === 'yes' ? '提案してよい' : '提案は不要（お客様の希望）'}</b></div>` : ''}
       ${v.outcome ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3"><b>🚪 買取に至らず：${esc(v.outcome.label)}</b>${helpIcon('訪問実績として扱い、鑑定士の業績には影響しません。')}${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}${v.outcome.memo ? `<div class="text-sm whitespace-pre-wrap">${esc(v.outcome.memo)}</div>` : ''}</div>` : ''}
       ${evalCard(loadEvals().find((e) => e.visitId === v.visitId))}
       ${itemsTable(v, aps, cs, approvals)}` : '<p class="text-slate-400 p-10 text-center">左の一覧から訪問を選択してください</p>'}

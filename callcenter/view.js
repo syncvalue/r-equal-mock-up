@@ -24,18 +24,18 @@ export const genderParen = (g) => (GENDER[g] ? `（${GENDER[g]}）` : ''); // �
 // ---- 時間帯のバー ------------------------------------------------------------------
 // 訪問の帯の色は、仮確定が薄い青、確定済みが濃い青。鑑定士の元からの予定も、確定済みの訪問として、濃い青で出す（訪問は、基本的にすべて電話でオペレーターが入れるため、出どころの区別はしない）
 // まだ一度も確定していない仮確定は薄い青、一度確定して仮確定に戻されたものは橙、確定済みは濃い青
-export const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? (b.reverted ? 'bg-amber-600' : 'bg-indigo-400') : 'bg-indigo-700');
+export const blockCls = (b) => (b.source === 'reservation' && b.status === 'tentative' ? (b.reverted ? 'bg-amber-600' : 'bg-slate-400') : 'bg-slate-700');
 export const isTentativeBlock = (b) => b.source === 'reservation' && b.status === 'tentative';
 const blockKind = (b) => `訪問（${isTentativeBlock(b) ? (b.reverted ? '確定から仮確定に戻った' : '仮確定') : '確定済'}）`;
 export const blockMark = (b) => (isTentativeBlock(b) ? (b.reverted ? '戻 ' : '仮 ') : '確 ');
 
 // 帯の色の意味（日別表示・担当候補で共通）
-export const legendHtml = ({ want = true } = {}) => `<span class="font-normal text-[11px] text-slate-600 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-400 align-middle"></i> 薄い青：仮確定（未確定）</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-amber-600 align-middle"></i> 橙：確定から仮確定に戻った</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-indigo-700 align-middle"></i> 濃い青：確定済み</span>
-  ${want ? '<span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-emerald-600 bg-emerald-400/25 align-middle"></i> 緑：希望時間帯（空き）</span><span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-rose-500 bg-rose-400/25 align-middle"></i> 赤：予定と重なる</span>' : ''}</span>`;
+export const legendHtml = ({ want = true } = {}) => `<span class="font-normal text-[11px] text-slate-700 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+  <span><i class="inline-block w-3 h-2.5 rounded-sm bg-slate-400 align-middle"></i> 薄い青：仮確定（未確定）</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-amber-600 align-middle"></i> 橙：確定から仮確定に戻った</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-slate-700 align-middle"></i> 濃い青：確定済み</span>
+  ${want ? '<span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-teal-600 bg-teal-400/25 align-middle"></i> 緑：希望時間帯（空き）</span><span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-rose-500 bg-rose-400/25 align-middle"></i> 赤：予定と重なる</span>' : ''}</span>`;
 
 // 鑑定士のランク（S が最上位）
-const RANK_CLS = { S: 'bg-amber-400 text-slate-900', A: 'bg-indigo-600 text-white', B: 'bg-slate-500 text-white', C: 'bg-slate-300 text-slate-800' };
+const RANK_CLS = { S: 'bg-amber-400 text-slate-900', A: 'bg-slate-600 text-white', B: 'bg-slate-500 text-white', C: 'bg-slate-300 text-slate-900' };
 export const rankBadge = (rank) => (rank ? `<span class="inline-block rounded px-1.5 text-[10px] font-bold leading-4 ${RANK_CLS[rank] ?? 'bg-slate-200'}" title="鑑定士のランク">${esc(rank)}</span>` : '');
 
 // 前後の訪問から、今回のお客様の住所までの距離（概算）。prev=直前の訪問（なければ営業所から）／next=直後の訪問。short=鑑定士ごとの列の見出し用の短い表記
@@ -49,7 +49,7 @@ export const travelTitle = (t) => (t ? [legText(t.prev, 'prev'), legText(t.next,
 // 担当候補の行に出す、色付きの見出し付きの表記
 export const legHtml = (l, dir) => {
   const chip = (t, cls) => `<span class="mr-1 rounded px-1 text-[10px] font-bold ${cls}">${t}</span>`;
-  if (!l) return dir === 'prev' ? chip('前の訪問なし', 'bg-sky-100 text-sky-800') : ''; // 直前の訪問がなければ、距離は出さない
+  if (!l) return dir === 'prev' ? chip('前の訪問なし', 'bg-slate-100 text-slate-900') : ''; // 直前の訪問がなければ、距離は出さない
   if (dir === 'prev') return `${chip('前の訪問', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}終了）→ 今回のお客様宅まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;
   return `${chip('次の訪問', 'bg-slate-200 text-slate-700')}${esc(l.label)}（${minToHHMM(l.at)}開始）まで <b class="text-slate-900">${l.km}km</b>・約${l.min}分`;
 };
@@ -64,12 +64,12 @@ export function travelStripHtml(col, f) {
   const place = (v) => (v ? `（${esc(v)}）` : '');
   const leg = (l, dir) => {
     const over = l.min - l.gap;
-    const room = over > 0 ? `<b class="text-rose-600">⚠ 移動が間に合いません（あと${over}分足りない）</b>` : `<span class="text-emerald-700">余裕${-over}分</span>`;
+    const room = over > 0 ? `<b class="text-rose-700">⚠ 移動が間に合いません（あと${over}分足りない）</b>` : `<span class="text-teal-700">余裕${-over}分</span>`;
     const where = dir === 'prev' ? `<b>前の訪問</b> ${esc(l.label)}${place(l.place)} ${minToHHMM(l.at)}終了 → 今回（${esc(f.address.trim())}）まで` : `<b>次の訪問</b> ${esc(l.label)}${place(l.place)} ${minToHHMM(l.at)}開始 ← 今回から`;
     return `<div>${where} <b class="text-slate-900">${l.km}km</b>・約${l.min}分　${room}</div>`;
   };
   const lines = [t.prev ? leg(t.prev, 'prev') : '<div>前の訪問なし（営業所からの距離は出しません）</div>', t.next ? leg(t.next, 'next') : ''].join('');
-  return box(t.prev && t.prev.min > t.prev.gap ? 'border-rose-300 bg-rose-50' : 'border-sky-200 bg-sky-50 text-slate-700', `<div class="font-bold text-slate-600">🚗 ${esc(col.user.name)} の移動（概算）</div>${lines}`);
+  return box(t.prev && t.prev.min > t.prev.gap ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-slate-50 text-slate-700', `<div class="font-bold text-slate-700">🚗 ${esc(col.user.name)} の移動（概算）</div>${lines}`);
 }
 
 // ---- 通話の文字起こし（デモ） -----------------------------------------------------------
@@ -79,10 +79,10 @@ export const demoWindowHtml = (pos) => `<div id="demo-win" class="fixed z-50 w-[
 
 export function transcriptHtml({ lines, playing, finished, pos, total }) {
   const bubble = (l) => l.who === 'sys'
-    ? `<div class="text-center text-xs font-bold rounded bg-emerald-50 border border-emerald-300 text-emerald-800 px-2 py-1">${esc(l.text)}</div>`
+    ? `<div class="text-center text-xs font-bold rounded bg-teal-50 border border-teal-300 text-teal-700 px-2 py-1">${esc(l.text)}</div>`
     : `<div class="flex ${l.who === 'op' ? 'justify-start' : 'justify-end'}"><div class="max-w-[85%] rounded-lg px-3 py-1.5 text-sm ${l.who === 'op' ? 'bg-slate-100' : 'bg-teal-50 border border-teal-200'}">
       <div class="text-[10px] text-slate-500">${l.who === 'op' ? 'オペレーター' : 'お客様'}</div>${esc(l.text)}
-      ${l.got?.length ? `<div class="mt-1 flex flex-wrap gap-1">${[...new Set(l.got.map((k) => FIELD_LABELS[k]))].map((t) => `<span class="rounded bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.5">✎ ${esc(t)}</span>`).join('')}</div>` : ''}</div></div>`;
+      ${l.got?.length ? `<div class="mt-1 flex flex-wrap gap-1">${[...new Set(l.got.map((k) => FIELD_LABELS[k]))].map((t) => `<span class="rounded bg-amber-200 text-amber-800 text-[10px] font-bold px-1.5 py-0.5">✎ ${esc(t)}</span>`).join('')}</div>` : ''}</div></div>`;
   return `<div class="space-y-2">
     <div class="flex items-center justify-between gap-2"><span class="flex items-center"><span class="text-xs bg-amber-100 text-amber-800 rounded px-1.5 py-0.5 font-bold">デモ</span>${helpIcon('今後の拡張機能のデモです（通常は手入力）。\n黄色＝今入った項目。\n枠の選択と確定は、オペレーターが行います。')}</span>
       <div class="flex items-center gap-1"><span class="text-xs text-slate-500 mr-1">${pos}／${total}</span>
@@ -98,20 +98,20 @@ export function transcriptHtml({ lines, playing, finished, pos, total }) {
 
 // ---- 聞き取り状況（聞き忘れ防止） ------------------------------------------------------------
 export const badgeHtml = (asked, estimated = false) => (estimated
-  ? '<span class="text-[10px] rounded px-1 font-bold bg-sky-100 text-sky-800" title="声から推測">推</span>'
+  ? '<span class="text-[10px] rounded px-1 font-bold bg-slate-100 text-slate-900" title="声から推測">推</span>'
   : asked
-  ? '<span class="text-[10px] rounded px-1 font-bold bg-emerald-100 text-emerald-700" title="聞いた">✔</span>'
-  : '<span class="text-[10px] rounded px-1 font-bold bg-amber-300 text-amber-950" title="まだ聞いていない">未</span>');
+  ? '<span class="text-[10px] rounded px-1 font-bold bg-teal-100 text-teal-700" title="聞いた">✔</span>'
+  : '<span class="text-[10px] rounded px-1 font-bold bg-amber-300 text-amber-800" title="まだ聞いていない">未</span>');
 
 export function checklistHtml(list) {
   const done = list.filter((x) => x.asked).length;
   const rest = list.filter((x) => !x.asked);
   const guess = list.filter((x) => x.estimated);
   const all = !rest.length;
-  return `<div class="rounded-lg border-2 bg-white px-2 py-1.5 shadow ${all ? 'border-emerald-500' : 'border-amber-400'}">
-    <div class="flex items-center justify-between text-xs font-bold"><span>聞き取り状況　${done}／${list.length}${guess.length ? `<span class="ml-2 font-normal text-sky-700">推測：${guess.map((x) => esc(x.label)).join('・')}</span>` : ''}</span>${all ? '<span class="text-emerald-700">✔</span>' : ''}</div>
-    <div class="h-1.5 rounded bg-slate-200 mt-1"><div class="h-1.5 rounded ${all ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${(done / Math.max(1, list.length)) * 100}%"></div></div>
-    ${all ? '' : `<div class="flex flex-wrap items-center gap-1 mt-1"><span class="text-[11px] text-amber-800 font-bold">未：</span>${rest.map((x) => `<button class="rounded bg-amber-200 text-amber-950 text-[11px] font-bold px-1.5 py-0.5 ${x.required ? 'ring-1 ring-rose-400' : ''}" data-goto="${x.key}" title="${x.required ? '必須の項目です' : 'クリックで入力欄へ'}">${esc(x.label)}</button>`).join('')}</div>`}
+  return `<div class="rounded-lg border-2 bg-white px-2 py-1.5 shadow ${all ? 'border-teal-500' : 'border-amber-400'}">
+    <div class="flex items-center justify-between text-xs font-bold"><span>聞き取り状況　${done}／${list.length}${guess.length ? `<span class="ml-2 font-normal text-slate-700">推測：${guess.map((x) => esc(x.label)).join('・')}</span>` : ''}</span>${all ? '<span class="text-teal-700">✔</span>' : ''}</div>
+    <div class="h-1.5 rounded bg-slate-200 mt-1"><div class="h-1.5 rounded ${all ? 'bg-teal-500' : 'bg-amber-400'}" style="width:${(done / Math.max(1, list.length)) * 100}%"></div></div>
+    ${all ? '' : `<div class="flex flex-wrap items-center gap-1 mt-1"><span class="text-[11px] text-amber-800 font-bold">未：</span>${rest.map((x) => `<button class="rounded bg-amber-200 text-amber-800 text-[11px] font-bold px-1.5 py-0.5 ${x.required ? 'ring-1 ring-rose-400' : ''}" data-goto="${x.key}" title="${x.required ? '必須の項目です' : 'クリックで入力欄へ'}">${esc(x.label)}</button>`).join('')}</div>`}
   </div>`;
 }
 
@@ -119,7 +119,7 @@ export function checklistHtml(list) {
 export { custRankBadge, troubleBadge, cooloffBadge, customerMarks, customerProfileHtml } from '../src/customerProfileView.js';
 
 // ---- 入力フォーム ------------------------------------------------------------------
-const lbl = (text, inner, { req = false, cls = '' } = {}) => `<label class="block ${cls}"><span class="text-xs font-bold">${text}${req ? '<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>' : ''}</span>${inner}</label>`;
+const lbl = (text, inner, { req = false, cls = '' } = {}) => `<label class="block ${cls}"><span class="text-xs font-bold">${text}${req ? '<span class="text-rose-700 font-bold ml-0.5" title="必須">＊</span>' : ''}</span>${inner}</label>`;
 const inp = (key, v, { type = 'text', ph = '', extra = '' } = {}) => `<input class="inp mt-0.5" data-f="${key}" type="${type}" value="${esc(v)}" placeholder="${esc(ph)}" ${extra} />`;
 // 郵便番号から出す住所の候補（押すと住所に入る）。7桁そろって表にないときは、その旨だけ。住所がすでに候補で始まっていれば出さない
 export function zipCandidatesHtml(f, table = ZIP_TABLE) {
@@ -130,12 +130,12 @@ export function zipCandidatesHtml(f, table = ZIP_TABLE) {
   if (cands.some((c) => address.startsWith(c))) return '';
   return `<div class="flex flex-wrap items-center gap-1"><span class="text-xs text-slate-500">住所の候補</span>${cands.map((c) => `<button class="chip" data-zipaddr="${esc(c)}">${esc(c)}</button>`).join('')}</div>`;
 }
-const sec = (title, body) => `<section class="bg-white rounded-lg shadow p-3 space-y-2"><h2 class="font-bold text-teal-800 text-sm">${title}</h2>${body}</section>`;
+const sec = (title, body) => `<section class="bg-white rounded-lg shadow p-3 space-y-2"><h2 class="font-bold text-teal-700 text-sm">${title}</h2>${body}</section>`;
 
 export function flyerResultHtml(id) {
   if (!String(id ?? '').trim()) return '';
   const f = flyerOf(id);
-  return f ? `<span class="text-emerald-700 font-bold">✔ ${esc(CHIRASHI[f.chirashi])}</span>` : '<span class="text-amber-700 font-bold">該当なし。IDをご確認ください</span>';
+  return f ? `<span class="text-teal-700 font-bold">✔ ${esc(CHIRASHI[f.chirashi])}</span>` : '<span class="text-amber-800 font-bold">該当なし。IDをご確認ください</span>';
 }
 
 // part: 'all'（全体）／'body'（電話番号の欄より下だけ。電話番号を入力中に、入力欄を作り直さないため）
@@ -151,10 +151,10 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
       ${lbl(`お名前${b('name')}`, inp('name', f.name, { ph: '山田 太郎' }), { req: true })}${lbl(`フリガナ${b('kana')}`, inp('kana', f.kana, { ph: 'ヤマダ タロウ' }), { req: true })}
     </div>
     <div class="flex items-center gap-2" title="担当鑑定士の公平な配分に使います（女性のお客様は、特定の鑑定士に偏らないようにします）">
-      <span class="text-xs font-bold shrink-0">性別<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>${b('gender')}</span>
+      <span class="text-xs font-bold shrink-0">性別<span class="text-rose-700 font-bold ml-0.5" title="必須">＊</span>${b('gender')}</span>
       <div class="flex gap-2 flex-1">${Object.entries(GENDER).map(([k, v]) => `<button class="b b-sec flex-1 ${f.gender === k ? 'on' : ''}" data-gender="${k}">${v}</button>`).join('')}</div>
       <button class="chip ${f.genderEst ? 'on' : ''}" data-genderest title="聞けず、声から推測した場合">推測</button></div>
-    <div class="flex items-center gap-1.5 flex-wrap"><span class="text-xs font-bold shrink-0">年齢<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>${b('age')}</span>
+    <div class="flex items-center gap-1.5 flex-wrap"><span class="text-xs font-bold shrink-0">年齢<span class="text-rose-700 font-bold ml-0.5" title="必須">＊</span>${b('age')}</span>
       <input class="inp !w-16" data-f="age" value="${esc(f.age)}" placeholder="62" inputmode="numeric" /><span class="text-xs">歳</span>
       <span class="text-xs text-slate-500 ml-1" title="年齢を聞けない場合は、声から推測した年代を選びます">推測</span>
       <select class="inp !w-auto" data-f="ageEst" title="年齢を聞けない場合は、声から推測した年代を選びます"><option value="">（年代を選ぶ）</option>${AGE_BANDS.map((a) => `<option ${f.ageEst === a ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
@@ -173,11 +173,11 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
   const pick = (key, label, list, blankLabel) => lbl(`${label}${b(key)}`, `<select class="inp mt-0.5" data-f="${key}"><option value="">${blankLabel}</option>${list.map((o) => `<option ${o === f[key] ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`);
   const flyerSec = sec('① 来電のきっかけ', `
     <div class="grid grid-cols-2 gap-2">${lbl('問合せ種別', `<select class="inp mt-0.5" data-f="inquiryType">${INQUIRY_TYPES.map((o) => `<option ${o === f.inquiryType ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`)}${pick('adType', '広告種別', AD_TYPES, '（選択しない）')}</div>
-    <div><div class="text-xs font-bold">来電のきっかけ<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>${b('flyer')}</div>
+    <div><div class="text-xs font-bold">来電のきっかけ<span class="text-rose-700 font-bold ml-0.5" title="必須">＊</span>${b('flyer')}</div>
       <div class="flex items-center gap-2 mt-0.5"><div class="w-36 shrink-0">${inp('flyerId', f.flyerId, { ph: 'チラシID（N1019）' })}</div><div id="flyer-result" class="text-xs">${flyerResultHtml(f.flyerId)}</div></div>
       <div class="flex flex-wrap items-center gap-1 mt-1"><span class="text-xs text-slate-500">IDなし</span>${CHIRASHI.map((c, i) => (isFlyerIndex(i) ? '' : `<button class="chip ${f.chirashi === i ? 'on' : ''}" data-chirashi="${i}">${esc(c)}</button>`)).join('')}</div></div>`);
   const wantsSec = sec('② 売りたいもの', `
-    <div><div class="text-xs font-bold">売りたいもの<span class="text-rose-600 font-bold ml-0.5" title="必須">＊</span>${b('wants')}</div>
+    <div><div class="text-xs font-bold">売りたいもの<span class="text-rose-700 font-bold ml-0.5" title="必須">＊</span>${b('wants')}</div>
       <div class="text-[11px] text-slate-500 mt-0.5">メイン商材</div>
       <div class="grid grid-cols-2 gap-1 mt-0.5">${MAIN_ITEMS.map((k) => `<div class="flex"><span class="w-14 shrink-0 flex items-center justify-center rounded-l border border-r-0 border-slate-400 bg-slate-100 text-xs font-bold">${k}</span>
         <select class="inp !rounded-l-none ${f.mainItems[k] ? 'sel' : ''}" data-main="${k}"><option value="0">(数量)</option>${MAIN_BANDS.map((b) => `<option value="${b.min}" ${f.mainItems[k] === b.min ? 'selected' : ''}>${b.label}</option>`).join('')}</select></div>`).join('')}</div>
@@ -221,7 +221,7 @@ const statText = (st, gender) => (gender === 'f' ? `今月 女性<b class="text-
 const starTitle = (gender) => (gender === 'f' ? '空いている鑑定士のうち、女性のお客様の担当が今月最も少ない人（公平な配分）' : '空いている鑑定士のうち、担当が今月最も少ない人（公平な配分）');
 // 午後出社・午後半休の表示。働けない時間帯を、斜線で塗る
 // 出張中の印（出張メンバーの鑑定士。本来の営業所は変わらない）。trips: [{ name, start, end }]
-export const tripTag = (trips) => (trips?.length ? trips.map((t) => `<span class="rounded bg-orange-100 px-1 text-[10px] font-bold text-orange-800" title="${esc(`${t.name}（${t.start}〜${t.end}）の出張メンバー`)}">🧳 出張中 ${esc(t.name)}</span>`).join(' ') : '');
+export const tripTag = (trips) => (trips?.length ? trips.map((t) => `<span class="rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-800" title="${esc(`${t.name}（${t.start}〜${t.end}）の出張メンバー`)}">🧳 出張中 ${esc(t.name)}</span>`).join(' ') : '');
 // 受付の担当エリアの名前（出張エリアを含む）
 export const areaNameOf = (areaId) => areaById(areaId, tripAreas(loadCurrentTrips()))?.name ?? '例外対応';
 export const attTag = (att) => (att && (att.kind === 'pm' || att.kind === 'am') ? `<span class="rounded bg-slate-200 px-1 text-[10px] font-bold text-slate-700" title="${att.kind === 'pm' ? '午前は休み。午後から出社' : '午後は休み。午前のみ出社'}">${att.label}</span>` : '');
@@ -236,7 +236,7 @@ export function attShade(att, rowH) {
 export const specTags = (userId, form) => {
   const list = specialtiesOf(userId);
   const hit = new Set(matchedSpecialties(list, form));
-  return list.map((s) => `<span class="rounded px-1 text-[10px] ${hit.has(s) ? 'bg-emerald-100 font-bold text-emerald-800' : 'bg-slate-100 text-slate-600'}" ${hit.has(s) ? 'title="お客様の売りたいものと合います"' : ''}>${hit.has(s) ? '◎ ' : ''}${esc(s)}</span>`).join('');
+  return list.map((s) => `<span class="rounded px-1 text-[10px] ${hit.has(s) ? 'bg-teal-100 font-bold text-teal-700' : 'bg-slate-100 text-slate-700'}" ${hit.has(s) ? 'title="お客様の売りたいものと合います"' : ''}>${hit.has(s) ? '◎ ' : ''}${esc(s)}</span>`).join('');
 };
 const leaderTag = (u) => (isLeader(u) ? '<span class="ml-0.5 text-[9px] rounded bg-slate-200 px-1">L</span>' : '');
 
@@ -248,17 +248,17 @@ function candidateRow(c, { selectedId, gender, form, showArea = false }) {
   <div class="rounded-lg border-2 px-2 py-1 ${c.absent ? 'bg-slate-100 opacity-60' : 'bg-white'} ${c.free ? 'cursor-pointer hover:border-teal-500' : c.absent ? '' : 'opacity-70'} ${on ? 'border-teal-600 ring-2 ring-teal-300' : 'border-slate-200'}" ${c.free ? `data-pick="${c.user.id}"` : ''}>
     <div class="grid grid-cols-[8rem_6rem_9.5rem_1fr] items-center gap-2 text-xs">
       <div class="flex items-center gap-1.5 truncate">${avatarHtml(c.user, 28)}<span class="truncate"><b class="text-sm">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)} ${attTag(c.att)}${tripTag(c.trips)}${showArea ? `<span class="ml-1 text-[10px] text-slate-500">${esc(areaById(c.areaId)?.name ?? '')}</span>` : ''}</span></div>
-      <div class="flex gap-1">${c.recommended ? tag('bg-amber-400 text-slate-900', '⭐', starTitle(gender)) : ''}${c.absent ? tag('bg-slate-600 text-white', '欠勤', 'この日は欠勤のため、担当に選べません') : c.free ? tag('bg-emerald-100 text-emerald-800', '空き') : tag('bg-rose-100 text-rose-700', '不可')}</div>
-      <div class="text-slate-600">${statText(c.stats, gender)}</div>
-      <div class="min-w-0 text-[11px] leading-tight text-slate-600" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${legHtml(c.travel.prev, 'prev')}</div>${c.travel.next ? `<div class="truncate">${legHtml(c.travel.next, 'next')}</div>` : ''}` : ''}</div>
+      <div class="flex gap-1">${c.recommended ? tag('bg-amber-400 text-slate-900', '⭐', starTitle(gender)) : ''}${c.absent ? tag('bg-slate-600 text-white', '欠勤', 'この日は欠勤のため、担当に選べません') : c.free ? tag('bg-teal-100 text-teal-700', '空き') : tag('bg-rose-100 text-rose-700', '不可')}</div>
+      <div class="text-slate-700">${statText(c.stats, gender)}</div>
+      <div class="min-w-0 text-[11px] leading-tight text-slate-700" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${legHtml(c.travel.prev, 'prev')}</div>${c.travel.next ? `<div class="truncate">${legHtml(c.travel.next, 'next')}</div>` : ''}` : ''}</div>
     </div>
     <div class="mt-0.5 flex flex-wrap items-center gap-1 pl-9"><span class="text-[10px] text-slate-400">得意</span>${specTags(c.user.id, form)}</div>
-    ${c.free || c.absent ? '' : `<div class="text-[11px] text-rose-600">${esc(conflictText(c.conflict))}</div>`}
+    ${c.free || c.absent ? '' : `<div class="text-[11px] text-rose-700">${esc(conflictText(c.conflict))}</div>`}
   </div>`;
 }
 
 const WEEK_DAYS = ['日', '月', '火', '水', '木', '金', '土'];
-const dayHead = (date) => { const [y, m, d] = date.split('-').map(Number); const w = new Date(y, m - 1, d).getDay(); return { md: `${m}/${d}`, w: WEEK_DAYS[w], cls: w === 0 ? 'text-rose-600' : w === 6 ? 'text-sky-600' : '' }; };
+const dayHead = (date) => { const [y, m, d] = date.split('-').map(Number); const w = new Date(y, m - 1, d).getDay(); return { md: `${m}/${d}`, w: WEEK_DAYS[w], cls: w === 0 ? 'text-rose-700' : w === 6 ? 'text-slate-700' : '' }; };
 
 // 1週間の空きカレンダー。縦=開始時刻、横=日付、セル=空いている鑑定士の人数。タップで希望日時に反映する。◀▶で1週間ずつ動かす
 export function weekCalendarHtml({ week, form, today, names, canPrev }) {
@@ -270,7 +270,7 @@ export function weekCalendarHtml({ week, form, today, names, canPrev }) {
     const n = s.freeIds.length;
     const past = d.date < today;
     const on = d.date === form.date && s.start === form.start;
-    const tone = n === 0 || past ? 'bg-slate-100 text-slate-400' : n === 1 ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200';
+    const tone = n === 0 || past ? 'bg-slate-100 text-slate-400' : n === 1 ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-teal-100 text-teal-700 hover:bg-teal-200';
     const who = s.freeIds.map((id) => names[id]).join('、');
     return `<td class="p-px"><button class="w-full rounded text-xs font-bold py-0 leading-5 ${tone} ${on ? 'ring-2 ring-teal-600 !bg-teal-600 !text-white' : ''}" data-cell="${d.date}|${s.start}" ${n === 0 || past ? 'disabled' : ''} title="${esc(n ? `${dayHead(d.date).md} ${minToHHMM(s.start)}〜 空き: ${who}` : '空きなし')}">${n === 0 || past ? '×' : n === 1 ? '△1' : `◎${n}`}</button></td>`;
   }).join('')}</tr>`).join('');
@@ -282,7 +282,7 @@ export function weekCalendarHtml({ week, form, today, names, canPrev }) {
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-week="7" title="次の週">▶</button></div>
     <table class="w-full table-fixed border-separate border-spacing-0"><thead><tr><th class="w-11"></th>${head}</tr></thead><tbody>${rows}</tbody></table>
     <div class="mt-0.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
-      <span><b class="text-emerald-700">◎</b>空き人数 <b class="text-amber-700">△</b>残り1人 ×なし</span>
+      <span><b class="text-teal-700">◎</b>空き人数 <b class="text-amber-800">△</b>残り1人 ×なし</span>
       ${pick && pick.freeIds.length ? `<span>${dayHead(form.date).md}（${dayHead(form.date).w}）${minToHHMM(form.start)}〜 <b class="text-slate-700">${esc(pick.freeIds.map((id) => names[id]).join('、'))}</b></span>` : ''}</div>
 </div>`;
 }
@@ -302,19 +302,19 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
     const tag = c.free ? 'button' : 'div';
     return `<${tag} class="block w-full px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'} ${c.free ? 'cursor-pointer hover:bg-teal-50' : c.absent ? 'opacity-70' : 'opacity-80'}" ${c.free ? `data-pick="${c.user.id}" title="この鑑定士を担当にする"` : `title="${esc(conflictText(c.conflict))}"`}>
       <div>${avatarHtml(c.user, 28)}</div><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)}${c.recommended ? `<span class="ml-0.5 rounded bg-amber-400 px-1 text-[10px] font-bold" title="${esc(starTitle(form.gender))}">⭐</span>` : ''}
-      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}${c.trips?.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] font-bold ${c.absent ? 'text-slate-600' : c.free ? 'text-emerald-700' : 'text-rose-600'}">${c.absent ? '欠勤' : `${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}`}</div></${tag}>`;
+      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}${c.trips?.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] font-bold ${c.absent ? 'text-slate-700' : c.free ? 'text-teal-700' : 'text-rose-700'}">${c.absent ? '欠勤' : `${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}`}</div></${tag}>`;
   }).join('');
   const axisCol = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: DAY_SLOTS / 2 }, (_, i) => `<span class="absolute right-1 text-[10px] text-slate-400 -translate-y-1/2" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => {
     const slots = Array.from({ length: DAY_SLOTS }, (_, i) => {
       const m = WORK_START + i * SLOT_STEP;
       const free = !c.absent && m + form.dur <= WORK_END && !conflictOf(c.blocks, m, m + form.dur, c.att);
-      return `<button class="block w-full text-left ${free ? 'hover:bg-emerald-200/70 cursor-pointer' : 'cursor-not-allowed'}" style="height:${DAY_ROW}px" ${free ? `data-dcell="${c.user.id}|${m}" title="${esc(`${c.user.name} ${minToHHMM(m)}〜${minToHHMM(m + form.dur)} で選ぶ`)}"` : 'disabled'}></button>`;
+      return `<button class="block w-full text-left ${free ? 'hover:bg-teal-200/70 cursor-pointer' : 'cursor-not-allowed'}" style="height:${DAY_ROW}px" ${free ? `data-dcell="${c.user.id}|${m}" title="${esc(`${c.user.name} ${minToHHMM(m)}〜${minToHHMM(m + form.dur)} で選ぶ`)}"` : 'disabled'}></button>`;
     }).join('');
     const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${blockKind(b)}）`)}"><b>${blockMark(b)}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
     const sel = c.user.id === selectedId;
     const away = c.absent ? '<div class="absolute inset-0 z-20 flex items-start justify-center pt-2 pointer-events-none"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : '';
-    const want = sel && !c.absent ? `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${c.free ? 'border-emerald-600 bg-emerald-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"><span class="absolute -top-px right-0 rounded-bl bg-white/80 px-1 text-[9px] font-bold ${c.free ? 'text-emerald-700' : 'text-rose-600'}">希望 ${minToHHMM(form.start)}〜</span></div>` : '';
+    const want = sel && !c.absent ? `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${c.free ? 'border-teal-600 bg-teal-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"><span class="absolute -top-px right-0 rounded-bl bg-white/80 px-1 text-[9px] font-bold ${c.free ? 'text-teal-700' : 'text-rose-700'}">希望 ${minToHHMM(form.start)}〜</span></div>` : '';
     return `<div class="relative border-l ${sel ? 'bg-teal-50/60' : ''}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)`}">${slots}${blocks}${attShade(c.att, DAY_ROW)}${away}${want}</div>`;
   }).join('');
   return `<div class="rounded-lg border bg-white p-1.5">
@@ -334,9 +334,9 @@ const areaBanner = ({ proposal, confirmed, hasAddress, extraAreas = [] }) => {
   if (!hasAddress) return '<div class="rounded-lg bg-slate-100 px-3 py-1.5 text-sm text-slate-500">住所を入力するとエリアを確認できます</div>';
   const judge = !proposal ? '都道府県を判定できません' : proposal.outside ? `<b>${esc(proposal.pref)}</b>は対応エリア外` : `${esc(proposal.pref)} → <b>${esc(proposal.name)}</b>`;
   const btns = [...AREAS, ...extraAreas].map((a) => `<button class="chip ${confirmed?.id === a.id ? 'on' : ''}" data-area="${a.id}">${a.trip ? '🧳 ' : ''}${esc(a.name)}${proposal?.id === a.id ? '<span class="opacity-70 ml-0.5" title="住所からの判定">●</span>' : ''}</button>`).join('');
-  const differ = confirmed && proposal?.id !== confirmed.id ? '<span class="text-[11px] text-amber-700">※住所の判定と異なる</span>' : '';
-  return `<div class="rounded-lg border px-2 py-1.5 space-y-1 ${confirmed ? 'bg-teal-50 border-teal-300 text-teal-900' : 'bg-amber-50 border-amber-300 text-amber-900'}">
-    <div class="flex justify-between items-center gap-2 text-xs"><span>${judge}</span><button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0 !text-slate-800" data-map>🗺 マップで確認</button></div>
+  const differ = confirmed && proposal?.id !== confirmed.id ? '<span class="text-[11px] text-amber-800">※住所の判定と異なる</span>' : '';
+  return `<div class="rounded-lg border px-2 py-1.5 space-y-1 ${confirmed ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-amber-50 border-amber-300 text-amber-800'}">
+    <div class="flex justify-between items-center gap-2 text-xs"><span>${judge}</span><button class="b b-sec !min-h-0 !py-0.5 text-xs shrink-0 !text-slate-900" data-map>🗺 マップで確認</button></div>
     <div class="flex flex-wrap items-center gap-1.5"><span class="text-sm font-bold">${confirmed ? '✔ エリア確定：' : 'エリア確定：'}</span>${btns}${differ}</div></div>`;
 };
 
@@ -346,7 +346,7 @@ function staffFilterHtml({ staff, staffSel, staffOpen }) {
   return `<div class="mb-1">
     <div class="flex flex-wrap items-center gap-2">
       <button class="chip ${staffSel.length ? 'on' : ''}" data-staffpanel>👥 鑑定士を絞る ${staffOpen ? '▲' : '▼'}</button>
-      <span class="text-xs ${staffSel.length ? 'font-bold text-teal-800' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${names.map(esc).join('・')}` : `全員（${staff.length}名）を表示`}</span>
+      <span class="text-xs ${staffSel.length ? 'font-bold text-teal-700' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${names.map(esc).join('・')}` : `全員（${staff.length}名）を表示`}</span>
       ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-staffclear>解除</button>' : ''}${helpIcon('表示したい鑑定士を選びます（複数可）。選んだ鑑定士だけが、カレンダー・担当候補に出ます。')}</div>
     ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((c) => `<button class="chip ${staffSel.includes(c.user.id) ? 'on' : ''} ${c.absent ? 'opacity-60' : ''}" data-staff="${c.user.id}" title="${c.absent ? 'この日は欠勤（担当には選べません）' : ''}">${esc(c.user.name)} ${esc(c.rank ?? '')}${c.att && c.att.kind !== 'present' ? `　${c.att.label}` : ''}</button>`).join('')}</div>` : ''}
   </div>`;
@@ -361,7 +361,7 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
   const end = form.start + form.dur;
   const ok = !d.conflict;
   const box = (title, body) => `<div class="min-w-0"><div class="mb-0.5 text-[11px] font-bold text-slate-500">${title}</div><div class="space-y-0.5">${body}</div></div>`;
-  const bar = (rate, pace) => `<div class="relative h-1.5 rounded bg-slate-200"><div class="h-1.5 rounded ${rate >= pace ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${Math.min(100, rate * 100)}%"></div><div class="absolute -top-0.5 h-2.5 w-0.5 bg-slate-700" style="left:${Math.min(100, pace * 100)}%" title="今月の経過（${pctText(pace)}）"></div></div>`;
+  const bar = (rate, pace) => `<div class="relative h-1.5 rounded bg-slate-200"><div class="h-1.5 rounded ${rate >= pace ? 'bg-teal-500' : 'bg-amber-400'}" style="width:${Math.min(100, rate * 100)}%"></div><div class="absolute -top-0.5 h-2.5 w-0.5 bg-slate-700" style="left:${Math.min(100, pace * 100)}%" title="今月の経過（${pctText(pace)}）"></div></div>`;
   const plans = d.blocks.length
     ? d.blocks.map((b) => `<div class="truncate" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}`)}"><b>${minToHHMM(b.start)}–${minToHHMM(b.end)}</b> ${b.source === 'reservation' ? '📞' : ''}${esc(b.label)}${b.place ? `<span class="text-slate-500">　${esc(b.place)}</span>` : ''}</div>`).join('')
     : '<div class="text-slate-500">予定なし</div>';
@@ -369,7 +369,7 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">${avatarHtml(user, 48)}<div><div><b class="text-sm">${esc(user.name)}</b> ${rankBadge(d.rank)}${isLeader(user) ? '<span class="ml-1 text-[10px] rounded bg-slate-200 px-1.5 py-0.5">リーダー</span>' : ''}<span class="ml-2 text-slate-500">グループ${esc(user.group)}・${esc(area?.name ?? '')}</span> ${attTag(d.att)}</div>
         <div class="mt-0.5 flex flex-wrap items-center gap-1"><span class="text-[11px] text-slate-500">得意分野</span>${specTags(user.id, form)}</div></div></div>
-      <div class="font-bold ${ok ? 'text-emerald-700' : 'text-rose-600'}">${dateLabel(form.date)} ${d.absent ? '欠勤（担当に選べません）' : `${minToHHMM(form.start)}〜${minToHHMM(end)}　${ok ? '空き' : `不可（${esc(conflictText(d.conflict))}）`}`}</div></div>
+      <div class="font-bold ${ok ? 'text-teal-700' : 'text-rose-700'}">${dateLabel(form.date)} ${d.absent ? '欠勤（担当に選べません）' : `${minToHHMM(form.start)}〜${minToHHMM(end)}　${ok ? '空き' : `不可（${esc(conflictText(d.conflict))}）`}`}</div></div>
     <div class="mt-1.5 grid grid-cols-3 gap-3">
       ${box('今月の実績', `<div>訪問 <b>${month.visits}</b>件 ／ 成約 <b>${month.contracts}</b>件（${pctText(month.rate)}）</div>
         <div>売上 <b>${wan(month.amount)}</b> ／ 目標 ${wan(month.target)}</div>${bar(month.achieve, month.pace)}
@@ -377,7 +377,7 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
       ${box('今月の担当件数', `<div>計 <b>${f.total}</b>件 ／ 女性 <b>${f.female}</b>件（${pctText(f.femaleShare)}）／ 男性 ${f.male}件</div>
         ${fairIndex ? `<div>空いている鑑定士 ${freeCount}人のうち、${form.gender === 'f' ? '女性の' : ''}担当が <b>${fairIndex}番目に少ない</b></div>` : '<div class="text-slate-500">この時間は空きがないため、配分の順位なし</div>'}`)}
       ${box(`${dateLabel(form.date)}の予定`, `${plans}
-        <div class="pt-0.5"><span class="text-slate-500">${form.dur}分で開始できる時刻：</span>${d.windows.length ? d.windows.map((w) => `<b>${minToHHMM(w.from)}${w.to > w.from ? `〜${minToHHMM(w.to)}` : ''}</b>`).join('、') : '<span class="text-rose-600">なし</span>'}</div>
+        <div class="pt-0.5"><span class="text-slate-500">${form.dur}分で開始できる時刻：</span>${d.windows.length ? d.windows.map((w) => `<b>${minToHHMM(w.from)}${w.to > w.from ? `〜${minToHHMM(w.to)}` : ''}</b>`).join('、') : '<span class="text-rose-700">なし</span>'}</div>
         ${d.travel ? `<div class="text-[11px] leading-tight">${legHtml(d.travel.prev, 'prev')}${d.travel.next ? `<br />${legHtml(d.travel.next, 'next')}` : ''}</div>` : ''}`)}
     </div>
   </div>`;
@@ -403,15 +403,15 @@ export function dispatchHtml(x) {
         <div class="space-y-1">${ranking.inArea.map(card).join('')}</div></div>` : ''}
     <div><button class="text-sm underline text-slate-500" data-toggle-others>${showOthers ? '▼' : '▶'} 他エリア（例外）</button>
       ${showOthers ? `<div class="space-y-1 mt-1">${ranking.others.map((c) => candidateRow(c, { selectedId, gender: form.gender, form, showArea: true })).join('')}</div>` : ''}</div>
-    ${alt ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-3 py-1.5 text-xs text-rose-800">⚖ <b>${esc(alt.user.name)}</b>の方が女性担当が少ない（${alt.stats.female}件／選択中 ${sel.stats.female}件）</div>` : ''}
-    ${x.editing ? `<div class="rounded-lg border-2 border-sky-500 bg-white p-2 space-y-1.5 sticky bottom-0">
+    ${alt ? `<div class="rounded-lg bg-rose-50 border border-rose-300 px-3 py-1.5 text-xs text-rose-700">⚖ <b>${esc(alt.user.name)}</b>の方が女性担当が少ない（${alt.stats.female}件／選択中 ${sel.stats.female}件）</div>` : ''}
+    ${x.editing ? `<div class="rounded-lg border-2 border-slate-500 bg-white p-2 space-y-1.5 sticky bottom-0">
       <div class="text-xs text-slate-500">変更前：${dateLabel(x.editing.date)} ${esc(x.editing.start)}〜${esc(x.editing.end)}　${esc(USERS.find((u) => u.id === x.editing.userId)?.name ?? '')}</div>
       ${sel ? `<div class="text-sm">変更後：担当（仮）<b class="text-base">${esc(sel.user.name)}</b>　${dateLabel(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
-      ${missing.length ? `<div class="text-xs text-rose-600">未入力：${missing.map(esc).join('、')}</div>` : ''}
-      <button class="b b-pri w-full ${isTentative(x.editing) || x.editBy === '配車係' ? '!bg-sky-600' : '!bg-rose-600'}" data-saveedit ${sel && !missing.length ? '' : 'disabled'}>${x.editBy === '配車係' ? `変更を保存する（${isTentative(x.editing) ? '仮確定' : '確定'}のまま）` : isTentative(x.editing) ? '変更を保存する（仮確定のまま）' : '変更を保存する（仮確定に戻り、配車係に知らされます）'}</button>
+      ${missing.length ? `<div class="text-xs text-rose-700">未入力：${missing.map(esc).join('、')}</div>` : ''}
+      <button class="b b-pri w-full ${isTentative(x.editing) || x.editBy === '配車係' ? '!bg-slate-600' : '!bg-rose-600'}" data-saveedit ${sel && !missing.length ? '' : 'disabled'}>${x.editBy === '配車係' ? `変更を保存する（${isTentative(x.editing) ? '仮確定' : '確定'}のまま）` : isTentative(x.editing) ? '変更を保存する（仮確定のまま）' : '変更を保存する（仮確定に戻り、配車係に知らされます）'}</button>
     </div>` : `<div class="rounded-lg border-2 border-teal-600 bg-white p-2 space-y-1.5 sticky bottom-0">
       ${sel ? `<div class="text-sm">担当（仮）：<b class="text-base">${esc(sel.user.name)}</b>　${esc(form.date)} ${minToHHMM(form.start)}〜${minToHHMM(form.start + form.dur)}　${esc(fullName(form) || 'お客様')} 様（${genderLabel(form.gender) || '性別未選択'}）</div>` : '<div class="text-sm text-slate-500">担当未定</div>'}
-      ${missing.length ? `<div class="text-xs text-rose-600">未入力：${missing.map(esc).join('、')}</div>` : ''}
+      ${missing.length ? `<div class="text-xs text-rose-700">未入力：${missing.map(esc).join('、')}</div>` : ''}
       ${unasked.length ? `<div class="text-xs text-amber-800">⚠ 聞き忘れ：${unasked.map(esc).join('、')}</div>` : ''}
       <button class="b b-pri w-full" data-confirm ${missing.length ? 'disabled' : ''} title="オペレーターは仮確定まで。担当の確定は配車係が行います">仮確定する</button>
     </div>`}
@@ -421,8 +421,8 @@ export function dispatchHtml(x) {
 export function doneHtml(r) {
   const u = USERS.find((x) => x.id === r.userId);
   return `
-  <div class="rounded-lg border-2 border-emerald-500 bg-white p-5 space-y-3">
-    <div class="text-2xl font-bold text-emerald-700">✅ 仮確定しました${helpIcon('担当鑑定士は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、鑑定士のタブレットの予定に追加されます。')}</div>
+  <div class="rounded-lg border-2 border-teal-500 bg-white p-5 space-y-3">
+    <div class="text-2xl font-bold text-teal-700">✅ 仮確定しました${helpIcon('担当鑑定士は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、鑑定士のタブレットの予定に追加されます。')}</div>
     <dl class="text-sm grid grid-cols-[7rem_1fr] gap-y-1">
       <dt class="text-slate-500">受付番号</dt><dd class="font-bold">${esc(r.receptionNo)}</dd>
       <dt class="text-slate-500">訪問日時</dt><dd class="font-bold">${esc(r.date)} ${esc(r.start)}〜${esc(r.end)}</dd>
@@ -442,15 +442,15 @@ export const statusBadge = (r) => {
   if (isCancelled(r)) return '<span class="rounded bg-slate-300 text-slate-700 text-xs font-bold px-1.5 py-0.5">取消</span>';
   const everBack = isReverted(r) && !r.needsReview ? '<span class="ml-1 rounded bg-amber-600 text-white text-[10px] font-bold px-1 py-0.5" title="一度確定したが、仮確定に戻されました">戻り</span>' : '';
   const changed = r.needsReview ? '<span class="ml-1 rounded bg-rose-600 text-white text-[10px] font-bold px-1 py-0.5" title="確定済みの予約が変更されて、仮確定に戻りました">確定→変更</span>' : '';
-  const hold = r.holdNote && isTentative(r) ? `<span class="ml-1 rounded bg-violet-100 text-violet-800 text-[10px] font-bold px-1 py-0.5" title="${esc(r.holdNote)}">確認待ち</span>` : '';
-  return `${isTentative(r) ? '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5">仮確定</span>' : '<span class="rounded bg-emerald-100 text-emerald-800 text-xs font-bold px-1.5 py-0.5">確定</span>'}${hold}${everBack}${changed}`;
+  const hold = r.holdNote && isTentative(r) ? `<span class="ml-1 rounded bg-slate-100 text-slate-900 text-[10px] font-bold px-1 py-0.5" title="${esc(r.holdNote)}">確認待ち</span>` : '';
+  return `${isTentative(r) ? '<span class="rounded bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5">仮確定</span>' : '<span class="rounded bg-teal-100 text-teal-700 text-xs font-bold px-1.5 py-0.5">確定</span>'}${hold}${everBack}${changed}`;
 };
 
 // ---- 受付済みの予約の変更・取消 ------------------------------------------------------------
 // お客様から折り返しの電話があったとき（やめる・日を変えたい）に、その番号で受け付け済みの予約を出す
 export function openResHtml(list) {
   if (!list.length) return '';
-  return `<div class="space-y-1"><div class="text-xs font-bold text-sky-800">📅 この電話番号で、すでに受け付けている予約${helpIcon('変更・取消はここから行います')}</div>${list.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-xs">
+  return `<div class="space-y-1"><div class="text-xs font-bold text-slate-900">📅 この電話番号で、すでに受け付けている予約${helpIcon('変更・取消はここから行います')}</div>${list.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs">
     <span>📅 <b>受付済み</b>：${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</span>
     <span class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-chg="${r.id}">日時を変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></span></div>`).join('')}</div>`;
 }
@@ -458,8 +458,8 @@ export function openResHtml(list) {
 // 受付済みの予約を変更中の、入力欄の上の表示。仮確定の変更と、確定済みの変更で、何が起きるかを伝える
 export function editBannerHtml(r, by = '') {
   const confirmed = !isTentative(r) && by !== '配車係'; // 配車係の変更は、状態を変えない（確定権がある）
-  return `<div class="rounded-lg border-2 ${confirmed ? 'border-rose-500 bg-rose-50' : 'border-sky-500 bg-sky-50'} px-3 py-2 text-xs">
-    <div class="flex items-center justify-between gap-2"><b class="text-sm ${confirmed ? 'text-rose-800' : 'text-sky-800'}">✎ 受付済みの予約を変更中${confirmed ? '' : helpIcon(by === '配車係' ? `配車係の変更です。保存しても、状態は変わりません（${isTentative(r) ? '仮確定' : '確定'}のまま）。` : '仮確定のため、保存しても仮確定のままです（誰にも知らせません）。')}</b><button class="underline text-slate-600" data-editcancel>変更をやめる</button></div>
+  return `<div class="rounded-lg border-2 ${confirmed ? 'border-rose-500 bg-rose-50' : 'border-slate-500 bg-slate-50'} px-3 py-2 text-xs">
+    <div class="flex items-center justify-between gap-2"><b class="text-sm ${confirmed ? 'text-rose-700' : 'text-slate-900'}">✎ 受付済みの予約を変更中${confirmed ? '' : helpIcon(by === '配車係' ? `配車係の変更です。保存しても、状態は変わりません（${isTentative(r) ? '仮確定' : '確定'}のまま）。` : '仮確定のため、保存しても仮確定のままです（誰にも知らせません）。')}</b><button class="underline text-slate-700" data-editcancel>変更をやめる</button></div>
     <div class="mt-0.5">${esc(r.receptionNo)}　${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}</div>
     ${confirmed ? '<div class="mt-0.5 font-bold text-rose-700">確定済みの予約です。変更を保存すると<u>仮確定に戻り</u>、配車係に知らされます。</div>' : ''}</div>`;
 }
@@ -475,7 +475,7 @@ export function cancelModalHtml(r, reason) {
 }
 
 // ---- 電話番号ごとの受電履歴 ----------------------------------------------------------------
-const KIND_CLS = { 新規受付: 'bg-emerald-100 text-emerald-800', 日時変更: 'bg-sky-100 text-sky-800', 変更: 'bg-sky-100 text-sky-800', 取消: 'bg-slate-300 text-slate-700', 問合せ: 'bg-amber-100 text-amber-800', 鑑定士が架電: 'bg-violet-100 text-violet-800', 前日確認の電話: 'bg-teal-100 text-teal-800' };
+const KIND_CLS = { 新規受付: 'bg-teal-100 text-teal-700', 日時変更: 'bg-slate-100 text-slate-900', 変更: 'bg-slate-100 text-slate-900', 取消: 'bg-slate-300 text-slate-700', 問合せ: 'bg-amber-100 text-amber-800', 鑑定士が架電: 'bg-slate-100 text-slate-900', 前日確認の電話: 'bg-teal-100 text-teal-700' };
 const stampText = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
 export function callLogHtml(list, open) {

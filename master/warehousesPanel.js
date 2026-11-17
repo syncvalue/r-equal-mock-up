@@ -7,15 +7,15 @@ import { helpIcon } from '../src/help.js';
 import { SEAL_COLORS } from '../src/stock.js';
 import { badge } from '../warehouse/ui.js';
 
-const ON = badge('bg-emerald-100 text-emerald-800', '有効');
-const OFF = badge('bg-slate-200 text-slate-600', '無効');
+const ON = badge('bg-teal-100 text-teal-700', '有効');
+const OFF = badge('bg-slate-200 text-slate-700', '無効');
 
 function warehouseTable({ master, holding, offices }) {
   return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>倉庫</th><th>郵便番号・住所・電話</th><th>営業所との関係</th><th>保管場所（棚）</th><th>倉庫担当</th><th class="text-right">保管中</th><th>状態</th><th>操作</th></tr></thead><tbody>
     ${master.warehouses.map((w) => {
       const h = holding[w.id] ?? { count: 0, cost: 0 };
       const staff = staffOf(master, w.id).filter((s) => s.active);
-      return `<tr class="border-b ${w.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(w.name)}${w.highValue ? ' <span class="text-xs font-normal text-violet-700">（高額品の保管先）</span>' : ''}</td><td class="!whitespace-normal text-xs">${w.zip ? `〒${esc(w.zip)}` : '<span class="text-rose-600">郵便番号なし</span>'} ${esc(w.address)}<div>${esc(w.phone || '電話番号なし')}</div></td>
+      return `<tr class="border-b ${w.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(w.name)}${w.highValue ? ' <span class="text-xs font-normal text-slate-700">（高額品の保管先）</span>' : ''}</td><td class="!whitespace-normal text-xs">${w.zip ? `〒${esc(w.zip)}` : '<span class="text-rose-700">郵便番号なし</span>'} ${esc(w.address)}<div>${esc(w.phone || '電話番号なし')}</div></td>
         <td>${w.highValue ? '本社' : w.officeId ? `${esc(officeName(w.officeId, offices))}営業所と一体` : '倉庫のみ'}</td><td class="!whitespace-normal text-xs">${w.locations.map(esc).join('／')}</td>
         <td class="!whitespace-normal text-xs">${staff.map((s) => esc(s.name)).join('、') || '-'}</td><td class="text-right">${h.count}点<div class="text-xs text-slate-500">${yen(h.cost)}</div></td><td>${w.active ? ON : OFF}</td>
         <td><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mw-edit="${esc(w.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mw-toggle="${esc(w.id)}">${w.active ? '無効にする' : '有効にする'}</button></td></tr>`;
@@ -51,7 +51,7 @@ function highValueForm(data, hv) {
 function vendorTable({ master }) {
   return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>委託先（業者）</th><th>郵便番号・住所・電話</th><th>状態</th><th>操作</th></tr></thead><tbody>
     ${(master.vendors ?? []).map((v) => `<tr class="border-b ${v.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(v.name)}</td>
-      <td class="!whitespace-normal text-xs">${v.zip ? `〒${esc(v.zip)}` : '<span class="text-rose-600">郵便番号なし</span>'} ${esc(v.address)}<div>${esc(v.phone || '電話番号なし')}</div></td><td>${v.active ? ON : OFF}</td>
+      <td class="!whitespace-normal text-xs">${v.zip ? `〒${esc(v.zip)}` : '<span class="text-rose-700">郵便番号なし</span>'} ${esc(v.address)}<div>${esc(v.phone || '電話番号なし')}</div></td><td>${v.active ? ON : OFF}</td>
       <td><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mv-edit="${esc(v.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mv-toggle="${esc(v.id)}">${v.active ? '無効にする' : '有効にする'}</button></td></tr>`).join('') || '<tr><td colspan="4" class="text-slate-400">登録がありません。</td></tr>'}
   </tbody></table>`;
 }

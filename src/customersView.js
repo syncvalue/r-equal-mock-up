@@ -11,7 +11,7 @@ import { loadCustNotes, notesOf } from './customerNotes.js';
 export const NEAR_KM = 5;
 const SORTS = [['days', '前回の訪問から長い順'], ['total', '過去の買取金額順'], ['declined', '買取できなかった商品数順'], ['near', '近い順'], ['call', '電話していない順']];
 const DAYS = [[0, 'すべて'], [30, '30日以上'], [90, '90日以上'], [180, '180日以上']];
-const RESULT_CLS = { appo: 'bg-emerald-100 text-emerald-800', talked: 'bg-sky-100 text-sky-800', noanswer: 'bg-slate-200 text-slate-700', ng: 'bg-rose-100 text-rose-800' };
+const RESULT_CLS = { appo: 'bg-teal-100 text-teal-700', talked: 'bg-slate-100 text-slate-900', noanswer: 'bg-slate-200 text-slate-700', ng: 'bg-rose-100 text-rose-700' };
 const date = (at) => new Date(at).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 const km = (n) => (n < 10 ? `${n.toFixed(1)}km` : `${Math.round(n)}km`);
 
@@ -26,7 +26,7 @@ const rowsOf = (s) => {
 function callBadge(r, now) {
   if (!r.lastCall) return '<span class="text-xs text-slate-400">電話の記録なし</span>';
   const soon = tooSoon(r.lastCall, now);
-  return `<span class="text-xs font-bold rounded px-1.5 py-0.5 ${soon ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">${soon ? '⚠ ' : ''}${daysSince(r.lastCall.at, now)}日前に電話（${esc(CALL_RESULTS[r.lastCall.result].split('（')[0])}）</span>`;
+  return `<span class="text-xs font-bold rounded px-1.5 py-0.5 ${soon ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}">${soon ? '⚠ ' : ''}${daysSince(r.lastCall.at, now)}日前に電話（${esc(CALL_RESULTS[r.lastCall.result].split('（')[0])}）</span>`;
 }
 
 export function customerListHtml(s) {
@@ -38,17 +38,17 @@ export function customerListHtml(s) {
       <button class="min-w-0 flex-1 text-left flex items-center gap-3 p-3 active:bg-teal-50" data-action="cust-open" data-phone="${esc(r.phone)}" data-name="${esc(r.name)}">
         <div class="min-w-0 flex-1">
           <div class="flex items-baseline gap-2 flex-wrap"><span class="text-lg font-bold">${esc(r.name)} 様</span><span class="text-xs text-slate-400">${esc(r.kana)}</span></div>
-          <div class="text-sm text-slate-600 truncate">📍 ${esc(r.address)}</div>
+          <div class="text-sm text-slate-700 truncate">📍 ${esc(r.address)}</div>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
-            <span>前回 ${date(r.lastVisitAt)}（<b class="${r.days >= 90 ? 'text-teal-700' : ''}">${r.days}日前</b>）</span><span>訪問 ${r.visitCount}回</span><span>買取計 ${yen(r.total)}</span>${r.declinedCount ? `<span class="text-amber-700">見送り ${r.declinedCount}点</span>` : ''}${callBadge(r, now)}</div>
-          ${r.memo ? `<div class="mt-1 text-xs rounded bg-yellow-50 border border-yellow-200 text-yellow-900 px-2 py-0.5 break-words">📝 自分用　${esc(clip(r.memo))}</div>` : ''}
-          ${r.callMemo ? `<div class="mt-1 text-xs rounded bg-violet-50 border border-violet-200 text-violet-900 px-2 py-0.5 break-words">📞 ${new Date(r.callMemo.at).getMonth() + 1}/${new Date(r.callMemo.at).getDate()}の電話メモ　${esc(clip(r.callMemo.memo))}</div>` : ''}</div>
+            <span>前回 ${date(r.lastVisitAt)}（<b class="${r.days >= 90 ? 'text-teal-700' : ''}">${r.days}日前</b>）</span><span>訪問 ${r.visitCount}回</span><span>買取計 ${yen(r.total)}</span>${r.declinedCount ? `<span class="text-amber-800">見送り ${r.declinedCount}点</span>` : ''}${callBadge(r, now)}</div>
+          ${r.memo ? `<div class="mt-1 text-xs rounded bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 break-words">📝 自分用　${esc(clip(r.memo))}</div>` : ''}
+          ${r.callMemo ? `<div class="mt-1 text-xs rounded bg-slate-50 border border-slate-200 text-slate-900 px-2 py-0.5 break-words">📞 ${new Date(r.callMemo.at).getMonth() + 1}/${new Date(r.callMemo.at).getDate()}の電話メモ　${esc(clip(r.callMemo.memo))}</div>` : ''}</div>
         <div class="text-right shrink-0">${r.distanceKm !== null ? `<div class="text-lg font-bold ${r.distanceKm <= NEAR_KM ? 'text-teal-700' : 'text-slate-500'}">${km(r.distanceKm)}</div><div class="text-[11px] text-slate-400">現在地から</div>` : ''}
           <div class="text-2xl">📞</div></div></button>
-      <button class="w-14 shrink-0 text-3xl border-l ${r.favorite ? 'text-amber-400 bg-amber-50' : 'text-slate-300'} active:bg-amber-100" data-action="cust-fav" data-phone="${esc(r.phone)}" aria-label="${r.favorite ? 'お気に入りを外す' : 'お気に入りに登録'}">${r.favorite ? '★' : '☆'}</button></div>`).join('')}</div>`;
+      <button class="w-14 shrink-0 text-3xl border-l ${r.favorite ? 'text-amber-800 bg-amber-50' : 'text-slate-300'} active:bg-amber-100" data-action="cust-fav" data-phone="${esc(r.phone)}" aria-label="${r.favorite ? 'お気に入りを外す' : 'お気に入りに登録'}">${r.favorite ? '★' : '☆'}</button></div>`).join('')}</div>`;
 }
 
-const chip = (on, label, attrs) => `<button class="rounded-full px-3 py-1.5 text-sm font-bold ${on ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" ${attrs}>${label}</button>`;
+const chip = (on, label, attrs) => `<button class="rounded-full px-3 py-1.5 text-sm font-bold ${on ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'}" ${attrs}>${label}</button>`;
 
 export function customersView(s) {
   const c = s.cust;
@@ -64,7 +64,7 @@ export function customersView(s) {
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-xs text-slate-500">前回の訪問から</span>${DAYS.map(([d, l]) => chip(c.minDays === d, l, `data-action="cust-days" data-value="${d}"`)).join('')}
       <span class="mx-1 text-slate-300">|</span>${chip(c.near, `📍 近く（${NEAR_KM}km以内）`, 'data-action="cust-near"')}${chip(c.favOnly, '★ お気に入りだけ', 'data-action="cust-favonly"')}</div>
-    ${s.geo?.pending ? '<p class="text-xs text-slate-500">現在地を確認しています…</p>' : !s.geo?.ok ? '<p class="text-xs text-amber-700 font-bold">現在地を取得できないため、距離は出せません（位置情報の許可を確認してください）</p>' : ''}
+    ${s.geo?.pending ? '<p class="text-xs text-slate-500">現在地を確認しています…</p>' : !s.geo?.ok ? '<p class="text-xs text-amber-800 font-bold">現在地を取得できないため、距離は出せません（位置情報の許可を確認してください）</p>' : ''}
     <div id="cust-list">${customerListHtml(s)}</div>
   </section>`;
 }
@@ -82,7 +82,7 @@ export function customerCallModal(s) {
   const ready = makeCall({ phone: row.phone, customerName: row.name, by: userById(s.user).name, result: f.result, wish: f.wish }).ok;
   const info = (k, v) => `<div class="flex gap-2"><dt class="w-20 shrink-0 text-slate-500">${k}</dt><dd class="flex-1 font-bold">${v}</dd></div>`;
   return {
-    title: `<button class="text-3xl align-middle mr-1 ${row.favorite ? 'text-amber-400' : 'text-slate-300'}" data-action="cust-fav" data-phone="${esc(row.phone)}" aria-label="${row.favorite ? 'お気に入りを外す' : 'お気に入りに登録'}">${row.favorite ? '★' : '☆'}</button>${esc(row.name)} 様`,
+    title: `<button class="text-3xl align-middle mr-1 ${row.favorite ? 'text-amber-800' : 'text-slate-300'}" data-action="cust-fav" data-phone="${esc(row.phone)}" aria-label="${row.favorite ? 'お気に入りを外す' : 'お気に入りに登録'}">${row.favorite ? '★' : '☆'}</button>${esc(row.name)} 様`,
     body: `
     <dl class="text-sm space-y-1">
       ${info('フリガナ', esc(row.kana) || '-')}${info('電話番号', esc(row.phone))}${info('住所', `${esc(row.address)} <a class="ml-1 underline text-teal-700 font-normal" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${row.lat},${row.lng}">地図</a>${row.distanceKm !== null ? `<span class="ml-2 text-teal-700">現在地から ${km(row.distanceKm)}</span>` : ''}`)}
@@ -90,15 +90,15 @@ export function customerCallModal(s) {
     ${ng ? '<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-2 text-sm font-bold text-rose-700">🚫 「今後の連絡は不要」と言われています（電話は控えてください）</div>'
       : soon ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-2 text-sm font-bold text-amber-800">⚠ ${daysSince(last.at, now)}日前に電話しています（${esc(last.kind)}・${esc(last.by ?? '')}）。しつこいと思われないよう、ご注意ください</div>` : ''}
     <a class="btn btn-primary flex w-full items-center justify-center !min-h-[52px] !py-2 text-lg" href="tel:${esc(row.phone.replace(/[^\d+]/g, ''))}">📞 ${esc(row.phone)} に電話をかける</a>
-    <label class="block rounded-xl border border-yellow-300 bg-yellow-50 p-3"><span class="font-bold text-sm">📝 自分用のメモ${helpIcon('自分だけに見えます。入力すると自動で保存されます。')}</span>
+    <label class="block rounded-xl border border-amber-300 bg-amber-50 p-3"><span class="font-bold text-sm">📝 自分用のメモ${helpIcon('自分だけに見えます。入力すると自動で保存されます。')}</span>
       <textarea class="field mt-1" rows="2" data-cust="note" placeholder="電話しやすい時間・好み・次に提案したいもの など">${esc(row.memo)}</textarea></label>
     <div class="rounded-xl border p-3 space-y-2">
       <div class="font-bold">電話の結果を記録${helpIcon('記録すると、オペレーターを含む他の人にも見えます。\n電話をかけたら、必ず記録してください。')}</div>
       <div class="grid grid-cols-2 gap-2">${Object.entries(CALL_RESULTS).map(([k, l]) => `<button class="rounded-xl border-2 px-2 py-2 text-sm font-bold text-left ${f.result === k ? 'border-teal-600 bg-teal-50' : 'border-slate-200'}" data-action="cust-result" data-value="${k}">${f.result === k ? '✅ ' : ''}${l}</button>`).join('')}</div>
-      ${f.result === 'appo' ? `<label class="block text-sm font-bold">再訪の希望日時<span class="text-rose-600 ml-1 text-xs">必須</span><input class="field mt-1" data-cust="wish" value="${esc(f.wish)}" placeholder="例: 12/5（金）午後" /></label>` : ''}
+      ${f.result === 'appo' ? `<label class="block text-sm font-bold">再訪の希望日時<span class="text-rose-700 ml-1 text-xs">必須</span><input class="field mt-1" data-cust="wish" value="${esc(f.wish)}" placeholder="例: 12/5（金）午後" /></label>` : ''}
       <label class="block text-sm font-bold">メモ<span class="ml-1 text-xs font-normal text-slate-500">任意</span><textarea class="field mt-1" rows="2" data-cust="memo" placeholder="お客様から伝えられたこと など">${esc(f.memo)}</textarea></label>
       <button class="btn btn-primary w-full !min-h-[48px] !py-2" data-action="cust-save" ${ready ? '' : 'disabled'}>電話の結果を記録する</button></div>
     <div><div class="font-bold text-sm mb-1">電話の履歴${helpIcon('受電（お客様から）と架電（こちらから）の記録です。誰が、何の目的かを出しています。ほかの鑑定士の名前は伏せています。')}</div>
-      ${history.length ? `<div class="rounded-xl border divide-y text-sm">${history.map((h) => `<div class="flex items-start gap-2 px-2 py-1.5"><span class="w-32 shrink-0 text-xs text-slate-500">${fmtDateTime(h.at).replace(/:\d\d$/, '')}</span><span class="shrink-0 rounded px-1 text-xs font-bold ${h.dir === 'out' ? 'bg-violet-100 text-violet-800' : 'bg-slate-100'}">${h.dir === 'out' ? '架電' : '受電'}</span><span class="flex-1 min-w-0"><b>${esc(h.purpose ?? h.kind)}</b>　${esc(h.note)}<span class="ml-1 text-xs text-slate-500">（${esc(h.who ?? h.by ?? '')}）</span></span></div>`).join('')}</div>` : '<p class="text-sm text-slate-400">電話の記録はありません</p>'}</div>`,
+      ${history.length ? `<div class="rounded-xl border divide-y text-sm">${history.map((h) => `<div class="flex items-start gap-2 px-2 py-1.5"><span class="w-32 shrink-0 text-xs text-slate-500">${fmtDateTime(h.at).replace(/:\d\d$/, '')}</span><span class="shrink-0 rounded px-1 text-xs font-bold ${h.dir === 'out' ? 'bg-slate-100 text-slate-900' : 'bg-slate-100'}">${h.dir === 'out' ? '架電' : '受電'}</span><span class="flex-1 min-w-0"><b>${esc(h.purpose ?? h.kind)}</b>　${esc(h.note)}<span class="ml-1 text-xs text-slate-500">（${esc(h.who ?? h.by ?? '')}）</span></span></div>`).join('')}</div>` : '<p class="text-sm text-slate-400">電話の記録はありません</p>'}</div>`,
   };
 }

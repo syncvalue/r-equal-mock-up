@@ -12,7 +12,7 @@ const warehouseBreakdown = (list) => `<section class="rounded-xl border bg-white
   ${list.length ? list.map((g) => `<tr class="border-b"><td class="font-bold">${esc(g.label)}</td><td class="text-right">${g.count}点</td><td class="text-right">${yen(g.revenue)}</td><td class="text-right font-bold ${profitCls(g.profit)}">${yenS(g.profit)}</td></tr>`).join('') : '<tr><td colspan="4" class="text-slate-400">この期間の売上はありません。</td></tr>'}</tbody></table></section>`;
 
 // 購入者への発送の状況。委託先の市場で売れたものは、市場が購入者へ送る
-const shipCell = (rec) => (channelOf(rec.channel)?.consign ? '<span class="text-slate-400">委託先が発送</span>' : rec.shippedAt ? `<span class="text-emerald-700 font-bold">✓ 発送済み</span>${rec.tracking ? `<div class="font-mono">${esc(rec.tracking)}</div>` : ''}` : '<span class="text-amber-700 font-bold">発送待ち</span>');
+const shipCell = (rec) => (channelOf(rec.channel)?.consign ? '<span class="text-slate-400">委託先が発送</span>' : rec.shippedAt ? `<span class="text-teal-700 font-bold">✓ 発送済み</span>${rec.tracking ? `<div class="font-mono">${esc(rec.tracking)}</div>` : ''}` : '<span class="text-amber-800 font-bold">発送待ち</span>');
 
 const bars = (list, cls) => {
   const max = Math.max(1, ...list.map((g) => g.revenue));
@@ -29,11 +29,11 @@ export function salesTab(full, master, { period, salesScope }, me, now = Date.no
   <div class="flex flex-wrap items-center gap-2"><span class="text-sm font-bold">集計の対象</span>${chip('all', '🏢 会社全体')}${master.warehouses.map((w) => chip(w.id, `${w.name}${w.id === me.warehouseId ? '（自分の倉庫）' : ''}`)).join('')}</div>
   <div class="flex items-center gap-2">${PERIODS.map(([k, l]) => `<button class="b b-sec ${period === k ? 'on' : ''}" data-period="${k}">${l}</button>`).join('')}${helpIcon('利益 ＝ 売価 − 原価（お客様への買取額）− 手数料 − 送料。\n返品（クーリングオフ）になった商品は、売上に含まれません。鑑定士の経費・人件費などは含めていません。')}</div>
   <div class="flex flex-wrap gap-3">
-    ${card('売上', yen(st.revenue))}${card('原価（買取額）', yen(st.cost), 'text-slate-600')}${card('手数料・送料', yen(st.fee + st.shipping), 'text-slate-600')}
+    ${card('売上', yen(st.revenue))}${card('原価（買取額）', yen(st.cost), 'text-slate-700')}${card('手数料・送料', yen(st.fee + st.shipping), 'text-slate-700')}
     ${card('利益', yenS(st.profit), profitCls(st.profit))}${card('利益率', pct(st.margin))}${card('販売点数', `${st.count} 点`)}
   </div>
   <div class="grid lg:grid-cols-2 gap-4">
-    <section class="rounded-xl border bg-white p-4"><h2 class="font-bold mb-2">販売先別</h2>${bars(st.byChannel.map((g) => ({ ...g, label: channelOf(g.key)?.label ?? g.label })), 'bg-sky-600')}</section>
+    <section class="rounded-xl border bg-white p-4"><h2 class="font-bold mb-2">販売先別</h2>${bars(st.byChannel.map((g) => ({ ...g, label: channelOf(g.key)?.label ?? g.label })), 'bg-slate-600')}</section>
     <section class="rounded-xl border bg-white p-4"><h2 class="font-bold mb-2">カテゴリ別</h2>${bars(st.byCategory, 'bg-teal-600')}</section>
   </div>
   ${scope === 'all' ? warehouseBreakdown(salesByWarehouse(st.rows, master)) : ''}

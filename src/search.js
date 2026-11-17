@@ -55,7 +55,7 @@ export function highlight(text, q) {
   let out = '';
   let open = false;
   [...text].forEach((c, i) => {
-    if (mask[i] && !open) out += '<mark class="bg-yellow-200 rounded px-0.5">';
+    if (mask[i] && !open) out += '<mark class="bg-amber-200 rounded px-0.5">';
     if (!mask[i] && open) out += '</mark>';
     open = mask[i];
     out += escChar(c);

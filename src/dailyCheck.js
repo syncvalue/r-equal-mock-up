@@ -6,7 +6,7 @@ import { HIGH_EXPENSE, flagsOf } from './accounting.js';
 
 export const CHECK_STATUS = {
   pending: { label: '未チェック', cls: 'bg-amber-100 text-amber-800' },
-  ok: { label: 'チェック済み', cls: 'bg-emerald-100 text-emerald-800' },
+  ok: { label: 'チェック済み', cls: 'bg-teal-100 text-teal-700' },
   returned: { label: '差戻し', cls: 'bg-rose-100 text-rose-700' },
 };
 

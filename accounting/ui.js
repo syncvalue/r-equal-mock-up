@@ -1,7 +1,7 @@
 // 経理部の画面で共通の小さな部品
 import { yen } from '../src/format.js';
 
-export const LEVEL = { danger: 'bg-rose-100 text-rose-700', warn: 'bg-amber-100 text-amber-800', info: 'bg-slate-100 text-slate-600' };
+export const LEVEL = { danger: 'bg-rose-100 text-rose-700', warn: 'bg-amber-100 text-amber-800', info: 'bg-slate-100 text-slate-700' };
 export const signed = (n) => (n ? `${n > 0 ? '+' : '−'}${yen(Math.abs(n))}` : '一致');
 export const signedYen = (n) => (n < 0 ? `−${yen(-n)}` : yen(n));
 export const badge = (cls, text) => `<span class="rounded px-2 py-0.5 text-xs font-bold whitespace-normal ${cls}">${text}</span>`;
@@ -23,6 +23,6 @@ export const zoomView = (z) => `<div class="fixed inset-0 z-[70] flex items-cent
 export const chatModal = ({ title, sub = '', body, footer = '' }) => `<div class="fixed inset-0 z-[65] flex items-center justify-center p-4" role="dialog" aria-label="${title}">
   <button class="absolute inset-0 bg-black/60 cursor-default" data-chat-close aria-label="閉じる"></button>
   <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col p-4 gap-3">
-    <div class="flex items-start justify-between gap-3"><div><h2 class="text-xl font-bold">${title}</h2><div class="text-sm text-slate-600 mt-0.5">${sub}</div></div><button class="w-11 h-11 rounded-full hover:bg-slate-100 text-2xl leading-none" data-chat-close aria-label="閉じる">✕</button></div>
+    <div class="flex items-start justify-between gap-3"><div><h2 class="text-xl font-bold">${title}</h2><div class="text-sm text-slate-700 mt-0.5">${sub}</div></div><button class="w-11 h-11 rounded-full hover:bg-slate-100 text-2xl leading-none" data-chat-close aria-label="閉じる">✕</button></div>
     <div class="min-h-0 overflow-y-auto">${body}</div>${footer}
   </div></div>`;

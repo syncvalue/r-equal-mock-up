@@ -30,8 +30,8 @@ const doneVisitOf = (s, e) => e.past ? pastVisitOf(e) :
 
 // 予定表での見た目（今日の予定のみ、状況で色分け）。todo=まだ訪問していない／visiting=訪問中／done=完了
 const BLOCK = {
-  todo: { box: 'bg-white border-teal-600', text: 'text-slate-800', badge: '<span class="rounded px-1 text-[10px] font-bold border border-teal-600 text-teal-700 bg-teal-50">未訪問</span>' },
-  visiting: { box: 'bg-emerald-100 border-emerald-600 ring-2 ring-emerald-400', text: 'text-emerald-900', badge: '<span class="rounded px-1 text-[10px] font-bold bg-emerald-600 text-white animate-pulse">● 訪問中</span>' },
+  todo: { box: 'bg-white border-teal-600', text: 'text-slate-900', badge: '<span class="rounded px-1 text-[10px] font-bold border border-teal-600 text-teal-700 bg-teal-50">未訪問</span>' },
+  visiting: { box: 'bg-teal-100 border-teal-600 ring-2 ring-teal-400', text: 'text-teal-700', badge: '<span class="rounded px-1 text-[10px] font-bold bg-teal-600 text-white animate-pulse">● 訪問中</span>' },
   done: { box: 'bg-slate-200 border-slate-400 opacity-80', text: 'text-slate-500', badge: '<span class="rounded px-1 text-[10px] font-bold bg-slate-600 text-white">✓ 完了</span>' },
 };
 // 訪問が完了した予定（昨日・今日）と、その訪問の記録の組。お客様の評価の登録状況を見るのに使う
@@ -61,13 +61,13 @@ function eventBlock(s, e, dayN, evals) {
   const sel = s.sched.sel === e.id;
   const base = dayN <= 0 ? BLOCK[visitStateOf(s, e)] : null; // 昨日の実績は完了、今日は状況で色分け、明日は予定のまま
   const pending = Boolean(base) && evalPendingOf(s, e, evals); // 訪問が完了しても、お客様の評価が未登録なら目立たせる
-  const st = pending ? { box: 'bg-rose-50 border-rose-600 ring-2 ring-rose-400', text: 'text-rose-900', badge: '<span class="rounded px-1 text-[10px] font-bold bg-rose-600 text-white animate-pulse">★ 評価未登録</span>' } : base;
+  const st = pending ? { box: 'bg-rose-50 border-rose-600 ring-2 ring-rose-400', text: 'text-rose-700', badge: '<span class="rounded px-1 text-[10px] font-bold bg-rose-600 text-white animate-pulse">★ 評価未登録</span>' } : base;
   return `
-  <button class="absolute left-1 right-1 rounded-md border-l-[6px] px-1.5 py-1 text-left overflow-hidden leading-tight ${st ? `${st.box} ${st.text}` : 'bg-indigo-50 border-indigo-500'} ${sel ? 'outline outline-2 outline-offset-1 outline-teal-500 shadow-lg' : 'shadow'}"
+  <button class="absolute left-1 right-1 rounded-md border-l-[6px] px-1.5 py-1 text-left overflow-hidden leading-tight ${st ? `${st.box} ${st.text}` : 'bg-slate-50 border-slate-500'} ${sel ? 'outline outline-2 outline-offset-1 outline-teal-500 shadow-lg' : 'shadow'}"
     style="top:${top}px;height:${h}px" data-action="sched-select" data-id="${e.id}">
     <span class="flex items-center gap-1 text-[11px] text-slate-500">${e.start}–${e.end}${st ? st.badge : ''}</span>
-    <span class="block font-bold text-sm truncate">${esc(e.customer.name)} 様${historyOf(e.customer).isRepeat ? ' <span class="text-[10px] font-bold rounded bg-indigo-600 text-white px-1">🔁</span>' : ''}${customerMarks(customerProfile([e.customer.phone, e.customer.phone2]))}</span>
-    ${h > 48 ? `<span class="block text-xs text-slate-600 truncate">📍 ${esc(city(e.customer.address))}</span><span class="block text-xs text-slate-500 truncate">${esc(e.items)}</span>` : ''}
+    <span class="block font-bold text-sm truncate">${esc(e.customer.name)} 様${historyOf(e.customer).isRepeat ? ' <span class="text-[10px] font-bold rounded bg-slate-600 text-white px-1">🔁</span>' : ''}${customerMarks(customerProfile([e.customer.phone, e.customer.phone2]))}</span>
+    ${h > 48 ? `<span class="block text-xs text-slate-700 truncate">📍 ${esc(city(e.customer.address))}</span><span class="block text-xs text-slate-500 truncate">${esc(e.items)}</span>` : ''}
   </button>`;
 }
 
@@ -87,7 +87,7 @@ function resultPanel(s, e, v, evals) {
   <div class="card !p-4 space-y-3">
     <div><div class="text-xs text-slate-500">${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${e.start}–${e.end}</div>
       <h3 class="text-xl font-bold flex items-center gap-2 flex-wrap">${esc(e.customer.name)} 様
-        <span class="text-xs font-bold rounded-full px-2 py-0.5 ${v.outcome ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">✓ ${v.outcome ? esc(outcomeOf(v.outcome.type).label) : '訪問完了'}</span></h3></div>
+        <span class="text-xs font-bold rounded-full px-2 py-0.5 ${v.outcome ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-700'}">✓ ${v.outcome ? esc(outcomeOf(v.outcome.type).label) : '訪問完了'}</span></h3></div>
     <dl class="text-sm space-y-1.5">
       ${row('訪問時間', `${fmtTime(v.startedAt).slice(0, 5)}〜${fmtTime(v.endedAt).slice(0, 5)}（${mins}分）`)}
       ${v.outcome
@@ -99,7 +99,7 @@ function resultPanel(s, e, v, evals) {
            ${skipped.length ? `<div class="text-xs text-slate-400">見送り：${skipped.map((i) => esc(i.name)).join('、')}</div>` : ''}
            ${v.briefing?.propose ? row('他商品の提案', v.briefing.propose === 'yes' ? '提案してよい（お客様の回答）' : '提案は不要（お客様の回答）') : ''}
            ${recordRows(v.visitId, row)}
-           ${row('お客様評価', filled ? `<span class="text-amber-500 text-lg">${'★'.repeat(ev.overall)}</span><span class="text-slate-300 text-lg">${'★'.repeat(5 - ev.overall)}</span>${ev.memo ? `<span class="block text-xs text-slate-500 whitespace-pre-wrap">${esc(ev.memo)}</span>` : ''}<button class="text-xs underline text-teal-700 mt-1" data-action="eval-open" data-id="${e.id}">評価を修正する</button>` : '<b class="text-rose-600">未登録</b>')}`}
+           ${row('お客様評価', filled ? `<span class="text-amber-800 text-lg">${'★'.repeat(ev.overall)}</span><span class="text-slate-300 text-lg">${'★'.repeat(5 - ev.overall)}</span>${ev.memo ? `<span class="block text-xs text-slate-500 whitespace-pre-wrap">${esc(ev.memo)}</span>` : ''}<button class="text-xs underline text-teal-700 mt-1" data-action="eval-open" data-id="${e.id}">評価を修正する</button>` : '<b class="text-rose-700">未登録</b>')}`}
     </dl>
     ${!v.outcome && !filled ? `<button class="btn w-full !min-h-[52px] !py-2 bg-rose-600 text-white font-bold animate-pulse" data-action="eval-open" data-id="${e.id}">⭐ お客様の評価を登録する</button>` : ''}
   </div>`;
@@ -119,7 +119,7 @@ function detailPanel(s, evals) {
       <h3 class="text-xl font-bold flex items-center gap-2 flex-wrap">${esc(e.customer.name)} 様 ${repeatBadge(h)}</h3></div>
     ${salesCustomerCard(customerProfile([e.customer.phone, e.customer.phone2]))}
     ${salesDeclinedCard(declinedList([e.customer.phone, e.customer.phone2]))}
-    ${h.isRepeat ? `<details class="rounded-xl border border-indigo-200 bg-indigo-50/50 px-3 py-2"><summary class="cursor-pointer text-sm font-bold">⭐ 過去の評価を見る${h.latestEval ? `<span class="ml-1 text-amber-500">${'★'.repeat(h.latestEval.overall)}</span>` : ''}${(h.latestEval?.flags ?? []).includes('クレーム注意') ? '<span class="ml-1 text-xs rounded bg-rose-600 text-white px-1.5">クレーム注意</span>' : ''}</summary><div class="mt-2">${pastEvalView(h)}</div></details>` : ''}
+    ${h.isRepeat ? `<details class="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2"><summary class="cursor-pointer text-sm font-bold">⭐ 過去の評価を見る${h.latestEval ? `<span class="ml-1 text-amber-800">${'★'.repeat(h.latestEval.overall)}</span>` : ''}${(h.latestEval?.flags ?? []).includes('クレーム注意') ? '<span class="ml-1 text-xs rounded bg-rose-600 text-white px-1.5">クレーム注意</span>' : ''}</summary><div class="mt-2">${pastEvalView(h)}</div></details>` : ''}
     <dl class="text-sm space-y-1.5">
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">住所</dt><dd class="font-bold">${esc(e.customer.address)}</dd></div>
       <div class="flex gap-2"><dt class="w-16 text-slate-500 shrink-0">電話</dt><dd><a class="text-teal-700 underline font-bold" href="tel:${esc(e.customer.phone)}">${esc(e.customer.phone)}</a>${e.customer.phone2 ? ` ／ <a class="text-teal-700 underline font-bold" href="tel:${esc(e.customer.phone2)}">${esc(e.customer.phone2)}</a>` : ''}</dd></div>
@@ -129,7 +129,7 @@ function detailPanel(s, evals) {
       <dl class="text-sm divide-y">${hearingRows(e, { stack: true })}</dl></div>
     ${visiting && s.visitEventId === e.id
       ? '<button class="btn btn-primary w-full !py-3" data-action="nav" data-value="visit">▶ 訪問に戻る</button>'
-      : `${visiting ? '<p class="text-xs text-amber-700 font-bold">別の訪問中です。終了後に開始できます。</p>' : ''}
+      : `${visiting ? '<p class="text-xs text-amber-800 font-bold">別の訪問中です。終了後に開始できます。</p>' : ''}
     <button class="btn btn-primary w-full !py-3" data-action="start-from-event" data-id="${e.id}" ${visiting ? 'disabled' : ''}>▶ この訪問を開始</button>`}
     <div class="grid grid-cols-2 gap-2">
       <button class="btn btn-secondary !py-2 !px-2 !min-h-[48px] whitespace-nowrap text-sm" data-action="route-for" data-day="${e.day}" data-id="${e.id}">🚗 ルート確認</button>
@@ -160,7 +160,7 @@ function calendarBody(s) {
         <h2 class="text-xl font-bold">今日の予定</h2>
         <span class="flex items-center gap-2 text-xs text-slate-500">
           <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-white border-2 border-teal-600"></span>未訪問</span>
-          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-emerald-100 border-2 border-emerald-600"></span>訪問中</span>
+          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-teal-100 border-2 border-teal-600"></span>訪問中</span>
           <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-slate-200 border-2 border-slate-400"></span>完了</span></span>
         <span class="text-sm text-slate-500">${days[0].date.getMonth() + 1}/${days[0].date.getDate()}〜${days[2].date.getMonth() + 1}/${days[2].date.getDate()}</span></div>
       ${pendingEvalBanner(s, evals)}
@@ -192,7 +192,7 @@ const hhmm = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${S
 function arrivalNote(depMin, travelMin, startHHMM) {
   const arrive = depMin + travelMin;
   const diff = toMin(startHHMM) - arrive;
-  return `到着見込 ${hhmm(arrive)}　${diff >= 0 ? `<b class="text-emerald-700">予定に間に合います（余裕 ${diff}分）</b>` : `<b class="text-rose-600">予定に ${-diff}分 遅れる見込み</b>`}`;
+  return `到着見込 ${hhmm(arrive)}　${diff >= 0 ? `<b class="text-teal-700">予定に間に合います（余裕 ${diff}分）</b>` : `<b class="text-rose-700">予定に ${-diff}分 遅れる見込み</b>`}`;
 }
 
 function routeBody(s) {
@@ -227,7 +227,7 @@ function routeBody(s) {
   if (selStop) {
     const fromCur = legsOf(cur, [selStop])[0];
     if (!prev) {
-      detail = `<div class="rounded-lg bg-teal-50 p-2 text-sm"><b>現在地 → ${esc(selStop.customer.name)} 様</b>（最初の予定）<div class="text-xs text-slate-600">約${fromCur.km.toFixed(1)}km・${fromCur.min}分${isToday ? `<br>${arrivalNote(nowMin, fromCur.min, selStop.start)}` : ''}</div></div>`;
+      detail = `<div class="rounded-lg bg-teal-50 p-2 text-sm"><b>現在地 → ${esc(selStop.customer.name)} 様</b>（最初の予定）<div class="text-xs text-slate-700">約${fromCur.km.toFixed(1)}km・${fromCur.min}分${isToday ? `<br>${arrivalNote(nowMin, fromCur.min, selStop.start)}` : ''}</div></div>`;
     } else {
       const fromPrevLeg = legsOf(prev, [selStop])[0];
       const opt = (key, on, title, sub, leg, note) => `
@@ -246,9 +246,9 @@ function routeBody(s) {
   return `
   <div class="flex gap-3 flex-1 min-h-0 portrait:flex-col">
     <div class="card !p-3 w-[22rem] shrink-0 portrait:w-full portrait:flex-none portrait:max-h-[48%] flex flex-col gap-2 min-h-0">
-      <div class="flex gap-1 items-center">${[0, 1].map((n) => { const dd = dayDate(n); return `<button class="flex-1 py-2 rounded-lg font-bold text-sm ${day === n ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="route-day" data-value="${n}">${n === 0 ? '今日' : '明日'}<span class="block text-[11px] font-normal">${dd.getMonth() + 1}/${dd.getDate()}（${WEEK[dd.getDay()]}）</span></button>`; }).join('')}${stops.length ? helpIcon('距離・時間は直線距離からの概算です。') : ''}</div>
+      <div class="flex gap-1 items-center">${[0, 1].map((n) => { const dd = dayDate(n); return `<button class="flex-1 py-2 rounded-lg font-bold text-sm ${day === n ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'}" data-action="route-day" data-value="${n}">${n === 0 ? '今日' : '明日'}<span class="block text-[11px] font-normal">${dd.getMonth() + 1}/${dd.getDate()}（${WEEK[dd.getDay()]}）</span></button>`; }).join('')}${stops.length ? helpIcon('距離・時間は直線距離からの概算です。') : ''}</div>
       <div class="overflow-y-auto min-h-0 flex-1 space-y-1.5" data-scroll="route">
-        <div class="flex items-center gap-2 rounded-lg bg-slate-50 p-2 text-sm"><span class="w-6 h-6 rounded-full bg-sky-600 text-white flex items-center justify-center text-xs shrink-0">●</span>
+        <div class="flex items-center gap-2 rounded-lg bg-slate-50 p-2 text-sm"><span class="w-6 h-6 rounded-full bg-slate-600 text-white flex items-center justify-center text-xs shrink-0">●</span>
           <div class="min-w-0"><b>現在地</b><div class="text-xs text-slate-500 truncate">${s.geo?.ok ? `${s.geo.lat.toFixed(4)}, ${s.geo.lng.toFixed(4)}` : esc(curLabel)}</div></div></div>
         ${stops.length > 1 ? `<div class="rounded-lg border-2 p-2 text-sm cursor-pointer ${!selStop ? 'border-teal-500 bg-teal-50' : 'border-slate-200'}" data-action="route-sel" data-value="all"><b>全行程を表示</b>
           <span class="text-xs text-slate-500 block">現在地 → ${stops.map((e) => esc(e.customer.name)).join(' → ')}　合計 約${totalKm.toFixed(1)}km・約${totalMin}分</span></div>` : ''}
@@ -268,7 +268,7 @@ function routeBody(s) {
 
 // 今日の予定。「予定表」と「ルート（地図）」を切り替える
 export function scheduleView(s) {
-  const tab = (key, label) => `<button class="flex-1 py-2 rounded-lg font-bold ${s.sched.tab === key ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}" data-action="sched-tab" data-value="${key}">${label}</button>`;
+  const tab = (key, label) => `<button class="flex-1 py-2 rounded-lg font-bold ${s.sched.tab === key ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'}" data-action="sched-tab" data-value="${key}">${label}</button>`;
   return `
   <section class="h-full min-h-0 p-4 flex flex-col gap-2">
     <div class="flex gap-2 w-80 shrink-0">${tab('calendar', '📅 予定表')}${tab('route', '🚗 ルート確認')}</div>

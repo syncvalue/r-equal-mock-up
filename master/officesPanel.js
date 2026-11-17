@@ -12,7 +12,7 @@ function table(offices, warehouses) {
   return `<table class="w-full text-sm"><thead><tr class="text-left text-slate-500 border-b"><th>営業所</th><th>担当の都道府県</th><th>併設の倉庫</th><th>状態</th><th>操作</th></tr></thead><tbody>
     ${offices.map((o) => `<tr class="border-b ${o.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(officeLabel(o))}</td><td class="!whitespace-normal text-xs">${o.prefs.map(esc).join('・') || '-'}</td>
       <td class="!whitespace-normal text-xs">${warehouses.filter((w) => w.officeId === o.id && w.active).map((w) => esc(w.name)).join('、') || '<span class="text-slate-400">なし（鑑定士のみ）</span>'}</td>
-      <td>${o.active ? badge('bg-emerald-100 text-emerald-800', '有効') : badge('bg-slate-200 text-slate-600', '無効')}</td>
+      <td>${o.active ? badge('bg-teal-100 text-teal-700', '有効') : badge('bg-slate-200 text-slate-700', '無効')}</td>
       <td><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mo-edit="${esc(o.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-mo-toggle="${esc(o.id)}">${o.active ? '無効にする' : '有効にする'}</button></td></tr>`).join('')}
   </tbody></table>`;
 }
