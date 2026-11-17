@@ -1,5 +1,6 @@
 import { recordingsOf, loadRecordings, fmtDuration, recordingReady } from './recording.js';
 import { PRODUCTS, RANKS } from './data.js';
+import { mapView, tileUrl } from './mapView.js';
 import { masterBodyView } from './masterView.js';
 import { approvalState, latestApproval } from './store.js';
 import { threadFor, messagesOf, hasUnread } from './appraisalThread.js';
@@ -239,20 +240,41 @@ const field = (label, key, value, { type = 'text', placeholder = '', required = 
 
 const SEC = 'h-full min-h-0 p-3';
 
+// 訪問先を中心にした周辺地図と、自分の位置。訪問先の印をタップすると、訪問開始
+function arrivalMap(s, ev) {
+  if (ev?.lat == null) return '';
+  const v = mapView({ dest: ev, me: s.geo?.ok ? s.geo : null });
+  const at = (x, y) => `left:calc(50% + ${x}px);top:calc(50% + ${y}px)`;
+  const status = s.geo?.pending ? '現在地を確認しています…'
+    : v.far ? `現在地は、訪問先の${v.far.dir}、約${v.far.km < 10 ? v.far.km.toFixed(1) : Math.round(v.far.km)}kmにあります（まだ着いていません）`
+    : v.me ? '🔵 現在地' : '現在地を取得できませんでした（位置情報の許可を確認してください）';
+  return `<div class="w-full max-w-md space-y-1">
+    <div class="relative h-64 rounded-2xl overflow-hidden border-2 border-teal-600 bg-slate-200 select-none">
+      ${v.tiles.map((t) => `<img src="${tileUrl(t)}" alt="" draggable="false" class="absolute max-w-none pointer-events-none" style="${at(t.left, t.top)};width:256px;height:256px;margin:0" />`).join('')}
+      ${v.me ? `<span class="absolute -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-sky-500 border-[3px] border-white shadow-lg ring-4 ring-sky-400/40" style="${at(v.me.x, v.me.y)}" title="現在地"></span>` : ''}
+      <button class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full flex flex-col items-center active:scale-95" data-action="start" aria-label="訪問先をタップして、訪問開始">
+        <span class="rounded-full bg-teal-600 text-white text-sm font-bold px-3 py-1 shadow-lg whitespace-nowrap">タップで訪問開始</span>
+        <span class="text-5xl leading-none drop-shadow">📍</span></button>
+      <span class="absolute right-1 bottom-0 text-[10px] bg-white/80 px-1 rounded">© OpenStreetMap contributors</span>
+    </div>
+    <div class="text-xs text-center ${v.far ? 'text-amber-700 font-bold' : 'text-slate-500'}">${status}</div>
+  </div>`;
+}
+
 export function startView(s) {
   if (s.outcome) return outcomeResultView(s);
   const ev = eventById(s.visitEventId);
   return `
-  <section class="h-full flex flex-col items-center justify-center gap-4 p-6">
-    <div class="text-6xl">🚗</div>
+  <section class="h-full flex flex-col items-center justify-center gap-3 p-4 overflow-y-auto">
     <h1 class="text-3xl font-bold">訪問先に到着しましたか？</h1>
-    <button class="card !p-4 w-full max-w-md text-center space-y-1 border-2 border-teal-600 active:bg-teal-50" data-action="hearing-open" data-id="${ev?.id ?? ''}" ${ev ? '' : 'disabled'}>
+    ${arrivalMap(s, ev)}
+    <button class="card !p-3 w-full max-w-md text-center space-y-0.5 border-2 border-teal-600 active:bg-teal-50" data-action="hearing-open" data-id="${ev?.id ?? ''}" ${ev ? '' : 'disabled'}>
       <div class="text-xs text-slate-500">${ev ? `予定 ${ev.start}–${ev.end}` : '訪問先'}</div>
       <div class="text-xl font-bold">${esc(s.customer.name)} 様</div>
       <div class="text-sm text-slate-600">📍 ${esc(s.customer.address)}</div>
-      ${ev ? '<div class="text-sm font-bold text-teal-700 pt-1">📞 受電時のヒアリングを見る ›</div>' : ''}
+      ${ev ? '<div class="text-sm font-bold text-teal-700 pt-0.5">📞 受電時のヒアリングを見る ›</div>' : ''}
     </button>
-    <button class="btn btn-primary text-3xl px-16 py-8" data-action="start">訪問開始</button>
+    <button class="btn btn-primary text-2xl px-16 py-4" data-action="start">訪問開始</button>
     <button class="btn btn-secondary !min-h-[48px] !py-2 text-base" data-action="oc-open">🚪 不在・日程変更など、訪問できなかった場合</button>
     <button class="text-sm underline text-slate-400" data-action="nav" data-value="schedule">今日の予定に戻る</button>
   </section>`;

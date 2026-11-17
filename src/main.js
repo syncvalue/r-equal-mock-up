@@ -84,6 +84,7 @@ const initialState = () => ({
   sched: { sel: firstEventOf(loadSession()).id, tab: 'calendar' },
   route: { day: 0, sel: 'all', origin: 'prev' },
   geo: null,
+  geoVisit: null, // 訪問開始の画面で、現在地を取り直した訪問
   callInfo: callInfoOf(firstEventOf(loadSession()), loadSession() ?? 'u01'),
   customer: { ...firstEventOf(loadSession()).customer },
   customerConfirmed: false,
@@ -118,14 +119,16 @@ let state = initialState();
 const $ = (sel) => document.querySelector(sel);
 const set = (patch) => { state = { ...state, ...patch }; };
 
-// 現在地の取得（Googleマップの出発点）。許可されない・取得できない場合は営業所を出発点にする
-function requestGeo() {
-  if (state.geo || !navigator.geolocation) { if (!state.geo) set({ geo: { ok: false } }); return; }
+// 現在地の取得（Googleマップの出発点・訪問開始の画面の地図）。許可されない・取得できない場合は営業所を出発点にする。force=true は、取得済みでも取り直す
+const onStartScreen = () => state.view === 'visit' && state.step === 0;
+const geoRedraw = () => { if ((state.view === 'schedule' && state.sched.tab === 'route') || onStartScreen()) rerenderKeepScroll(); };
+function requestGeo(force = false) {
+  if ((state.geo && !force) || !navigator.geolocation) { if (!state.geo) set({ geo: { ok: false } }); return; }
   set({ geo: { ok: false, pending: true } });
   navigator.geolocation.getCurrentPosition(
-    (pos) => { set({ geo: { ok: true, lat: pos.coords.latitude, lng: pos.coords.longitude } }); if (state.view === 'schedule' && state.sched.tab === 'route') rerenderKeepScroll(); },
-    () => { set({ geo: { ok: false } }); if (state.view === 'schedule' && state.sched.tab === 'route') rerenderKeepScroll(); },
-    { timeout: 6000, maximumAge: 60000 },
+    (pos) => { set({ geo: { ok: true, lat: pos.coords.latitude, lng: pos.coords.longitude } }); geoRedraw(); },
+    () => { set({ geo: { ok: false } }); geoRedraw(); },
+    { timeout: 6000, maximumAge: force ? 0 : 60000 },
   );
 }
 
@@ -250,6 +253,7 @@ function render() {
   });
   const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
   document.title = `${state.balls.length || state.undrawn ? `(${state.balls.length + (state.undrawn ? 1 : 0)}) ` : ''}${BASE_TITLE}`; // タブを見るだけで、対応待ちに気づけるように
+  if (onStartScreen() && !state.outcome && state.geoVisit !== state.visitId) { set({ geoVisit: state.visitId }); requestGeo(true); } // 訪問開始の画面では、到着したかが分かるよう、現在地を取り直す
   $('#app').innerHTML =
     V.headerView(state) +
     `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : state.view === 'return' ? V.stockView(state) : V.placeholderView(state)}</main>` +
