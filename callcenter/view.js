@@ -197,7 +197,7 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
     <div class="grid grid-cols-3 items-end gap-2">${yn('companion', 'ご同席者', '立ち会う人のほかに、同席する人がいるか')}${yn('parking', '駐車スペース')}${yn('nameplate', '表札')}</div>
     ${f.companion === 'あり' ? inp('companionNote', f.companionNote, { ph: 'ご同席者は誰ですか？（例: ご主人、娘様）' }) : ''}
     <div><div class="text-xs font-bold">前日確認の連絡時間${b('contact')}</div><div class="flex items-center gap-1.5 mt-0.5">${time('contactFrom')}<span>〜</span>${time('contactTo')}</div></div>`);
-  const entry = `<section class="bg-white rounded-lg shadow p-3 space-y-2">${lbl(`電話番号${b('phone')}`, inp('phone', f.phone, { type: 'tel', ph: '090-0000-0000', extra: 'autofocus' }), { req: true })}<div id="hint" class="empty:hidden space-y-2"></div></section>`;
+  const entry = `<section class="bg-white rounded-lg shadow p-3 space-y-2">${lbl(`電話番号${b('phone')}`, inp('phone', f.phone, { type: 'tel', ph: '090-0000-0000', extra: 'autofocus' }), { req: true })}${f.phone ? '' : demoPhonesHtml()}<div id="hint" class="empty:hidden space-y-2"></div></section>`;
   const body = stage === 'new' ? `${flyerSec}${wantsSec}${customer}${when}${notes}`
     : stage === 'open' ? '<button class="b b-sec w-full" data-newform>＋ 新しい受付として入力する</button>' : '';
   if (part === 'body') return body;
@@ -454,6 +454,34 @@ export function openResHtml(list) {
     <span><b>受付済み</b>：${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</span>
     <span class="flex gap-1"><button class="b b-sec !min-h-0 !py-0.5 text-xs" data-chg="${r.id}">日時を変更</button><button class="b b-sec !min-h-0 !py-0.5 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></span></div>`).join('')}</div>`;
 }
+
+// この電話番号の、過去の訪問（訪問済み・取消）。「このあたり買い取っているな」と分かりながら話せるように、買取の内訳まで開ける
+export function visitHistoryHtml(rows, shown = 4) {
+  if (!rows.length) return '';
+  const bought = rows.filter((r) => r.total > 0);
+  const total = bought.reduce((n, r) => n + r.total, 0);
+  const row = (r) => {
+    const head = `<span class="w-24 shrink-0 text-slate-500">${dateLabel(r.date)}</span><span class="min-w-0 flex-1 truncate">${r.kind === 'cancelled' ? `<span class="font-bold text-slate-500">取消</span>　${esc(r.note || r.items)}` : esc(r.items) || '訪問のみ'}</span><span class="shrink-0 font-bold ${r.total > 0 ? 'text-slate-900' : 'text-slate-400'}">${r.kind === 'cancelled' ? '' : r.total > 0 ? yen(r.total) : '買取なし'}</span>`;
+    const lines = r.lines.map((l) => `<div class="flex justify-between gap-2"><span class="min-w-0 truncate">${esc(l.name)}${(l.qty ?? 1) > 1 ? ` ×${l.qty}` : ''}</span><span class="shrink-0">${yen(l.price * (l.qty ?? 1))}</span></div>`).join('');
+    const sub = [r.staff ? `担当 ${esc(r.staff)}` : '', r.declinedCount ? `見送り ${r.declinedCount}点` : ''].filter(Boolean).join('　');
+    return r.total > 0 && lines
+      ? `<details class="px-2 py-1"><summary class="flex cursor-pointer items-center gap-2">${head}</summary><div class="mt-1 space-y-0.5 border-l-2 border-slate-300 pl-2 text-slate-700">${lines}${sub ? `<div class="text-slate-500">${sub}</div>` : ''}</div></details>`
+      : `<div class="flex items-center gap-2 px-2 py-1">${head}</div>`;
+  };
+  const more = rows.length > shown ? `<details class="border-t"><summary class="cursor-pointer px-2 py-1 text-slate-500">さらに ${rows.length - shown}件</summary><div class="divide-y">${rows.slice(shown).map(row).join('')}</div></details>` : '';
+  return `<div class="space-y-1"><div class="text-xs font-bold text-slate-700">訪問の履歴（${rows.length}件${bought.length ? `・買取 ${bought.length}回 計${yen(total)}` : ''}）</div>
+    <div class="divide-y rounded-lg border border-slate-300 bg-white text-xs">${rows.slice(0, shown).map(row).join('')}${more}</div></div>`;
+}
+
+// デモ用の電話番号（押すと、電話番号に入る）。ダミーデータの、どの状態も見られるように
+export const DEMO_PHONES = [
+  ['090-2468-1357', '山田 花子', '予約2件・過去の訪問3回'],
+  ['090-5050-6060', '前川 玲子', '予約あり・高額の買取'],
+  ['080-7777-0001', '小林 和子', '予約なし・過去の買取だけ'],
+  ['090-1357-2468', '森本 勝', '取消した予約だけ'],
+  ['090-1111-2222', '（新規）', '受付・買取なし'],
+];
+const demoPhonesHtml = () => `<div class="flex flex-wrap items-center gap-1"><span class="text-[11px] text-slate-400">デモ</span>${DEMO_PHONES.map(([p, n, d]) => `<button class="chip !min-h-0 !py-0.5 !px-2 !text-[11px]" data-demophone="${p}" title="${esc(d)}">${esc(n)} ${p}</button>`).join('')}</div>`;
 
 // 受付済みの予約を変更中の、入力欄の上の表示。仮確定の変更と、確定済みの変更で、何が起きるかを伝える
 export function editBannerHtml(r, by = '') {

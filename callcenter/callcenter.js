@@ -10,13 +10,14 @@ import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { initHelp } from '../src/help.js';
 import { esc } from '../src/format.js';
 import { CANCEL_REASONS, blankMain, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml, zipCandidatesHtml } from './view.js';
+import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, visitHistoryHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml, zipCandidatesHtml } from './view.js';
 import { dispatcherHtml, staffModalHtml, customerModalHtml, BOARD_ROW } from './dispatcherView.js';
 import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
 import { callHistory } from '../src/callHistory.js';
 import { saveCustomerEval } from '../src/customerEval.js';
-import { purchaseSummary, customerProfile, historyCustomers } from '../src/customerHistory.js';
+import { purchaseSummary, customerProfile, historyCustomers, historyOf, declinedList } from '../src/customerHistory.js';
+import { pastVisitRows } from './phoneTimeline.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
 import { missingFields, companionText, wantsText, hearingChecklist, entryStage, REQUIRED_CHECKS, fullName, fullKana, profileText } from './intake.js';
@@ -305,10 +306,14 @@ function renderDispatch() {
 function renderHint() {
   const el = $('#hint');
   const past = findPast(form);
-  const calls = callHistory([form.phone, form.phone2, past?.phone, past?.phone2], loadReservations());
-  if (el) el.innerHTML = hintHtml(past, quoted, past ? purchaseSummary([form.phone, form.phone2, past.phone, past.phone2]) : null) + callLogHtml(calls, callLogOpen) + openResHtml(openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())));
-  const fresh = !past && !editId && /^0\d{9,10}$/.test(digits(form.phone)) && !openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())).length;
-  if (el && fresh) el.innerHTML = '<div class="text-xs font-bold text-teal-700">この番号の受付・買取はありません</div>' + el.innerHTML;
+  const phones = [form.phone, form.phone2, past?.phone, past?.phone2];
+  const calls = callHistory(phones, loadReservations());
+  const today = ymdOf(new Date());
+  const open = openReservationsFor(loadReservations(), [form.phone, form.phone2], today);
+  const rows = pastVisitRows({ phones, reservations: loadReservations(), today, nameOf: (id) => USERS.find((u) => u.id === id)?.name ?? '',
+    visits: [...new Set(phones.filter(Boolean))].flatMap((p) => historyOf({ phone: p }).visits), declined: declinedList(phones.filter(Boolean)).map((i) => ({ at: i.at, items: [i] })) });
+  const fresh = !past && !editId && !open.length && !rows.length && /^0\d{9,10}$/.test(digits(form.phone));
+  if (el) el.innerHTML = (fresh ? '<div class="text-xs font-bold text-teal-700">この番号の受付・買取はありません</div>' : '') + openResHtml(open) + visitHistoryHtml(rows) + hintHtml(past, quoted, past ? purchaseSummary(phones) : null) + callLogHtml(calls, callLogOpen);
   syncBody();
 }
 
@@ -579,6 +584,7 @@ document.addEventListener('click', (e) => {
       quoted = true; refresh();
     }
   }
+  else if (d.demophone) { form = { ...form, phone: d.demophone }; quoted = false; forceNew = false; refresh(); }
   else if ('newform' in d) { forceNew = true; syncBody(); }
   else if ('confirm' in d) confirmReservation();
   else if ('new' in d) { editId = null; forceNew = false; stopDemo(); lines = []; finished = false; scriptPos = 0; form = blankForm(); weekStart = addDays(0); done = null; quoted = false; showOthers = false; render(); }

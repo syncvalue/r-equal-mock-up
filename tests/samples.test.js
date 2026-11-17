@@ -14,7 +14,7 @@ const toM = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 const ymd = (off) => { const d = new Date(2026, 9, 24 + off); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 test('サンプルの受付: 今日から3日後までの見本が、全種類そろう', () => {
-  assert.equal(list.length, 12);
+  assert.equal(list.length, 16); // 今日から3日後までの12件と、同じ番号の予約・過去の訪問の見本4件
   assert.ok(list.some((r) => r.date === ymd(2) && isTentative(r) && !needsReview(r))); // 翌々日の仮確定
   assert.ok(list.some((r) => r.status === 'confirmed')); // 確定済み
   assert.ok(list.some(needsReview)); // 確定済みが変更されて仮確定に戻った
@@ -42,8 +42,10 @@ test('サンプルの受付: 全項目を、変更用の入力に戻せる。必
 
 test('サンプルの受付: 電話番号から、受付済みの予約が見つかる（山田 花子）', () => {
   const found = openReservationsFor(list, ['090-2468-1357'], ymd(0));
-  assert.equal(found.length, 1);
+  assert.equal(found.length, 2); // これからの予約が2件（翌々日と、9日後）
   assert.equal(found[0].customer.name, '山田 花子');
+  const past = list.filter((r) => r.customer.phone === '090-2468-1357' && r.date < ymd(0));
+  assert.deepEqual(past.map((r) => r.date).sort(), ['2026-04-12', '2026-08-03']); // 過去の訪問（買取の履歴の日付に合わせてある）
 });
 
 test('サンプルの受付: 休みの時間（欠勤の日・午前休・午後半休）に、訪問が入らない', () => {

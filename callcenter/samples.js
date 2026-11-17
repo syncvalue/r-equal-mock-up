@@ -15,6 +15,11 @@ const SAMPLES = [
   { off: 2, start: 840, dur: 90, area: 'kanto', status: 'tentative', f: { name: '高田 誠', kana: 'タカダ マコト', phone: '090-7788-1122', gender: 'm', age: '49', address: '東京都世田谷区三軒茶屋1-3-5', chirashi: 4, cats: ['カメラ・家電'], wants: 'ミラーレス 2台、レンズ 4本', attendee: 'ご本人' } },
   { off: 2, start: 660, dur: 60, area: 'osaka', status: 'tentative', review: true, f: { name: '小山 敏子', kana: 'コヤマ トシコ', phone: '06-6334-9988', gender: 'f', age: '55', address: '大阪府豊中市庄内西町3-4-5', flyerId: 'N1019', cats: ['貴金属・ジュエリー'], wants: '指輪 3点、ネックレス 2点', attendee: 'ご本人' } },
   { off: 2, start: 810, dur: 90, area: 'osaka', status: 'cancelled', f: { name: '森本 勝', kana: 'モリモト マサル', phone: '090-1357-2468', gender: 'm', age: '64', address: '大阪府大阪市東住吉区田辺2-6-7', flyerId: 'N1012', main: { 背広: 6 }, wants: '背広 数着', attendee: 'ご本人' } },
+  // 同じ番号で、複数の予約と、過去の訪問がある見本（受電画面で「過去の訪問」を見られる）。日付は、買取の履歴（src/customerHistory.js）に合わせる
+  { on: '2026-08-03', start: 600, dur: 90, status: 'confirmed', area: 'osaka', f: { name: '山田 花子', kana: 'ヤマダ ハナコ', phone: '090-2468-1357', phone2: '06-1234-5678', gender: 'f', age: '62', zip: '545-0052', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3', flyerId: 'N1019', cats: ['ブランドバッグ', '着物・骨董'], wants: 'シャネル 1点、着物 数点', attendee: 'ご本人', companion: 'あり', companionNote: 'ご主人' } },
+  { on: '2026-04-12', start: 780, dur: 90, status: 'confirmed', area: 'osaka', f: { name: '山田 花子', kana: 'ヤマダ ハナコ', phone: '090-2468-1357', phone2: '06-1234-5678', gender: 'f', age: '62', zip: '545-0052', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3', flyerId: 'N1019', cats: ['ブランドバッグ', '着物・骨董'], wants: 'シャネル 1点、着物 数点', attendee: 'ご本人', companion: 'あり', companionNote: 'ご主人' } },
+  { off: 9, start: 600, dur: 90, status: 'tentative', area: 'osaka', f: { name: '山田 花子', kana: 'ヤマダ ハナコ', phone: '090-2468-1357', phone2: '06-1234-5678', gender: 'f', age: '62', zip: '545-0052', address: '大阪府大阪市阿倍野区阿倍野筋1-2-3', flyerId: 'N1019', cats: ['ブランドバッグ', '着物・骨董'], wants: 'シャネル 1点、着物 数点', attendee: 'ご本人', companion: 'あり', companionNote: 'ご主人' } },
+  { on: '2026-09-12', start: 600, dur: 120, area: 'osaka', status: 'confirmed', f: { name: '前川 玲子', kana: 'マエカワ レイコ', phone: '090-5050-6060', gender: 'f', age: '57', address: '大阪府大阪市天王寺区上本町6-3-2', flyerId: 'N1012', cats: ['ブランドバッグ'], wants: 'エルメス 1点', attendee: 'ご本人' } },
   // 明日・3日後・今日
   { off: 1, start: 660, dur: 60, area: 'osaka', status: 'confirmed', f: { name: '北村 智子', kana: 'キタムラ トモコ', phone: '090-8800-1234', gender: 'f', age: '60', address: '大阪府大阪市北区天神橋3-2-1', flyerId: 'N1019', cats: ['貴金属・ジュエリー'], wants: '真珠のネックレス', attendee: 'ご本人' }, calls: [{ result: 'reached', memo: '時間は予定どおりで大丈夫。ネックレスのほかに、指輪も見てほしいとのこと', by: '佐藤', hoursAgo: 3 }] },
   { off: 1, start: 840, dur: 90, area: 'osaka', status: 'tentative', hold: 'お客様に連絡して、回答待ち', f: { name: '西岡 孝', kana: 'ニシオカ タカシ', phone: '080-6600-4321', gender: 'm', age: '73', address: '大阪府枚方市岡東町12-1', flyerId: 'D1001', cats: ['腕時計'], wants: 'セイコー 数本', attendee: 'ご本人' }, calls: [{ result: 'noanswer', memo: '留守電に伝言を入れた', by: '渡辺', hoursAgo: 4 }, { result: 'noanswer', memo: '', by: '佐藤', hoursAgo: 1 }] },
@@ -28,7 +33,9 @@ const stampOf = (d) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${
 export function sampleReservations(now = new Date()) {
   const day = (off) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + off);
   const list = [];
-  SAMPLES.forEach((sp, i) => {
+  const daysTo = (ymd) => Math.round((new Date(`${ymd}T00:00:00`) - day(0)) / 86400000);
+  SAMPLES.forEach((sp0, i) => {
+    const sp = { ...sp0, off: sp0.on ? daysTo(sp0.on) : sp0.off }; // on=日付で指定（買取の履歴に合わせる過去の訪問）
     const area = areaById(sp.area);
     const flyer = flyerOf(sp.f.flyerId);
     const form = {
@@ -39,7 +46,7 @@ export function sampleReservations(now = new Date()) {
     const pick = rankCandidates({ gender: form.gender, areaId: area.id, date: form.date, start: form.start, dur: form.dur, reservations: list.filter((r) => r.status !== 'cancelled'), here: pos, now })
       .inArea.find((c) => c.free);
     if (!pick) return;
-    const received = new Date(day(-1).getTime() + (9 + (i % 8)) * 3600000 + (i * 7 % 60) * 60000); // 昨日の日中に受電
+    const received = new Date(day(sp.on ? sp.off - 1 : -1).getTime() + (9 + (i % 8)) * 3600000 + (i * 7 % 60) * 60000); // 昨日の日中に受電
     const rec = {
       id: `SMP-${String(i + 1).padStart(2, '0')}`, receptionNo: `CC-${ymdOf(received).replaceAll('-', '')}-${5001 + i}`, receivedAt: stampOf(received), receivedTs: received.getTime(),
       status: sp.status === 'confirmed' ? 'confirmed' : 'tentative', operator: i % 2 ? '渡辺' : '佐藤', userId: pick.user.id, apType: sp.f.phone === '090-2468-1357' ? '再' : '新',
