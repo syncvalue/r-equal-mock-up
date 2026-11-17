@@ -36,10 +36,19 @@ test('経理部の画面（経費精算／残高・入出金管理／週間収�
   const yesterday = shiftDate(day, -1);
   const st = { office: '', ledger: loadLedger(), selDay: null, selUser: null, led: { kind: 'in', category: 'sales', date: day, amount: 0, cost: 0, userId: '', memo: '' }, pay: { customerName: '', amount: 0, reason: '', userId: '', memo: '' }, fix: { id: '', type: 'rent', name: '', amount: 0, payDay: 25 }, returning: { id: 'u02', reason: '' }, claimFilter: 'all', advOpen: 'SAR-1', chat: { text: '' }, claimUser: 'u02', checkDate: yesterday, calOpen: true, openPurchase: [], calMonth: yesterday.slice(0, 7), month: day.slice(0, 7), week: weekStart(day) };
   const c = { st, scoped: () => USERS, scopedIds: () => USERS.map((u) => u.id), officeOf: () => '大阪', withOffice: (u) => `${u.name}（大阪）`, today: () => day };
-  assert.ok(balanceTab(c).includes('鑑定士からの補充の依頼') && balanceTab(c).includes('data-adv-open') && balanceTab(c).includes('data-adv-chat-send') && balanceTab(c).includes('誰の番') && !balanceTab(c).includes('data-adv-ok') && !balanceTab(c).includes('振り込む金額') && balanceTab(c).includes('入金・支払の登録') && balanceTab(c).includes('鑑定士の補充金') && balanceTab(c).includes('お客様への支払'));
+  assert.ok(balanceTab(c).includes('鑑定士からの補充の依頼') && balanceTab(c).includes('data-chat-open="adv|SAR-1"') && !balanceTab(c).includes('data-adv-chat-send') && !balanceTab(c).includes('data-f="chat.text"') && balanceTab(c).includes('誰の番') && !balanceTab(c).includes('data-adv-ok') && !balanceTab(c).includes('振り込む金額') && balanceTab(c).includes('入金・支払の登録') && balanceTab(c).includes('鑑定士の補充金') && balanceTab(c).includes('お客様への支払'));
   const claims = claimsTab(c);
   for (const w of ['前日繰越金', '終業時に数えた金額', '経費（ガソリン代など）', 'お客様への支払', '領収書', 'チェック済みにする', '差戻しの理由', '終業・日報が未提出', 'data-item-toggle', '写真と金額が一致していることを確認', '1件ずつの確認', 'インボイス', 'data-purchase-toggle', 'data-zoom', 'cursor-zoom-in', '経理部の対応待ちが', 'data-ball-jump', '▶ 経理部の番', '⏳ 鑑定士待ち', 'data-cal-pick', 'すべてチェック済み', '要対応の未チェック']) assert.ok(claims.includes(w) || claimsTab({ ...c, st: { ...st, claimUser: 'u06', returning: null } }).includes(w), w);
   assert.ok(claimsTab({ ...c, st: { ...st, claimUser: 'u07', returning: null } }).includes('数えた現金の写真がない'));
+  assert.ok(claims.includes('data-chat-open="claim|u02|') && !claims.includes('data-f="chat.text"')); // やり取りは、画面には埋め込まず、モーダルで開く
+  const { chatModalView } = await import('../accounting/claimsTab.js');
+  assert.equal(chatModalView(c), '');
+  const mClaim = chatModalView({ ...c, st: { ...st, chatModal: { kind: 'claim', userId: 'u02', date: yesterday }, chat: { text: '確認します' } } });
+  for (const w of ['data-chat-close', 'さんとのやり取り', '経費精算', 'data-f="chat.text"', 'data-chat-modal-send', 'value="確認します"', 'ガソリン代の領収書が見当たりません']) assert.ok(mClaim.includes(w), w);
+  const mAdv = chatModalView({ ...c, st: { ...st, chatModal: { kind: 'adv', id: 'SAR-1' }, chat: { text: '' } } });
+  assert.ok(mAdv.includes('補充の依頼') && mAdv.includes('10万円ではどうですか？') && mAdv.includes('銀行システム') && mAdv.includes('data-chat-modal-send'));
+  const mClosed = chatModalView({ ...c, st: { ...st, chatModal: { kind: 'adv', id: 'SAR-4' }, chat: { text: '' } } });
+  assert.ok(mClosed.includes('完了') && !mClosed.includes('data-chat-modal-send') && !mClosed.includes('data-f="chat.text"')); // 完了した依頼は、送れない
   const { zoomView } = await import('../accounting/ui.js');
   const zv = zoomView({ src: 'data:x', alt: '領収書' });
   assert.ok(zv.includes('data-zoom-close') && zv.includes('領収書の拡大表示') && zv.includes('src="data:x"'));

@@ -11,8 +11,8 @@ import { weekStart, shiftWeek } from '../src/weekly.js';
 import { tabLabel, menuView } from './menu.js';
 import { zoomView } from './ui.js';
 import { balanceTab } from './balanceTab.js';
-import { claimsTab, dayRows, acctBalls, bulkTargets, markPickedRead, pickedOf } from './claimsTab.js';
-import { loadChats, saveChats, post } from '../src/expenseChat.js';
+import { claimsTab, dayRows, acctBalls, bulkTargets, chatModalView } from './claimsTab.js';
+import { loadChats, saveChats, post, markRead as markChatRead } from '../src/expenseChat.js';
 import { loadRequests, accountingTurn, postAdv, markAdvRead } from '../src/advanceRequest.js';
 import { fixedTab, shiftMonth, fixedRows } from './fixedTab.js';
 import { weeklyTab } from './weeklyTab.js';
@@ -38,7 +38,7 @@ const st = {
   tab: 'claims', menuOpen: false,
   office: AREAS.some((a) => a.id === pref('rq-mock-acc-office', '')) ? pref('rq-mock-acc-office', '') : '', // 絞り込み中の営業所（空は全営業所）
   ledger: loadLedger(), selDay: null, selUser: null,
-  led: blank.led(), pay: blank.pay(), fix: blank.fix(), returning: null, advOpen: null,
+  led: blank.led(), pay: blank.pay(), fix: blank.fix(), returning: null, chatModal: null,
   claimFilter: 'pending', claimUser: null, chat: { text: '' }, calOpen: false, zoom: null, openPurchase: [], calMonth: shiftDate(today(), -1).slice(0, 7), checkDate: shiftDate(today(), -1), month: today().slice(0, 7), week: weekStart(today()),
 };
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
@@ -52,8 +52,12 @@ const FILTERED_TABS = ['claims', 'balance']; // 営業所での絞り込みが�
 const VIEWS = { balance: balanceTab, claims: claimsTab, fixed: fixedTab, weekly: weeklyTab };
 
 function render() {
-  if (st.tab === 'claims') markPickedRead(ctx); // 開いている鑑定士のやり取りは、読んだことにする
-  if (st.tab === 'balance' && st.advOpen) { const chats = loadChats(); const next = markAdvRead(chats, st.advOpen, 'accounting'); if (next !== chats) saveChats(next); }
+  if (st.chatModal) { // 開いているやり取りは、読んだことにする
+    const chats = loadChats();
+    const m = st.chatModal;
+    const next = m.kind === 'claim' ? markChatRead(chats, m.userId, m.date, 'accounting') : markAdvRead(chats, m.id, 'accounting');
+    if (next !== chats) saveChats(next);
+  }
   st.ledger = loadLedger();
   if (!scopedIds().includes(st.led.userId)) st.led = { ...st.led, userId: scopedIds()[0] ?? '' };
   if (st.pay.userId && !scopedIds().includes(st.pay.userId)) st.pay = { ...st.pay, userId: '' };
@@ -72,7 +76,7 @@ function render() {
       ${balls.length ? `<button class="ml-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-ball-jump="${balls[0].date}|${balls[0].userId}" title="${esc(balls[0].why)}">🔔 対応待ち ${balls.length}件</button>` : ''}</div>
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${filter}<button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
-  <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${VIEWS[st.tab](ctx)}</main>${st.menuOpen ? menuView({ tab: st.tab, badges }) : ''}${st.zoom ? zoomView(st.zoom) : ''}</div>`;
+  <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${VIEWS[st.tab](ctx)}</main>${st.menuOpen ? menuView({ tab: st.tab, badges }) : ''}${st.chatModal ? chatModalView(ctx) : ''}${st.zoom ? zoomView(st.zoom) : ''}</div>`;
   document.querySelectorAll('[data-chat]').forEach((e) => { e.scrollTop = e.scrollHeight; }); // チャットは、いちばん新しい発言が見えるように
 }
 
@@ -119,24 +123,22 @@ const ACTIONS = {
   ledAdd: addLedger,
   payAdd: addPay,
   payDone: (d) => markPaid(d.payDone),
-  advOpen: (d) => {
-    st.advOpen = st.advOpen === d.advOpen ? null : d.advOpen;
+  chatOpen: (d) => { // 'claim|鑑定士ID|日付' または 'adv|依頼ID'
+    const [kind, a, b] = d.chatOpen.split('|');
+    st.chatModal = kind === 'claim' ? { kind, userId: a, date: b } : { kind, id: a };
     st.chat = { text: '' };
   },
-  advChatSend: () => {
-    if (!st.advOpen || !st.chat.text.trim()) return false;
-    saveChats(postAdv(loadChats(), st.advOpen, { from: 'accounting', by: BY, text: st.chat.text }));
+  chatClose: () => { st.chatModal = null; st.chat = { text: '' }; },
+  chatModalSend: () => {
+    const m = st.chatModal;
+    if (!m || !st.chat.text.trim()) return false;
+    const msg = { from: 'accounting', by: BY, text: st.chat.text };
+    saveChats(m.kind === 'claim' ? post(loadChats(), m.userId, m.date, msg) : postAdv(loadChats(), m.id, msg));
     st.chat = { text: '' };
   },
   claimFilter: (d) => { st.claimFilter = d.claimFilter; },
-  claimUser: (d) => { st.claimUser = d.claimUser; st.returning = null; st.chat = { text: '' }; },
-  ballJump: (d) => { const [date, userId] = d.ballJump.split('|'); st.tab = 'claims'; st.checkDate = date; st.claimUser = userId; st.claimFilter = 'all'; st.returning = null; st.chat = { text: '' }; st.menuOpen = false; st.calOpen = false; },
-  chatSend: () => {
-    const row = pickedOf(ctx);
-    if (!row || !st.chat.text.trim()) return false;
-    saveChats(post(loadChats(), row.userId, st.checkDate, { from: 'accounting', by: BY, text: st.chat.text }));
-    st.chat = { text: '' };
-  },
+  claimUser: (d) => { st.claimUser = d.claimUser; st.returning = null; },
+  ballJump: (d) => { const [date, userId] = d.ballJump.split('|'); st.tab = 'claims'; st.checkDate = date; st.claimUser = userId; st.claimFilter = 'all'; st.returning = null; st.chatModal = null; st.menuOpen = false; st.calOpen = false; },
   calToggle: () => { st.calOpen = !st.calOpen; st.calMonth = st.checkDate.slice(0, 7); },
   calShift: (d) => { st.calMonth = shiftMonth(st.calMonth, Number(d.calShift)); },
   calPick: (d) => { st.checkDate = d.calPick; st.claimUser = null; st.returning = null; st.calOpen = false; },
@@ -204,7 +206,11 @@ function onField(e, isInput) {
   setForm(form, { ...getForm(form), [key]: value });
   return true;
 }
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && st.zoom) { st.zoom = null; render(); } });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && (st.zoom || st.chatModal)) { if (st.zoom) st.zoom = null; else st.chatModal = null; render(); return; }
+  // チャットの入力欄では、Enterで送る（日本語入力の変換中は、送らない）
+  if (e.key === 'Enter' && !e.isComposing && e.target.matches?.('[data-f="chat.text"]')) { e.preventDefault(); if (ACTIONS.chatModalSend() !== false) render(); }
+});
 document.addEventListener('input', (e) => { onField(e, true); });
 document.addEventListener('change', (e) => {
   if (e.target.matches('[data-office]')) {

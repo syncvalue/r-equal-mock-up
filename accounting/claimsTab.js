@@ -3,12 +3,13 @@ import { loadDays, typeOf, summaryOf, dateKey } from '../src/workday.js';
 import { onlyOffice } from '../src/accounting.js';
 import { checkRows, checkCounts, loadChecks, loadItemChecks, dayBadges, monthGrid, bulkTargets as bulkOf, CHECK_STATUS, shiftDate } from '../src/dailyCheck.js';
 import { userById } from '../src/dashboard.js';
-import { loadChats, threadOf, unreadCount, markRead as markChatRead, saveChats } from '../src/expenseChat.js';
+import { loadChats, threadOf, unreadCount } from '../src/expenseChat.js';
 import { chatView } from '../src/expenseChatView.js';
 import { ballOf, ballList } from '../src/ball.js';
+import { loadRequests, advThread, REQUEST_STATUS } from '../src/advanceRequest.js';
 import { helpIcon } from '../src/help.js';
 import { fmtTime, esc } from '../src/format.js';
-import { LEVEL, badge, card, signed, signedYen as yen, mdw, thumb } from './ui.js';
+import { LEVEL, badge, card, signed, signedYen as yen, mdw, thumb, chatModal as chatModalFrame } from './ui.js';
 
 const TH = 'text-left text-slate-700 bg-slate-200 border-b-2 border-slate-300'; // 表の見出し行
 const ZEBRA = '[&>tr:nth-child(even)]:bg-slate-50'; // 1行おきに薄い背景
@@ -132,8 +133,7 @@ function detail(c, r, chats) {
     <div class="max-w-3xl overflow-x-auto">${reconcileTable(r, s)}</div>
     <div class="overflow-x-auto space-y-6"><div><div class="font-bold text-sm mb-1">経費（ガソリン代など）</div>${expenseTable(c, r)}</div><div><div class="font-bold text-sm mb-1">お客様への支払</div>${purchaseTable(c, r)}</div></div>
     ${cashCheck(c, r)}
-    <div><div class="font-bold text-sm mb-1">💬 ${esc(userById(r.userId).name)} さんとのやり取り${helpIcon('この日の経費精算について、鑑定士とやり取りします。差戻し・チェック済みにした記録も、ここに残ります。鑑定士のタブレットにも表示されます。')}</div>
-      <div class="max-w-3xl">${chatView(threadOf(chats, r.userId, r.date), { inputAttrs: 'data-f="chat.text"', sendAttrs: 'data-chat-send', draft: c.st.chat?.text ?? '' })}</div></div>
+    <div class="flex flex-wrap items-center gap-2"><button class="b b-sec" data-chat-open="claim|${r.userId}|${r.date}">💬 ${esc(userById(r.userId).name)} さんとやり取りする${threadOf(chats, r.userId, r.date).messages.length ? `（${threadOf(chats, r.userId, r.date).messages.length}件）` : ''}</button>${unreadCount(chats, r.userId, r.date, 'accounting') ? `<span class="rounded-full bg-rose-600 text-white text-xs font-bold px-2 py-0.5">新着 ${unreadCount(chats, r.userId, r.date, 'accounting')}</span>` : ''}${helpIcon('この日の経費精算について、鑑定士とチャットでやり取りします。差戻し・チェック済みにした記録も、チャットに残ります。鑑定士のタブレットにも表示されます。')}</div>
     ${actions(c, r)}</section>`;
 }
 
@@ -157,20 +157,11 @@ function listRow(c, r, selected, chats) {
     <td class="text-right ${x.closeDiff ? 'text-rose-600 font-bold' : ''}">${x.closeDiff === null ? '－' : signed(x.closeDiff)}</td>
     <td class="text-right">${yen(x.expenses)}</td><td class="text-right">${yen(x.customerPaid)}</td>
     <td>${danger ? badge(LEVEL.danger, `要対応 ${danger}`) : ''} ${warn ? badge(LEVEL.warn, `確認 ${warn}`) : ''} ${!r.issues.length ? '<span class="text-emerald-700 text-xs font-bold">問題なし</span>' : ''}</td><td>${badge(st.cls, st.label)}${ballChip(r, chats)}</td>
-    <td class="whitespace-nowrap">${talk ? `<span class="text-xs">💬 ${talk}</span>` : '<span class="text-slate-300">－</span>'}${unread ? ` <span class="rounded-full bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5">新着 ${unread}</span>` : ''}</td></tr>`;
+    <td class="whitespace-nowrap"><button class="text-xs underline text-teal-800" data-chat-open="claim|${r.userId}|${r.date}">💬 ${talk ? talk : '開く'}</button>${unread ? ` <span class="rounded-full bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5">新着 ${unread}</span>` : ''}</td></tr>`;
 }
 
 const listOf = (c, all) => (c.st.claimFilter === 'all' ? all : all.filter((r) => r.status === c.st.claimFilter));
 export const pickedOf = (c, all = rowsOf(c)) => { const list = listOf(c, all); return list.find((r) => r.userId === c.st.claimUser) ?? list[0]; };
-// 開いている鑑定士のやり取りを、読んだことにする（画面を描く前に呼ぶ）
-export function markPickedRead(c) {
-  const picked = pickedOf(c);
-  if (!picked) return;
-  const chats = loadChats();
-  const next = markChatRead(chats, picked.userId, picked.date, 'accounting');
-  if (next !== chats) saveChats(next);
-}
-
 // 画面上部: 対応待ち（経理部がボールを持っている）のお知らせ。押すと、その鑑定士・日に移る
 function ballBanner(c) {
   const list = acctBalls(c);
@@ -212,4 +203,24 @@ export function claimsTab(c) {
     ${list.length ? list.map((r) => listRow(c, r, r === picked, chats)).join('') : `<tr><td colspan="9" class="text-slate-400">${all.length ? '該当する鑑定士はいません。' : 'この日に提出された記録はありません。'}</td></tr>`}
   </tbody></table></div>
   ${picked ? detail(c, picked, chats) : ''}`;
+}
+
+// 鑑定士とのやり取りのモーダル（経費精算の日ごと、または補充の依頼）。開いている間は、経理部の入力欄で送る
+export function chatModalView(c) {
+  const m = c.st.chatModal;
+  if (!m) return '';
+  const chats = loadChats();
+  const name = (userId) => esc(c.withOffice(userById(userId)));
+  const input = (disabled) => ({ inputAttrs: disabled ? 'disabled' : 'data-f="chat.text"', sendAttrs: disabled ? 'disabled' : 'data-chat-modal-send', draft: disabled ? '' : c.st.chat?.text ?? '' });
+  if (m.kind === 'claim') {
+    const status = loadChecks()[`${m.userId}:${m.date}`]?.status ?? 'pending';
+    return chatModalFrame({ title: `💬 ${name(m.userId)} さんとのやり取り`, sub: `${mdw(m.date)}の提出分（経費精算）　${badge(CHECK_STATUS[status].cls, CHECK_STATUS[status].label)}`, body: chatView(threadOf(chats, m.userId, m.date), input(false)) });
+  }
+  const r = loadRequests().find((x) => x.id === m.id);
+  if (!r) return '';
+  return chatModalFrame({
+    title: `💬 ${name(r.userId)} さんとのやり取り`, sub: `補充の依頼 ${yen(r.amount)}${r.memo ? `（${esc(r.memo)}）` : ''}　${badge(REQUEST_STATUS[r.status].cls, REQUEST_STATUS[r.status].label)}`,
+    body: chatView(advThread(chats, r.id), input(r.status !== 'open')),
+    footer: '<div class="text-xs text-slate-500">実際の振込は、銀行システムで行います。やり取りが終わったら、依頼を出した鑑定士が「完了」にします。</div>',
+  });
 }
