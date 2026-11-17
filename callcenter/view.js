@@ -10,7 +10,7 @@ import { isTentative, isCancelled, isReverted } from '../src/reservations.js';
 import { loadCurrentTrips, tripAreas } from '../src/trips.js';
 import { specialtiesOf, AREAS, areaById, conflictOf, conflictText, WORK_START, WORK_END, DURATIONS, SLOT_STEP } from '../src/dispatch.js';
 import { minToHHMM } from '../src/reservations.js';
-import { CHIRASHI, INQUIRY_TYPES, AD_TYPES, CATEGORIES, AGE_BANDS, MAIN_ITEMS, MAIN_BANDS, ATTENDEES, YESNO, CONTACT_TIMES, flyerOf, isFlyerIndex } from './master.js';
+import { CHIRASHI, INQUIRY_TYPES, AD_TYPES, CATEGORIES, AGE_BANDS, MAIN_ITEMS, MAIN_BANDS, ATTENDEES, YESNO, CONTACT_TIMES, FLYERS, flyerOf, isFlyerIndex } from './master.js';
 import { FIELD_LABELS } from './transcript.js';
 import { addressCandidates, normalizeZip, ZIP_TABLE } from '../src/zipAddress.js';
 import { fullName } from './intake.js';
@@ -135,7 +135,7 @@ const sec = (title, body) => `<section class="bg-white rounded-lg shadow p-3 spa
 export function flyerResultHtml(id) {
   if (!String(id ?? '').trim()) return '';
   const f = flyerOf(id);
-  return f ? `<span class="text-teal-700 font-bold">✔ ${esc(CHIRASHI[f.chirashi])}</span>` : '<span class="text-amber-800 font-bold">該当なし。IDをご確認ください</span>';
+  return f ? `<span class="text-teal-700 font-bold">✔ ${esc(CHIRASHI[f.chirashi])}</span>` : '<span class="text-amber-800 font-bold">該当なし</span>';
 }
 
 // part: 'all'（全体）／'body'（電話番号の欄より下だけ。電話番号を入力中に、入力欄を作り直さないため）
@@ -174,7 +174,7 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
   const flyerSec = sec('① 来電のきっかけ', `
     <div class="grid grid-cols-2 gap-2">${lbl('問合せ種別', `<select class="inp mt-0.5" data-f="inquiryType">${INQUIRY_TYPES.map((o) => `<option ${o === f.inquiryType ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`)}${pick('adType', '広告種別', AD_TYPES, '（選択しない）')}</div>
     <div><div class="text-xs font-bold">来電のきっかけ<span class="text-rose-700 font-bold ml-0.5" title="必須">＊</span>${b('flyer')}</div>
-      <div class="flex items-center gap-2 mt-0.5"><div class="w-36 shrink-0">${inp('flyerId', f.flyerId, { ph: 'チラシID（N1019）' })}</div><div id="flyer-result" class="text-xs">${flyerResultHtml(f.flyerId)}</div></div>
+      <div class="flex items-center gap-2 mt-0.5"><div class="w-36 shrink-0">${inp('flyerId', f.flyerId, { ph: 'チラシID（N1019）', extra: 'list="flyer-ids" autocomplete="off"' })}<datalist id="flyer-ids">${FLYERS.map((x) => `<option value="${x.id}">${esc(CHIRASHI[x.chirashi])}</option>`).join('')}</datalist></div><div id="flyer-result" class="text-xs">${flyerResultHtml(f.flyerId)}</div></div>
       <div class="flex flex-wrap items-center gap-1 mt-1"><span class="text-xs text-slate-500">IDなし</span>${CHIRASHI.map((c, i) => (isFlyerIndex(i) ? '' : `<button class="chip ${f.chirashi === i ? 'on' : ''}" data-chirashi="${i}">${esc(c)}</button>`)).join('')}</div></div>`);
   const wantsSec = sec('② 売りたいもの', `
     <div><div class="text-xs font-bold">売りたいもの<span class="text-rose-700 font-bold ml-0.5" title="必須">＊</span>${b('wants')}</div>
