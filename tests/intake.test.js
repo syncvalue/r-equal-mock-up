@@ -110,3 +110,11 @@ test('受電の入口: 電話番号が入るまでは待つ。予約のある番
 test('聞き取りの順は、電話番号が最初（番号から、新規か変更かを判定する）', () => {
   assert.deepEqual(hearingChecklist(typed).slice(0, 3).map((x) => x.key), ['phone', 'adType', 'flyer']);
 });
+
+test('地図の切り替え: 住所から、地図の埋め込みURLと、戻るボタン付きの画面ができる', async () => {
+  const { mapEmbedUrl, mapPaneHtml } = await import('../callcenter/view.js');
+  assert.ok(mapEmbedUrl('奈良県奈良市あやめ池北').includes('output=embed'));
+  assert.ok(mapEmbedUrl('奈良県奈良市あやめ池北').includes(encodeURIComponent('奈良県奈良市あやめ池北')));
+  const html = mapPaneHtml('奈良県奈良市あやめ池北');
+  assert.ok(html.includes('data-mapclose') && html.includes('<iframe'));
+});

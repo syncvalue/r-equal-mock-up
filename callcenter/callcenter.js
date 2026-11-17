@@ -10,7 +10,7 @@ import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { initHelp } from '../src/help.js';
 import { esc } from '../src/format.js';
 import { CANCEL_REASONS, blankMain, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, visitHistoryHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml, zipCandidatesHtml } from './view.js';
+import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, visitHistoryHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml, zipCandidatesHtml, mapPaneHtml } from './view.js';
 import { dispatcherHtml, staffModalHtml, customerModalHtml, BOARD_ROW } from './dispatcherView.js';
 import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
@@ -68,6 +68,7 @@ let form = blankForm();
 let done = null; // 確定した直後の予約（確定画面を表示している間）
 let quoted = false; // 過去のお客様情報を引用済みか
 let showOthers = false;
+let mapAddress = ''; // 空でなければ、右の画面を地図に切り替えている（その住所）
 let calStaff = []; // 鑑定士を絞り込む（空なら全員）。「この案件はAさんかBさんが適任」のときに、その人たちだけを表示する
 let staffOpen = false;
 let calOnlyFree = false; // 日別表示で、希望の時間に空いている鑑定士だけを出す
@@ -315,6 +316,8 @@ function renderTranscript() {
 function renderDispatch() {
   const el = $('#dispatch');
   if (!el) return;
+  if (done) mapAddress = '';
+  if (mapAddress) { if (!el.querySelector('iframe')) el.innerHTML = mapPaneHtml(mapAddress); renderHint(); updateChecklist(); return; } // 地図のあいだは、入力のたびに描き直さない
   el.innerHTML = done ? doneHtml(done) : dispatchHtml(compute());
   renderHint();
   updateChecklist();
@@ -593,6 +596,8 @@ document.addEventListener('click', (e) => {
   else if (d.week) { weekStart = shiftWeek(Number(d.week)); renderDispatch(); }
   else if (d.pick) { form = { ...form, userId: d.pick }; renderDispatch(); }
   else if ('toggleOthers' in d) { showOthers = !showOthers; renderDispatch(); }
+  else if ('mapview' in d) { const a = form.address.trim(); if (!a) { flash('住所を入力してください'); } else { mapAddress = a; $('#dispatch')?.querySelector('iframe')?.remove(); renderDispatch(); } }
+  else if ('mapclose' in d) { mapAddress = ''; renderDispatch(); }
   else if ('map' in d) { const a = done?.customer.address ?? form.address.trim(); if (a) window.open(mapUrl(a), '_blank', 'noopener'); else flash('住所を入力してください'); }
   else if ('quote' in d) {
     const c = findPast(form);

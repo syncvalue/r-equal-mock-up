@@ -160,7 +160,7 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
       <select class="inp !w-auto" data-f="ageEst" title="年齢を聞けない場合は、声から推測した年代を選びます"><option value="">（年代を選ぶ）</option>${AGE_BANDS.map((a) => `<option ${f.ageEst === a ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
     <div class="grid grid-cols-3 gap-2">
       ${lbl(`郵便番号${b('zip')}`, inp('zip', f.zip, { ph: '545-6016' }))}
-      ${lbl(`訪問先の住所${b('address')}`, `<div class="flex gap-1">${inp('address', f.address, { ph: '大阪府大阪市阿倍野区…' })}<button class="b b-sec mt-0.5 shrink-0 !px-2" data-map title="Googleマップで開く">地図</button></div>`, { req: true, cls: 'col-span-2' })}
+      ${lbl(`訪問先の住所${b('address')}`, `<div class="flex gap-1">${inp('address', f.address, { ph: '大阪府大阪市阿倍野区…' })}<button class="b b-sec mt-0.5 shrink-0 !px-2" data-mapview title="右の画面を、地図に切り替える">地図</button></div>`, { req: true, cls: 'col-span-2' })}
     </div>
     <div id="zip-cands" class="empty:hidden">${zipCandidatesHtml(f)}</div>`);
   const when = sec('④ 訪問の希望日時', `
@@ -375,6 +375,16 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
         <div class="pt-0.5"><span class="text-slate-500">${form.dur}分で開始できる時刻：</span>${d.windows.length ? d.windows.map((w) => `<b>${minToHHMM(w.from)}${w.to > w.from ? `〜${minToHHMM(w.to)}` : ''}</b>`).join('、') : '<span class="text-rose-700">なし</span>'}</div>
         ${d.travel ? `<div class="text-[11px] leading-tight">${legHtml(d.travel.prev, 'prev')}${d.travel.next ? `<br />${legHtml(d.travel.next, 'next')}` : ''}</div>` : ''}`)}
     </div>
+  </div>`;
+}
+
+// 右の画面を、訪問先の地図に切り替える（Googleマップの埋め込み）。カレンダーには、ボタンで戻す
+export const mapEmbedUrl = (address) => `https://www.google.com/maps?q=${encodeURIComponent(address)}&hl=ja&z=16&output=embed`;
+export function mapPaneHtml(address) {
+  return `<div class="space-y-2">
+    <div class="flex items-center justify-between gap-2"><div class="text-sm font-bold">訪問先の地図<span class="font-normal text-xs text-slate-500 ml-2">${esc(address)}</span></div>
+      <div class="flex gap-1"><button class="b b-sec !min-h-0 !py-1 text-xs" data-map>別のタブで開く</button><button class="b b-pri !min-h-0 !py-1 text-xs" data-mapclose>カレンダーに戻る</button></div></div>
+    <iframe class="w-full rounded-lg border border-slate-300 bg-white" style="height:70vh" src="${esc(mapEmbedUrl(address))}" title="訪問先の地図" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
   </div>`;
 }
 
