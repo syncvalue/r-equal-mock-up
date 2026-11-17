@@ -127,8 +127,10 @@ function detailPanel(s, evals) {
     </dl>
     <div class="rounded-xl border p-2.5"><div class="font-bold text-sm">📞 受電時のヒアリング</div><div class="text-[11px] text-slate-400">${hearingMeta(e)}</div>
       <dl class="text-sm divide-y">${hearingRows(e, { stack: true })}</dl></div>
-    ${visiting ? '<p class="text-xs text-amber-700 font-bold">別の訪問中です。終了後に開始できます。</p>' : ''}
-    <button class="btn btn-primary w-full !py-3" data-action="start-from-event" data-id="${e.id}" ${visiting ? 'disabled' : ''}>▶ この訪問を開始（現地買取へ）</button>
+    ${visiting && s.visitEventId === e.id
+      ? '<button class="btn btn-primary w-full !py-3" data-action="nav" data-value="visit">▶ 訪問に戻る</button>'
+      : `${visiting ? '<p class="text-xs text-amber-700 font-bold">別の訪問中です。終了後に開始できます。</p>' : ''}
+    <button class="btn btn-primary w-full !py-3" data-action="start-from-event" data-id="${e.id}" ${visiting ? 'disabled' : ''}>▶ この訪問を開始</button>`}
     <div class="grid grid-cols-2 gap-2">
       <button class="btn btn-secondary !py-2 !px-2 !min-h-[48px] whitespace-nowrap text-sm" data-action="route-for" data-day="${e.day}" data-id="${e.id}">🚗 ルート確認</button>
       <a class="btn btn-secondary !py-2 !px-2 !min-h-[48px] whitespace-nowrap text-sm text-center flex items-center justify-center" target="_blank" rel="noopener" href="${esc(mapOpenUrl(OFFICE, [e]))}">🗺 マップで開く</a>

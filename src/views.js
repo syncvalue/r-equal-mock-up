@@ -106,7 +106,6 @@ export const MENU = [
   { key: 'start', view: 'workday', icon: '☀', label: '始業', sub: '始業点検をして、業務を開始' },
   { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
   { key: 'customers', icon: '📇', label: '顧客検索', sub: '自分のお客様に電話して、再訪のアポを取る' },
-  { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: '前日繰越金・補充金（入）と、経費・買取代金（出）' },
   { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品のQR読取・倉庫への入庫' },
   { key: 'end', view: 'workday', icon: '🌙', label: '終業・日報', sub: '現金の締めと、日報の提出' },
@@ -120,14 +119,12 @@ const menuBadge = (s) =>
     ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900"></span>'
     : '';
 
-// 始業するまで（終業後も）、現地買取は使えない。他の機能は、始業前・終業後も使える。
 // 始業は始業前だけ、終業・日報は始業後だけ使える
-const isDisabled = (s, m) => (m.key === 'visit' ? s.phase !== 'open' : m.key === 'start' ? s.phase !== 'before' : m.key === 'end' ? s.phase === 'before' : false);
+const isDisabled = (s, m) => (m.key === 'start' ? s.phase !== 'before' : m.key === 'end' ? s.phase === 'before' : false);
 const isActive = (s, m) => s.view === viewOf(m) && (m.key === 'start' ? s.phase === 'before' : m.key === 'end' ? s.phase !== 'before' : true);
 
 export function menuView(s) {
   if (!s.menuOpen) return '';
-  const visiting = s.visitStartedAt && !s.visitEndedAt;
   return `
   <div class="fixed inset-0 z-[55]">
     <div class="absolute inset-0 bg-black/50" data-action="close-menu"></div>
@@ -143,9 +140,8 @@ export function menuView(s) {
           <span class="flex-1 min-w-0"><span class="block font-bold text-lg leading-tight">${m.label}</span><span class="text-xs text-slate-300">${m.sub}</span>${m.key === 'expense' && (s.undrawn > 0 || s.balls?.length) ? `<span class="flex flex-wrap gap-1 mt-1.5">${s.undrawn > 0 ? `<span class="text-xs font-bold rounded-full bg-amber-400 text-slate-900 px-2 py-0.5 whitespace-nowrap">未引き出し ${yen(s.undrawn)}</span>` : ''}${s.balls?.length ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5 whitespace-nowrap">対応待ち ${s.balls.length}</span>` : ''}</span>` : ''}</span>
           ${m.key === 'start' && s.phase !== 'before' ? '<span class="text-xs font-bold rounded-full bg-white/20 px-2 py-0.5">実施済み</span>' : ''}
           ${m.key === 'start' && s.phase === 'before' ? '<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">未実施</span>' : ''}
-          ${(m.key === 'end' && s.phase === 'before') || (m.key === 'visit' && s.phase !== 'open') ? '<span class="text-lg">🔒</span>' : ''}
+          ${m.key === 'end' && s.phase === 'before' ? '<span class="text-lg">🔒</span>' : ''}
           ${m.key === 'end' && s.phase === 'closed' ? '<span class="text-xs font-bold rounded-full bg-white/20 px-2 py-0.5">提出済み</span>' : ''}
-          ${m.key === 'visit' && visiting ? `<span class="text-xs font-bold rounded-full bg-emerald-500 px-2 py-0.5">訪問中</span>` : ''}
           ${m.key === 'dashboard' && unreadCount(userById(s.user)) ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5">未読 ${unreadCount(userById(s.user))}</span>` : ''}
           ${m.key === 'return' && pendingCount(s) ? `<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">入庫待ち ${pendingCount(s)}</span>` : ''}
         </button>`).join('')}
