@@ -54,3 +54,21 @@ test('自動入力: 打ち込んだ住所は消さない。前の郵便番号か
   assert.equal(autoAddress('9999999', '東京都千代田区千代田1-1', '1000001', TABLE), null);
   assert.equal(autoAddress('100-0001', '東京都千代田区千代田', '1000001', TABLE), null); // すでに同じ
 });
+
+test('検索サービス: 結果を住所の文字にまとめる。「以下に掲載がない場合」は町域に入れない', async () => {
+  const { zipResultsToAddresses, fetchZip, addressCandidates, zipLookedUp } = await import('../src/zipAddress.js');
+  assert.deepEqual(zipResultsToAddresses([{ address1: '奈良県', address2: '奈良市', address3: 'あやめ池北' }]), ['奈良県奈良市あやめ池北']);
+  assert.deepEqual(zipResultsToAddresses([{ address1: '和歌山県', address2: '和歌山市', address3: '以下に掲載がない場合' }]), ['和歌山県和歌山市']);
+  assert.deepEqual(zipResultsToAddresses(null), []);
+  const ok = async () => ({ ok: true, json: async () => ({ results: [{ address1: '奈良県', address2: '奈良市', address3: 'あやめ池北' }] }) });
+  assert.equal(zipLookedUp('631-0032'), false);
+  assert.deepEqual(await fetchZip('631-0032', ok), ['奈良県奈良市あやめ池北']);
+  assert.equal(zipLookedUp('631-0032'), true);
+  assert.deepEqual(addressCandidates('631-0032'), ['奈良県奈良市あやめ池北']); // 調べたあとは、すぐ引ける
+  const none = async () => ({ ok: true, json: async () => ({ results: null }) });
+  assert.deepEqual(await fetchZip('999-9998', none), []);
+  assert.equal(zipLookedUp('999-9998'), true); // なかったこともおぼえる
+  const ng = async () => ({ ok: false, status: 500 });
+  assert.deepEqual(await fetchZip('999-9997', ng), []);
+  assert.equal(zipLookedUp('999-9997'), false); // 通信の失敗は、おぼえない
+});

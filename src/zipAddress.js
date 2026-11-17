@@ -39,7 +39,24 @@ export const normalizeZip = (zip) => String(zip ?? '').normalize('NFKC').replace
 // 7桁にそろった郵便番号だけ引く。表になければ空
 export function addressCandidates(zip, table = ZIP_TABLE) {
   const digits = normalizeZip(zip);
-  return digits.length === 7 ? [...(table[digits] ?? [])] : [];
+  if (digits.length !== 7) return [];
+  return [...(table[digits] ?? (table === ZIP_TABLE ? zipCache.get(digits) : null) ?? [])];
+}
+
+// 表にない郵便番号は、郵便番号の検索サービス（zipcloud。郵便番号だけを送る）で調べ、結果をおぼえておく（null＝調べたが、なかった）
+const zipCache = new Map();
+export const zipLookedUp = (zip) => { const d = normalizeZip(zip); return d.length === 7 && (d in ZIP_TABLE || zipCache.has(d)); };
+export const zipResultsToAddresses = (results) => [...new Set((results ?? []).map((r) => `${r.address1}${r.address2}${/以下に掲載がない場合/.test(r.address3) ? '' : r.address3}`))];
+export async function fetchZip(zip, fetcher = fetch) {
+  const d = normalizeZip(zip);
+  if (d.length !== 7 || zipLookedUp(d)) return addressCandidates(d);
+  try {
+    const res = await fetcher(`https://zipcloud.ibsnet.jp/api/search?zipcode=${d}`);
+    if (!res.ok) throw new Error(`検索に失敗しました（${res.status}）`);
+    const list = zipResultsToAddresses((await res.json()).results);
+    zipCache.set(d, list); // 見つからなかったときも、おぼえる
+    return [...list];
+  } catch (err) { console.error(err); return []; } // 通信の失敗は、おぼえない（あとで、もう一度調べられる）
 }
 
 // 郵便番号を入れたときに、住所の欄へ自動で入れる文字。入れないときは null。

@@ -21,7 +21,7 @@ import { pastVisitRows } from './phoneTimeline.js';
 import { buildIdIndex, idOfPhones, issueCustomerId } from './customerId.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
-import { autoAddress } from '../src/zipAddress.js';
+import { autoAddress, fetchZip, zipLookedUp, normalizeZip } from '../src/zipAddress.js';
 import { mountPinMap, searchAddress } from './mapPane.js';
 import { pinLabel } from './pin.js';
 import { missingFields, companionText, wantsText, hearingChecklist, entryStage, fullName, fullKana, profileText } from './intake.js';
@@ -468,6 +468,14 @@ const storeTab = createStoreTab({ operator: () => operator, rerender: render, fl
 // ---- イベント ------------------------------------------------------------------------
 const LIVE = new Set(['address', 'date', 'start', 'dur', 'phone', 'phone2', 'wants']);
 const NUMERIC = new Set(['start', 'dur']);
+function fillAddressFromZip(prevZip) {
+  const auto = autoAddress(form.zip, form.address, prevZip);
+  if (!auto) return false;
+  form = { ...form, address: auto };
+  const el = document.querySelector('[data-f="address"]');
+  if (el) el.value = auto;
+  return true;
+}
 function onField(e) {
   const k = e.target.dataset.f;
   if (!k) return;
@@ -475,8 +483,11 @@ function onField(e) {
   let autoFilled = false;
   form = { ...form, [k]: NUMERIC.has(k) ? Number(e.target.value) : e.target.value };
   if (k === 'zip') { // 郵便番号がそろったら、住所の欄に町域まで入れる（番地は続けて入力）
-    const auto = autoAddress(form.zip, form.address, prevZip);
-    if (auto) { form = { ...form, address: auto }; const el = document.querySelector('[data-f="address"]'); if (el) el.value = auto; autoFilled = true; }
+    autoFilled = fillAddressFromZip(prevZip);
+    if (!zipLookedUp(form.zip) && normalizeZip(form.zip).length === 7) { // 表にない番号は、検索サービスで調べて、あとから入れる
+      const asked = form.zip;
+      fetchZip(asked).then(() => { if (form.zip !== asked) return; const filled = fillAddressFromZip(prevZip); renderZipCandidates(); if (filled) renderDispatch(); else updateChecklist(); });
+    }
   }
   if (k === 'date' || k === 'start') form = { ...form, whenAsked: true };
   if (k === 'contactFrom' || k === 'contactTo') { form = syncContact(form, k); updateChecklist(); refresh(); return; }
