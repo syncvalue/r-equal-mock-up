@@ -1,6 +1,7 @@
 import { recordingsOf, loadRecordings, fmtDuration, recordingReady } from './recording.js';
 import { PRODUCTS, RANKS } from './data.js';
 import { mapView, tileUrl } from './mapView.js';
+import { packTargets, packProgress } from './packing.js';
 import { customersView as customersScreen, customerCallModal } from './customersView.js';
 import { masterBodyView } from './masterView.js';
 import { approvalState, latestApproval } from './store.js';
@@ -526,15 +527,19 @@ export function selectView(s) {
 export function scanView(s) {
   if (!s.scan) return '';
   const stock = s.scan.mode === 'stock';
-  const slot = stock ? null : s.items.flatMap((i) => itemSlots(s, i)).find((x) => x.key === s.scan.key);
+  const pack = s.scan.mode === 'pack';
+  const bad = s.scan.status === 'error';
+  const slot = stock || pack ? null : s.items.flatMap((i) => itemSlots(s, i)).find((x) => x.key === s.scan.key);
   const found = s.scan.status === 'found';
-  const col = found ? '#22c55e' : '#fff';
+  const col = bad ? '#ef4444' : found ? '#22c55e' : '#fff';
   const corner = (pos) => `<span class="cam-corner" style="${pos};border-color:${col}"></span>`;
   return `
   <div class="fixed inset-0 z-[70] bg-black text-white flex flex-col" role="dialog" aria-label="QRコード読み取り">
     <div class="flex items-center justify-between px-5 py-3 bg-black/70 z-10">
       <div class="flex items-center gap-3"><span class="inline-block w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span><span class="font-bold">カメラ起動中</span></div>
-      <div class="text-center leading-tight">${stock
+      <div class="text-center leading-tight">${pack
+        ? `<div class="font-bold">箱詰め ${boxProgress(s).done}／${boxProgress(s).total}点</div><div class="text-xs text-slate-300">買い取った商品のQRコードを読み取って、箱に入れます</div>`
+        : stock
         ? `<div class="font-bold">入庫 ${s.scan.stored} 点／残り ${s.scan.left} 点</div><div class="text-xs text-slate-300">保管場所: ${esc(s.scan.location)}</div>`
         : `<div class="font-bold">${esc(slot?.item.name ?? '')}${slot && slot.item.qty > 1 ? `（${slot.n}/${slot.item.qty}点目）` : ''}</div><div class="text-xs text-slate-300">貼付したシールのQRコードを読み取ります</div>`}</div>
       <button class="rounded-xl border-2 border-white/50 px-5 min-h-[44px] font-bold" data-action="scan-cancel">${stock ? '完了' : 'キャンセル'}</button>
@@ -543,19 +548,20 @@ export function scanView(s) {
       <div class="absolute inset-[-6%] cam-bg"></div>
       <div class="absolute inset-0 flex items-center justify-center">
         <div class="relative w-[min(60vh,70vw)] aspect-square">
-          <div class="absolute inset-[12%] cam-sticker rounded-md shadow-2xl overflow-hidden">${fakeQr(found ? s.scan.code : 'scanning-preview')}</div>
+          <div class="absolute inset-[12%] cam-sticker rounded-md shadow-2xl overflow-hidden">${fakeQr(found || bad ? s.scan.code : 'scanning-preview')}</div>
           ${corner('top:0;left:0;border-top-width:6px;border-left-width:6px;border-top-left-radius:14px')}
           ${corner('top:0;right:0;border-top-width:6px;border-right-width:6px;border-top-right-radius:14px')}
           ${corner('bottom:0;left:0;border-bottom-width:6px;border-left-width:6px;border-bottom-left-radius:14px')}
           ${corner('bottom:0;right:0;border-bottom-width:6px;border-right-width:6px;border-bottom-right-radius:14px')}
-          ${found || s.scan.status === 'empty' ? '' : '<div class="cam-line"></div>'}
+          ${found || bad || s.scan.status === 'empty' ? '' : '<div class="cam-line"></div>'}
         </div>
       </div>
       <div class="absolute inset-x-0 bottom-6 flex justify-center">
-        ${s.scan.status === 'empty'
+        ${bad ? `<div class="rounded-2xl bg-rose-600 px-6 py-3 text-center shadow-lg max-w-xl"><div class="font-bold text-lg">🚫 ${esc(s.scan.message)}</div><div class="font-mono text-xl tracking-wider">${esc(s.scan.code)}</div></div>`
+        : s.scan.status === 'empty'
           ? '<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">🎉 対象の商品をすべて入庫しました</div><div class="text-sm">「完了」を押してください</div></div>'
           : found
-          ? `<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ ${stock ? `入庫しました（${esc(s.scan.name)}）` : '読み取りました'}</div><div class="font-mono text-2xl tracking-wider">${esc(s.scan.code)}</div></div>`
+          ? `<div class="rounded-2xl bg-emerald-600 px-6 py-3 text-center shadow-lg"><div class="font-bold text-lg">✓ ${stock ? `入庫しました（${esc(s.scan.name)}）` : pack ? `箱に入れました（${esc(s.scan.name)}）` : '読み取りました'}</div><div class="font-mono text-2xl tracking-wider">${esc(s.scan.code)}</div></div>`
           : '<div class="rounded-full bg-black/60 px-5 py-2 text-lg">QRコードを枠内に合わせてください</div>'}
       </div>
     </div>
@@ -604,11 +610,12 @@ export const LEAVE_CHECKS = [
   { key: 'copy', text: '契約書の会社控えを回収し、お客様控えをお渡しした' },
   { key: 'cooling', text: 'クーリング・オフについて説明し、満了日をお伝えした' },
   { key: 'pay', text: '買取代金をお支払いし、お客様の受領を確認した' },
-  { key: 'pack', text: '買取商品をすべて梱包し、持ち帰り用にまとめた' },
-  { key: 'count', text: '商品の数が、シール・契約書と一致している' },
-  { key: 'lost', text: '忘れ物がない（書類・端末・お客様のお預かり品）' },
+  { key: 'lost', text: '書類・端末・お客様のお預かり品の、忘れ物がない' },
 ];
-export const leaveRemaining = (s) => LEAVE_CHECKS.filter((c) => !s.leaveChecks[c.key]).length;
+// 持ち帰りの箱詰め（QRを読み取りながら、買い取った商品をすべて箱に入れる）。入っていない商品があれば、訪問を終了できない
+export const boxProgress = (s) => packProgress(packTargets(labelSlots(s), s.labels), s.box?.packed ?? []);
+export const leaveRemaining = (s) => LEAVE_CHECKS.filter((c) => !s.leaveChecks[c.key]).length + (boxProgress(s).complete ? 0 : 1);
+export const LEAVE_TOTAL = LEAVE_CHECKS.length + 1;
 
 // ---- お客様の評価（鑑定士の記録。お客様には見せない） ---------------------------------------
 export const EVAL_OPTIONS = {
@@ -674,6 +681,25 @@ function recordCard(s) {
   return '<div class="rounded-xl bg-amber-50 border border-amber-300 p-3 text-sm text-amber-800 flex items-center justify-between gap-2"><span>録音を始めていません。</span><button class="btn btn-secondary !min-h-[40px] !py-1" data-action="rec-start">🎙 録音を開始</button></div>';
 }
 
+// 持ち帰りの箱詰め。買い取った商品のQRを読み取りながら、箱に入れる。買い取っていない商品のQRは、箱に入れない
+function boxPanel(s, done) {
+  const targets = packTargets(labelSlots(s), s.labels);
+  const p = boxProgress(s);
+  const packed = s.box?.packed ?? [];
+  const alert = s.box?.alert;
+  return `<div class="rounded-xl border-2 p-3 space-y-2 ${p.complete ? 'border-emerald-400 bg-emerald-50' : 'border-amber-400 bg-amber-50'}">
+    <div class="flex items-center justify-between gap-2"><div class="font-bold">📦 持ち帰りの箱詰め${helpIcon('買い取った商品のQRコードを、1点ずつ読み取りながら、持ち帰り用の箱に入れます。\n買い取った商品がすべて箱に入るまで、訪問は終了できません。\n買い取っていない商品のQRを読み取ると、警告が出ます。')}</div>
+      <span class="font-bold ${p.complete ? 'text-emerald-700' : 'text-amber-700'}">${p.done} / ${p.total}点</span></div>
+    ${targets.length ? `<div class="grid sm:grid-cols-2 gap-1">${targets.map((t) => `<div class="flex items-center gap-2 text-sm rounded-lg px-2 py-1 ${packed.includes(t.code) ? 'bg-white text-emerald-800' : 'bg-white/70 text-slate-700 font-bold'}">
+      <span class="w-5 text-center">${packed.includes(t.code) ? '✅' : '⬜'}</span><span class="min-w-0 flex-1 truncate">${esc(t.name)}${t.qty > 1 ? `（${t.n}/${t.qty}）` : ''}</span><span class="font-mono text-[11px] text-slate-400">${esc(t.code.slice(-4))}</span></div>`).join('')}</div>` : '<div class="text-sm text-slate-500">持ち帰る商品はありません</div>'}
+    ${alert ? `<div class="rounded-lg bg-rose-600 text-white px-3 py-2 text-sm font-bold">🚫 ${esc(alert.message)}<span class="block font-mono text-xs font-normal">${esc(alert.code)}</span></div>` : ''}
+    ${p.complete ? (targets.length ? '<div class="text-sm font-bold text-emerald-700">✓ 買い取った商品が、すべて箱に入りました</div>' : '')
+      : `<div class="text-sm font-bold text-amber-800">箱に入っていない商品が、あと${p.left}点あります。お客様宅に置き忘れていないか、確認してください</div>`}
+    ${done || p.complete ? '' : `<button class="btn btn-primary w-full !min-h-[48px] !py-2" data-action="pack-scan">📷 QRを読み取って、箱に入れる</button>
+      <button class="text-xs underline text-slate-400" data-action="pack-scan-foreign">（デモ用）買い取っていない商品のQRを読み取る</button>`}
+  </div>`;
+}
+
 export function endView(s) {
   const done = Boolean(s.visitEndedAt);
   const left = leaveRemaining(s);
@@ -702,8 +728,9 @@ export function endView(s) {
       <div class="card !p-4 flex flex-col gap-2 min-h-0">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-bold">🚪 お客様宅を出る前の確認${helpIcon('すべてチェックすると、訪問を終了できます。')}</h2>
-          <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${LEAVE_CHECKS.length - left} / ${LEAVE_CHECKS.length}</span></div>
+          <span class="font-bold ${left ? 'text-amber-700' : 'text-emerald-700'}">${LEAVE_TOTAL - left} / ${LEAVE_TOTAL}</span></div>
         <div class="space-y-1.5 overflow-y-auto min-h-0 flex-1" data-scroll="leave">
+          ${boxPanel(s, done)}
           ${auto.map(([t, ok]) => `<div class="flex items-center gap-3 rounded-xl border-2 ${ok ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300'} px-3 py-2 min-h-[48px]">
               <span class="w-7 h-7 rounded-md flex items-center justify-center text-white font-bold ${ok ? 'bg-emerald-600' : 'bg-rose-500'}">${ok ? '✓' : '!'}</span>
               <span class="flex-1">${t}</span><span class="text-xs text-slate-500">自動確認</span></div>`).join('')}

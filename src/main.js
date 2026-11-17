@@ -17,6 +17,7 @@ import { userById, isLeader } from './dashboard.js';
 import { ACCOUNTS } from './auth.js';
 import { setFirstVisitCustomerEval } from './customerHistory.js';
 import { recordDeclined } from './declined.js';
+import { packTargets, scanIntoBox, packProgress, packMessage } from './packing.js';
 import { makeCall, addCall, loadCallLog, saveCallLog, CALL_LOG_KEY } from './callLog.js';
 import { customerListHtml } from './customersView.js';
 import { loadCustNotes, saveCustNotes, setFavorite, setMemo, notesOf } from './customerNotes.js';
@@ -108,6 +109,7 @@ const initialState = () => ({
   comments: [],
   scan: null,
   leaveChecks: {},
+  box: { packed: [], alert: null }, // 持ち帰りの箱詰め（箱に入れた商品のQRコードと、最後の警告）
   showStaff: false,
   briefing: { checks: {}, propose: '' },
   rec: null, // 録音中なら { startedAt }
@@ -334,6 +336,32 @@ function assignLabel(key, raw) {
 
 let scanToken = 0;
 
+// 箱詰めの読み取り（モック）: カメラを出し、読み取って、箱に入れる（買い取っていない商品なら、警告を出して入れない）
+function packScan(code) {
+  scanToken += 1;
+  const token = scanToken;
+  set({ scan: { mode: 'pack', status: 'scanning', code: '' } });
+  setTimeout(() => {
+    if (token !== scanToken) return;
+    const targets = packTargets(V.labelSlots(state), state.labels);
+    const r = scanIntoBox(targets, state.box.packed, code);
+    if (r.type === 'foreign' || r.type === 'dup') {
+      const message = packMessage(r);
+      set({ scan: { mode: 'pack', status: 'error', code: r.code, message }, box: { ...state.box, alert: { code: r.code, message, at: Date.now() } } });
+      rerenderKeepScroll();
+      setTimeout(() => { if (token !== scanToken) return; set({ scan: null }); rerenderKeepScroll(); }, 2600);
+      return;
+    }
+    set({ scan: { mode: 'pack', status: 'found', code: r.code, name: r.target.name } });
+    rerenderKeepScroll();
+    setTimeout(() => {
+      if (token !== scanToken) return;
+      set({ scan: null, box: { packed: r.packed, alert: null } });
+      rerenderKeepScroll();
+    }, 1000);
+  }, 1500);
+}
+
 // シールNo.（読取・入力）を入庫する。結果は画面に表示する
 function receiveCode(raw) {
   const target = stockTarget(state);
@@ -390,6 +418,15 @@ const actions = {
       }, 1000);
     }, 2200);
   },
+  // 持ち帰りの箱詰め（QR読取はモック）。買い取った商品のQRを読み取り、箱に入れる
+  'pack-scan': () => {
+    const targets = packTargets(V.labelSlots(state), state.labels);
+    const next = packProgress(targets, state.box.packed).missing[0];
+    if (!next) return;
+    packScan(next.code);
+  },
+  // デモ用: 買い取っていない商品（別のお客様の商品・見送り品など）のQRを読み取る → 警告
+  'pack-scan-foreign': () => packScan(newCode()),
   'scan-cancel': () => { scanToken += 1; set({ scan: null }); },
   // デモ用: 残りを一括で読み取る（色は、QRから自動で選ばれる）
   'dummy-scan-all': () => {
@@ -858,7 +895,7 @@ const actions = {
   'staff-toggle': () => set({ showStaff: !state.showStaff }),
   'brief-propose': (el) => set({ briefing: { ...state.briefing, propose: el.dataset.value } }),
   'brief-all': () => set({ briefing: { checks: Object.fromEntries(V.BRIEFING_CHECKS.map((c) => [c.key, true])), propose: 'yes' } }),
-  'leave-all': () => set({ leaveChecks: Object.fromEntries(V.LEAVE_CHECKS.map((c) => [c.key, true])) }),
+  'leave-all': () => set({ leaveChecks: Object.fromEntries(V.LEAVE_CHECKS.map((c) => [c.key, true])), box: { packed: packTargets(V.labelSlots(state), state.labels).map((t) => t.code), alert: null } }), // デモ用: 箱詰めも済ませる
   reset: () => { state = { ...initialState(), view: 'schedule' }; }, // 訪問完了後の「新しい訪問を開始」は、今日の予定へ
   'reset-all': () => { if (confirm(RESET_CONFIRM)) { clearTransactions(); state = initialState(); showToast('データを初期化しました'); } },
 };
