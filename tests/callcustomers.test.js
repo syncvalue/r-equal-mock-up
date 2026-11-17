@@ -71,6 +71,17 @@ test('顧客リスト: 検索・絞り込み・並べ替え（日数・近さ・
   assert.equal(customerRows('u01', { now: NOW }).every((r) => r.distanceKm === null), true); // 現在地が分からなければ、距離なし
 });
 
+test('並べ替え: 過去の買取金額順・買取できなかった商品数順（自分の訪問だけを数える）', () => {
+  const rows = customerRows('u01', { now: NOW });
+  const byTotal = sortRows(rows, 'total');
+  assert.ok(byTotal.every((r, i) => i === 0 || byTotal[i - 1].total >= r.total));
+  const byDeclined = sortRows(rows, 'declined');
+  assert.ok(byDeclined.every((r, i) => i === 0 || byDeclined[i - 1].declinedCount >= r.declinedCount));
+  assert.ok(byDeclined[0].declinedCount > 0 && rows.some((r) => r.declinedCount === 0));
+  assert.equal(rows.find((r) => r.name === '田村 恵').declinedCount, 1); // 前日の訪問で、見送りにした1点
+  assert.equal(rows.find((r) => r.name === '山田 花子').declinedCount, 0); // 山田さんの見送り品は、田中さんの訪問のもの（鈴木さんの訪問ではない）
+});
+
 test('電話履歴の見え方: 他の鑑定士の名前は伏せる。オペレーターと自分は、そのまま', () => {
   const list = [{ by: '鑑定士 田中 健', kind: '鑑定士が架電', userId: 'u02' }, { by: '鑑定士 鈴木 一郎', kind: '鑑定士が架電', userId: 'u01' }, { by: '佐藤', kind: '前日確認の電話' }];
   const v = maskOtherSales(list, 'u01');

@@ -4,6 +4,7 @@ import { userById } from './dashboard.js';
 import { seedCustomersOf } from './customerHistory.js';
 import { eventsOfDay, dayDate } from './schedule.js';
 import { loadContracts } from './store.js';
+import { loadDeclined } from './declined.js';
 import { locateAddress } from './dispatch.js';
 import { distanceKm, OFFICE } from './route.js';
 import { lastCallOf, callsOfPhones, daysSince } from './callLog.js';
@@ -38,7 +39,7 @@ function demoCustomers(userId, now) {
     const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ago, 10).getTime();
     return {
       phone: `0${['90', '80', '70'][i % 3]}-${four()}-${four()}`, name: `${sur} ${giv}`, kana: `${KANA[sur]} ${GKANA[giv]}`, address, lat: lat + (rnd() - 0.5) * 0.004, lng: lng + (rnd() - 0.5) * 0.004,
-      visits: Array.from({ length: count }, (_, k) => ({ at: at - k * 70 * 86400000, total: 30000 + Math.floor(rnd() * 570) * 1000 })),
+      visits: Array.from({ length: count }, (_, k) => ({ at: at - k * 70 * 86400000, total: 30000 + Math.floor(rnd() * 570) * 1000, declined: rnd() < 0.5 ? 0 : 1 + Math.floor(rnd() * 3) })),
     };
   });
 }
@@ -48,10 +49,11 @@ function recordedCustomers(userId, now) {
   const name = userById(userId).name;
   const fromEvents = eventsOfDay(-1, userId).filter((e) => e.past?.items?.some((i) => i.sell)).map((e) => ({
     phone: e.customer.phone, name: e.customer.name, kana: e.customer.kana, address: e.customer.address, lat: e.lat, lng: e.lng,
-    visits: [{ at: dayDate(e.day, now).getTime(), total: e.past.items.filter((i) => i.sell).reduce((n, i) => n + i.price * (i.qty ?? 1), 0) }],
+    visits: [{ at: dayDate(e.day, now).getTime(), total: e.past.items.filter((i) => i.sell).reduce((n, i) => n + i.price * (i.qty ?? 1), 0), declined: e.past.items.filter((i) => !i.sell).reduce((n, i) => n + (i.qty ?? 1), 0) }],
   }));
   const fromContracts = loadContracts().filter((c) => c.callInfo?.appraiser === name && c.customer?.phone).map((c) => ({
-    phone: c.customer.phone, name: c.customer.name, kana: c.customer.kana, address: c.customer.address, visits: [{ at: c.sentAt, total: c.total }],
+    phone: c.customer.phone, name: c.customer.name, kana: c.customer.kana, address: c.customer.address,
+    visits: [{ at: c.sentAt, total: c.total, declined: loadDeclined().filter((d) => d.visitId === c.visitId).flatMap((d) => d.items).reduce((n, i) => n + (i.qty ?? 1), 0) }],
   }));
   return [...seedCustomersOf(name), ...fromEvents, ...fromContracts];
 }
@@ -69,7 +71,7 @@ export function customerRows(userId, { now = new Date(), from = null, calls = []
     const visits = [...c.visits].sort((a, b) => b.at - a.at);
     return {
       phone: c.phone, name: c.name, kana: c.kana ?? '', address: c.address ?? '', lat: pos.lat, lng: pos.lng,
-      lastVisitAt: visits[0].at, days: daysSince(visits[0].at, now), visitCount: visits.length, total: visits.reduce((n, v) => n + (v.total || 0), 0),
+      lastVisitAt: visits[0].at, days: daysSince(visits[0].at, now), visitCount: visits.length, total: visits.reduce((n, v) => n + (v.total || 0), 0), declinedCount: visits.reduce((n, v) => n + (v.declined || 0), 0), // 買取金額の合計・買取できなかった（見送りの）商品の数。どちらも自分の訪問だけ
       distanceKm: from ? Math.round(distanceKm(from, pos) * 10) / 10 : null, lastCall: lastCallOf(calls, [c.phone]),
       callMemo: callsOfPhones(calls, [c.phone]).find((x) => x.memo) ?? null, // 直近の、メモ付きの電話の記録
       favorite: Boolean(notes[digits(c.phone)]?.favorite), memo: notes[digits(c.phone)]?.memo ?? '', // お気に入りと自分用のメモ（自分だけ）
@@ -85,11 +87,13 @@ export function filterRows(rows, { q = '', minDays = 0, nearKm = 0, favOnly = fa
     && (!favOnly || r.favorite) && r.days >= minDays && (!nearKm || (r.distanceKm !== null && r.distanceKm <= nearKm)));
 }
 
-// 並べ替え: days=前回の訪問から長い順／near=現在地から近い順／call=電話していない順（電話したことがなければ先、あとは電話が古い順）
+// 並べ替え: days=前回の訪問から長い順／total=過去の買取金額が多い順／declined=買取できなかった商品が多い順／near=現在地から近い順／call=電話していない順（電話したことがなければ先、あとは電話が古い順）
 export function sortRows(rows, key) {
   const by = {
     days: (a, b) => b.days - a.days,
     near: (a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity) || b.days - a.days,
+    total: (a, b) => b.total - a.total || b.days - a.days,
+    declined: (a, b) => b.declinedCount - a.declinedCount || b.total - a.total,
     call: (a, b) => (a.lastCall?.at ?? 0) - (b.lastCall?.at ?? 0) || b.days - a.days,
   }[key] ?? (() => 0);
   return [...rows].sort(by);

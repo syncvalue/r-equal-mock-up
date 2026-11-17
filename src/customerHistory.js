@@ -104,7 +104,8 @@ const salesName = (by) => String(by).replace(/^(営業|鑑定士)\s*/, '');
 export function seedCustomersOf(name) {
   return Object.entries(SEED).filter(([, v]) => v.customer && v.evals?.some((e) => salesName(e.by) === name)).map(([phone, v]) => ({
     phone, ...v.customer,
-    visits: v.visits.filter((x) => { const ev = evalOfVisit(x, v.evals); return ev && salesName(ev.by) === name; }).map((x) => ({ at: x.at, total: x.total })),
+    visits: v.visits.filter((x) => { const ev = evalOfVisit(x, v.evals); return ev && salesName(ev.by) === name; })
+      .map((x) => ({ at: x.at, total: x.total, declined: (v.declined ?? []).filter((d) => sameDay(d.at, x.at)).flatMap((d) => d.items).reduce((n, i) => n + (i.qty ?? 1), 0) })), // その訪問で、売らなかった商品の数
   }));
 }
 

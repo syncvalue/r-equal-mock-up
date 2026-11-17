@@ -9,7 +9,7 @@ import { userById } from './dashboard.js';
 import { loadCustNotes, notesOf } from './customerNotes.js';
 
 export const NEAR_KM = 5;
-const SORTS = [['days', '前回の訪問から長い順'], ['near', '近い順'], ['call', '電話していない順']];
+const SORTS = [['days', '前回の訪問から長い順'], ['total', '過去の買取金額順'], ['declined', '買取できなかった商品数順'], ['near', '近い順'], ['call', '電話していない順']];
 const DAYS = [[0, 'すべて'], [30, '30日以上'], [90, '90日以上'], [180, '180日以上']];
 const RESULT_CLS = { appo: 'bg-emerald-100 text-emerald-800', talked: 'bg-sky-100 text-sky-800', noanswer: 'bg-slate-200 text-slate-700', ng: 'bg-rose-100 text-rose-800' };
 const date = (at) => new Date(at).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -40,7 +40,7 @@ export function customerListHtml(s) {
           <div class="flex items-baseline gap-2 flex-wrap"><span class="text-lg font-bold">${esc(r.name)} 様</span><span class="text-xs text-slate-400">${esc(r.kana)}</span></div>
           <div class="text-sm text-slate-600 truncate">📍 ${esc(r.address)}</div>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
-            <span>前回 ${date(r.lastVisitAt)}（<b class="${r.days >= 90 ? 'text-teal-700' : ''}">${r.days}日前</b>）</span><span>訪問 ${r.visitCount}回</span><span>買取計 ${yen(r.total)}</span>${callBadge(r, now)}</div>
+            <span>前回 ${date(r.lastVisitAt)}（<b class="${r.days >= 90 ? 'text-teal-700' : ''}">${r.days}日前</b>）</span><span>訪問 ${r.visitCount}回</span><span>買取計 ${yen(r.total)}</span>${r.declinedCount ? `<span class="text-amber-700">見送り ${r.declinedCount}点</span>` : ''}${callBadge(r, now)}</div>
           ${r.memo ? `<div class="mt-1 text-xs rounded bg-yellow-50 border border-yellow-200 text-yellow-900 px-2 py-0.5 break-words">📝 自分用　${esc(clip(r.memo))}</div>` : ''}
           ${r.callMemo ? `<div class="mt-1 text-xs rounded bg-violet-50 border border-violet-200 text-violet-900 px-2 py-0.5 break-words">📞 ${new Date(r.callMemo.at).getMonth() + 1}/${new Date(r.callMemo.at).getDate()}の電話メモ　${esc(clip(r.callMemo.memo))}</div>` : ''}</div>
         <div class="text-right shrink-0">${r.distanceKm !== null ? `<div class="text-lg font-bold ${r.distanceKm <= NEAR_KM ? 'text-teal-700' : 'text-slate-500'}">${km(r.distanceKm)}</div><div class="text-[11px] text-slate-400">現在地から</div>` : ''}
@@ -86,7 +86,7 @@ export function customerCallModal(s) {
     body: `
     <dl class="text-sm space-y-1">
       ${info('フリガナ', esc(row.kana) || '-')}${info('電話番号', esc(row.phone))}${info('住所', `${esc(row.address)} <a class="ml-1 underline text-teal-700 font-normal" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${row.lat},${row.lng}">地図</a>${row.distanceKm !== null ? `<span class="ml-2 text-teal-700">現在地から ${km(row.distanceKm)}</span>` : ''}`)}
-      ${info('自分の訪問', `${row.visitCount}回・前回 ${date(row.lastVisitAt)}（${row.days}日前）・買取計 ${yen(row.total)}`)}</dl>
+      ${info('自分の訪問', `${row.visitCount}回・前回 ${date(row.lastVisitAt)}（${row.days}日前）・買取計 ${yen(row.total)}${row.declinedCount ? `・買取できなかった商品 ${row.declinedCount}点` : ''}`)}</dl>
     ${ng ? '<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-2 text-sm font-bold text-rose-700">🚫 「今後の連絡は不要」と言われています（電話は控えてください）</div>'
       : soon ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-2 text-sm font-bold text-amber-800">⚠ ${daysSince(last.at, now)}日前に電話しています（${esc(last.kind)}・${esc(last.by ?? '')}）。しつこいと思われないよう、ご注意ください</div>` : ''}
     <a class="btn btn-primary w-full text-center !min-h-[52px] !py-2 text-lg" href="tel:${esc(row.phone.replace(/[^\d+]/g, ''))}">📞 ${esc(row.phone)} に電話をかける</a>
