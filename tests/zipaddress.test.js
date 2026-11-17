@@ -71,4 +71,6 @@ test('検索サービス: 結果を住所の文字にまとめる。「以下に
   const ng = async () => ({ ok: false, status: 500 });
   assert.deepEqual(await fetchZip('999-9997', ng), []);
   assert.equal(zipLookedUp('999-9997'), false); // 通信の失敗は、おぼえない
+  const { zipLookupFailed } = await import('../src/zipAddress.js');
+  assert.equal(zipLookupFailed('999-9997'), true); // 失敗は、画面で知らせる
 });

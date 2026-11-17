@@ -13,7 +13,7 @@ import { specialtiesOf, AREAS, areaById, conflictOf, conflictText, WORK_START, W
 import { minToHHMM } from '../src/reservations.js';
 import { CHIRASHI, INQUIRY_TYPES, AD_TYPES, CATEGORIES, AGE_BANDS, MAIN_ITEMS, MAIN_BANDS, ATTENDEES, YESNO, CONTACT_TIMES, FLYERS, flyerOf, isFlyerIndex } from './master.js';
 import { FIELD_LABELS } from './transcript.js';
-import { addressCandidates, normalizeZip, zipLookedUp, ZIP_TABLE } from '../src/zipAddress.js';
+import { addressCandidates, normalizeZip, zipLookedUp, zipLookupFailed, ZIP_TABLE } from '../src/zipAddress.js';
 import { fullName } from './intake.js';
 
 export const mapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -126,6 +126,7 @@ const inp = (key, v, { type = 'text', ph = '', extra = '' } = {}) => `<input cla
 export function zipCandidatesHtml(f, table = ZIP_TABLE) {
   if (normalizeZip(f.zip).length !== 7) return '';
   const cands = addressCandidates(f.zip, table);
+  if (!cands.length && table === ZIP_TABLE && zipLookupFailed(f.zip)) return '<p class="text-xs text-amber-800">郵便番号を調べられませんでした（通信を確認してください）</p>';
   if (!cands.length && table === ZIP_TABLE && !zipLookedUp(f.zip)) return ''; // 調べている間は、何も出さない
   if (!cands.length) return '<p class="text-xs text-slate-500">この郵便番号の住所は、見つかりません</p>';
   const address = String(f.address ?? '').trim();
