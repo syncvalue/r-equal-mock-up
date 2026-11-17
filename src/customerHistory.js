@@ -99,6 +99,15 @@ const SEED = {
 // 履歴にお客様の情報（氏名・住所など）を持つ人。コールセンターが、電話番号から「過去にご利用あり」を出すのに使う
 export const historyCustomers = () => Object.entries(SEED).filter(([, v]) => v.customer).map(([phone, v]) => ({ ...v.customer, phone }));
 
+// 指定した鑑定士が担当した（評価を残した）お客様と、その鑑定士の訪問だけ。顧客検索（鑑定士が、自分の顧客に電話する）に使う。他の鑑定士の訪問は含めない
+const salesName = (by) => String(by).replace(/^(営業|鑑定士)\s*/, '');
+export function seedCustomersOf(name) {
+  return Object.entries(SEED).filter(([, v]) => v.customer && v.evals?.some((e) => salesName(e.by) === name)).map(([phone, v]) => ({
+    phone, ...v.customer,
+    visits: v.visits.filter((x) => { const ev = evalOfVisit(x, v.evals); return ev && salesName(ev.by) === name; }).map((x) => ({ at: x.at, total: x.total })),
+  }));
+}
+
 // ---- お客様のランク・厄介度・クーリングオフ歴 ------------------------------------------------
 // 顧客ランク: 資産・今後の売却の見込み（S〜C。高いほど、売るものが多そう）。登録がなければ、これまでの総買取額から自動で決める。買取の実績がなければ null（新規）
 // 厄介度: none=なし / caution=注意 / alert=要注意（金があっても売ってくれない・文句が多い など）。ランクとは別の軸

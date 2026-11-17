@@ -1,6 +1,7 @@
 import { recordingsOf, loadRecordings, fmtDuration, recordingReady } from './recording.js';
 import { PRODUCTS, RANKS } from './data.js';
 import { mapView, tileUrl } from './mapView.js';
+import { customersView as customersScreen, customerCallModal } from './customersView.js';
 import { masterBodyView } from './masterView.js';
 import { approvalState, latestApproval } from './store.js';
 import { threadFor, messagesOf, hasUnread } from './appraisalThread.js';
@@ -103,6 +104,7 @@ export const MENU = [
   { key: 'dashboard', icon: '📊', label: 'ダッシュボード', sub: '本社からのお知らせ・業績の確認' },
   { key: 'start', view: 'workday', icon: '☀', label: '始業', sub: '始業点検をして、業務を開始' },
   { key: 'schedule', icon: '📅', label: '今日の予定', sub: '3日間の予定・ルート確認・訪問開始' },
+  { key: 'customers', icon: '📇', label: '顧客検索', sub: '自分のお客様に電話して、再訪のアポを取る' },
   { key: 'visit', icon: '🏠', label: '現地買取', sub: 'お客様の前での買取手続き' },
   { key: 'expense', icon: '💴', label: '経費管理', sub: '前日繰越金・補充金（入）と、経費・買取代金（出）' },
   { key: 'return', icon: '📦', label: '商品の持ち帰り', sub: '買取商品のQR読取・倉庫への入庫' },
@@ -868,6 +870,7 @@ export function modalView(s) {
       <button class="btn btn-primary w-full" data-action="leader-send">送信する</button>`);
   }
   if (m.type === 'dashreports') { const v = dashReportsModal(s); return modalShell(v.title, v.body, { wide: true, right: v.right }); }
+  if (m.type === 'custcall') { const v = customerCallModal(s); return modalShell(v.title, v.body, { wide: true }); }
   if (m.type === 'dashvisits') { const v = dashVisitsModal(s); return modalShell(v.title, v.body, { wide: true }); }
   if (m.type === 'eval') return evalModalView(s);
   if (m.type === 'comments') return commentsModalView(s);
@@ -989,3 +992,5 @@ export { workdayView, expenseView, receiptModalView, outcomeModalView, outcomeRe
 export { stockView } from './stockView.js';
 export { reviseBanner, reviseSection, reviseModalView, rvLiveView } from './reviseView.js';
 export { advanceButton, advanceModalView, advLiveView } from './advanceView.js';
+
+export const customersView = customersScreen;

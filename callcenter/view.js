@@ -468,7 +468,7 @@ export function cancelModalHtml(r, reason) {
 }
 
 // ---- 電話番号ごとの受電履歴 ----------------------------------------------------------------
-const KIND_CLS = { 新規受付: 'bg-emerald-100 text-emerald-800', 日時変更: 'bg-sky-100 text-sky-800', 変更: 'bg-sky-100 text-sky-800', 取消: 'bg-slate-300 text-slate-700', 問合せ: 'bg-amber-100 text-amber-800' };
+const KIND_CLS = { 新規受付: 'bg-emerald-100 text-emerald-800', 日時変更: 'bg-sky-100 text-sky-800', 変更: 'bg-sky-100 text-sky-800', 取消: 'bg-slate-300 text-slate-700', 問合せ: 'bg-amber-100 text-amber-800', 鑑定士が架電: 'bg-violet-100 text-violet-800', 前日確認の電話: 'bg-teal-100 text-teal-800' };
 const stampText = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
 export function callLogHtml(list, open) {

@@ -1,5 +1,6 @@
 // 電話番号ごとの受電履歴。受け付けた予約・その変更・取消の記録から作り、予約にならなかった問い合わせ（ダミー）を加える。
 // 新しい順。at はミリ秒、kind は 新規受付／日時変更／変更／取消／問合せ
+import { loadCallLog, callsOfPhones, callNote } from './callLog.js';
 const at = (s) => new Date(s.replace(' ', 'T') + ':00').getTime();
 
 // 予約にならなかった問い合わせや、過去の受付（ダミー）。電話番号をキーにする
@@ -17,11 +18,13 @@ const SEED_CALLS = {
   ],
 };
 
+const CONFIRM_RESULT = { reached: 'つながった', noanswer: 'つながらなかった' };
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 const stampMs = (r) => r.receivedTs ?? (Date.parse(String(r.receivedAt ?? '').replace(/\//g, '-').replace(/-(\d)(?=-|\s|$)/g, '-0$1')) || 0);
 const changeMs = (s) => Date.parse(String(s ?? '').replace(/\//g, '-').replace(/-(\d)(?=-|\s|$)/g, '-0$1')) || 0;
 
-export function callHistory(phones, reservations) {
+// calls: 鑑定士が電話した記録（callLog.js）。指定がなければ、保存してあるもの。前日確認の電話（オペレーター）も、受付の記録から出す
+export function callHistory(phones, reservations, calls = loadCallLog()) {
   const mine = [...new Set(phones.map(digits).filter((d) => d.length >= 10))];
   if (!mine.length) return [];
   const has = (p) => mine.includes(digits(p));
@@ -30,7 +33,9 @@ export function callHistory(phones, reservations) {
   reservations.filter((r) => [r.customer.phone, r.customer.phone2].some(has)).forEach((r) => {
     out.push({ at: stampMs(r), by: r.operator, kind: '新規受付', note: `${r.date.slice(5).replace('-', '/')} ${r.start}〜 訪問（${r.hearing?.wants ?? ''}）` });
     (r.changes ?? []).forEach((c) => out.push({ at: changeMs(c.at), by: c.by, kind: '変更', note: (c.diff ?? []).map((d) => `${d.label}：${d.from} → ${d.to}`).join(' ／ ') || '内容を更新' }));
+    (r.confirmCalls ?? []).forEach((c) => out.push({ at: c.at, by: c.by, kind: '前日確認の電話', note: `${CONFIRM_RESULT[c.result] ?? c.result}${c.memo ? `：${c.memo}` : ''}` }));
     if (r.status === 'cancelled') out.push({ at: changeMs(r.cancelledAt), by: r.cancelledBy, kind: '取消', note: r.cancelReason ?? '' });
   });
+  callsOfPhones(calls, phones).forEach((c) => out.push({ at: c.at, by: c.by, kind: '鑑定士が架電', note: callNote(c), userId: c.userId }));
   return out.sort((a, b) => b.at - a.at);
 }

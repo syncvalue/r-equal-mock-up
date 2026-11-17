@@ -17,6 +17,9 @@ import { userById, isLeader } from './dashboard.js';
 import { ACCOUNTS } from './auth.js';
 import { setFirstVisitCustomerEval } from './customerHistory.js';
 import { recordDeclined } from './declined.js';
+import { makeCall, addCall, loadCallLog, saveCallLog, CALL_LOG_KEY } from './callLog.js';
+import { customerListHtml } from './customersView.js';
+import { loadCustNotes, saveCustNotes, setFavorite, setMemo, notesOf } from './customerNotes.js';
 import { makeRecording, addRecording, loadRecordings, saveRecordings, newRecordingId, recordingReady } from './recording.js';
 import { startRecording, stopRecording, putAudio, getAudio, canRecord } from './recordingStore.js';
 const ACCOUNTS_BY_USER = (userId) => ACCOUNTS.find((a) => a.userId === userId) ?? null;
@@ -108,6 +111,7 @@ const initialState = () => ({
   showStaff: false,
   briefing: { checks: {}, propose: '' },
   rec: null, // 録音中なら { startedAt }
+  cust: { q: '', sort: 'days', minDays: 0, near: false, favOnly: false, form: { result: '', wish: '', memo: '' } }, // 顧客検索
   evalDraft: V.blankEval(),
   approvals: [],
   apMode: 'hq',
@@ -121,7 +125,7 @@ const set = (patch) => { state = { ...state, ...patch }; };
 
 // 現在地の取得（Googleマップの出発点・訪問開始の画面の地図）。許可されない・取得できない場合は営業所を出発点にする。force=true は、取得済みでも取り直す
 const onStartScreen = () => state.view === 'visit' && state.step === 0;
-const geoRedraw = () => { if ((state.view === 'schedule' && state.sched.tab === 'route') || onStartScreen()) rerenderKeepScroll(); };
+const geoRedraw = () => { if ((state.view === 'schedule' && state.sched.tab === 'route') || onStartScreen() || state.view === 'customers') rerenderKeepScroll(); };
 function requestGeo(force = false) {
   if ((state.geo && !force) || !navigator.geolocation) { if (!state.geo) set({ geo: { ok: false } }); return; }
   set({ geo: { ok: false, pending: true } });
@@ -253,10 +257,11 @@ function render() {
   });
   const scrolls = Object.fromEntries([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
   document.title = `${state.balls.length || state.undrawn ? `(${state.balls.length + (state.undrawn ? 1 : 0)}) ` : ''}${BASE_TITLE}`; // タブを見るだけで、対応待ちに気づけるように
+  if (state.view === 'customers' && !state.geo) requestGeo(); // 顧客検索: 近くのお客様を出すため、現在地を取る
   if (onStartScreen() && !state.outcome && state.geoVisit !== state.visitId) { set({ geoVisit: state.visitId }); requestGeo(true); } // 訪問開始の画面では、到着したかが分かるよう、現在地を取り直す
   $('#app').innerHTML =
     V.headerView(state) +
-    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : state.view === 'return' ? V.stockView(state) : V.placeholderView(state)}</main>` +
+    `<main class="flex-1 min-h-0">${state.view === 'visit' ? STEP_VIEWS[state.step](state) : state.view === 'dashboard' ? V.dashboardView(state) : state.view === 'customers' ? V.customersView(state) : state.view === 'schedule' ? V.scheduleView(state) : state.view === 'workday' ? V.workdayView(state) : state.view === 'expense' ? V.expenseView(state) : state.view === 'return' ? V.stockView(state) : V.placeholderView(state)}</main>` +
     (state.view === 'visit' ? V.footerView(state) : '') +
     V.modalView(state) +
     V.receiptModalView(state) +
@@ -501,6 +506,28 @@ const actions = {
   'open-ai': () => set({ modal: { type: 'ai' } }),
   'open-item': (el) => set({ modal: { type: 'item', id: el.dataset.id } }),
   'close-modal': () => set({ modal: null }),
+  // 顧客検索
+  'cust-sort': (el) => set({ cust: { ...state.cust, sort: el.dataset.value } }),
+  'cust-days': (el) => set({ cust: { ...state.cust, minDays: Number(el.dataset.value) } }),
+  'cust-favonly': () => set({ cust: { ...state.cust, favOnly: !state.cust.favOnly } }),
+  // お気に入りの登録・解除（自分だけ）
+  'cust-fav': (el) => {
+    const now = Boolean(notesOf(loadCustNotes(), state.user)[String(el.dataset.phone).replace(/\D/g, '')]?.favorite);
+    if (!saveCustNotes(setFavorite(loadCustNotes(), state.user, el.dataset.phone, !now))) showToast('保存できませんでした（保存容量不足）');
+  },
+  'cust-near': () => set({ cust: { ...state.cust, near: !state.cust.near } }),
+  'cust-open': (el) => set({ modal: { type: 'custcall', phone: el.dataset.phone, name: el.dataset.name }, cust: { ...state.cust, form: { result: '', wish: '', memo: '' } } }),
+  'cust-result': (el) => set({ cust: { ...state.cust, form: { ...state.cust.form, result: el.dataset.value } } }),
+  // 電話の結果を記録する。オペレーターを含む他の人にも見える（受電履歴に出る）
+  'cust-save': () => {
+    const row = state.modal?.type === 'custcall' ? state.modal.phone : null;
+    const f = state.cust.form;
+    const r = makeCall({ phone: row, customerName: state.modal?.name ?? '', by: userById(state.user).name, userId: state.user, result: f.result, wish: f.wish, memo: f.memo });
+    if (!r.ok) { showToast(r.reason); return; }
+    if (!saveCallLog(addCall(loadCallLog(), r.call))) { showToast('記録できませんでした（保存容量不足）'); return; }
+    set({ cust: { ...state.cust, form: { result: '', wish: '', memo: '' } } });
+    showToast(r.call.result === 'appo' ? '記録しました。再訪の希望は、オペレーターにも共有されます' : '電話の結果を記録しました');
+  },
   rank: (el) => updateItems(el.dataset.id, { rank: el.dataset.value }),
   'price-add': (el) => {
     const item = state.items.find((i) => i.id === el.dataset.id);
@@ -1011,6 +1038,14 @@ document.addEventListener('input', (e) => {
     if ($('#oc-live')) $('#oc-live').innerHTML = V.ocLiveView(state);
     return;
   }
+  if (el.dataset.cust) { // 顧客検索の入力。再描画せず、一覧・ボタンだけ差し替える（フォーカス維持）
+    if (el.dataset.cust === 'q') { set({ cust: { ...state.cust, q: el.value } }); if ($('#cust-list')) $('#cust-list').innerHTML = customerListHtml(state); return; }
+    if (el.dataset.cust === 'note') { if (state.modal?.type === 'custcall') saveCustNotes(setMemo(loadCustNotes(), state.user, state.modal.phone, el.value)); return; } // 自分用のメモは、入力のたびに保存
+    set({ cust: { ...state.cust, form: { ...state.cust.form, [el.dataset.cust]: el.value } } });
+    const b = $('[data-action="cust-save"]');
+    if (b) b.disabled = !makeCall({ phone: state.modal?.phone, customerName: '', by: 'x', result: state.cust.form.result, wish: state.cust.form.wish }).ok;
+    return;
+  }
   if (el.dataset.evalmemo !== undefined) {
     set({ evalDraft: { ...state.evalDraft, memo: el.value } });
   } else if (el.dataset.draft) {
@@ -1063,6 +1098,7 @@ window.addEventListener('storage', (e) => {
     rerenderKeepScroll();
     return;
   }
+  if (e.key === CALL_LOG_KEY) { rerenderKeepScroll(); return; } // 電話の記録（ほかの人の電話）
   if (e.key === ADVANCE_REQ_KEY) { // 補充の依頼（別の画面での更新）
     rerenderKeepScroll();
     return;
