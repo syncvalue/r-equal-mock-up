@@ -1,7 +1,7 @@
 // 顧客検索の画面（鑑定士タブレット）。自分が担当したお客様の一覧と、お客様の詳細（電話の記録）。
 import { esc, yen, fmtDateTime } from './format.js';
 import { helpIcon } from './help.js';
-import { customerRows, filterRows, sortRows, maskOtherSales } from './myCustomers.js';
+import { customerRows, filterRows, sortRows, maskOtherSales, clip } from './myCustomers.js';
 import { CALL_RESULTS, loadCallLog, makeCall, tooSoon, daysSince } from './callLog.js';
 import { callHistory } from './callHistory.js';
 import { loadReservations } from './reservations.js';
@@ -41,7 +41,8 @@ export function customerListHtml(s) {
           <div class="text-sm text-slate-600 truncate">📍 ${esc(r.address)}</div>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
             <span>前回 ${date(r.lastVisitAt)}（<b class="${r.days >= 90 ? 'text-teal-700' : ''}">${r.days}日前</b>）</span><span>訪問 ${r.visitCount}回</span><span>買取計 ${yen(r.total)}</span>${callBadge(r, now)}</div>
-          ${r.memo ? `<div class="mt-1 text-xs rounded bg-yellow-50 border border-yellow-200 text-yellow-900 px-2 py-0.5 truncate">📝 ${esc(r.memo)}</div>` : ''}</div>
+          ${r.memo ? `<div class="mt-1 text-xs rounded bg-yellow-50 border border-yellow-200 text-yellow-900 px-2 py-0.5 break-words">📝 自分用　${esc(clip(r.memo))}</div>` : ''}
+          ${r.callMemo ? `<div class="mt-1 text-xs rounded bg-violet-50 border border-violet-200 text-violet-900 px-2 py-0.5 break-words">📞 ${new Date(r.callMemo.at).getMonth() + 1}/${new Date(r.callMemo.at).getDate()}の電話メモ　${esc(clip(r.callMemo.memo))}</div>` : ''}</div>
         <div class="text-right shrink-0">${r.distanceKm !== null ? `<div class="text-lg font-bold ${r.distanceKm <= NEAR_KM ? 'text-teal-700' : 'text-slate-500'}">${km(r.distanceKm)}</div><div class="text-[11px] text-slate-400">現在地から</div>` : ''}
           <div class="text-2xl">📞</div></div></button>
       <button class="w-14 shrink-0 text-3xl border-l ${r.favorite ? 'text-amber-400 bg-amber-50' : 'text-slate-300'} active:bg-amber-100" data-action="cust-fav" data-phone="${esc(r.phone)}" aria-label="${r.favorite ? 'お気に入りを外す' : 'お気に入りに登録'}">${r.favorite ? '★' : '☆'}</button></div>`).join('')}</div>`;

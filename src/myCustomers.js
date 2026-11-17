@@ -6,7 +6,10 @@ import { eventsOfDay, dayDate } from './schedule.js';
 import { loadContracts } from './store.js';
 import { locateAddress } from './dispatch.js';
 import { distanceKm, OFFICE } from './route.js';
-import { lastCallOf, daysSince } from './callLog.js';
+import { lastCallOf, callsOfPhones, daysSince } from './callLog.js';
+
+// メモの先頭 n 文字（長ければ「…」）。一覧で、メモの頭だけ見えるように
+export const clip = (text, n = 100) => { const t = [...String(text ?? '').replace(/\s+/g, ' ').trim()]; return t.length > n ? `${t.slice(0, n).join('')}…` : t.join(''); };
 
 const digits = (s) => String(s ?? '').replace(/\D/g, '');
 const approx = (address) => locateAddress(address, OFFICE) ?? { lat: OFFICE.lat, lng: OFFICE.lng };
@@ -68,6 +71,7 @@ export function customerRows(userId, { now = new Date(), from = null, calls = []
       phone: c.phone, name: c.name, kana: c.kana ?? '', address: c.address ?? '', lat: pos.lat, lng: pos.lng,
       lastVisitAt: visits[0].at, days: daysSince(visits[0].at, now), visitCount: visits.length, total: visits.reduce((n, v) => n + (v.total || 0), 0),
       distanceKm: from ? Math.round(distanceKm(from, pos) * 10) / 10 : null, lastCall: lastCallOf(calls, [c.phone]),
+      callMemo: callsOfPhones(calls, [c.phone]).find((x) => x.memo) ?? null, // 直近の、メモ付きの電話の記録
       favorite: Boolean(notes[digits(c.phone)]?.favorite), memo: notes[digits(c.phone)]?.memo ?? '', // お気に入りと自分用のメモ（自分だけ）
     };
   }), 'days');
