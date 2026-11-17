@@ -17,6 +17,8 @@ import { userById, isLeader } from './dashboard.js';
 import { ACCOUNTS } from './auth.js';
 import { setFirstVisitCustomerEval } from './customerHistory.js';
 import { recordDeclined } from './declined.js';
+import { makeRecording, addRecording, loadRecordings, saveRecordings, newRecordingId, recordingReady } from './recording.js';
+import { startRecording, stopRecording, putAudio, getAudio, canRecord } from './recordingStore.js';
 const ACCOUNTS_BY_USER = (userId) => ACCOUNTS.find((a) => a.userId === userId) ?? null;
 import { messagesFor, hqMessagesFor, leaderMessagesFor } from './messages.js';
 import { EVENTS, eventById, eventsOfDay } from './schedule.js';
@@ -104,6 +106,7 @@ const initialState = () => ({
   leaveChecks: {},
   showStaff: false,
   briefing: { checks: {}, propose: '' },
+  rec: null, // 録音中なら { startedAt }
   evalDraft: V.blankEval(),
   approvals: [],
   apMode: 'hq',
@@ -124,6 +127,26 @@ function requestGeo() {
     () => { set({ geo: { ok: false } }); if (state.view === 'schedule' && state.sched.tab === 'route') rerenderKeepScroll(); },
     { timeout: 6000, maximumAge: 60000 },
   );
+}
+
+// 録音を停止して登録する。登録できたら true
+async function stopAndRegister() {
+  if (!state.rec) return true;
+  try {
+    const { blob, startedAt, endedAt, mime } = await stopRecording();
+    set({ rec: null });
+    const rec = makeRecording({ id: newRecordingId(), visitId: state.visitId, userId: state.user, customerName: state.customer.name, startedAt, endedAt, size: blob.size, mime });
+    await putAudio(rec.id, blob);
+    if (!saveRecordings(addRecording(loadRecordings(), rec))) throw new Error('記録を保存できません');
+    showToast('録音を登録しました');
+    rerenderKeepScroll();
+    return true;
+  } catch {
+    set({ rec: null });
+    showToast('録音を登録できませんでした（保存容量不足など）');
+    rerenderKeepScroll();
+    return false;
+  }
 }
 
 function showToast(msg) {
@@ -600,8 +623,31 @@ const actions = {
   },
   // 訪問終了は、お客様宅を出る前のチェックリストがすべて完了している場合のみ。買取代金は、経費として自動計上する
   'finish-ask': () => { if (V.leaveRemaining(state) === 0) set({ modal: { type: 'finish-confirm' } }); },
-  finish: () => {
+  // 録音の開始。説明事項で了承を得ていなければ始めない
+  'rec-start': async () => {
+    if (state.rec || !recordingReady(state.briefing)) return;
+    if (!canRecord()) { showToast('この端末では録音できません（HTTPS でブラウザを開いてください）'); return; }
+    try {
+      set({ rec: { startedAt: await startRecording() } });
+      rerenderKeepScroll();
+    } catch {
+      showToast('マイクを使えませんでした。ブラウザのマイクの許可を確認してください');
+    }
+  },
+  // 録音を停止し、録音データ（IndexedDB）と記録をシステムに登録する
+  'rec-stop': () => stopAndRegister(),
+  // 録音の再生（予定の結果の画面）。登録した録音データを読み出す
+  'rec-play': async (el) => {
+    try {
+      const blob = await getAudio(el.dataset.id);
+      if (!blob) { showToast('録音データが見つかりません（別の端末で録音した可能性があります）'); return; }
+      const box = el.parentElement.querySelector('[data-rec-player]');
+      box.innerHTML = `<audio controls autoplay class="w-full" src="${URL.createObjectURL(blob)}"></audio>`;
+    } catch { showToast('録音を再生できませんでした'); }
+  },
+  finish: async () => {
     if (V.leaveRemaining(state) !== 0) return;
+    if (state.rec && !(await stopAndRegister())) return; // 録音中なら、停止して登録してから終了する
     set({ visitEndedAt: Date.now(), modal: null });
     // 査定はしたが売らなかったもの（見送り品）を、お客様ごとの記録に残す。次回の訪問や、鑑定士の当てはめの判断に使う
     recordDeclined({ visitId: state.visitId, phone: state.customer.phone, customerName: state.customer.name, at: Date.now(), items: state.items.filter((i) => !i.sell) });
@@ -1068,6 +1114,7 @@ setInterval(() => {
 setInterval(() => {
   const t = $('#timer');
   if (t && state.visitStartedAt && !state.visitEndedAt) t.textContent = fmtElapsed(state.visitStartedAt);
+  if (state.rec) for (const id of ['#rec-timer', '#rec-timer-end']) { const r = $(id); if (r) r.textContent = fmtElapsed(state.rec.startedAt); }
 }, 1000);
 
 initTheme();

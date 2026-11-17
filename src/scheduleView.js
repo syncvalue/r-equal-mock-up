@@ -1,5 +1,6 @@
 // 今日の予定（Googleカレンダー風の3日表示）と、訪問先までのルート確認（Googleマップ）。
 import { esc, yen, fmtTime } from './format.js';
+import { recordingsOf, loadRecordings, fmtDuration, fmtSize } from './recording.js';
 import { helpIcon } from './help.js';
 import { loadLive, loadEvals } from './store.js';
 import { outcomeOf } from './workday.js';
@@ -71,6 +72,9 @@ function eventBlock(s, e, dayN, evals) {
 }
 
 // 訪問が終わった予定をタップしたときの、訪問結果
+// 登録した録音（やり取り）。タップで再生
+const recordRows = (visitId, row) => recordingsOf(loadRecordings(), visitId).map((r) => row('🎙 録音', `${fmtDuration(r.durationSec)}（${fmtSize(r.size)}）<button class="ml-2 text-xs underline text-teal-700" data-action="rec-play" data-id="${esc(r.id)}">▶ 再生</button><div data-rec-player></div>`)).join('');
+
 function resultPanel(s, e, v, evals) {
   const d = dayDate(e.day);
   const sold = v.items.filter((i) => i.sell);
@@ -94,6 +98,7 @@ function resultPanel(s, e, v, evals) {
            ${sold.length ? `<div class="rounded-lg border divide-y text-sm">${sold.map((i) => `<div class="flex justify-between gap-2 px-2 py-1"><span class="min-w-0 truncate">${esc(i.name)}<span class="text-xs text-slate-400"> ランク${esc(i.rank)}・${i.qty}点</span></span><b class="shrink-0">${yen(i.price)}</b></div>`).join('')}</div>` : ''}
            ${skipped.length ? `<div class="text-xs text-slate-400">見送り：${skipped.map((i) => esc(i.name)).join('、')}</div>` : ''}
            ${v.briefing?.propose ? row('他商品の提案', v.briefing.propose === 'yes' ? '提案してよい（お客様の回答）' : '提案は不要（お客様の回答）') : ''}
+           ${recordRows(v.visitId, row)}
            ${row('お客様評価', filled ? `<span class="text-amber-500 text-lg">${'★'.repeat(ev.overall)}</span><span class="text-slate-300 text-lg">${'★'.repeat(5 - ev.overall)}</span>${ev.memo ? `<span class="block text-xs text-slate-500 whitespace-pre-wrap">${esc(ev.memo)}</span>` : ''}<button class="text-xs underline text-teal-700 mt-1" data-action="eval-open" data-id="${e.id}">評価を修正する</button>` : '<b class="text-rose-600">未登録</b>')}`}
     </dl>
     ${!v.outcome && !filled ? `<button class="btn w-full !min-h-[52px] !py-2 bg-rose-600 text-white font-bold animate-pulse" data-action="eval-open" data-id="${e.id}">⭐ お客様の評価を登録する</button><p class="text-xs text-rose-700 -mt-1">訪問が終わったら、お客様の評価を登録してください（お客様には見せません）。</p>` : ''}

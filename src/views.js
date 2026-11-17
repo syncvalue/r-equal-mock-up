@@ -1,3 +1,4 @@
+import { recordingsOf, loadRecordings, fmtDuration, recordingReady } from './recording.js';
 import { PRODUCTS, RANKS } from './data.js';
 import { masterBodyView } from './masterView.js';
 import { approvalState, latestApproval } from './store.js';
@@ -80,16 +81,21 @@ export const BRIEFING_CHECKS = [
   { key: 'photo', text: '商品の撮影と、本社への写真送信の了承を得た' },
   { key: 'kyc', text: '本人確認書類の確認が必要なことを説明した（古物営業法）' },
   { key: 'cooling', text: 'クーリング・オフ制度を説明した（満了日は契約時に再度案内）' },
+  { key: 'record', text: 'やり取りを録音することを説明し、了承を得た' },
 ];
 export const PROPOSE_OPTIONS = [
   { value: 'yes', label: '提案してよい', sub: '他の買取可能な商品もご案内', cls: 'border-teal-600 bg-teal-50' },
   { value: 'no', label: '提案は不要', sub: '依頼商品のみ査定', cls: 'border-slate-500 bg-slate-100' },
 ];
+// 録音は必須。録音を始める（または登録済み）まで、査定に進めない
+const recordingStarted = (s) => Boolean(s.rec) || recordingsOf(loadRecordings(), s.visitId).length > 0;
 const briefingHint = (s) => {
   const left = BRIEFING_CHECKS.filter((c) => !s.briefing.checks[c.key]).length;
-  return left ? `説明事項があと${left}項目` : 'お客様の回答を選んでください';
+  if (left) return `説明事項があと${left}項目`;
+  if (!s.briefing.propose) return 'お客様の回答を選んでください';
+  return recordingStarted(s) ? '' : '「録音を開始」を押してください（録音は必須です）';
 };
-export const briefingDone = (s) => BRIEFING_CHECKS.every((c) => s.briefing.checks[c.key]) && Boolean(s.briefing.propose);
+export const briefingDone = (s) => BRIEFING_CHECKS.every((c) => s.briefing.checks[c.key]) && Boolean(s.briefing.propose) && recordingStarted(s);
 
 // ---- メインメニュー（開閉式ドロワー）。機能の中身は準備中 -------------------------------
 export const MENU = [
@@ -130,15 +136,13 @@ export function menuView(s) {
         ${MENU.map((m) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[68px] ${isActive(s, m) ? 'bg-teal-600' : 'hover:bg-white/10 active:bg-white/20'} ${isDisabled(s, m) ? 'opacity-40' : ''}" data-action="nav" data-value="${viewOf(m)}" data-menu="${m.key}" ${isDisabled(s, m) ? 'disabled' : ''}>
           <span class="text-3xl">${m.icon}</span>
-          <span class="flex-1"><span class="block font-bold text-lg leading-tight">${m.label}</span><span class="text-xs text-slate-300">${m.sub}</span></span>
+          <span class="flex-1 min-w-0"><span class="block font-bold text-lg leading-tight">${m.label}</span><span class="text-xs text-slate-300">${m.sub}</span>${m.key === 'expense' && (s.undrawn > 0 || s.balls?.length) ? `<span class="flex flex-wrap gap-1 mt-1.5">${s.undrawn > 0 ? `<span class="text-xs font-bold rounded-full bg-amber-400 text-slate-900 px-2 py-0.5 whitespace-nowrap">未引き出し ${yen(s.undrawn)}</span>` : ''}${s.balls?.length ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5 whitespace-nowrap">対応待ち ${s.balls.length}</span>` : ''}</span>` : ''}</span>
           ${m.key === 'start' && s.phase !== 'before' ? '<span class="text-xs font-bold rounded-full bg-white/20 px-2 py-0.5">実施済み</span>' : ''}
           ${m.key === 'start' && s.phase === 'before' ? '<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">未実施</span>' : ''}
           ${(m.key === 'end' && s.phase === 'before') || (m.key === 'visit' && s.phase !== 'open') ? '<span class="text-lg">🔒</span>' : ''}
           ${m.key === 'end' && s.phase === 'closed' ? '<span class="text-xs font-bold rounded-full bg-white/20 px-2 py-0.5">提出済み</span>' : ''}
           ${m.key === 'visit' && visiting ? `<span class="text-xs font-bold rounded-full bg-emerald-500 px-2 py-0.5">訪問中</span>` : ''}
           ${m.key === 'dashboard' && unreadCount(userById(s.user)) ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5">未読 ${unreadCount(userById(s.user))}</span>` : ''}
-          ${m.key === 'expense' && s.undrawn > 0 ? `<span class="text-xs font-bold rounded-full bg-amber-400 text-slate-900 px-2 py-0.5">未引き出し ${yen(s.undrawn)}</span>` : ''}
-          ${m.key === 'expense' && s.balls?.length ? `<span class="text-xs font-bold rounded-full bg-rose-600 px-2 py-0.5">対応待ち ${s.balls.length}</span>` : ''}
           ${m.key === 'return' && pendingCount(s) ? `<span class="text-xs font-bold rounded-full bg-amber-500 px-2 py-0.5">入庫待ち ${pendingCount(s)}</span>` : ''}
         </button>`).join('')}
       </div>
@@ -181,6 +185,7 @@ export function headerView(s) {
         ${themeToggleHtml()}
         ${s.undrawn > 0 && s.view !== 'visit' && s.view !== 'expense' ? `<button class="rounded-full bg-amber-400 hover:bg-amber-300 text-slate-900 text-sm font-bold px-3 py-1 animate-pulse" data-action="nav" data-value="expense">🏦 補充金 未引き出し ${yen(s.undrawn)}</button>` : ''}
         ${s.balls?.length && s.view !== 'visit' ? `<button class="rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-action="rv-open" data-date="${s.balls[0].date}" title="${esc(s.balls[0].why)}">🔔 経費の対応待ち ${s.balls.length}件</button>` : ''}
+        ${recordBadge(s)}
         ${isCustomerFacing(s) ? '' : commentBadge(s)}
         ${s.visitStartedAt && !s.visitEndedAt ? `<span class="text-slate-300">開始 ${fmtTime(s.visitStartedAt).slice(0, 5)}</span>
         <span class="text-lg font-mono font-bold" id="timer">${fmtElapsed(s.visitStartedAt)}</span>` : ''}
@@ -367,6 +372,10 @@ export function briefingView(s) {
           <button class="rounded-xl border-2 p-3 text-left ${b.propose === o.value ? o.cls + ' ring-2 ring-offset-1 ring-teal-400' : 'border-slate-200'}" data-action="brief-propose" data-value="${o.value}">
             <span class="block font-bold text-lg">${b.propose === o.value ? '✅ ' : ''}${o.label}</span><span class="block text-xs text-slate-500">${o.sub}</span></button>`).join('')}</div>
       </div>
+      ${recordingStarted(s)
+        ? `<div class="rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 font-bold text-rose-700">${s.rec ? '🔴 録音中です' : '✓ 録音を登録済みです'}</div>`
+        : `<div class="rounded-xl border-2 border-amber-400 p-3 flex items-center justify-between gap-2"><span class="font-bold">録音を開始してください<span class="text-rose-600 ml-1 text-sm">必須</span></span>
+          <button class="btn btn-primary !min-h-[44px] !py-1" data-action="rec-start" ${recordingReady(s.briefing) ? '' : 'disabled'}>🎙 録音を開始</button></div>`}
       <button class="text-xs underline text-slate-400 self-end" data-action="brief-all">（デモ用）すべてチェックして「提案してよい」を選ぶ</button>
     </div>
   </section>`;
@@ -623,6 +632,25 @@ function evalModalView(s) {
   );
 }
 
+// 録音の状態（ヘッダー）。了承を得たら開始でき、録音中は時間が進む。停止すると、システムに登録される
+function recordBadge(s) {
+  if (!s.visitStartedAt || s.visitEndedAt || s.outcome) return '';
+  if (s.rec) return `<span class="rounded-full bg-rose-600 text-white text-sm font-bold px-3 py-1 flex items-center gap-1.5"><span class="animate-pulse">🔴</span>録音中 <span class="font-mono" id="rec-timer">${fmtElapsed(s.rec.startedAt)}</span></span>`;
+  if (recordingsOf(loadRecordings(), s.visitId).length || !recordingReady(s.briefing)) return '';
+  return '<button class="rounded-full bg-white text-rose-700 text-sm font-bold px-3 py-1 hover:bg-rose-50" data-action="rec-start">🎙 録音を開始</button>';
+}
+
+// 訪問終了画面の、録音カード。停止すると、録音データがシステムに登録される
+function recordCard(s) {
+  const saved = recordingsOf(loadRecordings(), s.visitId);
+  if (s.rec) return `<div class="rounded-xl border-2 border-rose-400 bg-rose-50 p-3 space-y-2"><div class="font-bold text-rose-700">🔴 録音中（<span class="font-mono" id="rec-timer-end">${fmtElapsed(s.rec.startedAt)}</span>）</div>
+    <button class="btn w-full bg-rose-600 text-white !min-h-[48px] !py-2" data-action="rec-stop">⏹ 録音を停止して、システムに登録する</button>
+    <p class="text-xs text-rose-700">「訪問終了」を押しても、自動で停止して登録されます。</p></div>`;
+  if (saved.length) return `<div class="rounded-xl bg-emerald-50 border border-emerald-300 p-3 text-sm text-emerald-800 font-bold">✓ 録音を登録しました（${saved.map((r) => fmtDuration(r.durationSec)).join('・')}）</div>`;
+  if (!recordingReady(s.briefing)) return '';
+  return '<div class="rounded-xl bg-amber-50 border border-amber-300 p-3 text-sm text-amber-800 flex items-center justify-between gap-2"><span>録音を始めていません。</span><button class="btn btn-secondary !min-h-[40px] !py-1" data-action="rec-start">🎙 録音を開始</button></div>';
+}
+
 export function endView(s) {
   const done = Boolean(s.visitEndedAt);
   const left = leaveRemaining(s);
@@ -640,6 +668,7 @@ export function endView(s) {
           <div class="text-slate-600 text-sm">契約No. ${esc(s.contract.id)}<br>買取金額 <b class="text-xl text-teal-700">${yen(total(selectedItems(s)))}</b></div>
         </div>
         <button class="btn w-full bg-sky-600 text-white !min-h-[48px] !py-2" data-action="open-gmo">GMOサイン管理画面を開く（別タブ）</button>
+        ${done ? '' : recordCard(s)}
         ${
           done
             ? `<div class="rounded-xl bg-slate-100 p-3 text-center text-sm">訪問時間 ${fmtTime(s.visitStartedAt)} 〜 ${fmtTime(s.visitEndedAt)}（${fmtElapsed(s.visitStartedAt, s.visitEndedAt)}）
