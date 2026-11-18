@@ -213,11 +213,11 @@ test('並び順は、ボタン1つ。押すたびに「訪問時刻順」⇄「�
   assert.ok(/class="chip on"[^>]*data-calsort="visit"[^>]*>並び順：希望連絡時間帯順/.test(h('contact')));
 });
 
-test('希望連絡時間帯順のときは、行の先頭に「📞 連絡 ○○」を出し、訪問の時刻は「訪問 ○○」と分けて出す（混同しない）', () => {
+test('希望連絡時間帯順のときは、行の先頭に「連絡 ○○」を出し、訪問の時刻は「訪問 ○○」と分けて出す（混同しない）', () => {
   const list = [rec({ hearing: { contact: '17:00〜19:00' } })];
   const t = (sortBy) => { const x = text(calendarHtml({ ...base, mode: 'day', reservations: list, sortBy })); return x.slice(x.indexOf('の受付 ')); };
-  assert.ok(t('contact').includes('📞 連絡 17:00〜19:00') && t('contact').includes('訪問 10:30〜12:00'));
-  assert.ok(!t('visit').includes('📞 連絡') && t('visit').includes('前日確認の連絡時間 17:00〜19:00'));
+  assert.ok(t('contact').includes('連絡 17:00〜19:00') && t('contact').includes('訪問 10:30〜12:00'));
+  assert.ok(!t('visit').includes('連絡 17:00〜19:00') && t('visit').includes('前日確認の連絡時間 17:00〜19:00'));
 });
 
 test('枠に「不通」と出すのは、不通の訪問だけ（日別・週の表とも）。未連絡と不通は、線ではどちらも点線', () => {
