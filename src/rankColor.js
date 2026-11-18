@@ -1,15 +1,17 @@
-// ランクの色（配車確定のカレンダー）。鑑定士のランクも、顧客ランクも、同じ色で表す（SSのお客様には、SSの鑑定士＝同じ色の列を当てる）。
-// ランクは順序のある値なので、1色（藍）の濃さで表す: SS＝いちばん濃い／B＝いちばん薄い。画面から独立した純関数
-// fill=帯の塗り／edge=枠線／text=帯の文字／tint=鑑定士の見出しの薄い背景
+// ランクの色（配車確定のカレンダー、ランクの札）。鑑定士のランクも、顧客ランクも、同じ色で表す（SS鑑定士とSS顧客は同じ色、S鑑定士とS顧客は同じ色…）。
+// ランクごとに、はっきり違う色: SS＝紫／S＝青／A＝緑／B＝灰。画面から独立した純関数
+// fill=帯・札の塗り／edge=枠線／text=文字／tint=鑑定士の見出しの薄い背景
 export const RANK_COLORS = {
-  SS: { fill: '#312e81', edge: '#1e1b4b', text: '#ffffff', tint: '#c7d2fe' },
-  S: { fill: '#4f46e5', edge: '#312e81', text: '#ffffff', tint: '#dde3ff' },
-  A: { fill: '#818cf8', edge: '#4338ca', text: '#0f172a', tint: '#ebeeff' },
-  B: { fill: '#c7d2fe', edge: '#6366f1', text: '#0f172a', tint: '#f5f6ff' },
+  SS: { fill: '#6d28d9', edge: '#4c1d95', text: '#ffffff', tint: '#ddd6fe' },
+  S: { fill: '#1d4ed8', edge: '#1e3a8a', text: '#ffffff', tint: '#bfdbfe' },
+  A: { fill: '#15803d', edge: '#14532d', text: '#ffffff', tint: '#bbf7d0' },
+  B: { fill: '#64748b', edge: '#334155', text: '#ffffff', tint: '#e2e8f0' },
 };
 // ランクが分からない（買取の実績がない新規のお客様・元からの予定）
-export const UNRANKED = { fill: '#f1f5f9', edge: '#64748b', text: '#0f172a', tint: '#f8fafc' };
+export const UNRANKED = { fill: '#f8fafc', edge: '#94a3b8', text: '#0f172a', tint: '#ffffff' };
 export const rankColor = (rank) => RANK_COLORS[rank] ?? UNRANKED;
+// ランクの札（鑑定士の名前の横・顧客ランク）の色
+export const rankBadgeStyle = (rank) => { const c = rankColor(rank); return `background:${c.fill};color:${c.text}`; };
 
 // 状態は枠線で表す: 確定済み＝実線／仮確定（未確定）＝点線／確定から仮確定に戻った＝橙の二重線
 export const BLOCK_STATES = ['confirmed', 'tentative', 'reverted'];

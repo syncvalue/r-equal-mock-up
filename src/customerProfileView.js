@@ -2,14 +2,9 @@
 // 顧客ランク＝資産・売却の見込み（SS・S・A・B）。厄介度＝ランクとは別の軸（金があっても売らない・文句が多い など）。
 import { esc, yen } from "./format.js";
 import { helpIcon } from "./help.js";
+import { rankBadgeStyle } from "./rankColor.js";
 
-// 顧客ランクは、鑑定士のランクと見分けがつくよう、紫で「顧客S」のように出す。厄介度は、ランクとは別の軸（注意＝橙、要注意＝赤）
-export const CRANK_CLS = {
-  SS: "bg-slate-900 text-white",
-  S: "bg-slate-700 text-white",
-  A: "bg-slate-500 text-white",
-  B: "bg-slate-200 text-slate-900",
-};
+// 顧客ランクの札は、鑑定士のランクと同じ色（SSは紫・Sは青・Aは緑・Bは灰）。「顧客S」のように出す。厄介度は、ランクとは別の軸（注意＝橙、要注意＝赤）
 export const dateYmd = (ms) => {
   const d = new Date(ms);
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
@@ -17,7 +12,7 @@ export const dateYmd = (ms) => {
 
 export const custRankBadge = (p) =>
   p?.rank
-    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${CRANK_CLS[p.rank] ?? 'bg-slate-200 text-slate-900'}" title="顧客ランク（資産・売却の見込み）${p.rankAuto ? "。総買取額から自動で決めています" : ""}">顧客${esc(p.rank)}</span>`
+    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 " style="${rankBadgeStyle(p.rank)}" title="顧客ランク（資産・売却の見込み）${p.rankAuto ? "。総買取額から自動で決めています" : ""}">顧客${esc(p.rank)}</span>`
     : p?.known === false
       ? '<span class="inline-block rounded bg-slate-100 px-1.5 text-[11px] font-bold leading-4 text-slate-900" title="買取の実績がありません">新規</span>'
       : "";

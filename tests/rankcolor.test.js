@@ -23,3 +23,15 @@ test('鑑定士の見出しは、ランクの薄い背景と、上の太い線�
   const h = staffHeadStyle('SS');
   assert.ok(h.includes(RANK_COLORS.SS.tint) && h.includes(`border-top:4px solid ${RANK_COLORS.SS.fill}`));
 });
+
+test('鑑定士のランクの札と、顧客ランクの札は、同じランクなら同じ色', async () => {
+  const { rankBadge } = await import('../callcenter/view.js');
+  const { custRankBadge } = await import('../src/customerProfileView.js');
+  const { rankBadgeStyle } = await import('../src/rankColor.js');
+  for (const r of ['SS', 'S', 'A', 'B']) {
+    const style = rankBadgeStyle(r);
+    assert.ok(rankBadge(r).includes(style), `鑑定士 ${r}`);
+    assert.ok(custRankBadge({ rank: r, known: true }).includes(style), `顧客 ${r}`);
+  }
+  assert.deepEqual(['SS', 'S', 'A', 'B'].map((r) => RANK_COLORS[r].fill), ['#6d28d9', '#1d4ed8', '#15803d', '#64748b']); // 紫・青・緑・灰
+});
