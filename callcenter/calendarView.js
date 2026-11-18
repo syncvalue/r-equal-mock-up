@@ -89,20 +89,23 @@ function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], 
 const blockKey = (b) => b.rid ?? b.gid ?? `${b.userId}/${b.start}`;
 // 受付の操作（日時の変更・取消）。前日確認の記録とは別なので、詳細の上のほうに置く
 const chgButton = (r) => `<button class="b b-sec !min-h-0 !py-1 text-xs" data-chg="${r.id}" title="お客様から、日時の変更・取消を告げられたとき">受付を変更・取消する</button>`;
+// 詳細を、意味ごとのまとまり（見出し＋枠）に分けて出す。配車係の詳細でも使う
+export const detailSection = (title, body) => `<section class="rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-1.5"><h4 class="mb-1 text-[11px] font-bold tracking-wide text-teal-700">${title}</h4>${body}</section>`;
 // 受付に登録した内容を、すべて出す（週の表の右の詳細も、日別の右の一覧も、同じ項目）。受付の記録がない予定は、日時・住所・担当鑑定士だけ
 export function visitFieldsHtml(b, r, { staff: showStaff = true } = {}) {
   const staff = USERS.find((u) => u.id === b.userId)?.name ?? '未定';
   const row = (k, v) => (v ? `<div class="flex gap-2"><dt class="w-24 shrink-0 text-slate-500">${k}</dt><dd class="min-w-0 break-words whitespace-pre-wrap">${esc(v)}</dd></div>` : '');
   const h = r?.hearing ?? {};
   const c = r?.customer ?? {};
-  const rows = [
-    row('日時', `${dateLabel(b.date)} ${minToHHMM(b.start)}〜${minToHHMM(b.end)}`), row('フリガナ', c.kana), row('性別・年齢', h.profile),
-    row('郵便番号', c.zip), row('住所', c.address ?? b.place), row('電話番号', [c.phone, c.phone2].filter(Boolean).join(' ／ ')),
-    showStaff ? row('担当鑑定士', staff) : '', row('受付番号', r?.receptionNo), row('受付日時', r ? [r.receivedAt, r.operator && r.operator !== '—' ? `（${r.operator}）` : ''].filter(Boolean).join(' ') : ''), row('新規・再訪', r?.apType === '再' ? '再訪' : r?.apType === '新' ? '新規' : ''),
-    row('問い合わせ', [h.inquiryType, h.adType].filter(Boolean).join(' ／ ')), row('来電のきっかけ', h.trigger ?? r?.chirashi),
-    row('売りたいもの', h.wants === '（既存の予定）' ? '未確認' : h.wants), row('大型品・その他', h.large), row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('前日確認の連絡時間', h.contact), row('訪問時の注意', h.notes),
-  ].join('');
-  return `<dl class="space-y-1 text-xs">${rows}</dl>`;
+  const groups = [
+    ['訪問', [row('日時', `${dateLabel(b.date)} ${minToHHMM(b.start)}〜${minToHHMM(b.end)}`), row('郵便番号', c.zip), row('住所', c.address ?? b.place), showStaff ? row('担当鑑定士', staff) : '']],
+    ['お客様', [row('フリガナ', c.kana), row('性別・年齢', h.profile), row('電話番号', [c.phone, c.phone2].filter(Boolean).join(' ／ ')), row('新規・再訪', r?.apType === '再' ? '再訪' : r?.apType === '新' ? '新規' : '')]],
+    ['売りたいもの', [row('売りたいもの', h.wants === '（既存の予定）' ? '未確認' : h.wants), row('大型品・その他', h.large)]],
+    ['当日の状況', [row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('訪問時の注意', h.notes)]],
+    ['受付の記録', [row('受付番号', r?.receptionNo), row('受付日時', r ? [r.receivedAt, r.operator && r.operator !== '—' ? `（${r.operator}）` : ''].filter(Boolean).join(' ') : ''), row('問い合わせ', [h.inquiryType, h.adType].filter(Boolean).join(' ／ ')), row('来電のきっかけ', h.trigger ?? r?.chirashi), row('前日確認の連絡時間', h.contact)]],
+  ];
+  const rows = groups.map(([title, items]) => (items.join('') ? detailSection(title, `<dl class="space-y-1">${items.join('')}</dl>`) : '')).join('');
+  return `<div class="space-y-2 text-xs">${rows}</div>`;
 }
 
 // 押した訪問の詳細。週の表では画面の右側、日別では右の一覧の中で開く

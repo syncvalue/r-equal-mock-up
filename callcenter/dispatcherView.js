@@ -1,7 +1,7 @@
 // 配車係の画面（ダミー）。オペレーターが仮確定した訪問の、担当鑑定士を確認・変更して、確定する。主に翌々日の予定を、毎日確定していく。
 // 確定した訪問だけが、鑑定士のタブレットの予定に出る。
 import { modalBadgeHtml } from '../src/screenIds.js';
-import { visitFieldsHtml } from './calendarView.js';
+import { visitFieldsHtml, detailSection } from './calendarView.js';
 import { boardBlockStyle, staffHeadStyle, RANK_COLORS, UNRANKED } from '../src/rankColor.js';
 import { esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
@@ -233,12 +233,11 @@ function boardDetailHtml(r, reservations, now) {
       <button class="shrink-0 text-lg leading-none text-slate-500 hover:text-slate-900" data-bclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
     ${actions}
     ${visitFieldsHtml({ userId: r.userId, date: r.date, start: minOf(r.start), end: minOf(r.end), name: r.customer.name, place: r.customer.address }, r, { staff: false })}
-    <div class="space-y-1">
-      ${customerProfileHtml({ ...profileOfRes(r), purchase: { ...profileOfRes(r).purchase, count: kindOfRes(r, profileOfRes(r)) === 'repeat' ? Math.max(1, profileOfRes(r).purchase.count) : 0 } }, { advice: true })}
-      <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">お客様の詳細（買取履歴・評価・これまでの担当）</button></div>
-      <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
-      ${travel ? `<div class="text-[11px] leading-tight text-slate-700">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}
-      ${revertedHtml(r)}</div></div>`;
+    ${detailSection('お客様の実績・評価', `<div class="space-y-1">${customerProfileHtml({ ...profileOfRes(r), purchase: { ...profileOfRes(r).purchase, count: kindOfRes(r, profileOfRes(r)) === 'repeat' ? Math.max(1, profileOfRes(r).purchase.count) : 0 } }, { advice: true })}
+      <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">お客様の詳細（買取履歴・評価・これまでの担当）</button></div></div>`)}
+    ${detailSection('担当と移動', `<div class="space-y-1"><div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
+      ${travel ? `<div class="text-[11px] leading-tight text-slate-700">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}</div>`)}
+    ${revertedHtml(r)}</div>`;
 }
 
 export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka', selId = null }) {
