@@ -184,9 +184,9 @@ test('詳細は、週の表の右も、日別の右の一覧も、登録内容�
   assert.ok(!calendarHtml({ ...base, mode: 'day', calSel: null, reservations: [full] }).includes('data-calrow'));
 });
 
-test('日別の一覧: 閉じている行は「▼ 詳細・前日確認」、開いた行は「▲ 閉じる」で、開閉だと分かる。週の右の詳細は✕', () => {
+test('日別の一覧: 閉じている行は「▼ 開く」、開いた行は「▲ 閉じる」で、開閉だと分かる。週の右の詳細は✕', () => {
   const day = (calSel) => calendarHtml({ ...base, mode: 'day', calSel, reservations: [rec()] });
-  assert.ok(text(day(null)).includes('▼ 詳細・前日確認'));
+  assert.ok(text(day(null)).includes('▼ 開く'));
   assert.ok(text(day('R1')).includes('▲ 閉じる') && !text(day('R1')).includes('✕'));
   assert.ok(text(calendarHtml({ ...base, calSel: 'R1', reservations: [rec()] })).includes('✕'));
 });
