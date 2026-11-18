@@ -90,7 +90,7 @@ const blockKey = (b) => b.rid ?? b.gid ?? `${b.userId}/${b.start}`;
 // 受付の操作（日時の変更・取消）。前日確認の記録とは別なので、詳細の上のほうに置く
 const chgButton = (r) => `<button class="b b-sec !min-h-0 !py-1 text-xs" data-chg="${r.id}" title="お客様から、日時の変更・取消を告げられたとき">受付を変更・取消する</button>`;
 // 受付に登録した内容を、すべて出す（週の表の右の詳細も、日別の右の一覧も、同じ項目）。受付の記録がない予定は、日時・住所・担当鑑定士だけ
-function visitFieldsHtml(b, r) {
+export function visitFieldsHtml(b, r, { staff: showStaff = true } = {}) {
   const staff = USERS.find((u) => u.id === b.userId)?.name ?? '未定';
   const row = (k, v) => (v ? `<div class="flex gap-2"><dt class="w-24 shrink-0 text-slate-500">${k}</dt><dd class="min-w-0 break-words whitespace-pre-wrap">${esc(v)}</dd></div>` : '');
   const h = r?.hearing ?? {};
@@ -98,7 +98,7 @@ function visitFieldsHtml(b, r) {
   const rows = [
     row('日時', `${dateLabel(b.date)} ${minToHHMM(b.start)}〜${minToHHMM(b.end)}`), row('フリガナ', c.kana), row('性別・年齢', h.profile),
     row('郵便番号', c.zip), row('住所', c.address ?? b.place), row('電話番号', [c.phone, c.phone2].filter(Boolean).join(' ／ ')),
-    row('担当鑑定士', staff), row('受付番号', r?.receptionNo), row('受付日時', r ? [r.receivedAt, r.operator && r.operator !== '—' ? `（${r.operator}）` : ''].filter(Boolean).join(' ') : ''), row('新規・再訪', r?.apType === '再' ? '再訪' : r?.apType === '新' ? '新規' : ''),
+    showStaff ? row('担当鑑定士', staff) : '', row('受付番号', r?.receptionNo), row('受付日時', r ? [r.receivedAt, r.operator && r.operator !== '—' ? `（${r.operator}）` : ''].filter(Boolean).join(' ') : ''), row('新規・再訪', r?.apType === '再' ? '再訪' : r?.apType === '新' ? '新規' : ''),
     row('問い合わせ', [h.inquiryType, h.adType].filter(Boolean).join(' ／ ')), row('来電のきっかけ', h.trigger ?? r?.chirashi),
     row('売りたいもの', h.wants), row('大型品・その他', h.large), row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('前日確認の連絡時間', h.contact), row('訪問時の注意', h.notes),
   ].join('');

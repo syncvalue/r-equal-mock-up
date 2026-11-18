@@ -31,3 +31,13 @@ test('配車確定: 帯を選ぶと、詳細は画面の右側（表の横）に
   assert.ok(sel.includes('w-[min(26rem,40%)]') && !sel.includes('<div class="border-t"><div class="space-y-2'));
   assert.ok(!page('NOPE').includes('data-bclose')); // 見つからない予約は出さない
 });
+
+test('配車確定の右の詳細は、受付で登録した内容をすべて出す（訪問カレンダーの詳細と同じ項目）', () => {
+  const full = rec({ receptionNo: 'CC-9', receivedAt: '2026/10/22 10:00', operator: '佐藤', apType: '再',
+    customer: { name: '山田 花子', kana: 'ヤマダ ハナコ', phone: '090-1111-2222', phone2: '06-0000-0000', zip: '545-0000', address: '大阪府大阪市阿倍野区1-2-3' },
+    hearing: { profile: '女性・60代', trigger: 'チラシ（A123）', wants: '時計', large: '桐ダンス', attendee: 'ご本人', companion: 'なし', parking: 'あり', nameplate: 'あり', contact: '17:00〜19:00', notes: '犬がいる' } });
+  const t = page('R1', [full]).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const side = t.slice(t.indexOf('山田 花子 様'));
+  for (const k of ['ヤマダ ハナコ', '545-0000', '06-0000-0000', '女性・60代', '2026/10/22 10:00', '佐藤', '再訪', 'チラシ（A123）', '時計', '桐ダンス', 'ご本人', 'なし', 'あり', '17:00〜19:00', '犬がいる', 'CC-9']) assert.ok(side.includes(k), k);
+  assert.equal((side.match(/担当鑑定士/g) || []).length, 0); // 担当は、下の「担当（仮）」の1か所だけ
+});

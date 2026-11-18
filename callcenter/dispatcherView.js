@@ -1,5 +1,6 @@
 // 配車係の画面（ダミー）。オペレーターが仮確定した訪問の、担当鑑定士を確認・変更して、確定する。主に翌々日の予定を、毎日確定していく。
 // 確定した訪問だけが、鑑定士のタブレットの予定に出る。
+import { visitFieldsHtml } from './calendarView.js';
 import { esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
 import { USERS, isLeader } from '../src/dashboard.js';
@@ -212,9 +213,8 @@ function boardDetailHtml(r, reservations, now) {
     <div class="flex items-start gap-2"><div class="min-w-0 flex-1"><b class="text-base">${esc(r.customer.name)}</b> 様${genderParen(r.gender)} ${statusBadge(r)}</div>
       <button class="shrink-0 text-lg leading-none text-slate-500 hover:text-slate-900" data-bclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
     ${actions}
-    <div class="space-y-1"><div><b>${esc(r.start)}〜${esc(r.end)}</b></div>
-      <div class="text-xs text-slate-700">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
-      <div class="text-xs">売りたいもの：${esc(r.hearing.wants)}</div>
+    ${visitFieldsHtml({ userId: r.userId, date: r.date, start: minOf(r.start), end: minOf(r.end), name: r.customer.name, place: r.customer.address }, r, { staff: false })}
+    <div class="space-y-1">
       ${r.customer.phone ? customerProfileHtml(profileOf(r.customer), { advice: true }) : ''}
       <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">お客様の詳細（買取履歴・評価・これまでの担当）</button></div>
       <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
