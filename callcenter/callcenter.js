@@ -25,7 +25,7 @@ import { setScreenBadge, ccScreenId } from '../src/screenIds.js';
 import { autoAddress, fetchZip, zipLookedUp, normalizeZip } from '../src/zipAddress.js';
 import { mountPinMap, searchAddress } from './mapPane.js';
 import { routeModalHtml } from './routeModal.js';
-import { mountRouteMap } from './routeMap.js';
+import { mountRouteMap, routeNote } from './routeMap.js';
 import { pinLabel, roundPin } from './pin.js';
 import { missingFields, companionText, wantsText, hearingChecklist, entryStage, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
@@ -433,12 +433,17 @@ const syncHidden = () => { hiddenBlocks.clear(); loadMovedIds().forEach((id) => 
 
 const showScreenId = () => setScreenBadge(ccScreenId({ tab, bodyStage, editId, done, mapAddress, cvMode })); // 画面の隅の、画面ID
 
-// 訪問ルートの地図（モーダル）。描き直すたびに、作り直す
+// 訪問ルートの地図（モーダル）。描き直すたびに、作り直す（Googleマップは読み込みを待つので、待っている間に閉じられたら捨てる）
 function mountRoute() {
   if (routeCtl) { routeCtl.destroy(); routeCtl = null; }
   const box = routeMapId && tab === 'dispatch' ? $('#route-map') : null;
   if (!box) return;
-  routeCtl = mountRouteMap(box, routeStops(busyBlocks(routeMapId, dispDate, loadReservations(), new Date())).stops);
+  mountRouteMap(box, routeStops(busyBlocks(routeMapId, dispDate, loadReservations(), new Date())).stops).then((ctl) => {
+    if (!box.isConnected) { ctl.destroy(); return; }
+    routeCtl = ctl;
+    const note = $('#route-note');
+    if (note) note.textContent = routeNote(ctl.kind);
+  }).catch((err) => { const note = $('#route-note'); if (note) note.textContent = `地図を表示できませんでした（${err.message}）`; console.error(err); });
 }
 
 function render() {

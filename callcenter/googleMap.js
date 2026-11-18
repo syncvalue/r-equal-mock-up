@@ -4,6 +4,7 @@ import { roundPin, validPin, addressQueries } from './pin.js';
 export const googleKey = () => String(import.meta.env?.VITE_GOOGLE_MAPS_API_KEY ?? '').trim();
 
 let loading = null;
+export const loadGoogleMaps = () => loadGoogle(googleKey());
 function loadGoogle(key) {
   if (window.google?.maps?.Map) return Promise.resolve(window.google.maps);
   if (loading) return loading;

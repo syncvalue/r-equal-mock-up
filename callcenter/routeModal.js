@@ -24,7 +24,7 @@ export function routeModalHtml({ userId, date, reservations, now }) {
         <button class="b" data-routeclose aria-label="閉じる">✕ 閉じる</button></div>
       ${stops.length ? `<div class="flex min-h-0 flex-1 gap-3"><div id="route-map" class="h-[28rem] min-w-0 flex-1 rounded border"></div>
         <ol class="max-h-[28rem] w-60 shrink-0 space-y-2 overflow-y-auto">${list}</ol></div>
-        <div class="text-[11px] text-slate-500">※ 線は、ピンどうしを順に結んだ直線です（道路に沿ったルートではありません）。モックのため、ピンの位置は、住所からの概算です。</div>`
+        <div id="route-note" class="text-[11px] text-slate-500">地図を読み込んでいます…</div>`
     : '<div class="rounded border bg-slate-50 p-6 text-center text-sm text-slate-600">この日の訪問の場所が分かる予定がありません。</div>'}
     </div></div>`;
 }

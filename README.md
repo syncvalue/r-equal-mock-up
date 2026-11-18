@@ -154,5 +154,6 @@ Tailwind は CDN 読み込みのため、ネット接続が必要です。
 ## Googleマップのキー（受電画面の地図）
 
 受電画面の「地図」は、Googleマップの APIキー（環境変数 `VITE_GOOGLE_MAPS_API_KEY`）があれば Googleマップで、なければ OpenStreetMap で出ます。
+配車確定の「走行距離」を押して開く、訪問ルートの地図も同じキーを使います。道路に沿ったルートを出すには、Google Cloud で **Directions API** も有効にします（無効でも、直線で出ます）。
 手元では `.env.local` に `VITE_GOOGLE_MAPS_API_KEY=キー` と書き、Vercel では Project Settings → Environment Variables に同じ名前で登録して、再デプロイします（ビルド時に埋め込まれるため）。
 キーには、使えるサイトの制限（HTTPリファラー）をかけ、API は「Maps JavaScript API」と「Geocoding API」だけを許可します。
