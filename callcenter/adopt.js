@@ -22,7 +22,7 @@ export function reservationFromBlock(block, { userId, date, now = new Date(), se
   }
   return { // ダミーの他の訪問（お客様名と住所だけ）
     ...common, receptionNo: `CC-${date.replaceAll('-', '')}-${9000 + seq}`, receivedAt: stamp(now), receivedTs: now.getTime(), operator: '—', apType: '新', flyerId: null, chirashi: UNKNOWN,
-    hearing: { trigger: UNKNOWN, attendee: UNKNOWN, wants: '（既存の予定）', large: UNKNOWN, notes: UNKNOWN, profile: UNKNOWN, companion: UNKNOWN, parking: UNKNOWN, nameplate: UNKNOWN, contact: UNKNOWN },
+    hearing: { trigger: UNKNOWN, attendee: UNKNOWN, wants: UNKNOWN, large: UNKNOWN, notes: UNKNOWN, profile: UNKNOWN, companion: UNKNOWN, parking: UNKNOWN, nameplate: UNKNOWN, contact: UNKNOWN },
     customer: { name: String(block.label).replace(/\s*様$/, ''), kana: '', phone: '', phone2: '', zip: '', address: block.place ?? '' },
   };
 }

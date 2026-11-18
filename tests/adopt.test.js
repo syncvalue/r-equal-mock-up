@@ -50,3 +50,10 @@ test('取り込む前の予定を動かすときは、その予定自身を重�
   const other = busyBlocks('u01', '2026-10-21', [], NOW).find((b) => b.gid !== first.gid); // 13:00-14:00
   assert.equal(canPlace(pseudo, 'u01', other.start, [], NOW).ok, false); // 別の予定とは重なる
 });
+
+test('ダミーの予定（お客様名と住所だけ）を取り込んだ予約は、売りたいものも、ほかのヒアリングと同じ「未確認」（意味の分からない文言を入れない）', () => {
+  const dummy = { gid: 'flr:u01/2026-10-21/600', start: 600, end: 690, label: '田中 一郎 様', source: 'dummy', place: '大阪府大阪市1-1' };
+  const rec = reservationFromBlock(dummy, { userId: 'u01', date: '2026-10-21', now: NOW });
+  assert.equal(rec.hearing.wants, '未確認');
+  assert.ok(Object.values(rec.hearing).every((v) => v === '未確認'));
+});

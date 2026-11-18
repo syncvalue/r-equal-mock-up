@@ -100,7 +100,7 @@ export function visitFieldsHtml(b, r, { staff: showStaff = true } = {}) {
     row('郵便番号', c.zip), row('住所', c.address ?? b.place), row('電話番号', [c.phone, c.phone2].filter(Boolean).join(' ／ ')),
     showStaff ? row('担当鑑定士', staff) : '', row('受付番号', r?.receptionNo), row('受付日時', r ? [r.receivedAt, r.operator && r.operator !== '—' ? `（${r.operator}）` : ''].filter(Boolean).join(' ') : ''), row('新規・再訪', r?.apType === '再' ? '再訪' : r?.apType === '新' ? '新規' : ''),
     row('問い合わせ', [h.inquiryType, h.adType].filter(Boolean).join(' ／ ')), row('来電のきっかけ', h.trigger ?? r?.chirashi),
-    row('売りたいもの', h.wants), row('大型品・その他', h.large), row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('前日確認の連絡時間', h.contact), row('訪問時の注意', h.notes),
+    row('売りたいもの', h.wants === '（既存の予定）' ? '未確認' : h.wants), row('大型品・その他', h.large), row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('前日確認の連絡時間', h.contact), row('訪問時の注意', h.notes),
   ].join('');
   return `<dl class="space-y-1 text-xs">${rows}</dl>`;
 }

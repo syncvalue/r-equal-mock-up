@@ -288,3 +288,8 @@ test('休みの鑑定士の、名前の下は「0件」（「休み」は、列�
   const head = h.slice(h.indexOf(`>${off.user.name}</b>`), h.indexOf(`>${off.user.name}</b>`) + 120);
   assert.ok(head.includes('0件') && !head.includes('休み'));
 });
+
+test('以前の取り込みで「（既存の予定）」と保存された売りたいものは、「未確認」と出す', () => {
+  const h = text(calendarHtml({ ...base, calSel: 'R1', reservations: [rec({ hearing: { wants: '（既存の予定）', contact: '未確認' } })] }));
+  assert.ok(h.includes('売りたいもの 未確認') && !h.includes('既存の予定'));
+});
