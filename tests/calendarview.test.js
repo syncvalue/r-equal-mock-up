@@ -241,3 +241,15 @@ test('「不通のまま終了する」は、不通の記録があるときだ�
   const closed = h({ confirmCalls: no, confirmClosed: { by: '佐藤', at: new Date(2026, 9, 29, 10, 0).getTime() } });
   assert.ok(!closed.includes('data-callclose') && text(closed).includes('不通のまま終了（佐藤'));
 });
+
+test('不通のまま終了した訪問は、実線（終わった）で、「不通」の文字は残る。終了前の不通は点線', () => {
+  const no = [{ result: 'noanswer', memo: '', by: '佐藤', at: 1 }];
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
+  for (const mode of ['day', 'week']) {
+    const blk = (o) => calendarHtml({ ...base, mode, reservations: [rec({ userId: u.id, confirmCalls: no, ...o })] }).match(/<button class="absolute[^>]*(?:data-callopen|data-calblock)="R1"[^>]*>[\s\S]*?<\/button>/)[0];
+    const closed = blk({ confirmClosed: { by: '佐藤', at: 2 } });
+    assert.ok(closed.includes('border:2px solid') && !closed.includes('dashed') && closed.includes('>不通</span>'), mode);
+    assert.ok(blk({}).includes('dashed'), mode);
+  }
+});

@@ -25,7 +25,9 @@ export const statusChip = (r) => { const s = confirmStatus(r); return `<span cla
 // 帯の中に出す状態の文字は「不通」だけ（連絡済み／まだは、実線／点線で分かる。未連絡と不通は、線では同じ扱い）
 const failMark = (r) => (confirmStatus(r ?? {}).key === 'noanswer' ? '<span class="mr-0.5 rounded bg-white px-1 font-bold text-slate-900">不通</span>' : '');
 // 訪問の帯の見た目: 鑑定士ごとの色。前日確認が済んでいれば塗りつぶし、まだ（未連絡・不通）なら点線の枠
-const callLook = (userId, r) => visitBlockStyle(userId, confirmStatus(r ?? {}).key === 'reached');
+// 実線＝前日確認が終わった（連絡済み、または不通のまま終了）／点線＝まだ
+const callDone = (r) => { const st = confirmStatus(r ?? {}); return st.key === 'reached' || st.closed; };
+const callLook = (userId, r) => visitBlockStyle(userId, callDone(r));
 const staffDot = (id) => `<i class="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style="background:${staffColor(id).solid}"></i>`;
 
 // 上の操作（エリア・週／日の移動）
@@ -44,7 +46,7 @@ function barHtml({ areaId, mode, weekStart, date, staff = [], staffSel = [], sta
 }
 
 // 前日確認の凡例（帯の色は、鑑定士ごと）
-const callLegendHtml = () => `<div class="flex flex-wrap items-center gap-x-3 text-[11px] text-slate-700">前日確認：<span><i class="inline-block h-2.5 w-4 rounded-sm bg-slate-600 align-middle"></i> 済み（塗りつぶし）</span><span><i class="inline-block h-2.5 w-4 rounded-sm border-2 border-dashed border-slate-600 bg-slate-100 align-middle"></i> まだ（点線。未連絡・不通）</span><span class="text-slate-500">色＝鑑定士</span></div>`;
+const callLegendHtml = () => `<div class="flex flex-wrap items-center gap-x-3 text-[11px] text-slate-700">前日確認：<span><i class="inline-block h-2.5 w-4 rounded-sm bg-slate-600 align-middle"></i> 終わった（塗りつぶし。連絡済み・不通のまま終了）</span><span><i class="inline-block h-2.5 w-4 rounded-sm border-2 border-dashed border-slate-600 bg-slate-100 align-middle"></i> まだ（点線。未連絡・不通）</span><span class="text-slate-500">色＝鑑定士</span></div>`;
 const legendHtml = () => `<span class="flex flex-wrap items-center gap-2 text-[11px] text-slate-700">濃さ（訪問が入っている鑑定士の割合）
   <span class="inline-flex items-center gap-0.5">薄い（空き）${[0, 0.25, 0.5, 0.75, 1].map((r) => `<i class="inline-block h-3 w-5 rounded-sm" style="background:${heatStyle(r).bg}"></i>`).join('')}濃い（埋まっている）</span>
 </span>`;
