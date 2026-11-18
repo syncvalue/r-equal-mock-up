@@ -1,6 +1,7 @@
 // コールセンターの配車ロジック（画面に依存しない純関数）。
 // 訪問先の住所 → 担当エリア → そのエリアの鑑定士のうち、希望日時に空いている人 → 女性のお客様の担当が偏らないように選ぶ。
 import { RANK_VALUES, currentStaffRank } from './staffRank.js';
+import { SPOTS, spotAddress, spotPos } from './landmarks.js';
 import { USERS, stats, monthProgress, rangeOf } from './dashboard.js';
 import { EVENTS, toMin } from './schedule.js';
 import { dayOffset, minToHHMM, ymdOf, isReverted } from './reservations.js';
@@ -134,6 +135,8 @@ function mixedRandom(str) {
 export function locateAddress(address, area) {
   const text = String(address ?? '').trim();
   if (!text || !area) return null;
+  const real = spotPos(text); // ダミーに使っている実在の場所は、その場所の座標
+  if (real) return real;
   const rnd = mixedRandom(text);
   return { lat: area.lat + (rnd() - 0.5) * 0.18, lng: area.lng + (rnd() - 0.5) * 0.22 };
 }
@@ -156,12 +159,8 @@ export function travelAround(blocks, start, end, here) {
 
 // ダミーの他の訪問のお客様名と住所（エリアごと）。日別の表示で、予定のお客様と住所が分かるように
 const DUMMY_NAMES = ['岡田 恵子', '石川 正一', '村上 久美', '前田 隆', '藤田 直子', '近藤 浩二', '長谷川 淳', '清水 明美'];
-const DUMMY_ADDRESS = {
-  osaka: ['大阪府大阪市中央区難波3-1-5', '大阪府堺市堺区南瓦町1-1', '大阪府豊中市本町2-3-4', '大阪府東大阪市長堂1-6-8'],
-  hyogo: ['兵庫県神戸市中央区三宮町1-2-3', '京都府京都市下京区四条通3-4', '兵庫県西宮市池田町2-5', '滋賀県大津市浜大津1-3'],
-  kanto: ['東京都新宿区西新宿2-8-1', '神奈川県横浜市西区みなとみらい3-1', '埼玉県さいたま市大宮区桜木町1-2', '千葉県千葉市中央区中央3-4'],
-  tokai: ['愛知県名古屋市中村区名駅1-1', '愛知県豊田市西町3-5', '静岡県浜松市中区砂山町2-1', '岐阜県岐阜市橋本町1-10'],
-};
+// 空き状況の見本に入れる「他の訪問」の場所（エリアごとに、実在する場所）
+const DUMMY_SPOTS = { osaka: ['namba', 'sakai', 'toyonaka', 'higashiosaka'], hyogo: ['kobe', 'kyoto', 'koshien', 'otsu'], kanto: ['shinjuku', 'landmark', 'omiya', 'chiba'], tokai: ['nagoyajo', 'toyota', 'hamamatsu', 'gifu'] };
 
 // 予定のない日は、鑑定士ごとに日付で決まる「他の訪問」（ダミー）を入れて、空き状況が見本になるようにする
 // 予定が入っていない鑑定士（入社間もなく、まだ訪問が少ない想定）。「前の訪問なし（営業所から）」の例として、常に空く
@@ -170,6 +169,10 @@ const LIGHT_SCHEDULE = new Set(['u09']);
 // 配車係が別の鑑定士・時間に動かして、予約として取り込んだ元の予定（動かしたあとは、元の位置には出さない）。画面側が、保存先から入れる
 export const hiddenBlocks = new Set();
 
+function spotOf(areaId, i) { // ダミーの訪問先: 実在する場所の住所と座標（なければ、エリアの中心）
+  const key = (DUMMY_SPOTS[areaId] ?? [])[i];
+  return key ? { lat: SPOTS[key].lat, lng: SPOTS[key].lng, place: spotAddress(key) } : { ...(locateAddress(`${areaId}/${i}`, areaById(areaId)) ?? {}), place: '' };
+}
 function fillerBlocks(userId, date, hidden, now) {
   if (LIGHT_SCHEDULE.has(userId)) return [];
   const att = attendanceOf(userId, date, now);
@@ -187,7 +190,7 @@ function fillerBlocks(userId, date, hidden, now) {
       const gid = `flr:${userId}/${date}/${start}`;
       const block = {
         gid, start, end, label: `${DUMMY_NAMES[pick % DUMMY_NAMES.length]} 様`, source: 'dummy', custRank: dummyCustomerRank(gid),
-        ...locateAddress(`${userId}/${date}/${start}`, areaById(areaId)), place: (DUMMY_ADDRESS[areaId] ?? [''])[Math.floor(pick / 8) % 4],
+        ...spotOf(areaId, Math.floor(pick / 8) % 4),
       };
       taken.push(block);
       if (!hidden.has(gid)) blocks.push(block);

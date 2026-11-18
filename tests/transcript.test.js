@@ -32,9 +32,9 @@ test('名前・フリガナ・電話番号', () => {
 });
 
 test('住所・郵便番号・性別', () => {
-  const p = ex('大阪府大阪市阿倍野区阿倍野筋1-2-3です。郵便番号は545-0052です。主婦をしております。', blank, NOW);
-  assert.equal(p.address, '大阪府大阪市阿倍野区阿倍野筋1-2-3');
-  assert.equal(p.zip, '545-0052');
+  const p = ex('大阪府大阪市中央区難波5-1-60です。郵便番号は542-0076です。主婦をしております。', blank, NOW);
+  assert.equal(p.address, '大阪府大阪市中央区難波5-1-60');
+  assert.equal(p.zip, '542-0076');
   assert.equal(p.gender, 'f');
   assert.equal(p.date, undefined); // 住所の数字を日付にしない
 });
@@ -98,7 +98,7 @@ test('フリガナの長音は壊さない', () => {
 });
 
 test('デモ台本: マップでのエリア確認が住所のあとにあり、電話を切る発話で終わる', () => {
-  const iAddr = DEMO_SCRIPT.findIndex((l) => l.who === 'cu' && /阿倍野/.test(l.text));
+  const iAddr = DEMO_SCRIPT.findIndex((l) => l.who === 'cu' && /難波/.test(l.text));
   const iArea = DEMO_SCRIPT.findIndex((l) => l.action === 'confirmArea');
   assert.ok(iAddr >= 0 && iArea > iAddr);
   assert.equal(DEMO_SCRIPT.at(-1).action, 'hangup');

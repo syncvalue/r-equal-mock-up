@@ -355,3 +355,20 @@ test('配車確定の移動ルート: 訪問する順（開始時刻順）に①
   assert.equal(r.km, dayTravel(withPos).km); // 全部に座標があれば、列の見出しの走行距離と同じ
   assert.deepEqual(routeStops([]), { stops: [], legs: [], km: 0 });
 });
+
+test('ダミーの訪問先は、実在する場所（駅・城・市役所など）。住所から、その場所の座標が引ける', async () => {
+  const { SPOTS, spotPos, spotAddress } = await import('../src/landmarks.js');
+  const { loadSampleReservations } = await import('../callcenter/samples.js').catch(() => ({}));
+  assert.deepEqual(spotPos(spotAddress('osakajo')), { lat: SPOTS.osakajo.lat, lng: SPOTS.osakajo.lng }); // 「（大阪城天守閣）」つきでも引ける
+  assert.equal(spotPos('大阪府大阪市中央区どこか1-2-3'), null); // 実在の場所でなければ、引けない
+  assert.deepEqual(locateAddress(spotAddress('umeda'), areaById('osaka')), { lat: SPOTS.umeda.lat, lng: SPOTS.umeda.lng });
+  for (const s of Object.values(SPOTS)) { // 座標は、その場所のエリアの中心から、おおよそ近い（取り違えの検出）
+    const a = areaById(s.area);
+    assert.ok(haversineKm(a, s) < 120, `${s.name} がエリア（${a.name}）から離れすぎ`);
+  }
+  // 空き状況の見本の訪問（ダミー）も、実在の場所
+  const names = Object.values(SPOTS).map((s) => s.address);
+  for (const u of ['u02', 'u03', 'u04']) {
+    for (const b of busyBlocks(u, '2026-10-22', [], new Date(2026, 9, 21, 9, 0)).filter((x) => x.source === 'dummy')) assert.ok(names.some((n) => b.place.startsWith(n)), `${b.place} は実在の場所の住所ではない`);
+  }
+});
