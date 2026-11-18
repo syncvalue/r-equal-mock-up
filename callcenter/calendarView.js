@@ -120,7 +120,7 @@ function visitDetailHtml(b, r, draft, { anchor = false } = {}) {
 function dayGridHtml({ cols, date, calSel }) {
   const h = ((WORK_END - WORK_START) / SLOT_STEP) * DAY_ROW;
   const grid = `grid-template-columns:2.5rem repeat(${cols.length},minmax(6.5rem,1fr));min-width:${2.5 + cols.length * 6.5}rem`;
-  const head = cols.map((c) => `<div class="border-b px-1 py-0.5 text-center ${c.absent ? 'opacity-60' : ''}"><div>${avatarHtml(c.user, 26)}</div><b class="text-xs">${esc(c.user.name)}</b>${c.absent ? '<div class="text-[10px] font-bold text-slate-700">休み</div>' : `<div class="text-[10px] text-slate-500">${c.blocks.length}件</div>`}</div>`).join('');
+  const head = cols.map((c) => `<div class="border-b px-1 py-0.5 text-center ${c.absent ? 'opacity-60' : ''}"><div>${avatarHtml(c.user, 26)}</div><b class="text-xs">${esc(c.user.name)}</b><div class="text-[10px] text-slate-500">${c.absent ? 0 : c.blocks.length}件</div></div>`).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: (WORK_END - WORK_START) / 60 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => {
     const blocks = c.blocks.map((b) => {

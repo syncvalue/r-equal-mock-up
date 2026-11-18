@@ -279,3 +279,12 @@ test('「休み」の札と斜線は、終日も一部の時間も、同じ大�
   }
   assert.ok(stripe.includes('rgba(148,163,184,.45)'));
 });
+
+test('休みの鑑定士の、名前の下は「0件」（「休み」は、列の札だけ。近くに2か所書かない）', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const off = cols.find((c) => c.absent);
+  if (!off) return; // その日、休みの人がいなければ対象なし
+  const h = calendarHtml({ ...base, mode: 'day', reservations: [] });
+  const head = h.slice(h.indexOf(`>${off.user.name}</b>`), h.indexOf(`>${off.user.name}</b>`) + 120);
+  assert.ok(head.includes('0件') && !head.includes('休み'));
+});
