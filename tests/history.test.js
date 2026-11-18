@@ -29,12 +29,12 @@ test('音声入力デモの山田 花子は、過去に3回の買取実績があ
 test('顧客のランク・厄介度・クーリングオフ歴', async () => {
   const { customerProfile, CUSTOMER_RANKS } = await import('../src/customerHistory.js');
   const s = customerProfile(['090-5050-6060']); // 前川 玲子: 資産が多いが、厄介（要注意）で、クーリングオフが2回
-  assert.deepEqual([s.rank, s.trouble.level, s.cooloff.length, s.known], ['S', 'alert', 2, true]);
+  assert.deepEqual([s.rank, s.trouble.level, s.cooloff.length, s.known], ['SS', 'alert', 2, true]);
   assert.ok(s.trouble.tags.includes('クレームが多い') && s.trouble.memo);
   assert.ok(s.cooloff[0].at > s.cooloff[1].at); // 新しい順
   assert.ok(s.purchase.total >= 1000000);
   const a = customerProfile(['080-8901-2345']);
-  assert.deepEqual([a.rank, a.trouble.level, a.cooloff.length], ['A', 'caution', 1]);
+  assert.deepEqual([a.rank, a.trouble.level, a.cooloff.length], ['S', 'caution', 1]);
   assert.ok(CUSTOMER_RANKS.includes(customerProfile(['090-2468-1357']).rank));
 });
 
@@ -43,7 +43,7 @@ test('顧客のランク: 登録がなければ、総買取額から自動で決
   const none = customerProfile(['090-0000-0000']);
   assert.deepEqual([none.rank, none.known, none.trouble.level, none.cooloff], [null, false, 'none', []]);
   const auto = customerProfile(['080-2345-6789']); // 登録のランクがあれば、それを使う
-  assert.deepEqual([auto.rank, auto.rankAuto], ['B', false]);
+  assert.deepEqual([auto.rank, auto.rankAuto], ['A', false]);
 });
 
 test('厄介度は、人が登録したものだけ。鑑定士の評価のフラグから、自動では上げない', async () => {
@@ -64,4 +64,11 @@ test('買取の履歴は、品目ごとの内訳まで持つ。内訳の合計�
   assert.ok(big); // 1回で、複数点（多い回は6点以上）
   assert.deepEqual(visitLines({ items: '腕時計', total: 640000 }), [{ name: '腕時計', qty: 1, price: 640000 }]); // 内訳がない記録は、1行にする
   assert.equal(lineTotal({ price: 6000, qty: 10 }), 60000);
+});
+
+test('顧客ランクは、SS・S・A・Bの4段階。自動判定の区切り（仮）: 100万円以上=SS、50万円=S、20万円=A、実績あり=B', async () => {
+  const { CUSTOMER_RANKS } = await import('../src/customerHistory.js');
+  assert.deepEqual(CUSTOMER_RANKS, ['SS', 'S', 'A', 'B']);
+  const { RANKS } = await import('../src/dispatch.js');
+  assert.deepEqual(RANKS, ['SS', 'S', 'A', 'B']); // 鑑定士も同じ4段階
 });

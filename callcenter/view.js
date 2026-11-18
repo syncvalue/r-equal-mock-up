@@ -35,8 +35,8 @@ export const legendHtml = ({ want = true } = {}) => `<span class="font-normal te
   <span><i class="inline-block w-3 h-2.5 rounded-sm bg-slate-400 align-middle"></i> 薄い青：仮確定（未確定）</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-amber-600 align-middle"></i> 橙：確定から仮確定に戻った</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-slate-700 align-middle"></i> 濃い青：確定済み</span>
   ${want ? '<span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-teal-600 bg-teal-400/25 align-middle"></i> 緑：希望時間帯（空き）</span><span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-rose-500 bg-rose-400/25 align-middle"></i> 赤：予定と重なる</span>' : ''}</span>`;
 
-// 鑑定士のランク（S が最上位）
-const RANK_CLS = { S: 'bg-amber-400 text-slate-900', A: 'bg-slate-600 text-white', B: 'bg-slate-500 text-white', C: 'bg-slate-300 text-slate-900' };
+// 鑑定士のランク（SS が最上位。SS・S・A・B）
+const RANK_CLS = { SS: 'bg-amber-400 text-slate-900', S: 'bg-amber-200 text-slate-900', A: 'bg-slate-600 text-white', B: 'bg-slate-300 text-slate-900' };
 export const rankBadge = (rank) => (rank ? `<span class="inline-block rounded px-1.5 text-[10px] font-bold leading-4 ${RANK_CLS[rank] ?? 'bg-slate-200'}" title="鑑定士のランク">${esc(rank)}</span>` : '');
 
 // 前後の訪問から、今回のお客様の住所までの距離（概算）。prev=直前の訪問（なければ営業所から）／next=直後の訪問。short=鑑定士ごとの列の見出し用の短い表記

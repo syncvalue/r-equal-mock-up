@@ -43,7 +43,7 @@ test('来店の一覧: 待ち・対応中・予約・完了・取消に分かれ
   assert.ok(html.includes(`data-arrive="${res}"`) && html.includes(`data-noshow="${res}"`) && html.includes(`data-start="${res}"`));
   assert.ok(html.includes(`data-start="${wait}"`) && !html.includes(`data-arrive="${wait}"`)); // 待ちは、来店済みにする操作がない
   assert.ok(html.includes('data-walkin') && html.includes('data-w="name"'));
-  assert.ok(/顧客[SABC]/.test(t), t); // 山田 花子は、過去の買取から顧客ランクが付く
+  assert.ok(/顧客(SS|S|A|B)/.test(t), t); // 山田 花子は、過去の買取から顧客ランクが付く
 });
 
 test('対応中の来店には「買取を続ける」と担当の名前が出る。取消には理由が出る', () => {

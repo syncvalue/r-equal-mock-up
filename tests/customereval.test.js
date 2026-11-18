@@ -14,9 +14,9 @@ beforeEach(() => store.clear());
 const visitEval = (o = {}) => ({ visitId: 'V1', phone: '090-1111-2222', customerName: 'A', savedAt: Date.UTC(2026, 9, 20), by: '鑑定士 鈴木 一郎', overall: 4, attitude: '良好', repeat: '高い', wealth: '高そう', timing: '3か月以内', cats: [], flags: [], memo: '初回。丁寧に対応', ...o });
 
 test('訪問の評価から、お客様の評価の初期値を作る（資力→ランク、フラグ・態度→厄介度）', () => {
-  assert.deepEqual(customerEvalFromVisit(visitEval()), { rank: 'A', trouble: { level: 'none', tags: [], memo: '' }, memo: '初回。丁寧に対応' });
-  assert.equal(customerEvalFromVisit(visitEval({ wealth: '普通' })).rank, 'B');
-  assert.equal(customerEvalFromVisit(visitEval({ wealth: '低そう' })).rank, 'C');
+  assert.deepEqual(customerEvalFromVisit(visitEval()), { rank: 'S', trouble: { level: 'none', tags: [], memo: '' }, memo: '初回。丁寧に対応' });
+  assert.equal(customerEvalFromVisit(visitEval({ wealth: '普通' })).rank, 'A');
+  assert.equal(customerEvalFromVisit(visitEval({ wealth: '低そう' })).rank, 'B');
   const c = customerEvalFromVisit(visitEval({ flags: ['価格交渉が強い', '紹介が見込める'] }));
   assert.deepEqual([c.trouble.level, c.trouble.tags], ['caution', ['価格交渉が強い']]); // 前向きなフラグは、厄介な点に入れない
   assert.equal(customerEvalFromVisit(visitEval({ flags: ['クレーム注意'] })).trouble.level, 'alert');
@@ -25,13 +25,13 @@ test('訪問の評価から、お客様の評価の初期値を作る（資力�
 
 test('お客様の評価の登録・読み出し（電話番号で。ハイフンの違いは吸収）。登録したものが、評価として使われる', () => {
   assert.equal(loadCustomerEval(['090-1111-2222']), null);
-  saveCustomerEval('090-1111-2222', { rank: 'S', trouble: { level: 'alert', tags: ['クレームが多い'] }, memo: '資産は多い' }, { by: '配車係' });
-  assert.equal(loadCustomerEval(['09011112222']).rank, 'S');
+  saveCustomerEval('090-1111-2222', { rank: 'SS', trouble: { level: 'alert', tags: ['クレームが多い'] }, memo: '資産は多い' }, { by: '配車係' });
+  assert.equal(loadCustomerEval(['09011112222']).rank, 'SS');
   const p = customerProfile(['090-1111-2222']);
-  assert.deepEqual([p.rank, p.trouble.level, p.trouble.tags, p.memo, p.meta.by, p.meta.source], ['S', 'alert', ['クレームが多い'], '資産は多い', '配車係', 'manual']);
+  assert.deepEqual([p.rank, p.trouble.level, p.trouble.tags, p.memo, p.meta.by, p.meta.source], ['SS', 'alert', ['クレームが多い'], '資産は多い', '配車係', 'manual']);
   // 登録がサンプルの評価より優先される
-  saveCustomerEval('080-8901-2345', { rank: 'C', trouble: { level: 'none', tags: [] } }, { by: '配車係' });
-  assert.deepEqual([customerProfile(['080-8901-2345']).rank, customerProfile(['080-8901-2345']).trouble.level], ['C', 'none']);
+  saveCustomerEval('080-8901-2345', { rank: 'B', trouble: { level: 'none', tags: [] } }, { by: '配車係' });
+  assert.deepEqual([customerProfile(['080-8901-2345']).rank, customerProfile(['080-8901-2345']).trouble.level], ['B', 'none']);
   assert.equal(customerProfile(['080-8901-2345']).cooloff.length, 1); // クーリングオフ歴は、お客様の評価を登録し直しても消えない
 });
 
@@ -39,10 +39,10 @@ test('初めての訪問の評価は、そのまま、お客様の評価の初�
   const rec = visitEval({ phone: '090-3333-4444' });
   assert.equal(setFirstVisitCustomerEval(rec), true);
   const p = customerProfile(['090-3333-4444']);
-  assert.deepEqual([p.rank, p.meta.source, p.meta.by], ['A', 'first-visit', '自動（初回の訪問の評価）']);
+  assert.deepEqual([p.rank, p.meta.source, p.meta.by], ['S', 'first-visit', '自動（初回の訪問の評価）']);
   // 登録済みなら、上書きしない
   assert.equal(setFirstVisitCustomerEval(visitEval({ phone: '090-3333-4444', wealth: '低そう', visitId: 'V2' })), false);
-  assert.equal(customerProfile(['090-3333-4444']).rank, 'A');
+  assert.equal(customerProfile(['090-3333-4444']).rank, 'S');
   // 過去の訪問がある（サンプルの履歴）お客様は、初回ではない
   assert.equal(setFirstVisitCustomerEval(visitEval({ phone: '090-7777-0001', visitId: 'V9' }), {}), true);
   assert.equal(setFirstVisitCustomerEval(visitEval({ phone: '080-2345-6789' })), false); // 登録済みのお客様

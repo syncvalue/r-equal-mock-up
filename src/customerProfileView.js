@@ -1,14 +1,14 @@
 // 顧客ランク・厄介度・クーリングオフ歴の表示（コールセンターの配車係の画面と、鑑定士のタブレットで共通）。
-// 顧客ランク＝資産・売却の見込み（S〜C）。厄介度＝ランクとは別の軸（金があっても売らない・文句が多い など）。
+// 顧客ランク＝資産・売却の見込み（SS・S・A・B）。厄介度＝ランクとは別の軸（金があっても売らない・文句が多い など）。
 import { esc, yen } from "./format.js";
 import { helpIcon } from "./help.js";
 
 // 顧客ランクは、鑑定士のランクと見分けがつくよう、紫で「顧客S」のように出す。厄介度は、ランクとは別の軸（注意＝橙、要注意＝赤）
 export const CRANK_CLS = {
+  SS: "bg-slate-900 text-white",
   S: "bg-slate-700 text-white",
   A: "bg-slate-500 text-white",
   B: "bg-slate-200 text-slate-900",
-  C: "bg-slate-200 text-slate-700",
 };
 export const dateYmd = (ms) => {
   const d = new Date(ms);
@@ -17,7 +17,7 @@ export const dateYmd = (ms) => {
 
 export const custRankBadge = (p) =>
   p?.rank
-    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${CRANK_CLS[p.rank]}" title="顧客ランク（資産・売却の見込み）${p.rankAuto ? "。総買取額から自動で決めています" : ""}">顧客${esc(p.rank)}</span>`
+    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${CRANK_CLS[p.rank] ?? 'bg-slate-200 text-slate-900'}" title="顧客ランク（資産・売却の見込み）${p.rankAuto ? "。総買取額から自動で決めています" : ""}">顧客${esc(p.rank)}</span>`
     : p?.known === false
       ? '<span class="inline-block rounded bg-slate-100 px-1.5 text-[11px] font-bold leading-4 text-slate-900" title="買取の実績がありません">新規</span>'
       : "";
@@ -41,7 +41,7 @@ export const customerMarks = (p, { rank: showRank = true } = {}) =>
 export function assignAdvice(p) {
   if (!p) return "";
   const hot = p.trouble.level === "alert" || p.cooloff.length >= 2;
-  if (!hot && p.rank !== "S") return "";
+  if (!hot && p.rank !== "SS") return "";
   return `<div class="font-bold text-slate-900">${hot ? "要注意のお客様です。上位ランクの鑑定士をおすすめします" : "資産の多いお客様です。上位ランクの鑑定士をおすすめします"}</div>`;
 }
 

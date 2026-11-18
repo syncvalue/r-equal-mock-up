@@ -34,7 +34,7 @@ export function saveCustomerEval(phone, data, { by, source = 'manual', now = Dat
 
 // 鑑定士が入力した訪問の評価から、お客様の評価の初期値を作る（初回の訪問のとき）
 export function customerEvalFromVisit(e) {
-  const rank = { 高そう: 'A', 普通: 'B', 低そう: 'C' }[e.wealth] ?? null; // 資力 → 顧客ランク
+  const rank = { 高そう: 'S', 普通: 'A', 低そう: 'B' }[e.wealth] ?? null; // 資力 → 顧客ランク
   const flags = (e.flags ?? []).filter((f) => f !== '紹介が見込める');
   const level = flags.includes('クレーム注意') ? 'alert' : flags.length || e.attitude === '難あり' ? 'caution' : 'none';
   return { rank, trouble: { level, tags: flags, memo: '' }, memo: e.memo ?? '' };

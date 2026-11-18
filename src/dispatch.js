@@ -57,9 +57,9 @@ const USER_SPECIALTY = {
 export const specialtiesOf = (userId) => USER_SPECIALTY[userId] ?? [];
 
 // ---- 鑑定士のランク ------------------------------------------------------------------
-// 鑑定士ごとのランク（ダミー。S が最上位）
-const USER_RANK = { u01: 'B', u02: 'S', u03: 'A', u04: 'C', u05: 'B', u06: 'S', u07: 'B', u08: 'C', u09: 'A', u10: 'B', u11: 'A', u12: 'B', u13: 'C', u14: 'B', u15: 'A', u16: 'C' };
-export const RANKS = ['S', 'A', 'B', 'C'];
+// 鑑定士ごとのランク（ダミー。SS が最上位。SS・S・A・B の4段階、仮の設定）
+const USER_RANK = { u01: 'A', u02: 'SS', u03: 'S', u04: 'B', u05: 'A', u06: 'SS', u07: 'A', u08: 'B', u09: 'S', u10: 'A', u11: 'S', u12: 'A', u13: 'B', u14: 'A', u15: 'S', u16: 'B' };
+export const RANKS = ['SS', 'S', 'A', 'B'];
 export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
 
 // ---- 出勤状況 ------------------------------------------------------------------------

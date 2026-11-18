@@ -65,7 +65,7 @@ function customerEvalEditor(p, phone) {
   const sel = (key, opts, cur) => `<select class="inp !py-0.5" data-ce="${key}">${opts.map(([v, t]) => `<option value="${v}" ${v === (cur ?? '') ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
   return `<details class="rounded border bg-white p-1.5"><summary class="cursor-pointer text-xs font-bold text-slate-900">✎ お客様の評価を登録・変更する</summary>
     <div class="mt-1.5 grid grid-cols-2 gap-2 text-xs" data-custeval="${esc(phone)}">
-      <label class="space-y-0.5"><span class="text-slate-500">顧客ランク（資産・売却の見込み）</span>${sel('rank', [['', '（未設定）'], ['S', 'S'], ['A', 'A'], ['B', 'B'], ['C', 'C']], p.rank && !p.rankAuto ? p.rank : '')}</label>
+      <label class="space-y-0.5"><span class="text-slate-500">顧客ランク（資産・売却の見込み）</span>${sel('rank', [['', '（未設定）'], ['SS', 'SS'], ['S', 'S'], ['A', 'A'], ['B', 'B']], p.rank && !p.rankAuto ? p.rank : '')}</label>
       <label class="space-y-0.5"><span class="text-slate-500">厄介度</span>${sel('level', [['none', 'なし'], ['caution', '注意'], ['alert', '要注意']], p.trouble.level)}</label>
       <label class="col-span-2 space-y-0.5"><span class="text-slate-500">厄介な点</span><input class="inp !py-0.5" data-ce="tags" value="${esc(p.trouble.tags.join('、'))}" placeholder="読点で区切る　例: クレームが多い、売却に至らない" /></label>
       <label class="col-span-2 space-y-0.5"><span class="text-slate-500">お客様のメモ</span><textarea class="inp !py-0.5" rows="2" data-ce="memo" placeholder="例: 資産は多いが、成約まで時間がかかる">${esc(p.memo ?? '')}</textarea></label>
