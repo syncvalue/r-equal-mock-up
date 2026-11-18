@@ -23,7 +23,7 @@ function loadGoogle(key) {
 export async function mountGoogleMap(el, { pin, center, onPin }) {
   const maps = await loadGoogle(googleKey());
   const start = validPin(pin) ? pin : center;
-  const map = new maps.Map(el, { center: start, zoom: validPin(pin) ? 19 : 14, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false, gestureHandling: 'greedy' });
+  const map = new maps.Map(el, { center: start, zoom: validPin(pin) ? 19 : 14, mapTypeControl: true, mapTypeControlOptions: { mapTypeIds: ['roadmap', 'satellite'] }, streetViewControl: false, fullscreenControl: false, clickableIcons: false, gestureHandling: 'greedy' });
   let marker = null;
   const put = (p, notify = true) => {
     const q = roundPin(p);
