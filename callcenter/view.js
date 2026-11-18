@@ -172,7 +172,7 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
       ${lbl(`訪問先の住所${b('address')}`, `<div class="flex gap-1">${inp('address', f.address, { ph: '大阪府大阪市阿倍野区…' })}<button class="b b-sec mt-0.5 shrink-0 !px-2" data-mapview title="右の画面を、地図に切り替える">地図</button></div>`, { req: true, cls: 'col-span-2' })}
     </div>
     <div id="zip-cands" class="empty:hidden">${zipCandidatesHtml(f)}</div>
-    <div id="pin-label" class="text-xs ${validPin(f.pin) ? 'text-teal-700 font-bold' : 'text-slate-500'}">${esc(pinLabel(f.pin))}</div>`);
+    <div id="pin-label" class="text-xs ${validPin(f.pin) ? 'text-teal-700 font-bold' : 'text-slate-500'}">${esc(pinLabel(f.pin))}${validPin(f.pin) && f.pinAuto ? '（住所からの仮の位置）' : ''}</div>`);
   const when = sec('④ 訪問の希望日時', `
     <div class="grid grid-cols-2 gap-2">
       ${lbl(`希望日${b('when')}`, inp('date', f.date, { type: 'date', extra: `min="${today}"` }), { req: true })}

@@ -37,6 +37,7 @@ export async function mountGoogleMap(el, { pin, center, onPin }) {
   if (validPin(pin)) put(pin, false);
   map.addListener('click', (e) => put({ lat: e.latLng.lat(), lng: e.latLng.lng() }));
   return {
+    placePin: (p) => put(p, false), // 通知せずに置く（人が置いたのではない）
     moveTo: (p, zoom = 18) => { map.setCenter({ lat: p.lat, lng: p.lng }); map.setZoom(zoom); },
     destroy: () => { if (marker) marker.setMap(null); el.replaceChildren(); },
   };

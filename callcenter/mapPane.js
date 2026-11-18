@@ -27,6 +27,7 @@ function mountLeafletMap(el, { pin, center, onPin }) {
   map.on('click', (e) => put({ lat: e.latlng.lat, lng: e.latlng.lng }));
   setTimeout(() => map.invalidateSize(), 0);
   return {
+    placePin: (p) => put(p, false), // 通知せずに置く（人が置いたのではない）
     moveTo: (p, zoom = 18) => map.setView([p.lat, p.lng], zoom),
     destroy: () => map.remove(),
   };

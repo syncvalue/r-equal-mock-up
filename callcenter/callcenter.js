@@ -23,7 +23,7 @@ import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
 import { autoAddress, fetchZip, zipLookedUp, normalizeZip } from '../src/zipAddress.js';
 import { mountPinMap, searchAddress } from './mapPane.js';
-import { pinLabel } from './pin.js';
+import { pinLabel, roundPin } from './pin.js';
 import { missingFields, companionText, wantsText, hearingChecklist, entryStage, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
 import { cooloffPage, filtersHtml, resultsHtml, formHtml as cooloffFormHtml, progressHtml, zoomHtml, REJECT_TEXT } from './cooloffView.js';
@@ -341,10 +341,10 @@ function openPinMap(el) {
   }).catch((err) => { const msg = $('#map-msg'); if (msg) msg.textContent = err.message; console.error(err); });
 }
 function closePinMap() { if (pinMap) { pinMap.destroy(); pinMap = null; } }
-function setPin(pin) {
-  form = { ...form, pin };
+function setPin(pin, auto = false) { // auto: 住所の検索結果に、仮に置いたピン（人が動かすまでは、住所に合わせて動く）
+  form = { ...form, pin, pinAuto: auto };
   const el = $('#pin-label');
-  if (el) { el.textContent = pinLabel(pin); el.className = 'text-xs text-teal-700 font-bold'; }
+  if (el) { el.textContent = pinLabel(pin) + (auto ? '（住所からの仮の位置）' : ''); el.className = 'text-xs text-teal-700 font-bold'; }
 }
 let searchSeq = 0; // 入力が続いたとき、いちばん新しい検索だけを使う
 async function searchPin() {
@@ -354,7 +354,11 @@ async function searchPin() {
   try {
     const hit = await searchAddress(mapAddress);
     if (seq !== searchSeq) return;
-    if (hit) { pinMap?.moveTo(hit, 17); if (msg) msg.textContent = ''; }
+    if (hit) {
+      pinMap?.moveTo(hit, 17);
+      if (pinMap && (!form.pin || form.pinAuto)) { pinMap.placePin(hit); setPin(roundPin(hit), true); } // ピンがまだないか、仮のままなら、検索した位置に置く
+      if (msg) msg.textContent = '';
+    }
     else if (msg) msg.textContent = '見つかりません。地図を動かして探してください';
   } catch (err) { if (seq === searchSeq && msg) msg.textContent = '検索できませんでした。地図を動かして探してください'; console.error(err); }
 }
