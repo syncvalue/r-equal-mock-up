@@ -117,3 +117,15 @@ test('配車確定の帯: 鑑定士の元からの予定・見本の訪問にも
   assert.ok(blocks.length > 0 && blocks.every((b) => /title="(女性|男性)のお客様"/.test(b.split('data-bsel=')[0])), '性別のない帯がある');
   assert.match(blocks[0], /text-\[11px\] font-bold[^>]*>確 /); // 1段目: 名前
 });
+
+test('配車確定: 訪問が1件だけの日も、走行距離（0km）を出す。地図を開けるように。0件の日は出さない', async () => {
+  const { busyBlocks } = await import('../src/dispatch.js');
+  const { USERS } = await import('../src/dashboard.js');
+  const days = ['2026-10-21', '2026-10-22', '2026-10-23', '2026-10-26'];
+  const one = days.flatMap((date) => USERS.map((u) => ({ date, id: u.id, n: busyBlocks(u.id, date, [], NOW).length }))).filter((x) => x.n === 1);
+  const none = days.flatMap((date) => USERS.map((u) => ({ date, id: u.id, n: busyBlocks(u.id, date, [], NOW).length }))).filter((x) => x.n === 0);
+  assert.ok(one.length > 0 && none.length > 0, '見本の日が見つからない');
+  const html = (x) => dispatcherHtml({ date: x.date, reservations: [], now: NOW, chips: [], area: 'all', selId: null });
+  assert.ok(html(one[0]).includes(`data-routemap="${one[0].id}"`) && /走行距離：0km/.test(html(one[0]).replace(/<[^>]+>/g, '')));
+  assert.ok(!html(none[0]).includes(`data-routemap="${none[0].id}"`));
+});
