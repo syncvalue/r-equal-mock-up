@@ -109,3 +109,11 @@ test('配車確定: 走行距離は、押せるボタン（訪問ルートの地
   assert.match(modal, /route-num-s[^>]*>1</); // ①から
   assert.ok(routeModalHtml({ userId: 'nobody', date: html.date, reservations: [], now: NOW } ) === '');
 });
+
+test('配車確定の帯: 鑑定士の元からの予定・見本の訪問にも、性別の記号を出す。帯の中は、名前・印と時間・住所の3段', () => {
+  const html = ['2026-10-21', '2026-10-22', '2026-10-23', '2026-10-26'].map((date) => dispatcherHtml({ date, reservations: [], now: NOW, chips: [], area: 'osaka', selId: null })).join('');
+  assert.ok(html.includes('title="女性のお客様"') && html.includes('title="男性のお客様"'));
+  const blocks = html.split('data-bsel=').slice(1);
+  assert.ok(blocks.length > 0 && blocks.every((b) => /title="(女性|男性)のお客様"/.test(b.split('data-bsel=')[0])), '性別のない帯がある');
+  assert.match(blocks[0], /text-\[11px\] font-bold[^>]*>確 /); // 1段目: 名前
+});

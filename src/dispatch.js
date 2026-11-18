@@ -158,7 +158,7 @@ export function travelAround(blocks, start, end, here) {
 }
 
 // ダミーの他の訪問のお客様名と住所（エリアごと）。日別の表示で、予定のお客様と住所が分かるように
-const DUMMY_NAMES = ['岡田 恵子', '石川 正一', '村上 久美', '前田 隆', '藤田 直子', '近藤 浩二', '長谷川 淳', '清水 明美'];
+const DUMMY_NAMES = [['岡田 恵子', 'f'], ['石川 正一', 'm'], ['村上 久美', 'f'], ['前田 隆', 'm'], ['藤田 直子', 'f'], ['近藤 浩二', 'm'], ['長谷川 淳', 'm'], ['清水 明美', 'f']]; // [名前, 性別]
 // 空き状況の見本に入れる「他の訪問」の場所（エリアごとに、実在する場所）
 const DUMMY_SPOTS = { osaka: ['namba', 'sakai', 'toyonaka', 'higashiosaka'], hyogo: ['kobe', 'kyoto', 'koshien', 'otsu'], kanto: ['shinjuku', 'landmark', 'omiya', 'chiba'], tokai: ['nagoyajo', 'toyota', 'hamamatsu', 'gifu'] };
 
@@ -189,7 +189,7 @@ function fillerBlocks(userId, date, hidden, now) {
       const pick = Math.floor(hash(`${userId}/${date}/${start}/客`)() * 100); // 空き状況の乱数列を変えないよう、別の乱数で決める
       const gid = `flr:${userId}/${date}/${start}`;
       const block = {
-        gid, start, end, label: `${DUMMY_NAMES[pick % DUMMY_NAMES.length]} 様`, source: 'dummy', custRank: dummyCustomerRank(gid),
+        gid, start, end, label: `${DUMMY_NAMES[pick % DUMMY_NAMES.length][0]} 様`, gender: DUMMY_NAMES[pick % DUMMY_NAMES.length][1], source: 'dummy', custRank: dummyCustomerRank(gid),
         ...spotOf(areaId, Math.floor(pick / 8) % 4),
       };
       taken.push(block);
@@ -204,7 +204,7 @@ export function busyBlocks(userId, date, reservations, now = new Date(), extraHi
   const day = dayOffset(date, now);
   const hidden = extraHidden ? new Set([...hiddenBlocks, ...extraHidden]) : hiddenBlocks;
   const realAll = EVENTS.filter((e) => e.userId === userId && e.day === day);
-  const real = realAll.filter((e) => !hidden.has(e.id)).map((e) => ({ gid: e.id, ev: e, start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event', custRank: dummyCustomerRank(e.id), lat: e.lat, lng: e.lng, place: e.customer.address }));
+  const real = realAll.filter((e) => !hidden.has(e.id)).map((e) => ({ gid: e.id, ev: e, start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event', gender: e.gender, custRank: dummyCustomerRank(e.id), lat: e.lat, lng: e.lng, place: e.customer.address }));
   const base = realAll.length ? real : fillerBlocks(userId, date, hidden, now); // 既存の予定がある日は、ダミーを足さない（動かして空になっても、ダミーは出さない）
   const mine = reservations
     .filter((r) => r.userId === userId && r.date === date && r.status !== 'cancelled')
