@@ -337,3 +337,21 @@ test('1日の移動距離: 訪問から訪問への距離と、1日の合計（�
   assert.equal(near[0].tight, true);
   assert.equal(travelLegs([{ start: 600, end: 660 }, { start: 700, end: 760, lat: 1, lng: 1 }]).length, 0); // 座標のない予定は飛ばす
 });
+
+test('配車確定の移動ルート: 訪問する順（開始時刻順）に①②③の番号を振る。座標のない予定は飛ばし、番号は詰める', async () => {
+  const { routeStops } = await import('../src/dispatch.js');
+  const blocks = [
+    { start: 780, end: 840, lat: 34.7, lng: 135.5, label: 'B 様', place: '大阪市B' },
+    { start: 600, end: 660, lat: 34.6, lng: 135.4, label: 'A 様', place: '大阪市A', status: 'tentative' },
+    { start: 700, end: 760, label: '座標なし 様' },
+    { start: 900, end: 960, lat: 34.9, lng: 135.9, label: 'C 様', place: '京都市C' },
+  ];
+  const r = routeStops(blocks);
+  assert.deepEqual(r.stops.map((s) => [s.n, s.label]), [[1, 'A 様'], [2, 'B 様'], [3, 'C 様']]);
+  assert.equal(r.stops[0].tentative, true);
+  assert.equal(r.legs.length, 2); // 順番どおりに、訪問から訪問へ
+  assert.equal(r.legs[0].to.label, 'B 様');
+  const withPos = blocks.filter((b) => b.lat != null);
+  assert.equal(r.km, dayTravel(withPos).km); // 全部に座標があれば、列の見出しの走行距離と同じ
+  assert.deepEqual(routeStops([]), { stops: [], legs: [], km: 0 });
+});

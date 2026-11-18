@@ -97,3 +97,15 @@ test('配車確定: 右の詳細エリアは、はじめから確保する。何
   const width = (h) => h.match(/class="sticky top-0[^"]*w-\[min\(26rem,40%\)\][^"]*"/)[0];
   assert.equal(width(none), width(sel)); // エリアの大きさは、変わらない
 });
+
+test('配車確定: 走行距離は、押せるボタン（訪問ルートの地図を開く）。地図のモーダルには、訪問順の番号を出す', async () => {
+  const { routeModalHtml } = await import('../callcenter/routeModal.js');
+  const html = ['2026-10-21', '2026-10-22', '2026-10-23', '2026-10-26'].map((date) => ({ date, h: dispatcherHtml({ date, reservations: [], now: NOW, chips: [], area: 'osaka', selId: null }) })).find((x) => x.h.includes('data-routemap='));
+  assert.ok(html, '走行距離のボタンがない');
+  const userId = html.h.match(/data-routemap="([^"]+)"/)[1];
+  const modal = routeModalHtml({ userId, date: html.date, reservations: [], now: NOW });
+  assert.ok(modal.includes('id="route-map"') && modal.includes('CC-M07'));
+  assert.match(modal.replace(/<[^>]+>/g, ' '), /訪問ルート/);
+  assert.match(modal, /route-num-s[^>]*>1</); // ①から
+  assert.ok(routeModalHtml({ userId: 'nobody', date: html.date, reservations: [], now: NOW } ) === '');
+});

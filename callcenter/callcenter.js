@@ -3,7 +3,7 @@
 import { EVENTS, toMin } from '../src/schedule.js';
 import { USERS } from '../src/dashboard.js';
 import { loadEmployees, operatorNames } from '../src/employees.js';
-import { AREAS, canPlace, hiddenBlocks, busyBlocks, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
+import { AREAS, canPlace, hiddenBlocks, busyBlocks, routeStops, areaById, areaOfAddress, locateAddress, salesDetail, rankCandidates, findWeekSlots, fairerAlternative } from '../src/dispatch.js';
 import { RESERVATION_KEY, addReservation, loadReservations, updateReservation, removeReservations, holdReservation, loadMovedIds, addMovedId, isTentative, isCancelled, cancelReservation, amendReservation, needsReview, acknowledgeReservation, openReservationsFor, nextReceptionNo, minToHHMM, ymdOf } from '../src/reservations.js';
 import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
@@ -24,6 +24,8 @@ import { reservationFromBlock } from './adopt.js';
 import { setScreenBadge, ccScreenId } from '../src/screenIds.js';
 import { autoAddress, fetchZip, zipLookedUp, normalizeZip } from '../src/zipAddress.js';
 import { mountPinMap, searchAddress } from './mapPane.js';
+import { routeModalHtml } from './routeModal.js';
+import { mountRouteMap } from './routeMap.js';
 import { pinLabel, roundPin } from './pin.js';
 import { missingFields, companionText, wantsText, hearingChecklist, entryStage, fullName, fullKana, profileText } from './intake.js';
 import { DEMO_SCRIPT, extractFromUtterance, changedFields } from './transcript.js';
@@ -87,6 +89,8 @@ let forceNew = false; // 予約のある電話番号でも、新しい受付を�
 let bodyStage = 'wait'; // 電話番号の欄より下に、いま出している段階
 let editId = null; // 受付済みの予約の日時を変更しているとき、その予約
 let custInfoRid = null; // 配車係が、お客様の詳細をモーダルで見ている予約
+let routeMapId = null; // 走行距離を押して、訪問ルートの地図を見ている鑑定士
+let routeCtl = null;
 let staffInfoId = null; // 顔写真を押して、詳細をモーダルで見ている鑑定士
 let cancelId = null; // 取消の確認を出している予約
 let cancelReason = CANCEL_REASONS[0];
@@ -427,6 +431,14 @@ const syncHidden = () => { hiddenBlocks.clear(); loadMovedIds().forEach((id) => 
 
 const showScreenId = () => setScreenBadge(ccScreenId({ tab, bodyStage, editId, done, mapAddress, cvMode })); // 画面の隅の、画面ID
 
+// 訪問ルートの地図（モーダル）。描き直すたびに、作り直す
+function mountRoute() {
+  if (routeCtl) { routeCtl.destroy(); routeCtl = null; }
+  const box = routeMapId && tab === 'dispatch' ? $('#route-map') : null;
+  if (!box) return;
+  routeCtl = mountRouteMap(box, routeStops(busyBlocks(routeMapId, dispDate, loadReservations(), new Date())).stops);
+}
+
 function render() {
   syncHidden();
   const ops = operators();
@@ -446,9 +458,11 @@ function render() {
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
   ${custInfoRid && tab === 'dispatch' ? customerModalHtml({ rid: custInfoRid, reservations: loadReservations(), now: new Date() }) : ''}
   ${staffInfoId && tab === 'dispatch' ? staffModalHtml({ userId: staffInfoId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
+  ${routeMapId && tab === 'dispatch' ? routeModalHtml({ userId: routeMapId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
   ${cancelId ? cancelModalHtml(loadReservations().find((r) => r.id === cancelId), cancelReason) : ''}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
   if (tab === 'new') { renderDispatch(); renderTranscript(); }
+  mountRoute();
   showScreenId();
   if (tab === 'calendar' && calSel) document.querySelector(`[data-calrow="${calSel}"]`)?.scrollIntoView({ block: 'start' }); // 日別: 選んだ訪問の詳細まで、右の一覧をスクロールする
 }
@@ -626,7 +640,7 @@ function updateChecklist() {
   list.forEach((x) => document.querySelectorAll(`[data-badge="${x.key}"]`).forEach((el) => { el.innerHTML = badgeHtml(x.asked, x.estimated); }));
 }
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('button, [data-pick], [data-bsel], [data-staffclose], [data-custclose]');
+  const t = e.target.closest('button, [data-pick], [data-bsel], [data-staffclose], [data-custclose], [data-routeclose]');
   if (!t) return;
   const d = t.dataset;
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
@@ -744,6 +758,8 @@ document.addEventListener('click', (e) => {
   }
   else if (d.custinfo) { custInfoRid = d.custinfo; render(); }
   else if ('custclose' in d) { custInfoRid = null; render(); }
+  else if (d.routemap) { routeMapId = d.routemap; render(); }
+  else if ('routeclose' in d) { routeMapId = null; render(); }
   else if (d.staffinfo) { staffInfoId = d.staffinfo; render(); }
   else if ('staffclose' in d) { staffInfoId = null; render(); }
   else if (d.barea) { boardArea = d.barea; render(); }

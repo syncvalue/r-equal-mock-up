@@ -363,3 +363,11 @@ export function dayTravel(blocks) {
   const km = Math.round(legs.reduce((n, l) => n + l.km, 0) * 10) / 10;
   return { legs, km, min: legs.reduce((n, l) => n + l.min, 0), count: blocks.length };
 }
+
+// 地図に出す、その日の訪問の順番（開始時刻順に①②③）。座標のない予定は飛ばし、番号は詰める。legs・km は、座標のある予定を順につないだもの（全部に座標があれば、列の見出しの走行距離と同じ）
+export function routeStops(blocks) {
+  const list = [...blocks].filter((b) => b.lat != null && b.lng != null).sort((a, b) => a.start - b.start);
+  const stops = list.map((b, i) => ({ n: i + 1, lat: b.lat, lng: b.lng, label: b.label, start: b.start, end: b.end, place: b.place ?? '', tentative: b.status === 'tentative' }));
+  const { legs, km } = dayTravel(list); // 座標のある予定どうしを、順番につなぐ
+  return { stops, legs, km };
+}

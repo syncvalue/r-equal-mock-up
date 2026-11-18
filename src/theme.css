@@ -64,3 +64,10 @@ html.dark .demo-only:hover { color: #94a3b8; border-color: #64748b; }
 /* 訪問先の地図のピン（カラー画像を使わず、色1つの丸いピン） */
 .pin-icon { background: none; border: 0; }
 .pin-dot { width: 24px; height: 24px; background: #0f766e; border: 3px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+
+/* 配車確定: 訪問ルートの地図。ピンの番号＝訪問する順（仮確定は点線） */
+.route-icon { background: none; border: 0; }
+.route-num { width: 30px; height: 30px; border-radius: 50%; background: #0f766e; color: #fff; font-weight: 700; font-size: 15px; line-height: 24px; text-align: center; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); box-sizing: border-box; }
+.route-num.tentative { background: #fff; color: #0f766e; border: 3px dashed #0f766e; }
+.route-num-s { display: inline-flex; width: 20px; height: 20px; flex: none; align-items: center; justify-content: center; border-radius: 9999px; background: #0f766e; color: #fff; font-size: 11px; font-weight: 700; }
+.route-num-s.tentative { background: #fff; color: #0f766e; border: 2px dashed #0f766e; }
