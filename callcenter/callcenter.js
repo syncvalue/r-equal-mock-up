@@ -741,6 +741,7 @@ document.addEventListener('click', (e) => {
   else if (d.staffinfo) { staffInfoId = d.staffinfo; render(); }
   else if ('staffclose' in d) { staffInfoId = null; render(); }
   else if (d.barea) { boardArea = d.barea; render(); }
+  else if ('bclose' in d) { boardSel = null; render(); }
   else if (d.bsel) { selectBlock(d.bsel, t); render(); }
   else if (d.ack) { acknowledgeReservation(d.ack); render(); }
   else if (d.showday) { dispDate = d.showday; render(); }

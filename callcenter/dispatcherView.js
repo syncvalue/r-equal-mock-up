@@ -201,22 +201,25 @@ function revertedHtml(r) {
 }
 
 function boardDetailHtml(r, reservations, now) {
-  if (!r) return `<p class="px-3 py-2 text-xs text-slate-500">予約の帯を押すと、詳細が出ます。${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</p>`;
+  if (!r) return '';
   const user = USERS.find((u) => u.id === r.userId);
   const area = areaById(r.areaId, tripAreas(loadCurrentTrips())); // 出張エリアを含む
   const others = reservations.filter((x) => x.id !== r.id && !isCancelled(x));
   const travel = area ? travelAround(busyBlocks(r.userId, r.date, others, now), minOf(r.start), minOf(r.end), locateAddress(r.customer.address, area)) : null;
-  return `<div class="grid grid-cols-[1fr_auto] gap-3 px-3 py-2 text-sm">
-    <div class="space-y-0.5"><div><b>${esc(r.customer.name)}</b> 様${genderParen(r.gender)}　${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}</div>
+  const actions = `<div class="flex flex-wrap items-center gap-2">${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1" data-fix="${r.id}">確定</button>` : `<button class="b b-sec !min-h-0 !py-1" data-unfix="${r.id}">仮に戻す</button>`}
+      <button class="b b-sec !min-h-0 !py-1 text-xs" data-chg="${r.id}">詳細を変更</button><button class="b b-sec !min-h-0 !py-1 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></div>`;
+  return `<div class="space-y-2 rounded-lg border-2 border-teal-600 bg-white p-3 text-sm">
+    <div class="flex items-start gap-2"><div class="min-w-0 flex-1"><b class="text-base">${esc(r.customer.name)}</b> 様${genderParen(r.gender)} ${statusBadge(r)}</div>
+      <button class="shrink-0 text-lg leading-none text-slate-500 hover:text-slate-900" data-bclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
+    ${actions}
+    <div class="space-y-1"><div><b>${esc(r.start)}〜${esc(r.end)}</b></div>
       <div class="text-xs text-slate-700">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
       <div class="text-xs">売りたいもの：${esc(r.hearing.wants)}</div>
       ${r.customer.phone ? customerProfileHtml(profileOf(r.customer), { advice: true }) : ''}
       <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">お客様の詳細（買取履歴・評価・これまでの担当）</button></div>
       <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
       ${travel ? `<div class="text-[11px] leading-tight text-slate-700">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}
-      ${revertedHtml(r)}</div>
-    <div class="flex flex-col items-end gap-1">${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1" data-fix="${r.id}">確定</button>` : `<button class="b b-sec !min-h-0 !py-1" data-unfix="${r.id}">仮に戻す</button>`}
-      <div class="flex gap-3 text-xs"><button class="underline text-slate-700" data-chg="${r.id}">詳細を変更</button><button class="underline text-rose-700" data-cancelres="${r.id}">取消</button></div></div></div>`;
+      ${revertedHtml(r)}</div></div>`;
 }
 
 export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka', selId = null }) {
@@ -231,9 +234,9 @@ export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka',
         <button class="b b-pri ml-auto" data-fixall ${tent ? '' : 'disabled'}>この日の仮確定 ${tent}件を、すべて確定</button></div>
       <div class="border-t px-3 py-1.5 flex flex-wrap items-center gap-2"><span class="text-xs font-bold text-slate-500">エリア</span>
         ${[...AREAS.map((a) => [a.id, a.name]), ['all', '全エリア']].map(([k, t]) => { const n = rows.filter((r) => !isCancelled(r) && (k === 'all' || r.areaId === k)).length; return `<button class="chip ${area === k ? 'on' : ''}" data-barea="${k}">${esc(t)}${n ? `<span class="ml-1 rounded-full bg-slate-500 px-1.5 text-[11px] text-white">${n}</span>` : ''}</button>`; }).join('')}
-        <span class="ml-2">${legendHtml({ want: false })}</span></div>
-      <div class="px-3 pb-2">${boardHtml({ date, reservations, now, area, selId })}</div>
-      <div class="border-t">${boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now)}</div>
+        <span class="ml-2">${legendHtml({ want: false })}</span>${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</div>
+      <div class="flex items-start gap-3 px-3 pb-3"><div class="min-w-0 flex-1">${boardHtml({ date, reservations, now, area, selId })}</div>
+        ${selId && reservations.some((r) => r.id === selId) ? `<div class="sticky top-0 max-h-[calc(100vh-7rem)] w-[min(26rem,40%)] shrink-0 overflow-y-auto">${boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now)}</div>` : ''}</div>
     </section>
   </div>`;
 }
