@@ -65,15 +65,17 @@ test('日別: 受付の帯と、鑑定士の元からの予定の帯は、同じ
   assert.ok(h.includes(`data-caluser="${withPlan.user.id}"`) && h.includes(staffColor(withPlan.user.id).solid) && !h.includes('bg-slate-500'));
 });
 
-test('日別: 前日確認が済んだ帯は鑑定士の色で塗りつぶし、まだ（未連絡・不通）は点線。印の文字と、凡例も出す', () => {
+test('日別: 前日確認が済んだ帯は鑑定士の色で塗りつぶし、まだ（未連絡・不通）は点線。帯の中に状態の文字は出さない（実線・点線だけで表す）。凡例も出す', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
   const call = (result) => [{ result, memo: '', by: '佐藤', at: 1 }];
   const html = (confirmCalls) => calendarHtml({ ...base, mode: 'day', reservations: [rec({ userId: u.id, confirmCalls })] });
   const btn = (h) => h.match(/<button class="absolute[^>]*data-callopen="R1"[^>]*>[\s\S]*?<\/button>/)[0];
-  assert.ok(btn(html(call('reached'))).includes('border:2px solid') && btn(html(call('reached'))).includes('✔連絡済み'));
-  assert.ok(btn(html(call('noanswer'))).includes('border:2px dashed') && btn(html(call('noanswer'))).includes('△不通'));
-  assert.ok(btn(html(undefined)).includes('border:2px dashed') && btn(html(undefined)).includes('・未連絡'));
+  const seen = (h) => btn(h).replace(/title="[^"]*"/g, '').replace(/<[^>]+>/g, ' '); // 画面に見える文字（吹き出しは除く）
+  assert.ok(btn(html(call('reached'))).includes('border:2px solid') && !/連絡済み|不通|未連絡|[・△✔]/.test(seen(html(call('reached')))));
+  assert.ok(btn(html(call('noanswer'))).includes('border:2px dashed') && !/連絡済み|不通|未連絡|[・△✔]/.test(seen(html(call('noanswer')))));
+  assert.ok(btn(html(undefined)).includes('border:2px dashed') && !/連絡済み|不通|未連絡|[・△✔]/.test(seen(html(undefined))));
+  assert.ok(btn(html(undefined)).includes('前日確認：未連絡')); // 吹き出しには状態を残す
   assert.ok(btn(html(undefined)).includes(staffColor(u.id).solid)); // 鑑定士の色
   assert.ok(text(html(undefined)).includes('まだ（点線。未連絡・不通）'));
   assert.ok(calendarHtml({ ...base, mode: 'day', reservations: [rec({ confirmCalls: call('reached') })] }).includes('border-teal-400')); // 一覧の行は緑
