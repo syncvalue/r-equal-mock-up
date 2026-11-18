@@ -346,14 +346,29 @@ function setPin(pin) {
   const el = $('#pin-label');
   if (el) { el.textContent = pinLabel(pin); el.className = 'text-xs text-teal-700 font-bold'; }
 }
+let searchSeq = 0; // 入力が続いたとき、いちばん新しい検索だけを使う
 async function searchPin() {
   const msg = $('#map-msg');
+  const seq = ++searchSeq;
   if (msg) msg.textContent = '探しています…';
   try {
     const hit = await searchAddress(mapAddress);
+    if (seq !== searchSeq) return;
     if (hit) { pinMap?.moveTo(hit, 17); if (msg) msg.textContent = ''; }
     else if (msg) msg.textContent = '見つかりません。地図を動かして探してください';
-  } catch (err) { if (msg) msg.textContent = '検索できませんでした。地図を動かして探してください'; console.error(err); }
+  } catch (err) { if (seq === searchSeq && msg) msg.textContent = '検索できませんでした。地図を動かして探してください'; console.error(err); }
+}
+// 地図を出している間に、住所を打ち足したら、少し待ってから、地図をその場所へ動かす（置いたピンは動かさない）
+let mapFollowTimer = null;
+function followAddress() {
+  clearTimeout(mapFollowTimer);
+  mapFollowTimer = setTimeout(() => {
+    const a = form.address.trim();
+    if (!mapAddress || !a || a === mapAddress) return;
+    mapAddress = a;
+    const head = $('#dispatch [data-map-address]'); if (head) head.textContent = a;
+    searchPin();
+  }, 800);
 }
 function renderHint() {
   const el = $('#hint');
@@ -503,6 +518,7 @@ function onField(e) {
   if (k === 'flyerId') { form = withFlyer(form, e.target.value); renderFlyerResult(); renderDispatch(); return; }
   if (k === 'date' && e.target.value) weekStart = weekStartFor(e.target.value);
   if (k === 'zip' || k === 'address') renderZipCandidates();
+  if (k === 'address' && mapAddress) followAddress();
   if (LIVE.has(k) || autoFilled) renderDispatch(); else updateChecklist();
 }
 const renderZipCandidates = () => { const el = $('#zip-cands'); if (el) el.innerHTML = zipCandidatesHtml(form); }; // 入力欄は作り直さない

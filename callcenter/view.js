@@ -391,7 +391,7 @@ function salesDetailHtml(d, { form, fairIndex, freeCount, area }) {
 // 右の画面を、訪問先の地図に切り替える。地図を押すと、建物の位置にピンを置ける（置いた緯度経度は、住所の下に出る）。カレンダーには、ボタンで戻す
 export function mapPaneHtml(address) {
   return `<div class="space-y-2">
-    <div class="flex items-center justify-between gap-2"><div class="text-sm font-bold">訪問先の地図<span class="font-normal text-xs text-slate-500 ml-2">${esc(address)}</span></div>
+    <div class="flex items-center justify-between gap-2"><div class="text-sm font-bold">訪問先の地図<span class="font-normal text-xs text-slate-500 ml-2" data-map-address>${esc(address)}</span></div>
       <div class="flex gap-1"><button class="b b-sec !min-h-0 !py-1 text-xs" data-mapsearch>住所から探す</button><button class="b b-pri !min-h-0 !py-1 text-xs" data-mapclose>カレンダーに戻る</button></div></div>
     <div class="flex items-center gap-2 text-xs"><span class="text-slate-500">建物の位置を押すと、ピンを置けます（ドラッグで動かせます）</span><span id="map-msg" class="text-amber-800 font-bold"></span></div>
     <div id="pin-map" class="w-full rounded-lg border border-slate-300 bg-white" style="height:68vh"></div>
