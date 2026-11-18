@@ -191,7 +191,7 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
   const restHtml = `
     <div class="grid grid-cols-2 gap-2">
       ${lbl(`当日の立会い${b('attendee')}`, `<select class="inp mt-0.5" data-f="attendee"><option value="">（未確認）</option>${ATTENDEES.map((a) => `<option ${a === f.attendee ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>`)}
-      <div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">大型品・その他の確認${b('large')}</span>${none('large', '特になし')}</div>${inp('large', f.large, { ph: '例: ゴルフクラブも売れるか' })}</div>
+      <div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">大型品・その他${b('large')}</span>${none('large', '特になし')}</div>${inp('large', f.large, { ph: '例: ゴルフクラブも売れるか' })}</div>
     </div>
     <div><div class="flex items-center justify-between gap-1"><span class="text-xs font-bold">訪問時の注意${b('notes')}</span>${none('notes', '特になし')}</div><textarea class="inp mt-0.5" rows="2" data-f="notes" placeholder="例: 1階エントランスで待ち合わせ。午前中が電話がつながりやすい">${esc(f.notes)}</textarea></div>`;
   const yn = (key, label, hint = '') => `<div title="${hint}"><div class="text-xs font-bold whitespace-nowrap">${label}${b(key)}</div><div class="flex gap-1 mt-0.5">${YESNO.map((o) => `<button class="b b-sec flex-1 !px-1 ${f[key] === o ? 'on' : ''}" data-yn="${key}|${o}">${o}</button>`).join('')}</div></div>`;

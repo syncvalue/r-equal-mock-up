@@ -6,7 +6,7 @@ import { ymdOf } from '../src/reservations.js';
 
 export const FIELD_LABELS = {
   phone: '電話番号', phone2: '電話番号2', name: 'お名前', kana: 'フリガナ', age: '年齢', ageEst: '年齢', gender: '性別', zip: '郵便番号', address: '住所', chirashi: '来電のきっかけ', flyerId: 'チラシのID',
-  cats: '売りたいもの', mainItems: 'メイン商材（数量）', wants: '点数・ブランド', attendee: '当日の立会い', companion: 'ご同席者', companionNote: 'ご同席者', parking: '駐車スペース', nameplate: '表札', contactFrom: '前日確認の連絡時間', contactTo: '前日確認の連絡時間', large: '大型品', notes: '訪問時の注意', date: '希望日', start: '開始時刻',
+  cats: '売りたいもの', mainItems: 'メイン商材（数量）', wants: '点数・ブランド', attendee: '当日の立会い', companion: 'ご同席者', companionNote: 'ご同席者', parking: '駐車スペース', nameplate: '表札', contactFrom: '前日確認の連絡時間', contactTo: '前日確認の連絡時間', large: '大型品・その他', notes: '訪問時の注意', date: '希望日', start: '開始時刻',
 };
 
 // 通話のデモ台本（op=オペレーター、cu=お客様）。お客様の発話だけから項目を拾う。

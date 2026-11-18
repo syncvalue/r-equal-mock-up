@@ -68,7 +68,7 @@ export function diffRecords(a, b, nameOf = (id) => id) {
   add('訪問先', a.customer.address, b.customer.address);
   const ha = a.hearing ?? {};
   const hb = b.hearing ?? {};
-  [['trigger', '来電のきっかけ'], ['profile', '性別・年齢'], ['wants', '売りたいもの'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'], ['large', '大型品'],
+  [['trigger', '来電のきっかけ'], ['profile', '性別・年齢'], ['wants', '売りたいもの'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'], ['large', '大型品・その他'],
     ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意']].forEach(([k, label]) => add(label, ha[k], hb[k]));
   return out;
 }

@@ -121,7 +121,7 @@ export function customerModalHtml({ rid, reservations, now }) {
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-3">
           ${box('今回の予約', `${row('訪問', `${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　${statusBadge(r)}`)}${row('担当', `${isTentative(r) ? '（仮）' : ''}${esc(user?.name ?? '')}`)}${row('売りたいもの', esc(h.wants ?? ''))}
-            ${row('きっかけ', esc(h.trigger ?? ''))}${row('立会い・同席', `${esc(h.attendee ?? '')} ／ ${esc(h.companion ?? '')}`)}${row('駐車・表札', `${esc(h.parking ?? '')} ／ ${esc(h.nameplate ?? '')}`)}${row('大型品', esc(h.large ?? ''))}${row('前日連絡', esc(h.contact ?? ''))}${row('訪問時の注意', esc(h.notes ?? ''))}`)}</div>
+            ${row('きっかけ', esc(h.trigger ?? ''))}${row('立会い・同席', `${esc(h.attendee ?? '')} ／ ${esc(h.companion ?? '')}`)}${row('駐車・表札', `${esc(h.parking ?? '')} ／ ${esc(h.nameplate ?? '')}`)}${row('大型品・その他', esc(h.large ?? ''))}${row('前日連絡', esc(h.contact ?? ''))}${row('訪問時の注意', esc(h.notes ?? ''))}`)}</div>
         <div class="space-y-3">
           ${box('クーリングオフ歴', p.cooloff.length ? p.cooloff.map((c) => `<div class="text-xs text-rose-700"><b>${ymd(c.at)}</b> ${esc(c.items)}${c.memo ? `<span class="text-slate-700">　${esc(c.memo)}</span>` : ''}</div>`).join('') : '<div class="text-xs text-slate-500">なし</div>')}
           ${box('受電履歴', calls.length ? calls.map((c) => `<div class="flex gap-2 text-xs"><span class="w-24 shrink-0 text-slate-500">${ymd(c.at)}</span><span class="shrink-0 font-bold">${esc(c.kind)}</span><span class="min-w-0 truncate" title="${esc(c.note)}">${esc(c.note)}</span></div>`).join('') : '<div class="text-xs text-slate-500">履歴なし</div>')}</div></div>

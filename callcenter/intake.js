@@ -43,7 +43,7 @@ export const CHECK_ITEMS = [
   ['phone', '電話番号1'], ['adType', '広告種別'], ['flyer', '来電のきっかけ'], ['wants', '売りたいもの'],
   ['phone2', '電話番号2'], ['name', 'お名前'], ['kana', 'フリガナ'], ['gender', '性別'], ['age', '年齢'], ['zip', '郵便番号'], ['address', '住所'],
   ['when', '希望日時'], ['attendee', '当日の立会い'], ['companion', 'ご同席者'],
-  ['large', '大型品'], ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
+  ['large', '大型品・その他'], ['parking', '駐車スペース'], ['nameplate', '表札'], ['contact', '前日確認の連絡時間'], ['notes', '訪問時の注意'],
 ];
 // 確定に必須の項目（足りないと確定できない）。それ以外は、聞き忘れの注意だけ出す
 export const REQUIRED_CHECKS = new Set(['phone', 'name', 'kana', 'gender', 'age', 'address', 'flyer', 'wants']);

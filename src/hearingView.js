@@ -9,7 +9,7 @@ const FIELDS = [
   ["attendee", "当日の立会い"],
   ["companion", "ご同席者"],
   ["wants", "売りたいもの"],
-  ["large", "大型品・その他の確認"],
+  ["large", "大型品・その他"],
   ["parking", "駐車スペース"],
   ["nameplate", "表札"],
   ["contact", "前日確認の連絡時間"],
