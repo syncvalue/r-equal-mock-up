@@ -66,13 +66,13 @@ function render() {
   const balls = acctBalls(ctx);
   const advPending = accountingTurn(loadRequests(), loadChats(), scopedIds()).length; // 鑑定士からの補充の依頼（経理部の番）
   const badges = { balance: pending + advPending, claims: balls.length };
-  document.title = `${balls.length + advPending ? `(${balls.length + advPending}) ` : ''}経理部（ダミー）`; // タブを見るだけで、対応待ちに気づけるように
+  document.title = `${balls.length + advPending ? `(${balls.length + advPending}) ` : ''}経理部`; // タブを見るだけで、対応待ちに気づけるように
   const filter = FILTERED_TABS.includes(st.tab)
     ? `<label class="text-xs font-bold">営業所 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-office><option class="text-slate-900" value="">全営業所（${USERS.length}人）</option>${AREAS.map((a) => `<option class="text-slate-900" value="${a.id}" ${st.office === a.id ? 'selected' : ''}>${esc(a.name.replace('エリア', ''))}（${officeUsers(USERS, a.id, areaOfUser).length}人）</option>`).join('')}</select></label>` : '';
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
   <header class="bg-teal-800 text-white px-4 md:px-6 py-2 flex flex-wrap gap-2 justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${Object.values(badges).some(Boolean) ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
-      <span class="font-bold text-xl">経理部</span><span class="text-teal-700">›</span><span class="font-bold">${tabLabel(st.tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span>
+      <span class="font-bold text-xl">経理部</span><span class="text-teal-700">›</span><span class="font-bold">${tabLabel(st.tab)}</span>
       ${advPending && st.tab !== 'balance' ? `<button class="ml-2 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-900 text-sm font-bold px-3 py-1 animate-pulse" data-tab="balance">補充の依頼 ${advPending}件</button>` : ''}
       ${balls.length ? `<button class="ml-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-3 py-1 animate-pulse" data-ball-jump="${balls[0].date}|${balls[0].userId}" title="${esc(balls[0].why)}">対応待ち ${balls.length}件</button>` : ''}</div>
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${filter}<button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>

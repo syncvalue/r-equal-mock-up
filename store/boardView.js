@@ -13,7 +13,7 @@ export const dayLabel = (key) => { const d = new Date(`${key}T00:00:00`); return
 export function headerHtml({ store, staff, date, summary, themeHtml }) {
   const chip = (label, value) => `<span class="rounded bg-white/15 px-2 py-0.5 text-xs">${label} <b class="text-sm">${value}</b></span>`;
   return `<header class="bg-slate-800 text-white px-6 h-[52px] flex justify-between items-center">
-    <div class="flex items-center gap-3"><span class="font-bold text-xl">${esc(storeLabel(store))}</span><span class="text-xs bg-white/20 rounded px-2 py-0.5">ダミー画面</span><span class="text-sm">${esc(dayLabel(date))}</span>
+    <div class="flex items-center gap-3"><span class="font-bold text-xl">${esc(storeLabel(store))}</span><span class="text-sm">${esc(dayLabel(date))}</span>
       ${chip('来店', `${summary.visits}組`)}${chip('買取', `${summary.purchased}件`)}${chip('成約率', summary.done ? `${Math.round(summary.rate * 100)}%` : '-')}${chip('買取額', yen(summary.total))}${helpIcon('来店は、来店済み（待ち・対応中・完了）の組数です。成約率は、完了した来店のうち、買取に至った割合です。取消・来ずは数えません。')}</div>
     <div class="flex items-center gap-3 text-sm"><span>${esc(staff.name)}</span>${themeHtml}<button class="underline text-white/80 text-xs" data-logout>ログアウト</button></div>
   </header>`;

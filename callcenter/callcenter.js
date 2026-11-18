@@ -434,7 +434,7 @@ function render() {
   $('#root').innerHTML = `
   <header class="bg-teal-800 text-white px-6 h-[52px] flex justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${menuAlert() ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
-      <span class="font-bold text-xl">コールセンター</span><span class="text-teal-700">›</span><span class="font-bold">${tabLabel(tab)}</span><span class="text-xs font-normal bg-white/20 rounded px-2 py-0.5 ml-2">ダミー画面（PC）</span></div>
+      <span class="font-bold text-xl">コールセンター</span><span class="text-teal-700">›</span><span class="font-bold">${tabLabel(tab)}</span></div>
     <div class="text-sm flex items-center gap-3">
       <label class="text-xs text-white/80">オペレーター <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-operator>${ops.map((o) => `<option class="text-slate-900" ${o === operator ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
       ${tab === 'new' && !editId ? `<button class="demo-only" data-demo="toggle">音声入力${demoOpen ? 'を閉じる' : ''}</button>` : ''}
