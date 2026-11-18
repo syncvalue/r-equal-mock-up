@@ -203,3 +203,10 @@ test('日別の一覧: 前日確認がまだだけに絞れる。連絡時間の
   assert.ok(order(day({ sortBy: 'contact' }))[1] < order(day({ sortBy: 'contact' }))[0]);
   assert.ok(day({ pendOnly: true, reservations: [list[1]] }).includes('すべて連絡済み'));
 });
+
+test('並び順は、ボタン1つ。押すたびに「訪問時刻順」⇄「希望連絡時間帯順」で、文言と背景（on）が変わる', () => {
+  const h = (sortBy) => calendarHtml({ ...base, mode: 'day', reservations: [rec()], sortBy });
+  assert.equal((h('visit').match(/data-calsort/g) || []).length, 1);
+  assert.ok(/class="chip "[^>]*data-calsort="contact"[^>]*>並び順：訪問時刻順/.test(h('visit')));
+  assert.ok(/class="chip on"[^>]*data-calsort="visit"[^>]*>並び順：希望連絡時間帯順/.test(h('contact')));
+});

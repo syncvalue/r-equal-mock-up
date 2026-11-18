@@ -169,7 +169,7 @@ function dayListHtml({ areaId, date, reservations, today, calSel, draft, staffSe
       ${due ? '<span class="rounded bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">今日、前日確認の連絡をする日</span>' : `<span class="text-xs text-slate-500">前日確認の日は ${dateLabel(confirmDateOf(date))}</span>`}
       ${helpIcon('訪問の前日に、オペレーターが、お客様へ1人ずつ電話で確認します。連絡したか・つながらなかったか・お客様から告げられたことを、訪問ごとに記録します。')}</div>
     <div class="flex flex-wrap items-center gap-1"><button class="chip ${pendOnly ? 'on' : ''}" data-calpend aria-pressed="${pendOnly}" title="つながっていない訪問（未連絡・不通）だけを出す">前日確認がまだだけ（${todo.length}件）</button>
-      <span class="ml-1 text-xs font-bold text-slate-500">並び順</span>${[['visit', '訪問の時刻順'], ['contact', '連絡時間の早い順']].map(([k, v]) => `<button class="chip ${sortBy === k ? 'on' : ''}" data-calsort="${k}" title="${k === 'contact' ? '受付で聞いた、前日確認の連絡時間の早い順（電話のかけ忘れを防ぐ）' : '訪問の開始時刻の順'}">${v}</button>`).join('')}</div>
+      <button class="chip ${sortBy === 'contact' ? 'on' : ''}" data-calsort="${sortBy === 'contact' ? 'visit' : 'contact'}" title="押すたびに、並び順を切り替える（希望連絡時間帯順は、電話のかけ忘れを防ぐ）">並び順：${sortBy === 'contact' ? '希望連絡時間帯順' : '訪問時刻順'}</button></div>
     ${list.length ? list.map(row).join('') : `<div class="rounded-lg bg-slate-100 py-8 text-center text-sm text-slate-500">${all.length ? '前日確認がまだの訪問はありません（すべて連絡済み）' : 'この日の受付した訪問はありません'}</div>`}</div>`;
 }
 
