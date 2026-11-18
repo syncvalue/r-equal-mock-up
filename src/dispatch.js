@@ -63,17 +63,17 @@ export const RANKS = ['S', 'A', 'B', 'C'];
 export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
 
 // ---- 出勤状況 ------------------------------------------------------------------------
-// 全員が1日中出勤しているとは限らない。欠勤（1日中休み）の鑑定士は担当に選べない。
+// 全員が1日中出勤しているとは限らない。休み（終日）の鑑定士は担当に選べない。
 // 出勤する時間（from〜to）が短い日は、その外の時間を「休み」として扱い、働く時間の中だけ選べる（午前休・午後半休・夕方から・15時まで、などを区別しない）。
-// kind: absent=欠勤（1日中休み）／present=終日出勤／partial=出勤する時間が短い。
+// kind: absent=休み（終日）／present=終日出勤／partial=出勤する時間が短い。
 // ダミー: 鑑定士×日付で決まる。予定の入っている日は通常の出勤。見本として、日付を指定した勤怠も入れている
-export const ATTENDANCE_LABEL = { absent: '欠勤', partial: '出勤', present: '出勤' };
+export const ATTENDANCE_LABEL = { absent: '休み', partial: '出勤', present: '出勤' };
 const NOON = 13 * 60;
 const AM_OFF = { from: NOON, to: WORK_END }; // 午前は休み（13:00から出社）
 const PM_OFF = { from: WORK_START, to: NOON }; // 午後は休み（13:00まで）
 const FIXED_ATTENDANCE = { u03: { 2: PM_OFF }, u12: { 2: AM_OFF }, u15: { 1: { from: 17 * 60, to: WORK_END } }, u16: { 3: { from: WORK_START, to: 15 * 60 } }, u14: { 2: 'absent' } }; // 今日からの日数 → 勤怠（'absent' か、出勤する時間）
 
-// 予定が、休みの時間（欠勤の日・出勤する時間の外）にかかっているか
+// 予定が、休みの時間（休みの日・出勤する時間の外）にかかっているか
 export const inOffTime = (att, start, end) => att.kind === 'absent' || start < att.from || end > att.to;
 
 export function attendanceOf(userId, date, now = new Date()) {
@@ -165,7 +165,7 @@ export const hiddenBlocks = new Set();
 function fillerBlocks(userId, date, hidden, now) {
   if (LIGHT_SCHEDULE.has(userId)) return [];
   const att = attendanceOf(userId, date, now);
-  if (att.kind === 'absent') return []; // 欠勤の日に、予定は入らない
+  if (att.kind === 'absent') return []; // 休みの日に、予定は入らない
   const rnd = hash(`${userId}/${date}`);
   const blocks = []; // 表に出す予定（取り込んで動かした元の予定は含めない）
   const taken = []; // 重なりの判定に使う、作った予定すべて（動かした元の位置にも、別の予定が現れないように）
@@ -203,7 +203,7 @@ export function busyBlocks(userId, date, reservations, now = new Date(), extraHi
 
 // null なら空き。kind: hours=営業時間外 / overlap=予定と重なる / buffer=予定との間に移動時間が足りない
 export function conflictOf(blocks, start, end, att = null) {
-  if (att && att.kind !== 'present' && (start < att.from || end > att.to)) return { kind: att.kind === 'absent' ? 'absent' : 'shift', block: null, att }; // 欠勤・出勤する時間の外
+  if (att && att.kind !== 'present' && (start < att.from || end > att.to)) return { kind: att.kind === 'absent' ? 'absent' : 'shift', block: null, att }; // 休み・出勤する時間の外
   if (start < WORK_START || end > WORK_END) return { kind: 'hours', block: null };
   const hit = blocks.find((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER);
   if (!hit) return null;
@@ -213,7 +213,7 @@ export function conflictOf(blocks, start, end, att = null) {
 export const conflictText = (c) => {
   if (!c) return '';
   if (c.kind === 'hours') return '営業時間外（9:00〜19:00）';
-  if (c.kind === 'absent') return '欠勤';
+  if (c.kind === 'absent') return '休み';
   if (c.kind === 'shift') return `休み（勤務は${[c.att.from > WORK_START ? `${minToHHMM(c.att.from)}から` : '', c.att.to < WORK_END ? `${minToHHMM(c.att.to)}まで` : ''].filter(Boolean).join('・')}）`; // 勤務する時間の外
   const t = `${minToHHMM(c.block.start)}–${minToHHMM(c.block.end)} ${c.block.label}`;
   return c.kind === 'overlap' ? `${t} の予定と重なる` : `${t} の予定の前後30分（移動時間）にかかる`;
@@ -287,7 +287,7 @@ export function findWeekSlots({ userIds, startDate, days = 7, dur, reservations,
   const [y, m, d] = startDate.split('-').map(Number);
   return Array.from({ length: days }, (_, i) => {
     const date = ymdOf(new Date(y, m - 1, d + i));
-    const blocks = userIds.map((id) => ({ id, att: attendanceOf(id, date, now), blocks: busyBlocks(id, date, reservations, now) })).filter((b) => b.att.kind !== 'absent'); // 欠勤の鑑定士は数えない
+    const blocks = userIds.map((id) => ({ id, att: attendanceOf(id, date, now), blocks: busyBlocks(id, date, reservations, now) })).filter((b) => b.att.kind !== 'absent'); // 休みの鑑定士は数えない
     const slots = [];
     for (let start = WORK_START; start + dur <= WORK_END; start += SLOT_STEP) {
       slots.push({ start, freeIds: blocks.filter((b) => !conflictOf(b.blocks, start, start + dur, b.att)).map((b) => b.id) });

@@ -120,7 +120,7 @@ function visitDetailHtml(b, r, draft, { anchor = false } = {}) {
 function dayGridHtml({ cols, date, calSel }) {
   const h = ((WORK_END - WORK_START) / SLOT_STEP) * DAY_ROW;
   const grid = `grid-template-columns:2.5rem repeat(${cols.length},minmax(6.5rem,1fr));min-width:${2.5 + cols.length * 6.5}rem`;
-  const head = cols.map((c) => `<div class="border-b px-1 py-0.5 text-center ${c.absent ? 'opacity-60' : ''}"><div>${avatarHtml(c.user, 26)}</div><b class="text-xs">${esc(c.user.name)}</b>${c.absent ? '<div class="text-[10px] font-bold text-slate-700">欠勤</div>' : `<div class="text-[10px] text-slate-500">${c.blocks.length}件</div>`}</div>`).join('');
+  const head = cols.map((c) => `<div class="border-b px-1 py-0.5 text-center ${c.absent ? 'opacity-60' : ''}"><div>${avatarHtml(c.user, 26)}</div><b class="text-xs">${esc(c.user.name)}</b>${c.absent ? '<div class="text-[10px] font-bold text-slate-700">休み</div>' : `<div class="text-[10px] text-slate-500">${c.blocks.length}件</div>`}</div>`).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: (WORK_END - WORK_START) / 60 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => {
     const blocks = c.blocks.map((b) => {
@@ -132,7 +132,7 @@ function dayGridHtml({ cols, date, calSel }) {
         ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, r).cls} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style};${callLook(c.user.id, r).css}" data-callopen="${b.rid}" title="前日確認：${confirmStatus(r ?? {}).label}（押して記録）">${failMark(r)}${inner}</button>`
         : `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, null).cls}" style="${style};${callLook(c.user.id, null).css}" data-calblock="${esc(blockKey(b))}" data-caluser="${c.user.id}" data-caldate="${date}" title="${esc(b.label)}（押すと、受付として取り込んで、前日確認・変更ができる）">${inner}</button>`;
     }).join('');
-    const away = c.absent ? '<div class="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-2"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : '';
+    const away = c.absent ? '<div class="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-2"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">休み</span></div>' : '';
     return `<div class="relative border-l" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)`}">${blocks}${attShade(c.att, DAY_ROW)}${away}</div>`;
   }).join('');
   return `<div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>

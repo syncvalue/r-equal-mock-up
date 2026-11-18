@@ -23,7 +23,7 @@ test('サンプルの受付: 今日から3日後までの見本が、全種類�
   assert.deepEqual([...new Set(list.map((r) => r.areaId))].sort(), ['hyogo', 'kanto', 'osaka', 'tokai']);
 });
 
-test('サンプルの受付: 鑑定士の予定が重ならず、欠勤の鑑定士も割り当てない', () => {
+test('サンプルの受付: 鑑定士の予定が重ならず、休みの鑑定士も割り当てない', () => {
   const live = list.filter((r) => !isCancelled(r));
   live.forEach((r) => assert.equal(isAbsent(r.userId, r.date, NOW), false));
   for (const a of live) for (const b of live) {
@@ -48,14 +48,14 @@ test('サンプルの受付: 電話番号から、受付済みの予約が見つ
   assert.deepEqual(past.map((r) => r.date).sort(), ['2026-04-12', '2026-08-03']); // 過去の訪問（買取の履歴の日付に合わせてある）
 });
 
-test('サンプルの受付: 休みの時間（欠勤の日・午前休・午後半休）に、訪問が入らない', () => {
+test('サンプルの受付: 休みの時間（終日休みの日・出勤する時間の外）に、訪問が入らない', () => {
   list.filter((r) => !isCancelled(r)).forEach((r) => {
     const att = attendanceOf(r.userId, r.date, NOW);
     assert.equal(inOffTime(att, toM(r.start), toM(r.end)), false, `${r.id} ${r.date} ${r.start} は ${att.label}`);
   });
 });
 
-test('元からの予定（ダミー）も、休みの時間に入らない。欠勤の日は、予定なし（鑑定士の実際の予定がある日を除く）', () => {
+test('元からの予定（ダミー）も、休みの時間に入らない。休みの日は、予定なし（鑑定士の実際の予定がある日を除く）', () => {
   const dates = Array.from({ length: 45 }, (_, i) => ymd(i - 3));
   let checked = 0;
   for (const u of USERS) for (const date of dates) {
@@ -66,7 +66,7 @@ test('元からの予定（ダミー）も、休みの時間に入らない。�
     });
   }
   assert.ok(checked > 50); // ダミーの予定は、十分な数がある
-  assert.ok(USERS.some((u) => dates.some((d) => attendanceOf(u.id, d, NOW).kind === 'absent'))); // 欠勤の日も、ある
+  assert.ok(USERS.some((u) => dates.some((d) => attendanceOf(u.id, d, NOW).kind === 'absent'))); // 休みの日も、ある
 });
 
 test('サンプルの受付: 一度も確定していない仮確定と、確定から仮確定に戻ったものが、両方ある', () => {

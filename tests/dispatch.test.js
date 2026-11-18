@@ -52,7 +52,7 @@ test('重なり・移動時間（前後30分）を判定する', () => {
 
 test('営業時間外は受けられない', () => {
   const c = rankCandidates({ gender: 'f', areaId: 'kanto', date: '2026-11-10', start: 18 * 60, dur: 90, reservations: [], now: NOW });
-  assert.ok(c.inArea.every((x) => !x.free && ['hours', 'absent'].includes(x.conflict.kind))); // 営業時間外（欠勤の鑑定士は、欠勤として扱う）
+  assert.ok(c.inArea.every((x) => !x.free && ['hours', 'absent'].includes(x.conflict.kind))); // 営業時間外（休みの鑑定士は、休みとして扱う）
 });
 
 test('候補はエリア内の鑑定士のみ。空いている人が先で、一人はおすすめになる', () => {
@@ -198,23 +198,23 @@ test('鑑定士は16名（大阪10・兵庫京都2・関東2・東海2）で、�
 
 test('予定のない鑑定士は、直前の訪問がなく、距離は出ない', () => {
   const here = locateAddress('大阪府大阪市阿倍野区1-2-3', areaById('osaka'));
-  const date = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29'].find((d) => !isAbsent('u09', d, NOW)); // 欠勤でない日
+  const date = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29'].find((d) => !isAbsent('u09', d, NOW)); // 休みでない日
   const { inArea } = rankCandidates({ gender: 'f', areaId: 'osaka', date, start: 780, dur: 90, reservations: [], here, now: NOW });
   const light = inArea.find((c) => c.user.id === 'u09');
   assert.equal(light.free, true);
   assert.equal(light.travel.prev, null);
 });
 
-test('欠勤の鑑定士は、担当に選べない（空きにも数えない）。予定の入っている日は出勤', () => {
+test('休みの鑑定士は、担当に選べない（空きにも数えない）。予定の入っている日は出勤', () => {
   const dates = Array.from({ length: 30 }, (_, i) => ymdOf(new Date(2026, 9, 25 + i)));
   const absences = USERS.flatMap((u) => dates.filter((d) => isAbsent(u.id, d, NOW)).map((d) => [u.id, d]));
-  assert.ok(absences.length > 10 && absences.length < 160); // 一定の割合で、欠勤がある
+  assert.ok(absences.length > 10 && absences.length < 160); // 一定の割合で、休みがある
   const [uid, date] = absences[0];
   assert.equal(isAbsent(uid, date, NOW), isAbsent(uid, date, NOW)); // 同じ日は毎回同じ
   const r = rankCandidates({ gender: 'f', areaId: areaOfUser(uid), date, start: 600, dur: 60, reservations: [], now: NOW });
   const c = [...r.inArea, ...r.others].find((x) => x.user.id === uid);
-  assert.deepEqual([c.absent, c.free, c.conflict.kind, conflictText(c.conflict)], [true, false, 'absent', '欠勤']);
-  assert.ok(!r.inArea.find((x) => x.recommended)?.absent); // おすすめに、欠勤の鑑定士は入らない
+  assert.deepEqual([c.absent, c.free, c.conflict.kind, conflictText(c.conflict)], [true, false, 'absent', '休み']);
+  assert.ok(!r.inArea.find((x) => x.recommended)?.absent); // おすすめに、休みの鑑定士は入らない
   const week = findWeekSlots({ userIds: [uid], startDate: date, days: 1, dur: 60, reservations: [], now: NOW });
   assert.ok(week[0].slots.every((s) => s.freeIds.length === 0)); // 空き人数に数えない
   assert.equal(salesDetail({ userId: uid, date, start: 600, dur: 60, reservations: [], now: NOW }).windows.length, 0);
@@ -251,7 +251,7 @@ test('取り消した予約は、鑑定士の空きを埋めず、担当件数�
   assert.deepEqual(fairnessStats([{ ...r, status: 'cancelled' }], NOW).u04, before);
 });
 
-test('配車係の移動: 空いている鑑定士・時間には置ける。欠勤・営業時間外・予定の重なりには置けない', () => {
+test('配車係の移動: 空いている鑑定士・時間には置ける。休み・営業時間外・予定の重なりには置けない', () => {
   const a = res({ id: 'a', userId: 'u09', date: '2026-10-28', start: '13:00', end: '14:30', areaId: 'osaka', status: 'tentative' });
   const b = res({ id: 'b', userId: 'u11', date: '2026-10-28', start: '10:00', end: '11:30', areaId: 'osaka', status: 'tentative' });
   const all = [a, b];
@@ -263,7 +263,7 @@ test('配車係の移動: 空いている鑑定士・時間には置ける。欠
   assert.equal(okAt('u11', 10 * 60 + 30).ok, false); // b と重なる
   assert.match(okAt('u11', 10 * 60 + 30).reason, /予定と重なる|移動時間/);
   const absent = USERS.map((u) => u.id).find((id) => isAbsent(id, '2026-10-28', NOW));
-  if (absent) assert.deepEqual([canPlace(a, absent, 13 * 60, all, NOW).ok, canPlace(a, absent, 13 * 60, all, NOW).reason], [false, '欠勤']);
+  if (absent) assert.deepEqual([canPlace(a, absent, 13 * 60, all, NOW).ok, canPlace(a, absent, 13 * 60, all, NOW).reason], [false, '休み']);
   assert.equal(busyBlocks('u11', '2026-10-28', [b], NOW).find((x) => x.source === 'reservation').rid, 'b'); // 帯から、どの予約か分かる
 });
 

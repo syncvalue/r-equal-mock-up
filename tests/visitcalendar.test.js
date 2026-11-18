@@ -23,14 +23,14 @@ test('週の濃さ: 日ごと・時間ごとに、訪問が入っている鑑定
   assert.equal(heat.length, 7);
   for (const d of heat) {
     assert.equal(d.slots.length, 20);
-    assert.ok(d.total > 0 && d.total <= areaStaff('osaka', d.date, [], NOW).length); // 欠勤の鑑定士は数えない
+    assert.ok(d.total > 0 && d.total <= areaStaff('osaka', d.date, [], NOW).length); // 休みの鑑定士は数えない
     for (const s of d.slots) assert.ok(s.busy >= 0 && s.busy <= s.total && s.ratio >= 0 && s.ratio <= 1);
   }
 });
 
 test('訪問が入ると、その時間の人数が増える（訪問の時間と重なる枠だけ）。取消は数えない', () => {
   const base = weekHeat({ areaId: 'osaka', dates, reservations: [], now: NOW });
-  // 欠勤でなく、10:00〜11:30 に予定のない鑑定士と日を探す
+  // 休みでなく、10:00〜11:30 に予定のない鑑定士と日を探す
   let hit = null;
   for (const date of dates) for (const c of dayColumns({ areaId: 'osaka', date, reservations: [], now: NOW })) {
     if (!hit && !c.absent && c.att.kind === 'present' && !c.blocks.some((b) => b.start < 690 && b.end > 600)) hit = { date, userId: c.user.id };
