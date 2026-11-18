@@ -106,7 +106,7 @@ function visitFieldsHtml(b, r) {
 function visitDetailHtml(b, r, draft, { anchor = false } = {}) {
   return `<div ${anchor && r ? `data-calrow="${r.id}" ` : ''}class="space-y-2 rounded-lg border-2 border-teal-600 bg-white p-3 text-sm">
     <div class="flex flex-wrap items-center gap-2"><b class="text-base">${esc(b.name)} 様</b>${r ? `${statusBadge(r)}${statusChip(r)}` : ''}
-      <button class="ml-auto text-lg leading-none text-slate-500 hover:text-slate-900" data-calblockclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
+      ${anchor ? '<button class="b b-sec ml-auto !min-h-0 !py-1 text-xs" data-calblockclose aria-expanded="true" title="詳細を閉じる">▲ 閉じる</button>' : '<button class="ml-auto text-lg leading-none text-slate-500 hover:text-slate-900" data-calblockclose title="閉じる" aria-label="詳細を閉じる">✕</button>'}</div>
     ${r ? chgButton(r) : ''}
     ${visitFieldsHtml(b, r)}
     ${r ? `<div><div class="mt-1 text-xs font-bold text-teal-700">前日確認</div>${callPanelHtml(r, draft)}</div>` : '<div class="rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">この予定には、受付の記録がありません</div>'}</div>`;
@@ -157,7 +157,7 @@ function dayListHtml({ areaId, date, reservations, today, calSel, draft, staffSe
   const asBlock = (r) => ({ userId: r.userId, date: r.date, start: toMin(r.start), end: toMin(r.end), name: r.customer.name, place: r.customer.address });
   const row = (r) => (calSel === r.id ? visitDetailHtml(asBlock(r), r, draft, { anchor: true }) : `<div class="rounded-lg border p-2 ${confirmStatus(r).key === 'reached' ? 'border-teal-400 bg-teal-50' : 'bg-white'}">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-1"><b>${esc(r.start)}〜${esc(r.end)}</b><b>${esc(r.customer.name)} 様</b>${statusBadge(r)}${statusChip(r)}
-      <button class="b b-sec ml-auto !min-h-0 !py-1 text-xs" data-callopen="${r.id}">詳細・前日確認</button></div>
+      <button class="b b-sec ml-auto !min-h-0 !py-1 text-xs" data-callopen="${r.id}" aria-expanded="false" title="詳細と前日確認を開く">▼ 詳細・前日確認</button></div>
     <div class="mt-1 text-xs text-slate-700">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
     <div class="mt-0.5 text-xs text-slate-700">前日確認の連絡時間 <b>${esc(r.hearing?.contact ?? '未確認')}</b></div></div>`);
   return `<div class="space-y-2">
