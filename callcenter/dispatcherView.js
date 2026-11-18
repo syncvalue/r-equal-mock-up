@@ -8,7 +8,7 @@ import { isTentative, isCancelled, isReverted, needsReview, reviewDiffs } from '
 import { customerProfile, customerDossier, visitLines, lineTotal } from '../src/customerHistory.js';
 import { callHistory } from '../src/callHistory.js';
 import { assignAdvice, declinedCardHtml } from '../src/customerProfileView.js';
-import { customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, attTag, tripTag, attShade, isTentativeBlock, blockMark } from './view.js';
+import { customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, tripTag, attShade, isTentativeBlock, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
 import { loadCurrentTrips, tripAreas, tripsOfUser } from '../src/trips.js';
 
@@ -36,7 +36,7 @@ export function staffModalHtml({ userId, date, reservations, now }) {
         <div class="flex items-center gap-3">${avatarHtml(user, 72)}<div class="space-y-0.5">
           <div class="text-lg font-bold">${esc(user.name)} ${rankBadge(d.rank)}${isLeader(user) ? '<span class="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[11px]">リーダー</span>' : ''}</div>
           <div class="text-sm text-slate-700">グループ${esc(user.group)}・${esc(area?.name ?? '')}${tripTag(tripsOfUser(loadCurrentTrips(), userId, date)) ? ` ${tripTag(tripsOfUser(loadCurrentTrips(), userId, date))}` : ''}</div>
-          <div class="text-xs">${dateLabel(date)}：<b>${esc(d.att.label)}</b>${d.att.kind === 'pm' || d.att.kind === 'am' ? `（${hhmm(d.att.from)}〜${hhmm(d.att.to)}）` : ''}</div></div></div>
+          <div class="text-xs">${dateLabel(date)}：<b>${esc(d.att.label)}</b>${d.att.kind === 'partial' ? `（勤務 ${hhmm(d.att.from)}〜${hhmm(d.att.to)}）` : ''}</div></div></div>
         <button class="b b-sec !min-h-0 !py-1" data-staffclose title="閉じる（Esc）">✕ 閉じる</button></div>
       ${box('得意分野', `<div class="flex flex-wrap gap-1">${specTags(user.id, {})}</div>`)}
       <div class="grid grid-cols-2 gap-3">
@@ -178,7 +178,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const head = cols.map((c) => {
     const t = c.mine.filter(isTentative).length;
     return `<div class="border-b bg-slate-50 px-1 py-0.5 text-center"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id))}
-      ${attTag(c.att) ? `<div>${attTag(c.att)}</div>` : ''}${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-700' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div>${c.travel.legs.length ? `<div class="text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-800' : 'text-slate-700'}" title="その日の訪問から訪問への移動の合計（概算）">計${c.travel.km}km・約${c.travel.min}分</div>` : ''}</div>`;
+      ${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] ${c.absent ? 'font-bold text-slate-700' : 'text-slate-500'}">${c.absent ? '欠勤' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div>${c.travel.legs.length ? `<div class="text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-800' : 'text-slate-700'}" title="その日の訪問から訪問への移動の合計（概算）">計${c.travel.km}km・約${c.travel.min}分</div>` : ''}</div>`;
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => `<div class="relative border-l" data-bcol="${c.user.id}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW}px)`}">

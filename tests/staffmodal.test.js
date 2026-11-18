@@ -16,9 +16,9 @@ test('鑑定士の詳細モーダル: 顔写真・名前・ランク・得意分
   assert.equal((html.match(/data-staffclose/g) || []).length, 2); // 背景と、閉じるボタン
 });
 
-test('鑑定士の詳細モーダル: 午後出社・欠勤の日は、勤怠が出て、空き時刻は午後だけ／なし', () => {
+test('鑑定士の詳細モーダル: 出勤する時間が短い日・欠勤の日は、勤怠が出て、空き時刻は午後だけ／なし', () => {
   const pm = text(staffModalHtml({ userId: 'u12', date: '2026-10-23', reservations: [], now: NOW }));
-  assert.match(pm, /午後出社 ?（13:00〜19:00）/);
+  assert.match(pm, /出勤 ?（勤務 13:00〜19:00）/);
   assert.match(pm, /90分で開始できる時刻 13:00/); // 午前は休みなので、開始できるのは13:00以降
   const off = text(staffModalHtml({ userId: 'u14', date: '2026-10-23', reservations: [], now: NOW }));
   assert.ok(off.includes('欠勤') && off.includes('90分で開始できる時刻 なし'));

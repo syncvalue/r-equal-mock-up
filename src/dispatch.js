@@ -63,25 +63,30 @@ export const RANKS = ['S', 'A', 'B', 'C'];
 export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
 
 // ---- 出勤状況 ------------------------------------------------------------------------
-// 全員が1日中出勤しているとは限らない。欠勤の鑑定士は担当に選べない。午後出社（午前休）・午後半休は、働く時間の中だけ選べる。
+// 全員が1日中出勤しているとは限らない。欠勤（1日中休み）の鑑定士は担当に選べない。
+// 出勤する時間（from〜to）が短い日は、その外の時間を「休み」として扱い、働く時間の中だけ選べる（午前休・午後半休・夕方から・15時まで、などを区別しない）。
+// kind: absent=欠勤（1日中休み）／present=終日出勤／partial=出勤する時間が短い。
 // ダミー: 鑑定士×日付で決まる。予定の入っている日は通常の出勤。見本として、日付を指定した勤怠も入れている
-export const ATTENDANCE_LABEL = { absent: '欠勤', pm: '午後出社', am: '午後半休', present: '出勤' };
-const NOON = 13 * 60; // 午前と午後の境
-const FIXED_ATTENDANCE = { u03: { 2: 'am' }, u12: { 2: 'pm' }, u15: { 1: 'pm' }, u16: { 3: 'am' }, u14: { 2: 'absent' } }; // 今日からの日数 → 勤怠
+export const ATTENDANCE_LABEL = { absent: '欠勤', partial: '出勤', present: '出勤' };
+const NOON = 13 * 60;
+const AM_OFF = { from: NOON, to: WORK_END }; // 午前は休み（13:00から出社）
+const PM_OFF = { from: WORK_START, to: NOON }; // 午後は休み（13:00まで）
+const FIXED_ATTENDANCE = { u03: { 2: PM_OFF }, u12: { 2: AM_OFF }, u15: { 1: { from: 17 * 60, to: WORK_END } }, u16: { 3: { from: WORK_START, to: 15 * 60 } }, u14: { 2: 'absent' } }; // 今日からの日数 → 勤怠（'absent' か、出勤する時間）
 
-// 予定が、休みの時間（欠勤の日・午前休・午後半休）にかかっているか
+// 予定が、休みの時間（欠勤の日・出勤する時間の外）にかかっているか
 export const inOffTime = (att, start, end) => att.kind === 'absent' || start < att.from || end > att.to;
 
 export function attendanceOf(userId, date, now = new Date()) {
   const day = dayOffset(date, now);
-  let kind = 'present';
+  let pick = null;
   if (!EVENTS.some((e) => e.userId === userId && e.day === day)) {
     const r = mixedRandom(`${userId}/${date}/勤怠`)();
-    kind = FIXED_ATTENDANCE[userId]?.[day] ?? (r < 0.08 ? 'absent' : r < 0.15 ? 'pm' : r < 0.22 ? 'am' : 'present');
+    pick = FIXED_ATTENDANCE[userId]?.[day] ?? (r < 0.08 ? 'absent' : r < 0.15 ? AM_OFF : r < 0.22 ? PM_OFF : null);
   }
-  const from = kind === 'pm' ? NOON : WORK_START;
-  const to = kind === 'am' ? NOON : WORK_END;
-  return { kind, from: kind === 'absent' ? WORK_END : from, to: kind === 'absent' ? WORK_START : to, label: ATTENDANCE_LABEL[kind] };
+  if (pick === 'absent') return { kind: 'absent', from: WORK_END, to: WORK_START, label: ATTENDANCE_LABEL.absent };
+  const { from, to } = pick ?? { from: WORK_START, to: WORK_END };
+  const kind = from > WORK_START || to < WORK_END ? 'partial' : 'present';
+  return { kind, from, to, label: ATTENDANCE_LABEL[kind] };
 }
 export const isAbsent = (userId, date, now = new Date()) => attendanceOf(userId, date, now).kind === 'absent';
 
@@ -167,7 +172,7 @@ function fillerBlocks(userId, date, hidden, now) {
   for (let i = 0, n = Math.floor(rnd() * 3); i < n; i += 1) {
     const start = 570 + Math.floor(rnd() * 14) * SLOT_STEP;
     const end = start + (rnd() < 0.5 ? 60 : 90);
-    // 午後出社・午後半休の日は、休みの時間帯に予定は入らない。乱数の並びは変えず、働く時間の外に出る予定だけを外す
+    // 出勤する時間が短い日は、休みの時間帯に予定は入らない。乱数の並びは変えず、働く時間の外に出る予定だけを外す
     if (start >= att.from && end <= att.to && !taken.some((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER)) {
       const areaId = areaOfUser(userId);
       const pick = Math.floor(hash(`${userId}/${date}/${start}/客`)() * 100); // 空き状況の乱数列を変えないよう、別の乱数で決める
@@ -198,7 +203,7 @@ export function busyBlocks(userId, date, reservations, now = new Date(), extraHi
 
 // null なら空き。kind: hours=営業時間外 / overlap=予定と重なる / buffer=予定との間に移動時間が足りない
 export function conflictOf(blocks, start, end, att = null) {
-  if (att && att.kind !== 'present' && (start < att.from || end > att.to)) return { kind: att.kind === 'absent' ? 'absent' : 'shift', block: null, att }; // 欠勤・午後出社・午後半休
+  if (att && att.kind !== 'present' && (start < att.from || end > att.to)) return { kind: att.kind === 'absent' ? 'absent' : 'shift', block: null, att }; // 欠勤・出勤する時間の外
   if (start < WORK_START || end > WORK_END) return { kind: 'hours', block: null };
   const hit = blocks.find((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER);
   if (!hit) return null;
@@ -209,7 +214,7 @@ export const conflictText = (c) => {
   if (!c) return '';
   if (c.kind === 'hours') return '営業時間外（9:00〜19:00）';
   if (c.kind === 'absent') return '欠勤';
-  if (c.kind === 'shift') return c.att.kind === 'pm' ? `午後出社（${minToHHMM(c.att.from)}から）` : `午後半休（${minToHHMM(c.att.to)}まで）`;
+  if (c.kind === 'shift') return `休み（勤務は${[c.att.from > WORK_START ? `${minToHHMM(c.att.from)}から` : '', c.att.to < WORK_END ? `${minToHHMM(c.att.to)}まで` : ''].filter(Boolean).join('・')}）`; // 勤務する時間の外
   const t = `${minToHHMM(c.block.start)}–${minToHHMM(c.block.end)} ${c.block.label}`;
   return c.kind === 'overlap' ? `${t} の予定と重なる` : `${t} の予定の前後30分（移動時間）にかかる`;
 };

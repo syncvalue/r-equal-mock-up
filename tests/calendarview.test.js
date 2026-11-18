@@ -253,3 +253,14 @@ test('不通のまま終了した訪問は、実線（終わった）で、「�
     assert.ok(blk({}).includes('dashed'), mode);
   }
 });
+
+test('休みの表示: 出勤する時間の外（前・後ろ）を「休み」の斜線で塗る。午後出社などの名前は出さない。欠勤・終日出勤は塗らない', async () => {
+  const { attShade } = await import('../callcenter/view.js');
+  const bands = (att) => (attShade(att, 28).match(/休み/g) || []).length;
+  assert.equal(bands({ kind: 'partial', from: 17 * 60, to: 19 * 60 }), 1); // 夕方から
+  assert.equal(bands({ kind: 'partial', from: 9 * 60, to: 15 * 60 }), 1); // 15時まで
+  assert.equal(bands({ kind: 'partial', from: 12 * 60, to: 16 * 60 }), 2); // 前と後ろ
+  assert.equal(bands({ kind: 'present', from: 540, to: 1140 }) + bands({ kind: 'absent', from: 1140, to: 540 }), 0);
+  const html = calendarHtml({ ...base, mode: 'day', reservations: [] });
+  assert.ok(!/午後出社|午後半休|午前休/.test(html));
+});

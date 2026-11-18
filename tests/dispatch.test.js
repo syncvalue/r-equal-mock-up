@@ -267,17 +267,24 @@ test('配車係の移動: 空いている鑑定士・時間には置ける。欠
   assert.equal(busyBlocks('u11', '2026-10-28', [b], NOW).find((x) => x.source === 'reservation').rid, 'b'); // 帯から、どの予約か分かる
 });
 
-test('勤怠: 午後出社（午前休）・午後半休は、働く時間の中だけ選べる', () => {
+test('勤怠: 出勤する時間が短い日（午前休・午後半休・夕方から・15時まで）は、働く時間の中だけ選べる。午前休などの区別はしない', () => {
   const at = (uid, date) => attendanceOf(uid, date, NOW); // NOWは2026-10-21。見本の勤怠は、今日からの日数で指定
-  assert.deepEqual([at('u12', '2026-10-23').kind, at('u12', '2026-10-23').from, at('u12', '2026-10-23').to], ['pm', 780, 1140]);
-  assert.deepEqual([at('u03', '2026-10-23').kind, at('u03', '2026-10-23').from, at('u03', '2026-10-23').to], ['am', 540, 780]);
+  assert.deepEqual([at('u12', '2026-10-23').kind, at('u12', '2026-10-23').from, at('u12', '2026-10-23').to], ['partial', 780, 1140]);
+  assert.deepEqual([at('u03', '2026-10-23').kind, at('u03', '2026-10-23').from, at('u03', '2026-10-23').to], ['partial', 540, 780]);
   assert.equal(at('u14', '2026-10-23').kind, 'absent');
+  const eve = at('u15', '2026-10-22'); // 夕方から（17:00〜）
+  assert.deepEqual([eve.kind, eve.from, eve.to], ['partial', 1020, 1140]);
+  const early = at('u16', '2026-10-24'); // 15時まで
+  assert.deepEqual([early.kind, early.from, early.to], ['partial', 540, 900]);
+  const evening = rankCandidates({ gender: 'f', areaId: 'hyogo', date: '2026-10-22', start: 14 * 60, dur: 60, reservations: [], now: NOW });
+  const u15 = [...evening.inArea, ...evening.others].find((c) => c.user.id === 'u15');
+  assert.deepEqual([u15.free, conflictText(u15.conflict)], [false, '休み（勤務は17:00から）']);
   assert.equal(at('u01', '2026-10-21').kind, 'present'); // 予定の入っている日は、通常の出勤
   const rank = (start, dur = 60) => rankCandidates({ gender: 'f', areaId: 'osaka', date: '2026-10-23', start, dur, reservations: [], now: NOW }).inArea;
   const pm = rank(10 * 60).find((c) => c.user.id === 'u12'); // 午前は休み
-  assert.deepEqual([pm.free, pm.conflict.kind, conflictText(pm.conflict)], [false, 'shift', '午後出社（13:00から）']);
+  assert.deepEqual([pm.free, pm.conflict.kind, conflictText(pm.conflict)], [false, 'shift', '休み（勤務は13:00から）']);
   const am = rank(14 * 60).find((c) => c.user.id === 'u03'); // 午後は休み
-  assert.deepEqual([am.free, conflictText(am.conflict)], [false, '午後半休（13:00まで）']);
+  assert.deepEqual([am.free, conflictText(am.conflict)], [false, '休み（勤務は13:00まで）']);
   assert.notEqual(rank(14 * 60).find((c) => c.user.id === 'u12').conflict?.kind, 'shift'); // 午後出社の人は、午後なら（予定が空いていれば）選べる
   assert.notEqual(rank(10 * 60).find((c) => c.user.id === 'u03').conflict?.kind, 'shift');
   assert.notEqual(rank(12 * 60).find((c) => c.user.id === 'u03').conflict?.kind, 'shift'); // 12:00〜13:00は、ちょうど13:00に終わるので、半休の前に収まる
@@ -293,8 +300,8 @@ test('勤怠: 空き人数・空き時刻の範囲・移動先の判定にも、
   assert.ok(d2.windows.every((w) => w.to <= 720)); // 午後半休は、13:00までに終わる開始のみ
   const rec = res({ id: 'x', userId: 'u09', date: '2026-10-23', start: '14:00', end: '15:00', areaId: 'osaka' });
   assert.equal(canPlace(rec, 'u12', 14 * 60, [rec], NOW).ok, true);
-  assert.deepEqual([canPlace(rec, 'u12', 10 * 60, [rec], NOW).ok, canPlace(rec, 'u12', 10 * 60, [rec], NOW).reason], [false, '午後出社（13:00から）']);
-  assert.equal(canPlace(rec, 'u03', 14 * 60, [rec], NOW).reason, '午後半休（13:00まで）');
+  assert.deepEqual([canPlace(rec, 'u12', 10 * 60, [rec], NOW).ok, canPlace(rec, 'u12', 10 * 60, [rec], NOW).reason], [false, '休み（勤務は13:00から）']);
+  assert.equal(canPlace(rec, 'u03', 14 * 60, [rec], NOW).reason, '休み（勤務は13:00まで）');
 });
 
 test('元の予定を動かして取り込んでも、元の位置に、別のダミー予定が現れない（重ならない）', () => {
