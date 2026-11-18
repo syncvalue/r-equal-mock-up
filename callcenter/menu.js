@@ -25,8 +25,7 @@ export function menuView({ tab, badges = {} }) {
         ${TABS.map((t) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === t.key ? 'bg-teal-700' : 'hover:bg-white/10 active:bg-white/20'}" data-tab="${t.key}">
           <span class="text-3xl">${icon(t.icon, 28)}</span>
-          <span class="flex-1"><span class="block font-bold text-lg leading-tight">${t.label}</span><span class="text-xs text-slate-300">${t.sub}</span></span>
-          <span class="flex flex-col items-end gap-1">${(badges[t.key] ?? []).map((b) => `<span class="text-xs font-bold rounded-full ${b.cls} px-2 py-0.5 whitespace-nowrap">${b.text}</span>`).join('')}</span>
+          <span class="flex-1 min-w-0"><span class="block font-bold text-lg leading-tight">${t.label}</span><span class="text-xs text-slate-300">${t.sub}</span>${(badges[t.key] ?? []).length ? `<span class="flex flex-wrap gap-1 mt-1.5">${badges[t.key].map((b) => `<span class="text-xs font-bold rounded-full ${b.cls} px-2 py-0.5 whitespace-nowrap">${b.text}</span>`).join('')}</span>` : ''}</span>
         </button>`).join('')}
       </div>
     </nav>

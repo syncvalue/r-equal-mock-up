@@ -29,8 +29,7 @@ export function menuView({ tab, badges, staff, warehouseName }) {
         ${TABS.map((t) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === t.key ? 'bg-slate-700' : 'hover:bg-white/10 active:bg-white/20'}" data-tab="${t.key}">
           <span class="text-3xl">${icon(t.icon, 28)}</span>
-          <span class="flex-1"><span class="block font-bold text-lg leading-tight">${t.label}</span><span class="text-xs text-slate-300">${t.sub}</span></span>
-          ${badges[t.key] ? `<span class="text-xs font-bold rounded-full ${badge[t.key][0]} px-2 py-0.5 whitespace-nowrap">${badge[t.key][1]} ${badges[t.key]}</span>` : ''}
+          <span class="flex-1 min-w-0"><span class="block font-bold text-lg leading-tight">${t.label}</span><span class="text-xs text-slate-300">${t.sub}</span>${badges[t.key] ? `<span class="flex flex-wrap gap-1 mt-1.5"><span class="text-xs font-bold rounded-full ${badge[t.key][0]} px-2 py-0.5 whitespace-nowrap">${badge[t.key][1]} ${badges[t.key]}</span></span>` : ''}</span>
         </button>`).join('')}
       </div>
       <div class="px-5 py-3 border-t border-white/10 flex items-center justify-between gap-2"><span class="text-xs text-slate-400">${esc(staff.name)}（${esc(warehouseName)}）</span>

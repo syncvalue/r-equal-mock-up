@@ -15,3 +15,9 @@ test('コールセンターのメニュー: 受電・訪問カレンダー・配
   assert.ok(t.includes('仮確定 3') && t.includes('回答待ち 2') && t.includes('前日確認 未4'));
   assert.ok(!menuView({ tab: 'new', badges: {} }).includes('仮確定 3'));
 });
+
+test('メニューのバッジは、項目名・説明の下に、折り返して並べる（右に置いて、項目名を窮屈にしない）', () => {
+  const html = menuView({ tab: 'new', badges: { calendar: [{ cls: 'bg-rose-600', text: '前日確認 未10' }, { cls: 'bg-amber-500', text: '変更 2' }] } });
+  assert.ok(!html.includes('flex flex-col items-end gap-1'));
+  assert.match(html, /<span class="flex-1 min-w-0"><span class="block font-bold text-lg leading-tight">訪問カレンダー<\/span><span class="text-xs text-slate-300">[^<]*<\/span><span class="flex flex-wrap gap-1 mt-1\.5">.*前日確認 未10.*変更 2/);
+});
