@@ -1,5 +1,5 @@
 // 社員（このシステムを使う社内の人）の名簿。社員は、いずれかの部署に属し（src/departments.js）、役割（システムでの立場）は1人にひとつ。
-// 鑑定士・オペレーター・配車係・査定員・経理担当・倉庫担当を、ここで一元管理する（用語は docs/SPEC.md の用語集）。
+// 鑑定士・オペレーター・配車係・査定員・経理担当・倉庫担当を、ここで一元管理する（用語は docs/shared/glossary.md の用語集）。
 // 画面は、この名簿から必要な形（倉庫担当・オペレーター名・査定員）を受け取る。操作はすべて新しい配列を返す。
 import { USERS as SALES, GROUPS } from './dashboard.js';
 import { defaultDepartmentOf } from './departments.js';
