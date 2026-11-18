@@ -21,13 +21,18 @@ export function loadCustomerEval(phones) {
   return null;
 }
 
-// 登録する。source: manual=人が登録／first-visit=初回の訪問の評価から自動で設定
+// 登録する。source: manual=人が登録／first-visit=初回の訪問の評価から自動で設定。
+// ランクは、変わっていくもの。変わったときは、ランクの変遷（rankHistory: ランク・いつ・誰が）に、足していく（消さない）
 export function saveCustomerEval(phone, data, { by, source = 'manual', now = Date.now() } = {}) {
   const all = loadAll();
+  const prev = all[digits(phone)];
+  const rank = data.rank || null;
+  const history = prev?.rankHistory ?? (prev?.rank ? [{ rank: prev.rank, at: prev.updatedAt, by: prev.updatedBy }] : []);
   all[digits(phone)] = {
-    phone, rank: data.rank || null,
+    phone, rank,
     trouble: { level: data.trouble?.level ?? 'none', tags: data.trouble?.tags ?? [], memo: data.trouble?.memo ?? '' },
     memo: data.memo ?? '', updatedAt: now, updatedBy: by, source,
+    rankHistory: rank && history.at(-1)?.rank !== rank ? [...history, { rank, at: now, by }] : history,
   };
   localStorage.setItem(CUSTOMER_EVAL_KEY, JSON.stringify(all));
 }

@@ -57,3 +57,8 @@ test('ダミーの予定（お客様名と住所だけ）を取り込んだ予�
   assert.equal(rec.hearing.wants, '未確認');
   assert.ok(Object.values(rec.hearing).every((v) => v === '未確認'));
 });
+
+test('取り込んだ予約は、元の予定のダミーの顧客ランクを引き継ぐ', () => {
+  const rec = reservationFromBlock({ gid: 'flr:x', start: 600, end: 690, label: '田中 一郎 様', source: 'dummy', custRank: 'SS', place: '' }, { userId: 'u01', date: '2026-10-21', now: NOW });
+  assert.equal(rec.customerRank, 'SS');
+});

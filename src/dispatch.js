@@ -57,6 +57,13 @@ const USER_SPECIALTY = {
 export const specialtiesOf = (userId) => USER_SPECIALTY[userId] ?? [];
 
 // ---- 鑑定士のランク ------------------------------------------------------------------
+// ダミーのお客様に付けるランク（SS・S・A・B。偏らないよう、SS 15%・S 25%・A 35%・B 25% で、キーごとに決まる）。
+// 顧客ランクは、新規かリピーターかとは別。新規のお客様にも付ける（住所から高級住宅街と分かるなど、実績がなくても推測できる）
+export function dummyCustomerRank(key) {
+  const r = hash(`顧客ランク/${key}`)();
+  return r < 0.15 ? 'SS' : r < 0.4 ? 'S' : r < 0.75 ? 'A' : 'B';
+}
+
 // 鑑定士ごとのランク（ダミー。SS が最上位。SS・S・A・B の4段階、仮の設定）
 const USER_RANK = { u01: 'A', u02: 'SS', u03: 'S', u04: 'B', u05: 'A', u06: 'SS', u07: 'A', u08: 'B', u09: 'S', u10: 'A', u11: 'S', u12: 'A', u13: 'B', u14: 'A', u15: 'S', u16: 'B' };
 export const RANKS = ['SS', 'S', 'A', 'B'];
@@ -178,7 +185,7 @@ function fillerBlocks(userId, date, hidden, now) {
       const pick = Math.floor(hash(`${userId}/${date}/${start}/客`)() * 100); // 空き状況の乱数列を変えないよう、別の乱数で決める
       const gid = `flr:${userId}/${date}/${start}`;
       const block = {
-        gid, start, end, label: `${DUMMY_NAMES[pick % DUMMY_NAMES.length]} 様`, source: 'dummy',
+        gid, start, end, label: `${DUMMY_NAMES[pick % DUMMY_NAMES.length]} 様`, source: 'dummy', custRank: dummyCustomerRank(gid),
         ...locateAddress(`${userId}/${date}/${start}`, areaById(areaId)), place: (DUMMY_ADDRESS[areaId] ?? [''])[Math.floor(pick / 8) % 4],
       };
       taken.push(block);
@@ -193,7 +200,7 @@ export function busyBlocks(userId, date, reservations, now = new Date(), extraHi
   const day = dayOffset(date, now);
   const hidden = extraHidden ? new Set([...hiddenBlocks, ...extraHidden]) : hiddenBlocks;
   const realAll = EVENTS.filter((e) => e.userId === userId && e.day === day);
-  const real = realAll.filter((e) => !hidden.has(e.id)).map((e) => ({ gid: e.id, ev: e, start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event', lat: e.lat, lng: e.lng, place: e.customer.address }));
+  const real = realAll.filter((e) => !hidden.has(e.id)).map((e) => ({ gid: e.id, ev: e, start: toMin(e.start), end: toMin(e.end), label: `${e.customer.name} 様`, source: 'event', custRank: dummyCustomerRank(e.id), lat: e.lat, lng: e.lng, place: e.customer.address }));
   const base = realAll.length ? real : fillerBlocks(userId, date, hidden, now); // 既存の予定がある日は、ダミーを足さない（動かして空になっても、ダミーは出さない）
   const mine = reservations
     .filter((r) => r.userId === userId && r.date === date && r.status !== 'cancelled')

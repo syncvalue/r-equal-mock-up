@@ -1,6 +1,6 @@
 // サンプルの受付データ（ダミー）。配車確定の画面などを、最初から見られるように、今日を起点に、仮確定・確定済み・確定→変更・取消の見本を作る。
 // 鑑定士は、空いている人（休み・予定の重なりを避けた、担当が少ない順の先頭）を自動で割り当てる
-import { areaById, locateAddress, rankCandidates } from '../src/dispatch.js';
+import { areaById, locateAddress, rankCandidates, dummyCustomerRank } from '../src/dispatch.js';
 import { ymdOf } from '../src/reservations.js';
 import { blankForm } from './form.js';
 import { blankMain, flyerOf } from './master.js';
@@ -54,7 +54,7 @@ export function sampleReservations(now = new Date()) {
     const received = new Date(day(sp.on ? sp.off - 1 : -1).getTime() + (9 + (i % 8)) * 3600000 + (i * 7 % 60) * 60000); // 昨日の日中に受電
     const rec = {
       id: `SMP-${String(i + 1).padStart(2, '0')}`, receptionNo: `CC-${ymdOf(received).replaceAll('-', '')}-${5001 + i}`, receivedAt: stampOf(received), receivedTs: received.getTime(),
-      status: sp.status === 'confirmed' ? 'confirmed' : 'tentative', operator: i % 2 ? '渡辺' : '佐藤', userId: pick.user.id, apType: sp.f.phone === '090-2468-1357' ? '再' : '新',
+      status: sp.status === 'confirmed' ? 'confirmed' : 'tentative', operator: i % 2 ? '渡辺' : '佐藤', userId: pick.user.id, apType: sp.f.phone === '090-2468-1357' ? '再' : '新', customerRank: dummyCustomerRank(`${sp.f.phone}`),
       ...buildRecordFields(form, { area, pos }),
     };
     if (sp.status === 'confirmed') Object.assign(rec, { confirmedAt: stampOf(new Date(received.getTime() + 20 * 3600000)), confirmedBy: '配車係' });

@@ -138,6 +138,7 @@ export function customerProfile(phones) {
   const cooloff = [...(stored?.cooloff?.length ? stored.cooloff : seedProfile?.cooloff ?? [])].sort((a, b) => b.at - a.at); // クーリングオフ歴は、契約の記録。お客様の評価を登録し直しても、消えない
   return {
     rank: manual?.rank ?? autoRank, rankAuto: !manual?.rank && Boolean(autoRank), purchase: sum,
+    rankHistory: stored?.rankHistory ?? [],
     trouble: { level: trouble.level, tags: trouble.tags ?? [], memo: trouble.memo ?? '' }, cooloff,
     declined: declinedList(list).length, memo: manual?.memo ?? '', meta: stored ? { by: stored.updatedBy, at: stored.updatedAt, source: stored.source } : null,
     known: Boolean(manual) || sum.count > 0,

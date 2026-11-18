@@ -10,12 +10,18 @@ export const dateYmd = (ms) => {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 };
 
+// 顧客ランクの札。ランクは、新規かリピーターかとは別。新規のお客様にも付く（実績がなくても、住所などから推測して設定する）。設定がなければ「ランク未設定」
 export const custRankBadge = (p) =>
   p?.rank
-    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 " style="${rankBadgeStyle(p.rank)}" title="顧客ランク（資産・売却の見込み）${p.rankAuto ? "。総買取額から自動で決めています" : ""}">顧客${esc(p.rank)}</span>`
-    : p?.known === false
-      ? '<span class="inline-block rounded bg-slate-100 px-1.5 text-[11px] font-bold leading-4 text-slate-900" title="買取の実績がありません">新規</span>'
-      : "";
+    ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4" style="${rankBadgeStyle(p.rank)}" title="顧客ランク（資産・売却の見込み）${p.rankAuto ? "。総買取額から自動で決めています" : ""}">顧客${esc(p.rank)}</span>`
+    : '<span class="inline-block rounded bg-slate-100 px-1.5 text-[11px] font-bold leading-4 text-slate-600" title="顧客ランクが決まっていません">ランク未設定</span>';
+// 新規かリピーターか（買取の実績で分かる）。ランクとは別の軸
+export const customerKindBadge = (p) =>
+  p?.purchase?.count
+    ? `<span class="inline-block rounded border border-slate-400 bg-white px-1.5 text-[11px] font-bold leading-4 text-slate-700" title="買取の実績があります">リピーター</span>`
+    : '<span class="inline-block rounded border border-slate-400 bg-white px-1.5 text-[11px] font-bold leading-4 text-slate-700" title="買取の実績がありません">新規</span>';
+// ランクの変遷（新しい順）。例「SS（11/18）← A（10/1）」
+export const rankHistoryText = (p) => (p?.rankHistory?.length > 1 ? [...p.rankHistory].reverse().map((h) => `${h.rank}（${new Date(h.at).getMonth() + 1}/${new Date(h.at).getDate()}）`).join(" ← ") : "");
 export const troubleBadge = (p) =>
   p && p.trouble.level !== "none"
     ? `<span class="inline-block rounded px-1.5 text-[11px] font-bold leading-4 ${p.trouble.level === "alert" ? "bg-rose-600 text-white" : "bg-amber-200 text-amber-800"}" title="${esc(`${p.trouble.tags.join("、")}${p.trouble.memo ? `　${p.trouble.memo}` : ""}`)}">${p.trouble.level === "alert" ? "要注意" : "⚠ 注意"}</span>`
@@ -42,9 +48,10 @@ export function assignAdvice(p) {
 
 export function customerProfileHtml(p, { advice = false } = {}) {
   if (!p) return "";
-  return `<div class="space-y-0.5 text-xs"><div class="flex flex-wrap items-center gap-1.5"><span class="text-slate-500">お客様</span>${custRankBadge(p)}${troubleBadge(p) || '<span class="text-slate-400">厄介度：なし</span>'}${cooloffBadge(p) || '<span class="text-slate-400">クーリングオフ歴：なし</span>'}
+  return `<div class="space-y-0.5 text-xs"><div class="flex flex-wrap items-center gap-1.5"><span class="text-slate-500">お客様</span>${custRankBadge(p)}${customerKindBadge(p)}${troubleBadge(p) || '<span class="text-slate-400">厄介度：なし</span>'}${cooloffBadge(p) || '<span class="text-slate-400">クーリングオフ歴：なし</span>'}
     ${p.purchase.count ? `<span class="text-slate-500">買取 ${p.purchase.count}回・総額 ${yen(p.purchase.total)}</span>` : ""}</div>
     ${p.trouble.tags.length ? `<div class="text-slate-700">${esc(p.trouble.tags.join("、"))}${p.trouble.memo ? `<span class="text-slate-500">　${esc(p.trouble.memo)}</span>` : ""}</div>` : ""}
+    ${rankHistoryText(p) ? `<div class="text-slate-500">ランクの変遷：${esc(rankHistoryText(p))}</div>` : ""}
     ${p.memo ? `<div class="text-slate-700">メモ：${esc(p.memo)}</div>` : ""}
     ${p.meta ? `<div class="text-[11px] text-slate-400">登録：${esc(p.meta.by)}　${dateYmd(p.meta.at)}${p.meta.source === "first-visit" ? "（初回の訪問の評価から設定）" : ""}</div>` : ""}
     ${p.cooloff.length ? `<div class="text-rose-700">クーリングオフ：${p.cooloff.map((c) => `${dateYmd(c.at)} ${esc(c.items)}${c.memo ? `（${esc(c.memo)}）` : ""}`).join(" ／ ")}</div>` : ""}

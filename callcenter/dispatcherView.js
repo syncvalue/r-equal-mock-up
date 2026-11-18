@@ -156,11 +156,16 @@ function legsHtml(legs) {
 
 // お客様のランク・厄介度・クーリングオフ歴（電話番号から）
 const profileOf = (c) => (c ? customerProfile([c.phone, c.phone2]) : null);
+// 予約のお客様の評価。顧客ランクは、登録・買取の実績から決まるもの。なければ、受付で付けたランク（customerRank。新規のお客様の推測など）
+const profileOfRes = (r) => { const p = customerProfile([r?.customer?.phone, r?.customer?.phone2]); return { ...p, rank: p.rank ?? r?.customerRank ?? null }; };
 
 // 配車の判断に要る2つ: お客様の性別（記号）と、顧客ランク。鑑定士のランクは、列の見出しに出ている（高いランクのお客様には、高いランクの鑑定士を当てる）
 const GENDER_MARK = { f: ['♀', 'bg-rose-100 text-rose-700', '女性のお客様'], m: ['♂', 'bg-sky-100 text-sky-700', '男性のお客様'] };
 export const genderMark = (g) => (GENDER_MARK[g] ? `<i class="ml-0.5 rounded px-1 text-[10px] font-bold not-italic ${GENDER_MARK[g][1]}" title="${GENDER_MARK[g][2]}">${GENDER_MARK[g][0]}</i>` : '');
-export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white px-1 text-[10px] font-bold not-italic text-slate-900" title="顧客ランク（資産・売却の見込み）">顧客${esc(p.rank)}</i>` : p?.known === false ? '<i class="ml-0.5 rounded bg-white/80 px-1 text-[10px] font-bold not-italic text-slate-700" title="買取の実績がありません">新規</i>' : '');
+export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white px-1 text-[10px] font-bold not-italic text-slate-900" title="顧客ランク（資産・売却の見込み）。新規かリピーターかとは別">顧客${esc(p.rank)}</i>` : '<i class="ml-0.5 rounded bg-white/80 px-1 text-[10px] font-bold not-italic text-slate-700" title="顧客ランクが決まっていません">顧客未設定</i>');
+// 新規かリピーターか（ランクとは別の軸）。受付の記録（apType）か、買取の実績で分かる
+export const kindOfRes = (r, p) => (r?.apType === '再' || p?.purchase?.count > 0 ? 'repeat' : 'new');
+export const kindMark = (kind) => `<i class="ml-0.5 rounded border border-white/70 px-1 text-[10px] font-bold not-italic" title="${kind === 'repeat' ? '買取の実績があるお客様' : '買取の実績がない、初めてのお客様'}">${kind === 'repeat' ? '再訪' : '新規'}</i>`;
 
 // 帯の色＝顧客ランク、鑑定士の見出しの色＝鑑定士ランク（同じ色）。状態は枠線
 const swatch = (c, label) => `<span class="inline-flex items-center gap-0.5"><i class="inline-block h-2.5 w-4 rounded-sm" style="background:${c.fill};border:1px solid ${c.edge}"></i>${label}</span>`;
@@ -175,12 +180,12 @@ function blockHtml(b, selId, byId, att) {
   const top = topOf(b.start);
   const height = topOf(b.end) - top - 1;
   if (b.source !== 'reservation') { // 鑑定士のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
-    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] ${offCls}" style="top:${top}px;height:${height}px;${boardBlockStyle(profileOf(b.ev?.customer)?.rank, 'confirmed')}" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の鑑定士・時間に動かせます`)}"><b>確 ${esc(b.label)}</b>${customerMarks(profileOf(b.ev?.customer))} ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
+    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] ${offCls}" style="top:${top}px;height:${height}px;${boardBlockStyle(profileOf(b.ev?.customer)?.rank ?? b.custRank, 'confirmed')}" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の鑑定士・時間に動かせます`)}"><b>確 ${esc(b.label)}</b>${custRankMark({ rank: profileOf(b.ev?.customer)?.rank ?? b.custRank })}${customerMarks(profileOf(b.ev?.customer), { rank: false })} ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
-  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(profileOf(r?.customer)?.rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
-    <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b>${genderMark(r?.gender)}${custRankMark(profileOf(r?.customer))}${customerMarks(profileOf(r?.customer), { rank: false })} ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
+  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(profileOfRes(r).rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
+    <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b>${genderMark(r?.gender)}${custRankMark(profileOfRes(r))}${kindMark(kindOfRes(r, profileOfRes(r)))}${customerMarks(profileOf(r?.customer), { rank: false })} ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-slate-900" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
 
@@ -228,7 +233,7 @@ function boardDetailHtml(r, reservations, now) {
     ${actions}
     ${visitFieldsHtml({ userId: r.userId, date: r.date, start: minOf(r.start), end: minOf(r.end), name: r.customer.name, place: r.customer.address }, r, { staff: false })}
     <div class="space-y-1">
-      ${r.customer.phone ? customerProfileHtml(profileOf(r.customer), { advice: true }) : ''}
+      ${customerProfileHtml({ ...profileOfRes(r), purchase: { ...profileOfRes(r).purchase, count: kindOfRes(r, profileOfRes(r)) === 'repeat' ? Math.max(1, profileOfRes(r).purchase.count) : 0 } }, { advice: true })}
       <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">お客様の詳細（買取履歴・評価・これまでの担当）</button></div>
       <div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
       ${travel ? `<div class="text-[11px] leading-tight text-slate-700">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}

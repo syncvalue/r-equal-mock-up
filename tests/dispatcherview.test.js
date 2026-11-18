@@ -49,8 +49,8 @@ test('配車確定の帯: お客様の性別の記号（♀・♂）と顧客ラ
   assert.equal(genderMark(''), '');
   assert.equal(genderMark(undefined), '');
   assert.match(custRankMark({ rank: 'S', known: true }), />顧客S</);
-  assert.match(custRankMark({ rank: null, known: false }), />新規</);
-  assert.equal(custRankMark(null), '');
+  assert.match(custRankMark({ rank: null, known: false }), />顧客未設定</); // ランクと、新規かどうかは別。新規でも、ランクがあれば出す
+  assert.match(custRankMark({ rank: 'SS', known: false }), />顧客SS</);
   const html = page(null, [rec({ gender: 'f' }), rec({ id: 'R2', userId: 'u02', gender: 'm', start: '10:00', end: '11:00', customer: { name: '佐藤 一郎', phone: '', address: 'x' } })]);
   assert.ok(html.includes('>♀<') && html.includes('>♂<'));
 });
@@ -62,4 +62,28 @@ test('配車確定: 帯の色は顧客ランク、見出しの色は鑑定士ラ
   assert.ok(h.includes('border:3px dashed') && h.includes('border:3px solid') && h.includes('border:4px double #0f172a'));
   assert.ok(h.includes(`background:${RANK_COLORS[rankOfUser('u01')].fill};color:${RANK_COLORS[rankOfUser('u01')].text}`)); // 鑑定士の見出し
   assert.ok(/色＝ランク/.test(h) && /枠線＝状態/.test(h) && h.includes('黒の二重線'));
+});
+
+test('顧客ランクは、新規かリピーターかとは別の軸: 帯に、ランクと「新規／再訪」を別々に出す。新規でもランクが付く', async () => {
+  const { kindOfRes, kindMark } = await import('../callcenter/dispatcherView.js');
+  assert.equal(kindOfRes({ apType: '新' }, { purchase: { count: 0 } }), 'new');
+  assert.equal(kindOfRes({ apType: '再' }, { purchase: { count: 0 } }), 'repeat');
+  assert.equal(kindOfRes({ apType: '新' }, { purchase: { count: 3 } }), 'repeat');
+  assert.match(kindMark('new'), />新規</);
+  assert.match(kindMark('repeat'), />再訪</);
+  // 新規のお客様（apType=新、実績なし）に、受付で付けたランク（customerRank）がある
+  const h = page(null, [rec({ apType: '新', customerRank: 'SS', gender: 'f' })]);
+  assert.ok(h.includes('>顧客SS<') && h.includes('>新規<'));
+  const { RANK_COLORS } = await import('../src/rankColor.js');
+  assert.ok(h.includes(`background:${RANK_COLORS.SS.fill}`)); // 帯の色は、そのランクの色
+});
+
+test('ダミーのランクは、顧客も鑑定士も、SS・S・A・Bに分かれている（新規のお客様にも付く）', async () => {
+  const { USERS } = await import('../src/dashboard.js');
+  const { rankOfUser, busyBlocks, dummyCustomerRank } = await import('../src/dispatch.js');
+  assert.deepEqual([...new Set(USERS.map((u) => rankOfUser(u.id)))].sort(), ['A', 'B', 'S', 'SS']);
+  const seen = new Set();
+  for (const u of USERS) for (let d = 18; d < 25; d++) for (const b of busyBlocks(u.id, `2026-11-${d}`, [], new Date(2026, 10, 18, 9))) seen.add(b.custRank);
+  assert.deepEqual([...seen].sort(), ['A', 'B', 'S', 'SS']);
+  assert.equal(dummyCustomerRank('x'), dummyCustomerRank('x')); // 同じキーなら、いつも同じ
 });

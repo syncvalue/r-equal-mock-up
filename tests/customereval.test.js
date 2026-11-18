@@ -67,3 +67,18 @@ test('鑑定士のタブレット: 過去の訪問ごとの評価を、訪問の
   assert.equal((pastEvalView(h).match(/<details class="group rounded-lg border bg-white"/g) || []).length, 3);
   assert.match(text(pastEvalView({ isRepeat: false })), /初めてのお客様/);
 });
+
+test('顧客ランクの変遷: ランクが変わるたびに、足していく（消さない）。同じランクの登録し直しでは増えない', () => {
+  saveCustomerEval('090-7777-0001', { rank: 'A', trouble: { level: 'none', tags: [] } }, { by: '配車係', now: Date.UTC(2026, 9, 1) });
+  saveCustomerEval('090-7777-0001', { rank: 'A', trouble: { level: 'none', tags: [], memo: 'メモだけ' } }, { by: '配車係', now: Date.UTC(2026, 9, 5) });
+  saveCustomerEval('090-7777-0001', { rank: 'SS', trouble: { level: 'none', tags: [] } }, { by: '配車係', now: Date.UTC(2026, 10, 18) });
+  const p = customerProfile(['090-7777-0001']);
+  assert.deepEqual(p.rankHistory.map((h) => h.rank), ['A', 'SS']);
+  assert.equal(p.rank, 'SS');
+});
+
+test('新規のお客様（買取の実績がない）にも、顧客ランクを登録できる', () => {
+  saveCustomerEval('090-7777-0002', { rank: 'SS', trouble: { level: 'none', tags: [] }, memo: '高級住宅街にお住まい' }, { by: '配車係' });
+  const p = customerProfile(['090-7777-0002']);
+  assert.deepEqual([p.rank, p.purchase.count, p.known], ['SS', 0, true]);
+});

@@ -11,7 +11,7 @@ const UNKNOWN = '未確認';
 export function reservationFromBlock(block, { userId, date, now = new Date(), seq = 1 }) {
   const e = block.ev ?? null;
   const areaId = areaOfUser(userId);
-  const common = { id: `AD-${block.gid}`, status: 'confirmed', confirmedAt: stamp(now), confirmedBy: '（鑑定士の予定を取り込み）', userId, date, start: minToHHMM(block.start), end: minToHHMM(block.end), gender: '', lat: block.lat ?? 0, lng: block.lng ?? 0, ...base(areaId) };
+  const common = { customerRank: block.custRank ?? null, id: `AD-${block.gid}`, status: 'confirmed', confirmedAt: stamp(now), confirmedBy: '（鑑定士の予定を取り込み）', userId, date, start: minToHHMM(block.start), end: minToHHMM(block.end), gender: '', lat: block.lat ?? 0, lng: block.lng ?? 0, ...base(areaId) };
   if (e) {
     const h = hearingOf(e);
     return {
