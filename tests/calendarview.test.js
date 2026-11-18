@@ -169,3 +169,17 @@ test('鑑定士の元からの予定の帯（受付の記録がないもの）�
   const day = calendarHtml({ ...base, mode: 'day', reservations: [] });
   assert.ok(/<button[^>]*data-calblock="[^"]+" data-caluser="u\d+" data-caldate="2026-10-30"/.test(day));
 });
+
+test('詳細は、週の表の右も、日別の右の一覧も、登録内容をすべて出す。日別は、選んだ訪問の詳細にアンカー（data-calrow）が付く', () => {
+  const full = rec({ receptionNo: 'CC-9', receivedAt: '2026/10/28 10:00', operator: '佐藤', apType: '再',
+    customer: { name: '山田 花子', kana: 'ヤマダ ハナコ', phone: '090-1111-2222', phone2: '06-0000-0000', zip: '545-0000', address: '大阪府大阪市阿倍野区1-2-3' },
+    hearing: { profile: '女性・60代', trigger: 'チラシ（A123）', wants: '時計', large: '桐ダンス', attendee: 'ご本人', companion: 'なし', parking: 'あり', nameplate: 'あり', contact: '17:00〜19:00', notes: '犬がいる' } });
+  const keys = ['ヤマダ ハナコ', '545-0000', '06-0000-0000', '女性・60代', '2026/10/28 10:00', '佐藤', '再訪', 'チラシ（A123）', '桐ダンス', 'ご本人', 'なし', 'あり', '17:00〜19:00', '犬がいる', 'CC-9'];
+  for (const mode of ['week', 'day']) {
+    const h = calendarHtml({ ...base, mode, calSel: 'R1', reservations: [full] });
+    const t = text(h);
+    for (const k of keys) assert.ok(t.includes(k), `${mode}: ${k}`);
+  }
+  assert.ok(calendarHtml({ ...base, mode: 'day', calSel: 'R1', reservations: [full] }).includes('data-calrow="R1"'));
+  assert.ok(!calendarHtml({ ...base, mode: 'day', calSel: null, reservations: [full] }).includes('data-calrow'));
+});

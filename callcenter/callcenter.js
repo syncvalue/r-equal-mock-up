@@ -443,6 +443,7 @@ function render() {
   ${cancelId ? cancelModalHtml(loadReservations().find((r) => r.id === cancelId), cancelReason) : ''}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
   if (tab === 'new') { renderDispatch(); renderTranscript(); }
+  if (tab === 'calendar' && calSel) document.querySelector(`[data-calrow="${calSel}"]`)?.scrollIntoView({ block: 'start' }); // 日別: 選んだ訪問の詳細まで、右の一覧をスクロールする
 }
 
 // ---- クーリングオフ（受電 → 商品の状態を確認 → 依頼を作る → 倉庫が回答・返送 → 完了までの進捗）-------------------------

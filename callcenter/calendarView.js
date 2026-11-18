@@ -86,20 +86,29 @@ function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], 
 const blockKey = (b) => b.rid ?? b.gid ?? `${b.userId}/${b.start}`;
 // 受付の操作（日時の変更・取消）。前日確認の記録とは別なので、詳細の上のほうに置く
 const chgButton = (r) => `<button class="b b-sec !min-h-0 !py-1 text-xs" data-chg="${r.id}" title="お客様から、日時の変更・取消を告げられたとき">受付を変更・取消する</button>`;
-function visitDetailHtml(b, r, draft) {
+// 受付に登録した内容を、すべて出す（週の表の右の詳細も、日別の右の一覧も、同じ項目）。受付の記録がない予定は、日時・住所・担当鑑定士だけ
+function visitFieldsHtml(b, r) {
   const staff = USERS.find((u) => u.id === b.userId)?.name ?? '未定';
-  const row = (k, v) => (v ? `<div class="flex gap-2"><dt class="w-24 shrink-0 text-slate-500">${k}</dt><dd class="min-w-0 break-words">${esc(v)}</dd></div>` : '');
+  const row = (k, v) => (v ? `<div class="flex gap-2"><dt class="w-24 shrink-0 text-slate-500">${k}</dt><dd class="min-w-0 break-words whitespace-pre-wrap">${esc(v)}</dd></div>` : '');
   const h = r?.hearing ?? {};
+  const c = r?.customer ?? {};
   const rows = [
-    row('日時', `${dateLabel(b.date)} ${minToHHMM(b.start)}〜${minToHHMM(b.end)}`), row('住所', r?.customer.address ?? b.place),
-    row('電話番号', r ? [r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ ') : ''), row('担当鑑定士', staff), row('受付番号', r?.receptionNo),
-    row('売りたいもの', h.wants), row('前日確認の連絡時間', h.contact), row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('訪問時の注意', h.notes && h.notes !== '未確認' ? h.notes : ''),
+    row('日時', `${dateLabel(b.date)} ${minToHHMM(b.start)}〜${minToHHMM(b.end)}`), row('フリガナ', c.kana), row('性別・年齢', h.profile),
+    row('郵便番号', c.zip), row('住所', c.address ?? b.place), row('電話番号', [c.phone, c.phone2].filter(Boolean).join(' ／ ')),
+    row('担当鑑定士', staff), row('受付番号', r?.receptionNo), row('受付日時', r ? [r.receivedAt, r.operator && r.operator !== '—' ? `（${r.operator}）` : ''].filter(Boolean).join(' ') : ''), row('新規・再訪', r?.apType === '再' ? '再訪' : r?.apType === '新' ? '新規' : ''),
+    row('問い合わせ', [h.inquiryType, h.adType].filter(Boolean).join(' ／ ')), row('来電のきっかけ', h.trigger ?? r?.chirashi),
+    row('売りたいもの', h.wants), row('大型品・その他', h.large), row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('前日確認の連絡時間', h.contact), row('訪問時の注意', h.notes),
   ].join('');
-  return `<div class="space-y-2 rounded-lg border-2 border-teal-600 bg-white p-3 text-sm">
+  return `<dl class="space-y-1 text-xs">${rows}</dl>`;
+}
+
+// 押した訪問の詳細。週の表では画面の右側、日別では右の一覧の中で開く
+function visitDetailHtml(b, r, draft, { anchor = false } = {}) {
+  return `<div ${anchor && r ? `data-calrow="${r.id}" ` : ''}class="space-y-2 rounded-lg border-2 border-teal-600 bg-white p-3 text-sm">
     <div class="flex flex-wrap items-center gap-2"><b class="text-base">${esc(b.name)} 様</b>${r ? `${statusBadge(r)}${statusChip(r)}` : ''}
       <button class="ml-auto text-lg leading-none text-slate-500 hover:text-slate-900" data-calblockclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
     ${r ? chgButton(r) : ''}
-    <dl class="space-y-1 text-xs">${rows}</dl>
+    ${visitFieldsHtml(b, r)}
     ${r ? `<div><div class="mt-1 text-xs font-bold text-teal-700">前日確認</div>${callPanelHtml(r, draft)}</div>` : '<div class="rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">この予定には、受付の記録がありません</div>'}</div>`;
 }
 
@@ -145,12 +154,12 @@ function callPanelHtml(r, draft) {
 function dayListHtml({ areaId, date, reservations, today, calSel, draft, staffSel = [] }) {
   const list = reservations.filter((r) => r.areaId === areaId && r.status !== 'cancelled' && r.date === date && (!staffSel.length || staffSel.includes(r.userId))).sort((a, b) => toMin(a.start) - toMin(b.start));
   const due = confirmDateOf(date) === today;
-  const row = (r) => `<div class="rounded-lg border p-2 ${confirmStatus(r).key === 'reached' ? 'border-teal-400 bg-teal-50' : 'bg-white'} ${calSel === r.id ? 'border-teal-600 ring-2 ring-teal-200' : ''}">
+  const asBlock = (r) => ({ userId: r.userId, date: r.date, start: toMin(r.start), end: toMin(r.end), name: r.customer.name, place: r.customer.address });
+  const row = (r) => (calSel === r.id ? visitDetailHtml(asBlock(r), r, draft, { anchor: true }) : `<div class="rounded-lg border p-2 ${confirmStatus(r).key === 'reached' ? 'border-teal-400 bg-teal-50' : 'bg-white'}">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-1"><b>${esc(r.start)}〜${esc(r.end)}</b><b>${esc(r.customer.name)} 様</b>${statusBadge(r)}${statusChip(r)}
-      <button class="b b-sec ml-auto !min-h-0 !py-1 text-xs" data-callopen="${r.id}">${calSel === r.id ? '閉じる' : '前日確認を記録'}</button>${chgButton(r)}</div>
+      <button class="b b-sec ml-auto !min-h-0 !py-1 text-xs" data-callopen="${r.id}">詳細・前日確認</button></div>
     <div class="mt-1 text-xs text-slate-700">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
-    <div class="mt-0.5 text-xs text-slate-700">前日確認の連絡時間 <b>${esc(r.hearing?.contact ?? '未確認')}</b></div>
-    ${calSel === r.id ? callPanelHtml(r, draft) : ''}</div>`;
+    <div class="mt-0.5 text-xs text-slate-700">前日確認の連絡時間 <b>${esc(r.hearing?.contact ?? '未確認')}</b></div></div>`);
   return `<div class="space-y-2">
     <div class="flex flex-wrap items-center gap-2"><b>${dateLabel(date)}の受付 ${list.length}件</b>
       ${due ? '<span class="rounded bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">今日、前日確認の連絡をする日</span>' : `<span class="text-xs text-slate-500">前日確認の日は ${dateLabel(confirmDateOf(date))}</span>`}
