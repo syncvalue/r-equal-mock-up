@@ -264,3 +264,18 @@ test('休みの表示: 出勤する時間の外（前・後ろ）を「休み」
   const html = calendarHtml({ ...base, mode: 'day', reservations: [] });
   assert.ok(!/午後出社|午後半休|午前休/.test(html));
 });
+
+test('「休み」の札と斜線は、終日も一部の時間も、同じ大きさ・同じ模様', async () => {
+  const { attShade } = await import('../callcenter/view.js');
+  const part = attShade({ kind: 'partial', from: 17 * 60, to: 19 * 60 }, 28);
+  const badge = part.match(/<span class="([^"]*)">休み/)[1];
+  const stripe = part.match(/background-image:([^"]*)"/)[1];
+  const all = ['callcenter/view.js', 'callcenter/dispatcherView.js', 'callcenter/calendarView.js'];
+  const { readFileSync } = await import('node:fs');
+  for (const f of all) {
+    const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+    for (const m of src.matchAll(/<span class="([^"]*)">休み/g)) assert.equal(m[1], badge, f);
+    assert.ok(!src.includes('#e2e8f0 0,#e2e8f0 6px'), f); // 古い（別の）斜線は使わない
+  }
+  assert.ok(stripe.includes('rgba(148,163,184,.45)'));
+});
