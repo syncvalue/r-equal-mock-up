@@ -321,7 +321,7 @@ function renderDispatch() {
   const el = $('#dispatch');
   if (!el) return;
   if (done) mapAddress = '';
-  if (mapAddress) { if (!pinMap || !el.querySelector('#pin-map')) openPinMap(el); renderHint(); updateChecklist(); return; } // 地図のあいだは、入力のたびに描き直さない
+  if (mapAddress) { if (!el.querySelector('#pin-map')) openPinMap(el); renderHint(); updateChecklist(); return; } // 地図のあいだは、入力のたびに描き直さない
   closePinMap();
   el.innerHTML = done ? doneHtml(done) : dispatchHtml(compute());
   renderHint();
@@ -333,8 +333,12 @@ function openPinMap(el) {
   el.innerHTML = mapPaneHtml(mapAddress);
   const area = compute().confirmed ?? AREAS[0];
   const center = locateAddress(form.address, area) ?? area;
-  pinMap = mountPinMap($('#pin-map'), { pin: form.pin, center, onPin: setPin });
-  if (!form.pin) searchPin(); // ピンがなければ、住所の場所へ地図を動かす
+  const box = $('#pin-map');
+  mountPinMap(box, { pin: form.pin, center, onPin: setPin }).then((ctl) => {
+    if (!box.isConnected) { ctl.destroy(); return; } // 待っている間に、カレンダーへ戻された
+    pinMap = ctl;
+    if (!form.pin) searchPin(); // ピンがなければ、住所の場所へ地図を動かす
+  }).catch((err) => { const msg = $('#map-msg'); if (msg) msg.textContent = err.message; console.error(err); });
 }
 function closePinMap() { if (pinMap) { pinMap.destroy(); pinMap = null; } }
 function setPin(pin) {
@@ -642,7 +646,7 @@ document.addEventListener('click', (e) => {
   else if (d.week) { weekStart = shiftWeek(Number(d.week)); renderDispatch(); }
   else if (d.pick) { form = { ...form, userId: d.pick }; renderDispatch(); }
   else if ('toggleOthers' in d) { showOthers = !showOthers; renderDispatch(); }
-  else if ('mapview' in d) { const a = form.address.trim(); if (!a) { flash('住所を入力してください'); } else { mapAddress = a; closePinMap(); renderDispatch(); } }
+  else if ('mapview' in d) { const a = form.address.trim(); if (!a) { flash('住所を入力してください'); } else { mapAddress = a; closePinMap(); $('#dispatch').innerHTML = ''; renderDispatch(); } }
   else if ('mapsearch' in d) searchPin();
   else if ('mapclose' in d) { mapAddress = ''; renderDispatch(); }
   else if ('map' in d) { const a = done?.customer.address ?? form.address.trim(); if (a) window.open(mapUrl(a), '_blank', 'noopener'); else flash('住所を入力してください'); }

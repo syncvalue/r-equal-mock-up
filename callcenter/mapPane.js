@@ -1,12 +1,15 @@
-// 訪問先の地図（Leaflet + OpenStreetMap）。地図を押すとピンを置け、ドラッグで動かせる。画面側には、ピンが変わるたびに知らせる
+// 訪問先の地図。Googleマップのキーがあれば Googleマップ、なければ Leaflet + OpenStreetMap。地図を押すとピンを置け、ドラッグで動かせる。画面側には、ピンが変わるたびに知らせる
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { roundPin, validPin, addressQueries } from './pin.js';
+import { googleKey, mountGoogleMap, googleSearch } from './googleMap.js';
 
 const PIN_ICON = L.divIcon({ className: 'pin-icon', html: '<div class="pin-dot"></div>', iconSize: [24, 24], iconAnchor: [12, 24] });
 
 // el: 地図を入れる枠。pin: 今のピン（なければ null）。center: ピンがないときの中心（概算）。onPin: ピンが変わったとき
-export function mountPinMap(el, { pin, center, onPin }) {
+// 地図を作る（Googleマップは読み込みを待つので、Promiseを返す）
+export const mountPinMap = async (el, opts) => (googleKey() ? mountGoogleMap(el, opts) : mountLeafletMap(el, opts));
+function mountLeafletMap(el, { pin, center, onPin }) {
   const start = validPin(pin) ? pin : center;
   const map = L.map(el, { zoomControl: true }).setView([start.lat, start.lng], validPin(pin) ? 18 : 13);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
@@ -31,6 +34,7 @@ export function mountPinMap(el, { pin, center, onPin }) {
 
 // 住所から、場所を探す（OpenStreetMapのNominatim）。細かい番地で見つからなければ、番地を削って、順に広げて探す。見つからなければ null
 export async function searchAddress(address) {
+  if (googleKey()) return googleSearch(address);
   for (const q of addressQueries(address)) {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(`検索に失敗しました（${res.status}）`);

@@ -149,3 +149,10 @@ Tailwind は CDN 読み込みのため、ネット接続が必要です。
 - `honsha/` 査定部の画面
 - `gmosign/` GMOサイン（ダミー）と契約書の帳票
 - 商品マスタ・AI査定・コールセンター受付情報は、すべてダミーデータです。
+
+
+## Googleマップのキー（受電画面の地図）
+
+受電画面の「地図」は、Googleマップの APIキー（環境変数 `VITE_GOOGLE_MAPS_API_KEY`）があれば Googleマップで、なければ OpenStreetMap で出ます。
+手元では `.env.local` に `VITE_GOOGLE_MAPS_API_KEY=キー` と書き、Vercel では Project Settings → Environment Variables に同じ名前で登録して、再デプロイします（ビルド時に埋め込まれるため）。
+キーには、使えるサイトの制限（HTTPリファラー）をかけ、API は「Maps JavaScript API」と「Geocoding API」だけを許可します。
