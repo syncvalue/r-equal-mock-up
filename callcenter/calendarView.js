@@ -6,7 +6,7 @@ import { AREAS, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { CALL_RESULTS, confirmStatus, confirmDateOf, confirmPending, sortByContactTime, notYetReached } from '../src/confirmCall.js';
 import { slotStarts, weekHeat, dayColumns, heatStyle, areaStaffOver } from '../src/visitCalendar.js';
 import { minToHHMM } from '../src/reservations.js';
-import { dateLabel, statusBadge, attShade, blockCls, blockMark } from './view.js';
+import { dateLabel, statusBadge, attShade, blockCls, blockMark, detailPlaceholderHtml } from './view.js';
 import { avatarHtml } from './avatar.js';
 import { USERS } from '../src/dashboard.js';
 import { staffColor, visitBlockStyle } from '../src/staffColor.js';
@@ -82,7 +82,7 @@ function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], 
   const picked = calSel ? heat.flatMap((d) => d.blocks.map((b) => ({ ...b, date: d.date }))).find((b) => blockKey(b) === calSel) : null;
   return `<div class="flex h-full min-h-0 gap-3"><div class="min-h-0 min-w-0 flex-1 overflow-y-auto"><div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>
     <div class="mt-1 space-y-0.5">${legendHtml()}${callLegendHtml()}</div></div></div>
-    ${picked ? `<div class="min-h-0 w-[min(26rem,40%)] shrink-0 overflow-y-auto pr-1">${visitDetailHtml(picked, reservations.find((r) => r.id === picked.rid), draft)}</div>` : ''}</div>`;
+    <div class="min-h-0 w-[min(26rem,40%)] shrink-0 overflow-y-auto pr-1">${picked ? visitDetailHtml(picked, reservations.find((r) => r.id === picked.rid), draft) : detailPlaceholderHtml()}</div></div>`;
 }
 
 // 週の表で押した訪問の詳細（画面の右側）。受付した訪問は、前日確認の記録もここでできる

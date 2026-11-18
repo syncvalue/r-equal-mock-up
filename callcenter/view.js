@@ -30,6 +30,9 @@ export const isTentativeBlock = (b) => b.source === 'reservation' && b.status ==
 const blockKind = (b) => `訪問（${isTentativeBlock(b) ? (b.reverted ? '確定から仮確定に戻った' : '仮確定') : '確定済'}）`;
 export const blockMark = (b) => (isTentativeBlock(b) ? (b.reverted ? '戻 ' : '仮 ') : '確 ');
 
+// 詳細を出す右側のエリア（何も選んでいないとき）。エリアは、はじめから確保しておく（選んだときに、カレンダーが縮まないように）
+export const detailPlaceholderHtml = () => '<div class="flex min-h-[8rem] items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500" data-detail-empty>何もクリックされていません。<br />カレンダーの枠をクリックすると、詳細が表示されます。</div>';
+
 // 帯の色の意味（日別表示・担当候補で共通）
 export const legendHtml = ({ want = true } = {}) => `<span class="font-normal text-[11px] text-slate-700 flex flex-wrap items-center gap-x-3 gap-y-0.5">
   <span><i class="inline-block w-3 h-2.5 rounded-sm bg-slate-400 align-middle"></i> 薄い青：仮確定（未確定）</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-amber-600 align-middle"></i> 橙：確定から仮確定に戻った</span><span><i class="inline-block w-3 h-2.5 rounded-sm bg-slate-700 align-middle"></i> 濃い青：確定済み</span>

@@ -87,3 +87,13 @@ test('ダミーのランクは、顧客も鑑定士も、SS・S・A・Bに分か
   assert.deepEqual([...seen].sort(), ['A', 'B', 'S', 'SS']);
   assert.equal(dummyCustomerRank('x'), dummyCustomerRank('x')); // 同じキーなら、いつも同じ
 });
+
+test('配車確定: 右の詳細エリアは、はじめから確保する。何も選んでいないときは、案内の文を出す（選んだときに、カレンダーが縮まない）', () => {
+  const none = page(null);
+  assert.ok(none.includes('w-[min(26rem,40%)]') && none.includes('data-detail-empty'));
+  assert.ok(none.replace(/<[^>]+>/g, ' ').includes('カレンダーの枠をクリックすると、詳細が表示されます'));
+  const sel = page('R1');
+  assert.ok(sel.includes('w-[min(26rem,40%)]') && !sel.includes('data-detail-empty')); // 選ぶと、同じ場所に詳細が入る
+  const width = (h) => h.match(/class="sticky top-0[^"]*w-\[min\(26rem,40%\)\][^"]*"/)[0];
+  assert.equal(width(none), width(sel)); // エリアの大きさは、変わらない
+});

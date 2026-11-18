@@ -293,3 +293,12 @@ test('以前の取り込みで「（既存の予定）」と保存された売�
   const h = text(calendarHtml({ ...base, calSel: 'R1', reservations: [rec({ hearing: { wants: '（既存の予定）', contact: '未確認' } })] }));
   assert.ok(h.includes('売りたいもの 未確認') && !h.includes('既存の予定'));
 });
+
+test('訪問カレンダー（週）: 右の詳細エリアは、はじめから確保する。何も選んでいないときは、案内の文を出す', () => {
+  const none = calendarHtml({ ...base, reservations: [rec()] });
+  assert.ok(none.includes('data-detail-empty') && text(none).includes('カレンダーの枠をクリックすると、詳細が表示されます'));
+  const sel = calendarHtml({ ...base, calSel: 'R1', reservations: [rec()] });
+  assert.ok(!sel.includes('data-detail-empty') && sel.includes('data-calblockclose'));
+  const w = (h) => h.match(/class="min-h-0 w-\[min\(26rem,40%\)\][^"]*"/)[0];
+  assert.equal(w(none), w(sel));
+});

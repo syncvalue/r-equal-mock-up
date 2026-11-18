@@ -10,7 +10,7 @@ import { isTentative, isCancelled, isReverted, needsReview, reviewDiffs } from '
 import { customerProfile, customerDossier, visitLines, lineTotal } from '../src/customerHistory.js';
 import { callHistory } from '../src/callHistory.js';
 import { assignAdvice, declinedCardHtml } from '../src/customerProfileView.js';
-import { customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, tripTag, attShade, isTentativeBlock, blockMark } from './view.js';
+import { detailPlaceholderHtml, customerProfileHtml, customerMarks, custRankBadge, troubleBadge, cooloffBadge, dateLabel, genderParen, specTags, rankBadge, statusBadge, blockCls, legHtml, legendHtml, tripTag, attShade, isTentativeBlock, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
 import { loadCurrentTrips, tripAreas, tripsOfUser } from '../src/trips.js';
 
@@ -254,7 +254,7 @@ export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka',
         ${[...AREAS.map((a) => [a.id, a.name]), ['all', '全エリア']].map(([k, t]) => { const n = rows.filter((r) => !isCancelled(r) && (k === 'all' || r.areaId === k)).length; return `<button class="chip ${area === k ? 'on' : ''}" data-barea="${k}">${esc(t)}${n ? `<span class="ml-1 rounded-full bg-slate-500 px-1.5 text-[11px] text-white">${n}</span>` : ''}</button>`; }).join('')}
         <span class="ml-2">${boardLegendHtml()}</span>${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</div>
       <div class="flex items-start gap-3 px-3 pb-3"><div class="min-w-0 flex-1">${boardHtml({ date, reservations, now, area, selId })}</div>
-        ${selId && reservations.some((r) => r.id === selId) ? `<div class="sticky top-0 max-h-[calc(100vh-7rem)] w-[min(26rem,40%)] shrink-0 overflow-y-auto">${boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now)}</div>` : ''}</div>
+        <div class="sticky top-0 max-h-[calc(100vh-7rem)] w-[min(26rem,40%)] shrink-0 overflow-y-auto">${selId && reservations.some((r) => r.id === selId) ? boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now) : detailPlaceholderHtml()}</div></div>
     </section>
   </div>`;
 }
