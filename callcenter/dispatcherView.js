@@ -196,7 +196,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const h = SLOTS * BOARD_ROW;
   const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(7.5rem,1fr));min-width:${2.25 + cols.length * 7.5}rem`;
   const head = cols.map((c) => {
-    return `<div class="border-b px-1 py-0.5 text-center" style="${staffHeadStyle(rankOfUser(c.user.id))}"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(String(c.user.name).trim().split(/[\s　]+/)[0])}</b> ${rankBadge(rankOfUser(c.user.id), { inverse: true })}
+    return `<div class="border-b px-1 py-0.5 text-center" style="${staffHeadStyle(rankOfUser(c.user.id))}"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="ml-2 mr-1.5 text-xs">${esc(String(c.user.name).trim().split(/[\s　]+/)[0])}</b> ${rankBadge(rankOfUser(c.user.id), { inverse: true })}
       ${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}${c.travel.legs.length ? `<div class="mx-auto mt-0.5 w-fit rounded bg-white/90 px-1 text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-800' : 'text-slate-700'}" title="その日の訪問から訪問への移動の合計（概算）">走行距離：${c.travel.km}km</div>` : ''}</div>`;
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
