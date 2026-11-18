@@ -190,3 +190,16 @@ test('日別の一覧: 閉じている行は「▼ 開く」、開いた行は�
   assert.ok(text(day('R1')).includes('▲ 閉じる') && !text(day('R1')).includes('✕'));
   assert.ok(text(calendarHtml({ ...base, calSel: 'R1', reservations: [rec()] })).includes('✕'));
 });
+
+test('日別の一覧: 前日確認がまだだけに絞れる。連絡時間の早い順に並べ替えられる', () => {
+  const done = [{ result: 'reached', memo: '', by: 'x', at: 1 }];
+  const list = [rec({ id: 'A', customer: { name: '夕方 一郎', address: 'a' }, hearing: { contact: '17:00〜19:00' } }), rec({ id: 'B', customer: { name: '済み 二郎', address: 'b' }, hearing: { contact: '09:00〜10:00' }, confirmCalls: done }), rec({ id: 'C', customer: { name: '朝 三郎', address: 'c' }, hearing: { contact: '09:00〜11:00' } })];
+  const day = (o) => { const t = text(calendarHtml({ ...base, mode: 'day', reservations: list, ...o })); return t.slice(t.indexOf('の受付 ')); }; // 右の一覧の部分だけ（左の表の帯にも名前が出る）
+  const t = day({});
+  assert.ok(t.includes('前日確認がまだだけ（2件）') && t.includes('済み 二郎'));
+  assert.ok(!day({ pendOnly: true }).includes('済み 二郎') && day({ pendOnly: true }).includes('朝 三郎'));
+  const order = (t2) => ['夕方 一郎', '朝 三郎'].map((n) => t2.indexOf(n));
+  assert.ok(order(day({ sortBy: 'visit' }))[0] < order(day({ sortBy: 'visit' }))[1]); // 同じ訪問時刻なら、受付の並びのまま
+  assert.ok(order(day({ sortBy: 'contact' }))[1] < order(day({ sortBy: 'contact' }))[0]);
+  assert.ok(day({ pendOnly: true, reservations: [list[1]] }).includes('すべて連絡済み'));
+});

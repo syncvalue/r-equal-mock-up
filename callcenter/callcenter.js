@@ -62,6 +62,8 @@ let cvWeekStart = ymdOf(new Date()); // 週の表の先頭の日
 let cvDate = ymdOf(new Date()); // 日別で見ている日
 let cvStaff = []; // 鑑定士で絞り込み（空なら全員）
 let cvStaffOpen = false;
+let cvPendOnly = false; // 日別の右の一覧を、前日確認がまだの訪問だけに絞る
+let cvSort = 'visit'; // 右の一覧の並び順: visit=訪問の時刻 / contact=前日確認の連絡時間の早い順
 let calSel = null; // 前日確認を記録している訪問
 let callDraft = { result: 'reached', memo: '' }; // 記録の入力途中
 let menuOpen = false; // 左側のメニューの開閉
@@ -436,7 +438,7 @@ function render() {
       <button class="demo-only" data-reset>データ初期化</button>${themeToggleHtml()}</div>
   </header>
   ${menuOpen ? menuView({ tab, badges: menuBadges() }) : ''}
-  ${tab === 'new' ? renderNew() : tab === 'calendar' ? calendarHtml({ areaId: cvArea, mode: cvMode, weekStart: cvWeekStart, date: cvDate, reservations: loadReservations(), today: ymdOf(new Date()), calSel, draft: callDraft, now: new Date(), staffSel: cvStaff, staffOpen: cvStaffOpen }) : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
+  ${tab === 'new' ? renderNew() : tab === 'calendar' ? calendarHtml({ areaId: cvArea, mode: cvMode, weekStart: cvWeekStart, date: cvDate, reservations: loadReservations(), today: ymdOf(new Date()), calSel, draft: callDraft, now: new Date(), staffSel: cvStaff, staffOpen: cvStaffOpen, pendOnly: cvPendOnly, sortBy: cvSort }) : tab === 'cooloff' ? cooloffPage({ q: coQ, ...cooloffParts() }) : tab === 'store' ? storeTab.html() : dispatcherHtml({ date: dispDate, reservations: loadReservations(), now: new Date(), chips: dispatchChips(), area: boardArea, selId: boardSel })}
   ${tab === 'new' && demoOpen && !editId ? demoWindowHtml(demoPos) : ''}
   ${custInfoRid && tab === 'dispatch' ? customerModalHtml({ rid: custInfoRid, reservations: loadReservations(), now: new Date() }) : ''}
   ${staffInfoId && tab === 'dispatch' ? staffModalHtml({ userId: staffInfoId, date: dispDate, reservations: loadReservations(), now: new Date() }) : ''}
@@ -685,6 +687,8 @@ document.addEventListener('click', (e) => {
   else if ('calllog' in d) { callLogOpen = !callLogOpen; renderHint(); }
   else if (d.chg) startEdit(d.chg);
   else if (d.calarea) { cvArea = d.calarea; cvStaff = []; calSel = null; render(); } // エリアを変えたら、鑑定士の絞り込みは外す
+  else if ('calpend' in d) { cvPendOnly = !cvPendOnly; render(); }
+  else if (d.calsort) { cvSort = d.calsort === 'contact' ? 'contact' : 'visit'; render(); }
   else if ('calstaffpanel' in d) { cvStaffOpen = !cvStaffOpen; render(); }
   else if ('calstaffclear' in d) { cvStaff = []; render(); }
   else if (d.calstaff) { cvStaff = cvStaff.includes(d.calstaff) ? cvStaff.filter((id) => id !== d.calstaff) : [...cvStaff, d.calstaff]; calSel = null; render(); }

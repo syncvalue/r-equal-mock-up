@@ -3,7 +3,7 @@
 import { esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
 import { AREAS, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
-import { CALL_RESULTS, confirmStatus, confirmDateOf, confirmPending } from '../src/confirmCall.js';
+import { CALL_RESULTS, confirmStatus, confirmDateOf, confirmPending, sortByContactTime, notYetReached } from '../src/confirmCall.js';
 import { slotStarts, weekHeat, dayColumns, heatStyle, areaStaffOver } from '../src/visitCalendar.js';
 import { minToHHMM } from '../src/reservations.js';
 import { dateLabel, statusBadge, attTag, attShade, blockCls, blockMark } from './view.js';
@@ -152,8 +152,11 @@ function callPanelHtml(r, draft) {
 }
 
 // 右の一覧: その日の、このエリアの訪問（受付）。ひとりずつ前日確認を記録する
-function dayListHtml({ areaId, date, reservations, today, calSel, draft, staffSel = [] }) {
-  const list = reservations.filter((r) => r.areaId === areaId && r.status !== 'cancelled' && r.date === date && (!staffSel.length || staffSel.includes(r.userId))).sort((a, b) => toMin(a.start) - toMin(b.start));
+function dayListHtml({ areaId, date, reservations, today, calSel, draft, staffSel = [], pendOnly = false, sortBy = 'visit' }) {
+  const all = reservations.filter((r) => r.areaId === areaId && r.status !== 'cancelled' && r.date === date && (!staffSel.length || staffSel.includes(r.userId))).sort((a, b) => toMin(a.start) - toMin(b.start));
+  const todo = notYetReached(all);
+  const shown = pendOnly ? all.filter((r) => todo.includes(r) || r.id === calSel) : all; // 開いている行は、記録して連絡済みになっても、閉じるまで残す
+  const list = sortBy === 'contact' ? sortByContactTime(shown) : shown;
   const due = confirmDateOf(date) === today;
   const asBlock = (r) => ({ userId: r.userId, date: r.date, start: toMin(r.start), end: toMin(r.end), name: r.customer.name, place: r.customer.address });
   const row = (r) => (calSel === r.id ? visitDetailHtml(asBlock(r), r, draft, { anchor: true }) : `<div class="rounded-lg border p-2 ${confirmStatus(r).key === 'reached' ? 'border-teal-400 bg-teal-50' : 'bg-white'}">
@@ -162,10 +165,12 @@ function dayListHtml({ areaId, date, reservations, today, calSel, draft, staffSe
     <div class="mt-1 text-xs text-slate-700">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
     <div class="mt-0.5 text-xs text-slate-700">前日確認の連絡時間 <b>${esc(r.hearing?.contact ?? '未確認')}</b></div></div>`);
   return `<div class="space-y-2">
-    <div class="flex flex-wrap items-center gap-2"><b>${dateLabel(date)}の受付 ${list.length}件</b>
+    <div class="flex flex-wrap items-center gap-2"><b>${dateLabel(date)}の受付 ${all.length}件</b>
       ${due ? '<span class="rounded bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">今日、前日確認の連絡をする日</span>' : `<span class="text-xs text-slate-500">前日確認の日は ${dateLabel(confirmDateOf(date))}</span>`}
       ${helpIcon('訪問の前日に、オペレーターが、お客様へ1人ずつ電話で確認します。連絡したか・つながらなかったか・お客様から告げられたことを、訪問ごとに記録します。')}</div>
-    ${list.length ? list.map(row).join('') : '<div class="rounded-lg bg-slate-100 py-8 text-center text-sm text-slate-500">この日の受付した訪問はありません</div>'}</div>`;
+    <div class="flex flex-wrap items-center gap-1"><button class="chip ${pendOnly ? 'on' : ''}" data-calpend aria-pressed="${pendOnly}" title="つながっていない訪問（未連絡・不通）だけを出す">前日確認がまだだけ（${todo.length}件）</button>
+      <span class="ml-1 text-xs font-bold text-slate-500">並び順</span>${[['visit', '訪問の時刻順'], ['contact', '連絡時間の早い順']].map(([k, v]) => `<button class="chip ${sortBy === k ? 'on' : ''}" data-calsort="${k}" title="${k === 'contact' ? '受付で聞いた、前日確認の連絡時間の早い順（電話のかけ忘れを防ぐ）' : '訪問の開始時刻の順'}">${v}</button>`).join('')}</div>
+    ${list.length ? list.map(row).join('') : `<div class="rounded-lg bg-slate-100 py-8 text-center text-sm text-slate-500">${all.length ? '前日確認がまだの訪問はありません（すべて連絡済み）' : 'この日の受付した訪問はありません'}</div>`}</div>`;
 }
 
 export function calendarHtml(x0) {

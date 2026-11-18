@@ -30,3 +30,25 @@ export function confirmStatus(r) {
 
 // 今日が前日確認の日（＝訪問が明日）で、まだつながっていない訪問
 export const confirmPending = (list, today) => list.filter((r) => isLive(r) && confirmDateOf(r.date) === today && confirmStatus(r).key !== 'reached');
+
+// 受付で聞いた「前日確認の連絡時間」（例「17:00〜19:00」「〜19:00」「指定なし」「未確認」）の、始まりの時刻（分）。
+// 時間を指定している人は時刻の順、指定なしと未確認は、そのあとに並べる（rank: 0=時間あり・1=指定なし・2=未確認）
+export function contactWindow(r) {
+  const text = String(r.hearing?.contact ?? '').trim();
+  const [from, to] = text.split('〜').map((x) => x?.trim() ?? '');
+  const mins = (t) => { const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? ''); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const start = mins(from);
+  const end = mins(to);
+  if (start !== null || end !== null) return { rank: 0, start: start ?? 0, end: end ?? 24 * 60 };
+  return { rank: text === '指定なし' ? 1 : 2, start: 0, end: 0 };
+}
+
+// 前日確認の電話をかける順（連絡時間の早い順。同じなら訪問の時刻順）
+export const sortByContactTime = (list) => [...list].sort((a, b) => {
+  const x = contactWindow(a);
+  const y = contactWindow(b);
+  return x.rank - y.rank || x.start - y.start || x.end - y.end || String(a.start).localeCompare(String(b.start));
+});
+
+// まだつながっていない訪問（未連絡・不通）だけ
+export const notYetReached = (list) => list.filter((r) => confirmStatus(r).key !== 'reached');
