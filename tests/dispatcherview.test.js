@@ -41,3 +41,16 @@ test('配車確定の右の詳細は、受付で登録した内容をすべて�
   for (const k of ['ヤマダ ハナコ', '545-0000', '06-0000-0000', '女性・60代', '2026/10/22 10:00', '佐藤', '再訪', 'チラシ（A123）', '時計', '桐ダンス', 'ご本人', 'なし', 'あり', '17:00〜19:00', '犬がいる', 'CC-9']) assert.ok(side.includes(k), k);
   assert.equal((side.match(/担当鑑定士/g) || []).length, 0); // 担当は、下の「担当（仮）」の1か所だけ
 });
+
+test('配車確定の帯: お客様の性別の記号（♀・♂）と顧客ランクを出す。性別が分からない予定には出さない', async () => {
+  const { genderMark, custRankMark } = await import('../callcenter/dispatcherView.js');
+  assert.match(genderMark('f'), />♀</);
+  assert.match(genderMark('m'), />♂</);
+  assert.equal(genderMark(''), '');
+  assert.equal(genderMark(undefined), '');
+  assert.match(custRankMark({ rank: 'S', known: true }), />顧客S</);
+  assert.match(custRankMark({ rank: null, known: false }), />新規</);
+  assert.equal(custRankMark(null), '');
+  const html = page(null, [rec({ gender: 'f' }), rec({ id: 'R2', userId: 'u02', gender: 'm', start: '10:00', end: '11:00', customer: { name: '佐藤 一郎', phone: '', address: 'x' } })]);
+  assert.ok(html.includes('>♀<') && html.includes('>♂<'));
+});

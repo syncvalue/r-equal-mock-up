@@ -156,6 +156,11 @@ function legsHtml(legs) {
 // お客様のランク・厄介度・クーリングオフ歴（電話番号から）
 const profileOf = (c) => (c ? customerProfile([c.phone, c.phone2]) : null);
 
+// 配車の判断に要る2つ: お客様の性別（記号）と、顧客ランク。鑑定士のランクは、列の見出しに出ている（高いランクのお客様には、高いランクの鑑定士を当てる）
+const GENDER_MARK = { f: ['♀', 'bg-rose-100 text-rose-700', '女性のお客様'], m: ['♂', 'bg-sky-100 text-sky-700', '男性のお客様'] };
+export const genderMark = (g) => (GENDER_MARK[g] ? `<i class="ml-0.5 rounded px-1 text-[10px] font-bold not-italic ${GENDER_MARK[g][1]}" title="${GENDER_MARK[g][2]}">${GENDER_MARK[g][0]}</i>` : '');
+export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white px-1 text-[10px] font-bold not-italic text-slate-900" title="顧客ランク（資産・売却の見込み）">顧客${esc(p.rank)}</i>` : p?.known === false ? '<i class="ml-0.5 rounded bg-white/80 px-1 text-[10px] font-bold not-italic text-slate-700" title="買取の実績がありません">新規</i>' : '');
+
 function blockHtml(b, selId, byId, att) {
   const off = att && inOffTime(att, b.start, b.end); // 休みと重なっている予定（あとから休みになった場合など）。配車係が動かして直す
   const offCls = off ? 'outline outline-2 outline-dashed outline-rose-500' : '';
@@ -167,7 +172,7 @@ function blockHtml(b, selId, byId, att) {
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
   return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
-    <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b>${customerMarks(profileOf(r?.customer))} ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
+    <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b>${genderMark(r?.gender)}${custRankMark(profileOf(r?.customer))}${customerMarks(profileOf(r?.customer), { rank: false })} ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-slate-900" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
 
