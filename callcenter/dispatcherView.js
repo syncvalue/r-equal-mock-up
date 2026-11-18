@@ -163,7 +163,7 @@ const profileOfRes = (r) => { const p = customerProfile([r?.customer?.phone, r?.
 // 配車の判断に要る2つ: お客様の性別（記号）と、顧客ランク。鑑定士のランクは、列の見出しに出ている（高いランクのお客様には、高いランクの鑑定士を当てる）
 const GENDER_MARK = { f: ['♀', 'bg-rose-100 text-rose-700', '女性のお客様'], m: ['♂', 'bg-sky-100 text-sky-700', '男性のお客様'] };
 export const genderMark = (g) => (GENDER_MARK[g] ? `<i class="ml-0.5 rounded px-1 text-[10px] font-bold not-italic ${GENDER_MARK[g][1]}" title="${GENDER_MARK[g][2]}">${GENDER_MARK[g][0]}</i>` : '');
-export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white px-1 text-[10px] font-bold not-italic text-slate-900" title="顧客ランク（資産・売却の見込み）。新規かリピーターかとは別">顧客${esc(p.rank)}</i>` : '<i class="ml-0.5 rounded bg-white/80 px-1 text-[10px] font-bold not-italic text-slate-700" title="顧客ランクが決まっていません">顧客未設定</i>');
+export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white px-1 text-[10px] font-bold not-italic text-slate-900" title="顧客ランク（資産・売却の見込み）。新規かリピーターかとは別">${esc(p.rank)}</i>` : '<i class="ml-0.5 rounded bg-white/80 px-1 text-[10px] font-bold not-italic text-slate-700" title="顧客ランクが決まっていません">未設定</i>');
 // 新規かリピーターか（ランクとは別の軸）。受付の記録（apType）か、買取の実績で分かる
 export const kindOfRes = (r, p) => (r?.apType === '再' || p?.purchase?.count > 0 ? 'repeat' : 'new');
 export const kindMark = (kind) => `<i class="ml-0.5 rounded border border-white/70 px-1 text-[10px] font-bold not-italic" title="${kind === 'repeat' ? '買取の実績があるお客様' : '買取の実績がない、初めてのお客様'}">${kind === 'repeat' ? '再訪' : '新規'}</i>`;
@@ -185,7 +185,7 @@ function blockHtml(b, selId, byId, att) {
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
-  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(profileOfRes(r).rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
+  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] ${offCls} ${selId === b.rid ? 'z-20 outline outline-4 outline-slate-900 ring-4 ring-amber-300 shadow-2xl' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(profileOfRes(r).rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
     <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b>${genderMark(r?.gender)}${custRankMark(profileOfRes(r))}${kindMark(kindOfRes(r, profileOfRes(r)))}${customerMarks(profileOf(r?.customer), { rank: false })} ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-slate-900" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
@@ -196,9 +196,8 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const h = SLOTS * BOARD_ROW;
   const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(7.5rem,1fr));min-width:${2.25 + cols.length * 7.5}rem`;
   const head = cols.map((c) => {
-    const t = c.mine.filter(isTentative).length;
-    return `<div class="border-b px-1 py-0.5 text-center" style="${staffHeadStyle(rankOfUser(c.user.id))}"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id), { inverse: true })}
-      ${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="mx-auto mt-0.5 w-fit rounded bg-white/90 px-1 text-[10px] text-slate-700">${c.absent ? '0件' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div>${c.travel.legs.length ? `<div class="mx-auto mt-0.5 w-fit rounded bg-white/90 px-1 text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-800' : 'text-slate-700'}" title="その日の訪問から訪問への移動の合計（概算）">移動距離・時間：${c.travel.km}km・約${c.travel.min}分</div>` : ''}</div>`;
+    return `<div class="border-b px-1 py-0.5 text-center" style="${staffHeadStyle(rankOfUser(c.user.id))}"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(String(c.user.name).trim().split(/[\s　]+/)[0])}</b> ${rankBadge(rankOfUser(c.user.id), { inverse: true })}
+      ${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}${c.travel.legs.length ? `<div class="mx-auto mt-0.5 w-fit rounded bg-white/90 px-1 text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-800' : 'text-slate-700'}" title="その日の訪問から訪問への移動の合計（概算）">走行距離：${c.travel.km}km</div>` : ''}</div>`;
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => `<div class="relative border-l" data-bcol="${c.user.id}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,rgba(148,163,184,.45) 0,rgba(148,163,184,.45) 6px,rgba(241,245,249,.7) 6px,rgba(241,245,249,.7) 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW}px)`}">

@@ -7,11 +7,11 @@ const { dispatcherHtml } = await import('../callcenter/dispatcherView.js');
 
 const NOW = new Date(2026, 9, 21, 9, 0);
 
-test('配車確定の鑑定士の列: 訪問間の移動の合計は、「移動距離・時間：」と書く（何の距離・時間か分かるように）', () => {
+test('配車確定の鑑定士の列: 訪問間の移動の合計は、「走行距離：」と書く（時間は出さない）', () => {
   // 予定が2件以上ある鑑定士（元からの予定）の日を探す
-  const html = ['2026-10-21', '2026-10-22', '2026-10-23', '2026-10-26'].map((date) => dispatcherHtml({ date, reservations: [], now: NOW, chips: [], area: 'osaka', selId: null })).find((h) => h.includes('移動距離・時間：'));
+  const html = ['2026-10-21', '2026-10-22', '2026-10-23', '2026-10-26'].map((date) => dispatcherHtml({ date, reservations: [], now: NOW, chips: [], area: 'osaka', selId: null })).find((h) => h.includes('走行距離：'));
   assert.ok(html, '移動のある日が見つからない');
-  assert.match(html.replace(/<[^>]+>/g, ''), /移動距離・時間：[\d.]+km・約\d+分/);
+  assert.match(html.replace(/<[^>]+>/g, ''), /走行距離：[\d.]+km/);
   assert.ok(!/>計[\d.]+km/.test(html));
 });
 
@@ -48,9 +48,9 @@ test('配車確定の帯: お客様の性別の記号（♀・♂）と顧客ラ
   assert.match(genderMark('m'), />♂</);
   assert.equal(genderMark(''), '');
   assert.equal(genderMark(undefined), '');
-  assert.match(custRankMark({ rank: 'S', known: true }), />顧客S</);
-  assert.match(custRankMark({ rank: null, known: false }), />顧客未設定</); // ランクと、新規かどうかは別。新規でも、ランクがあれば出す
-  assert.match(custRankMark({ rank: 'SS', known: false }), />顧客SS</);
+  assert.match(custRankMark({ rank: 'S', known: true }), />S</);
+  assert.match(custRankMark({ rank: null, known: false }), />未設定</); // ランクと、新規かどうかは別。新規でも、ランクがあれば出す
+  assert.match(custRankMark({ rank: 'SS', known: false }), />SS</);
   const html = page(null, [rec({ gender: 'f' }), rec({ id: 'R2', userId: 'u02', gender: 'm', start: '10:00', end: '11:00', customer: { name: '佐藤 一郎', phone: '', address: 'x' } })]);
   assert.ok(html.includes('>♀<') && html.includes('>♂<'));
 });
@@ -73,7 +73,7 @@ test('顧客ランクは、新規かリピーターかとは別の軸: 帯に、
   assert.match(kindMark('repeat'), />再訪</);
   // 新規のお客様（apType=新、実績なし）に、受付で付けたランク（customerRank）がある
   const h = page(null, [rec({ apType: '新', customerRank: 'SS', gender: 'f' })]);
-  assert.ok(h.includes('>顧客SS<') && h.includes('>新規<'));
+  assert.ok(h.includes('>SS<') && h.includes('>新規<'));
   const { RANK_COLORS } = await import('../src/rankColor.js');
   assert.ok(h.includes(`background:${RANK_COLORS.SS.fill}`)); // 帯の色は、そのランクの色
 });
