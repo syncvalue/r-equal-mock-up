@@ -1,3 +1,4 @@
+import { staffColor } from '../src/staffColor.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { calendarHtml } from '../callcenter/calendarView.js';
@@ -64,17 +65,26 @@ test('日別: 受付の帯と、鑑定士の元からの予定の帯は、同じ
   assert.ok(h.includes('bg-slate-700') && !h.includes('bg-slate-500'));
 });
 
-test('日別: 前日確認が連絡済みの帯は緑、不通は橙、未連絡は訪問の色のまま。印の文字と、凡例も出す', () => {
+test('日別: 前日確認が済んだ帯は鑑定士の色で塗りつぶし、まだ（未連絡・不通）は点線。印の文字と、凡例も出す', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
   const call = (result) => [{ result, memo: '', by: '佐藤', at: 1 }];
   const html = (confirmCalls) => calendarHtml({ ...base, mode: 'day', reservations: [rec({ userId: u.id, confirmCalls })] });
   const btn = (h) => h.match(/<button class="absolute[^>]*data-callopen="R1"[^>]*>[\s\S]*?<\/button>/)[0];
-  assert.ok(btn(html(call('reached'))).includes('bg-teal-600') && btn(html(call('reached'))).includes('✔連絡済み'));
-  assert.ok(btn(html(call('noanswer'))).includes('bg-amber-500') && btn(html(call('noanswer'))).includes('△不通'));
-  assert.ok(btn(html(undefined)).includes('bg-slate-700') && btn(html(undefined)).includes('・未連絡'));
-  assert.ok(text(html(undefined)).includes('前日確認： 連絡済み'));
-  assert.ok(calendarHtml({ ...base, mode: 'day', reservations: [rec({ confirmCalls: call('reached') })] }).includes('border-teal-400')); // 一覧の行も緑
+  assert.ok(btn(html(call('reached'))).includes('border:2px solid') && btn(html(call('reached'))).includes('✔連絡済み'));
+  assert.ok(btn(html(call('noanswer'))).includes('border:2px dashed') && btn(html(call('noanswer'))).includes('△不通'));
+  assert.ok(btn(html(undefined)).includes('border:2px dashed') && btn(html(undefined)).includes('・未連絡'));
+  assert.ok(btn(html(undefined)).includes(staffColor(u.id).solid)); // 鑑定士の色
+  assert.ok(text(html(undefined)).includes('まだ（点線。未連絡・不通）'));
+  assert.ok(calendarHtml({ ...base, mode: 'day', reservations: [rec({ confirmCalls: call('reached') })] }).includes('border-teal-400')); // 一覧の行は緑
+});
+
+test('週の表: 訪問の帯も、鑑定士の色。前日確認がまだなら点線', () => {
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
+  const h = (confirmCalls) => calendarHtml({ ...base, reservations: [rec({ userId: u.id, confirmCalls })] }).match(/<button class="absolute z-10[^>]*data-calblock="R1"[^>]*>/)[0];
+  assert.ok(h(undefined).includes('border:2px dashed') && h(undefined).includes(staffColor(u.id).solid));
+  assert.ok(h([{ result: 'reached', memo: '', by: '佐藤', at: 1 }]).includes('border:2px solid'));
 });
 
 

@@ -9,6 +9,7 @@ import { minToHHMM } from '../src/reservations.js';
 import { dateLabel, statusBadge, attTag, attShade, blockCls, blockMark } from './view.js';
 import { avatarHtml } from './avatar.js';
 import { USERS } from '../src/dashboard.js';
+import { staffColor, visitBlockStyle } from '../src/staffColor.js';
 
 const STATUS_CLS = { none: 'bg-slate-200 text-slate-700', noanswer: 'bg-amber-400 text-slate-900', reached: 'bg-teal-600 text-white' };
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
@@ -22,8 +23,9 @@ const toMin = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); re
 
 export const statusChip = (r) => { const s = confirmStatus(r); return `<span class="rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_CLS[s.key]}">${s.label}</span>`; };
 const miniMark = (r) => ({ none: '・未連絡', noanswer: '△不通', reached: '✔連絡済み' })[confirmStatus(r).key];
-// 日別の帯の色: 連絡済みは緑、不通は橙。未連絡は、訪問の色（確定＝濃い青・仮確定＝薄い青）のまま
-const callCls = (b, r) => ({ reached: 'bg-teal-600', noanswer: 'bg-amber-500 !text-slate-900' })[confirmStatus(r ?? {}).key] ?? blockCls(b);
+// 訪問の帯の見た目: 鑑定士ごとの色。前日確認が済んでいれば塗りつぶし、まだ（未連絡・不通）なら点線の枠
+const callLook = (userId, r) => visitBlockStyle(userId, confirmStatus(r ?? {}).key === 'reached');
+const staffDot = (id) => `<i class="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style="background:${staffColor(id).solid}"></i>`;
 
 // 上の操作（エリア・週／日の移動）
 function barHtml({ areaId, mode, weekStart, date, staff = [], staffSel = [], staffOpen = false }) {
@@ -36,9 +38,12 @@ function barHtml({ areaId, mode, weekStart, date, staff = [], staffSel = [], sta
     <div><div class="flex flex-wrap items-center gap-2"><button class="chip ${staffSel.length ? 'on' : ''}" data-calstaffpanel>鑑定士を絞る ${staffOpen ? '▲' : '▼'}</button>
       <span class="text-xs ${staffSel.length ? 'font-bold text-teal-700' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${staff.filter((u) => staffSel.includes(u.id)).map((u) => esc(u.name)).join('・')}` : `全員（${staff.length}名）を表示`}</span>
       ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-calstaffclear>解除</button>' : ''}</div>
-      ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((u) => `<button class="chip ${staffSel.includes(u.id) ? 'on' : ''}" data-calstaff="${u.id}">${esc(u.name)}</button>`).join('')}</div>` : ''}</div>`;
+      <div class="mt-1 flex flex-wrap gap-x-3 text-[11px] text-slate-700">${staff.filter((u) => !staffSel.length || staffSel.includes(u.id)).map((u) => `<span>${staffDot(u.id)}${esc(u.name)}</span>`).join('')}</div>
+      ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((u) => `<button class="chip ${staffSel.includes(u.id) ? 'on' : ''}" data-calstaff="${u.id}">${staffDot(u.id)}${esc(u.name)}</button>`).join('')}</div>` : ''}</div>`;
 }
 
+// 前日確認の凡例（帯の色は、鑑定士ごと）
+const callLegendHtml = () => `<div class="flex flex-wrap items-center gap-x-3 text-[11px] text-slate-700">前日確認：<span><i class="inline-block h-2.5 w-4 rounded-sm bg-slate-600 align-middle"></i> 済み（塗りつぶし）</span><span><i class="inline-block h-2.5 w-4 rounded-sm border-2 border-dashed border-slate-600 bg-slate-100 align-middle"></i> まだ（点線。未連絡・不通）</span><span class="text-slate-500">色＝鑑定士</span></div>`;
 const legendHtml = () => `<span class="flex flex-wrap items-center gap-2 text-[11px] text-slate-700">濃さ（訪問が入っている鑑定士の割合）
   <span class="inline-flex items-center gap-0.5">薄い（空き）${[0, 0.25, 0.5, 0.75, 1].map((r) => `<i class="inline-block h-3 w-5 rounded-sm" style="background:${heatStyle(r).bg}"></i>`).join('')}濃い（埋まっている）</span>
 </span>`;
@@ -64,15 +69,16 @@ function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], 
       const r = b.rid ? reservations.find((x) => x.id === b.rid) : null;
       const w = 100 / b.cols;
       const style = `top:${weekTop(b.start)}px;height:${weekTop(b.end) - weekTop(b.start) - 1}px;left:calc(${b.col * w}% + 1px);width:calc(${w}% - 2px)`;
-      const tip = `${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.name} 様　${b.place}（押すと、右に詳細）`;
+      const tip = `${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.name} 様　${b.place}　担当：${USERS.find((u) => u.id === b.userId)?.name ?? ''}　前日確認：${confirmStatus(r ?? {}).label}（押すと、右に詳細）`;
       const sel = blockKey(b) === calSel;
-      return `<button class="absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[10px] leading-tight text-white ${sel ? 'z-20 ring-2 ring-amber-300' : 'ring-1 ring-white/70'} ${callCls(b, r)}" style="${style}" data-calblock="${esc(blockKey(b))}" title="${esc(tip)}"><b class="block truncate">${esc(b.name)}</b><span class="block truncate opacity-95">${esc(Array.from(b.place).slice(0, 10).join(''))}</span></button>`;
+      const look = callLook(b.userId, r);
+      return `<button class="absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[10px] leading-tight ${look.cls} ${sel ? 'z-20 ring-2 ring-amber-300' : ''}" style="${style};${look.css}" data-calblock="${esc(blockKey(b))}" title="${esc(tip)}"><b class="block truncate">${esc(b.name)}</b><span class="block truncate opacity-95">${esc(Array.from(b.place).slice(0, 10).join(''))}</span></button>`;
     }).join('');
     return `<div class="relative border-l" style="height:${h}px">${bg}${blocks}</div>`;
   }).join('');
   const picked = calSel ? heat.flatMap((d) => d.blocks.map((b) => ({ ...b, date: d.date }))).find((b) => blockKey(b) === calSel) : null;
   return `<div class="flex h-full min-h-0 gap-3"><div class="min-h-0 min-w-0 flex-1 overflow-y-auto"><div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>
-    <div class="mt-1">${legendHtml()}</div></div></div>
+    <div class="mt-1 space-y-0.5">${legendHtml()}${callLegendHtml()}</div></div></div>
     ${picked ? `<div class="min-h-0 w-[min(26rem,40%)] shrink-0 overflow-y-auto pr-1">${visitDetailHtml(picked, reservations.find((r) => r.id === picked.rid), draft)}</div>` : ''}</div>`;
 }
 
@@ -108,14 +114,14 @@ function dayGridHtml({ cols, date, calSel }) {
       const style = `top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px`;
       const r = b.rid ? c.reservationOf?.(b.rid) : null;
       return b.rid
-        ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] text-white ${callCls(b, r)} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style}" data-callopen="${b.rid}" title="前日確認：${confirmStatus(r ?? {}).label}（押して記録）"><span class="mr-0.5 rounded bg-white px-1 font-bold text-slate-900">${miniMark(r ?? {})}</span>${inner}</button>`
+        ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, r).cls} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style};${callLook(c.user.id, r).css}" data-callopen="${b.rid}" title="前日確認：${confirmStatus(r ?? {}).label}（押して記録）"><span class="mr-0.5 rounded bg-white px-1 font-bold text-slate-900">${miniMark(r ?? {})}</span>${inner}</button>`
         : `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls({ source: 'reservation', status: 'confirmed' })}" style="${style}" title="${esc(b.label)}">${inner}</div>`;
     }).join('');
     const away = c.absent ? '<div class="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-2"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : '';
     return `<div class="relative border-l" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)`}">${blocks}${attShade(c.att, DAY_ROW)}${away}</div>`;
   }).join('');
   return `<div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>
-    <div class="mt-1 flex flex-wrap items-center gap-x-3 text-[11px] text-slate-700">前日確認：<span><i class="inline-block h-2.5 w-3 rounded-sm bg-teal-600 align-middle"></i> 連絡済み</span><span><i class="inline-block h-2.5 w-3 rounded-sm bg-amber-500 align-middle"></i> 不通（つながっていない）</span><span><i class="inline-block h-2.5 w-3 rounded-sm bg-slate-700 align-middle"></i> 未連絡（濃い青＝確定、薄い青＝仮確定）</span></div></div>`;
+    <div class="mt-1">${callLegendHtml()}</div></div>`;
 }
 
 // 連絡の記録（これまでの履歴と、新しく記録する入力）
