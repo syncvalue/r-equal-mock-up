@@ -109,10 +109,16 @@ export function checklistHtml(list) {
   const rest = list.filter((x) => !x.asked);
   const guess = list.filter((x) => x.estimated);
   const all = !rest.length;
-  return `<div class="rounded-lg border-2 bg-white px-2 py-1.5 shadow ${all ? 'border-teal-500' : 'border-amber-400'}">
-    <div class="flex items-center justify-between text-xs font-bold"><span>聞き取り状況　${done}／${list.length}${guess.length ? `<span class="ml-2 font-normal text-slate-700">推測：${guess.map((x) => esc(x.label)).join('・')}</span>` : ''}</span>${all ? '<span class="text-teal-700">✔</span>' : ''}</div>
-    <div class="h-1.5 rounded bg-slate-200 mt-1"><div class="h-1.5 rounded ${all ? 'bg-teal-500' : 'bg-amber-400'}" style="width:${(done / Math.max(1, list.length)) * 100}%"></div></div>
-    ${all ? '' : `<div class="flex flex-wrap items-center gap-1 mt-1"><span class="text-[11px] text-amber-800 font-bold">未：</span>${rest.map((x) => `<button class="rounded bg-amber-200 text-amber-800 text-[11px] font-bold px-1.5 py-0.5 ${x.required ? 'ring-1 ring-rose-400' : ''}" data-goto="${x.key}" title="${x.required ? '必須の項目です' : 'クリックで入力欄へ'}">${esc(x.label)}</button>`).join('')}</div>`}
+  const chip = (x) => `<button class="rounded-full border bg-white px-2 py-0.5 text-[11px] leading-4 ${x.required ? 'border-rose-300 text-rose-700 font-bold' : 'border-slate-300 text-slate-500'}" data-goto="${x.key}" title="クリックで入力欄へ">${esc(x.label)}</button>`;
+  const row = (title, items, cls) => (items.length ? `<div class="flex items-start gap-2"><span class="w-9 shrink-0 pt-0.5 text-[11px] font-bold ${cls}">${title}</span><div class="flex flex-wrap gap-1">${items.map(chip).join('')}</div></div>` : '');
+  return `<div class="rounded-lg border bg-white px-3 py-2 ${all ? 'border-teal-500' : 'border-slate-300'}">
+    <div class="flex items-center gap-3">
+      <span class="shrink-0 text-xs font-bold text-slate-900">聞き取り状況</span>
+      <div class="h-1.5 flex-1 rounded-full bg-slate-200"><div class="h-1.5 rounded-full bg-teal-600" style="width:${(done / Math.max(1, list.length)) * 100}%"></div></div>
+      <span class="shrink-0 text-xs text-slate-700"><b class="text-slate-900">${done}</b>／${list.length}</span>
+    </div>
+    ${guess.length ? `<div class="mt-1 text-[11px] text-slate-500">推測：${guess.map((x) => esc(x.label)).join('・')}</div>` : ''}
+    ${all ? '<div class="mt-1 text-xs font-bold text-teal-700">✔ すべて聞き取り済み</div>' : `<div class="mt-1.5 space-y-1">${row('必須', rest.filter((x) => x.required), 'text-rose-700')}${row('任意', rest.filter((x) => !x.required), 'text-slate-500')}</div>`}
   </div>`;
 }
 
