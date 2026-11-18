@@ -687,7 +687,7 @@ document.addEventListener('click', (e) => {
   else if ('calstaffpanel' in d) { cvStaffOpen = !cvStaffOpen; render(); }
   else if ('calstaffclear' in d) { cvStaff = []; render(); }
   else if (d.calstaff) { cvStaff = cvStaff.includes(d.calstaff) ? cvStaff.filter((id) => id !== d.calstaff) : [...cvStaff, d.calstaff]; calSel = null; render(); }
-  else if (d.calblock) { calSel = calSel === d.calblock ? null : d.calblock; callDraft = { result: 'reached', memo: '' }; render(); } // 週の表の訪問を押す: 右に詳細（日別には切り替えない）
+  else if (d.calblock) { calSel = calSel === d.calblock ? null : adoptCalBlock(d.calblock, d.caluser, d.caldate); callDraft = { result: 'reached', memo: '' }; render(); } // 週の表の訪問を押す: 右に詳細（日別には切り替えない）
   else if ('calblockclose' in d) { calSel = null; render(); }
   else if (d.calday) { cvDate = d.calday; cvMode = 'day'; calSel = null; render(); }
   else if ('calweek' in d) { cvMode = 'week'; cvWeekStart = shiftYmd(cvDate, 0); calSel = null; render(); }
@@ -760,6 +760,18 @@ function selectBlock(idOrGid, el) {
   addMovedId(block.gid);
   syncHidden();
   boardSel = rec.id;
+}
+
+// 訪問カレンダーで、鑑定士の元からの予定（予約の記録がないもの）を押したとき、予約として取り込み、受付と同じく前日確認・変更・取消ができるようにする。取り込んだ予約の id を返す
+function adoptCalBlock(idOrGid, userId, date) {
+  if (loadReservations().some((r) => r.id === idOrGid)) return idOrGid;
+  const block = userId && date ? busyBlocks(userId, date, loadReservations()).find((b) => b.gid === idOrGid) : null;
+  if (!block) return null;
+  const rec = reservationFromBlock(block, { userId, date, seq: loadMovedIds().length + 1 });
+  addReservation(rec);
+  addMovedId(block.gid);
+  syncHidden();
+  return rec.id;
 }
 
 // ---- 配車係のカレンダー: 予約の帯をドラッグして、別の鑑定士・時間に動かす（パズルのように調整する） ------------------------------------

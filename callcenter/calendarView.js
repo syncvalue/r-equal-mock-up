@@ -72,7 +72,7 @@ function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], 
       const tip = `${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.name} 様　${b.place}　担当：${USERS.find((u) => u.id === b.userId)?.name ?? ''}　前日確認：${confirmStatus(r ?? {}).label}（押すと、右に詳細）`;
       const sel = blockKey(b) === calSel;
       const look = callLook(b.userId, r);
-      return `<button class="absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[10px] leading-tight ${look.cls} ${sel ? 'z-20 ring-2 ring-amber-300' : ''}" style="${style};${look.css}" data-calblock="${esc(blockKey(b))}" title="${esc(tip)}"><b class="block truncate">${esc(b.name)}</b><span class="block truncate opacity-95">${esc(Array.from(b.place).slice(0, 10).join(''))}</span></button>`;
+      return `<button class="absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[10px] leading-tight ${look.cls} ${sel ? 'z-20 ring-2 ring-amber-300' : ''}" style="${style};${look.css}" data-calblock="${esc(blockKey(b))}" data-caluser="${b.userId}" data-caldate="${d.date}" title="${esc(tip)}"><b class="block truncate">${esc(b.name)}</b><span class="block truncate opacity-95">${esc(Array.from(b.place).slice(0, 10).join(''))}</span></button>`;
     }).join('');
     return `<div class="relative border-l" style="height:${h}px">${bg}${blocks}</div>`;
   }).join('');
@@ -84,6 +84,8 @@ function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], 
 
 // 週の表で押した訪問の詳細（画面の右側）。受付した訪問は、前日確認の記録もここでできる
 const blockKey = (b) => b.rid ?? b.gid ?? `${b.userId}/${b.start}`;
+// 受付の操作（日時の変更・取消）。前日確認の記録とは別なので、詳細の上のほうに置く
+const chgButton = (r) => `<button class="b b-sec !min-h-0 !py-1 text-xs" data-chg="${r.id}" title="お客様から、日時の変更・取消を告げられたとき">受付を変更・取消する</button>`;
 function visitDetailHtml(b, r, draft) {
   const staff = USERS.find((u) => u.id === b.userId)?.name ?? '未定';
   const row = (k, v) => (v ? `<div class="flex gap-2"><dt class="w-24 shrink-0 text-slate-500">${k}</dt><dd class="min-w-0 break-words">${esc(v)}</dd></div>` : '');
@@ -96,8 +98,8 @@ function visitDetailHtml(b, r, draft) {
   return `<div class="space-y-2 rounded-lg border-2 border-teal-600 bg-white p-3 text-sm">
     <div class="flex flex-wrap items-center gap-2"><b class="text-base">${esc(b.name)} 様</b>${r ? `${statusBadge(r)}${statusChip(r)}` : ''}
       <button class="ml-auto text-lg leading-none text-slate-500 hover:text-slate-900" data-calblockclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
+    ${r ? chgButton(r) : ''}
     <dl class="space-y-1 text-xs">${rows}</dl>
-    <button class="b b-sec !min-h-0 !py-1 text-xs" data-calday="${b.date}">この日だけを、鑑定士ごとに見る</button>
     ${r ? `<div><div class="mt-1 text-xs font-bold text-teal-700">前日確認</div>${callPanelHtml(r, draft)}</div>` : '<div class="rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">この予定には、受付の記録がありません</div>'}</div>`;
 }
 
@@ -115,7 +117,7 @@ function dayGridHtml({ cols, date, calSel }) {
       const r = b.rid ? c.reservationOf?.(b.rid) : null;
       return b.rid
         ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, r).cls} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style};${callLook(c.user.id, r).css}" data-callopen="${b.rid}" title="前日確認：${confirmStatus(r ?? {}).label}（押して記録）"><span class="mr-0.5 rounded bg-white px-1 font-bold text-slate-900">${miniMark(r ?? {})}</span>${inner}</button>`
-        : `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls({ source: 'reservation', status: 'confirmed' })}" style="${style}" title="${esc(b.label)}">${inner}</div>`;
+        : `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, null).cls}" style="${style};${callLook(c.user.id, null).css}" data-calblock="${esc(blockKey(b))}" data-caluser="${c.user.id}" data-caldate="${date}" title="${esc(b.label)}（押すと、受付として取り込んで、前日確認・変更ができる）"><span class="mr-0.5 rounded bg-white px-1 font-bold text-slate-900">${miniMark({})}</span>${inner}</button>`;
     }).join('');
     const away = c.absent ? '<div class="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-2"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : '';
     return `<div class="relative border-l" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,#e2e8f0 0,#e2e8f0 6px,#f1f5f9 6px,#f1f5f9 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)`}">${blocks}${attShade(c.att, DAY_ROW)}${away}</div>`;
@@ -136,7 +138,6 @@ function callPanelHtml(r, draft) {
       <div class="flex gap-1">${Object.entries(CALL_RESULTS).map(([k, v]) => `<button class="chip ${draft.result === k ? 'on' : ''}" data-callresult="${k}">${v}</button>`).join('')}</div>
       <textarea class="inp" rows="3" data-callmemo placeholder="お客様から告げられたこと（時間の変更・同席者・駐車場・キャンセルの意向など）">${esc(draft.memo)}</textarea>
       <div class="flex flex-wrap items-center gap-2"><button class="b b-pri" data-callsave="${r.id}">記録する</button>
-        <button class="b b-sec" data-chg="${r.id}" title="お客様から、日時の変更・取消を告げられたとき">受付を変更・取消する</button>
         ${helpIcon('つながらなかったときも「つながらなかった」を記録します（再連絡のたびに足せます）。日時の変更・取消を告げられたら、メモに残したうえで、「受付を変更・取消する」で受付を直します。')}</div></div></div>`;
 }
 
@@ -146,7 +147,7 @@ function dayListHtml({ areaId, date, reservations, today, calSel, draft, staffSe
   const due = confirmDateOf(date) === today;
   const row = (r) => `<div class="rounded-lg border p-2 ${confirmStatus(r).key === 'reached' ? 'border-teal-400 bg-teal-50' : 'bg-white'} ${calSel === r.id ? 'border-teal-600 ring-2 ring-teal-200' : ''}">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-1"><b>${esc(r.start)}〜${esc(r.end)}</b><b>${esc(r.customer.name)} 様</b>${statusBadge(r)}${statusChip(r)}
-      <button class="b b-sec ml-auto !min-h-0 !py-1 text-xs" data-callopen="${r.id}">${calSel === r.id ? '閉じる' : '前日確認を記録'}</button></div>
+      <button class="b b-sec ml-auto !min-h-0 !py-1 text-xs" data-callopen="${r.id}">${calSel === r.id ? '閉じる' : '前日確認を記録'}</button>${chgButton(r)}</div>
     <div class="mt-1 text-xs text-slate-700">${esc(r.customer.address)} ／ ${esc([r.customer.phone, r.customer.phone2].filter(Boolean).join(' ／ '))}</div>
     <div class="mt-0.5 text-xs text-slate-700">前日確認の連絡時間 <b>${esc(r.hearing?.contact ?? '未確認')}</b></div>
     ${calSel === r.id ? callPanelHtml(r, draft) : ''}</div>`;

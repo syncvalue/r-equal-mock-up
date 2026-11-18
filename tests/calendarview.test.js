@@ -57,12 +57,12 @@ test('メモの文字は、HTMLとして解釈しない', () => {
   assert.ok(!h.includes('<b>x</b>') && h.includes('&lt;b&gt;x&lt;/b&gt;'));
 });
 
-test('日別: 受付の帯と、鑑定士の元からの予定の帯は、同じ色（確定の濃い青）で出す。色で区別しない', () => {
+test('日別: 受付の帯と、鑑定士の元からの予定の帯は、同じ鑑定士なら同じ色で出す。受付かどうかで色を変えない', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const withPlan = cols.find((c) => c.blocks.length);
   assert.ok(withPlan);
   const h = calendarHtml({ ...base, mode: 'day', reservations: [] });
-  assert.ok(h.includes('bg-slate-700') && !h.includes('bg-slate-500'));
+  assert.ok(h.includes(`data-caluser="${withPlan.user.id}"`) && h.includes(staffColor(withPlan.user.id).solid) && !h.includes('bg-slate-500'));
 });
 
 test('日別: 前日確認が済んだ帯は鑑定士の色で塗りつぶし、まだ（未連絡・不通）は点線。印の文字と、凡例も出す', () => {
@@ -105,7 +105,7 @@ test('週の表: 同じ時間にかぶる訪問は、日の列の中で横に並
   assert.equal(free.length, 2);
   const list = [rec({ id: 'A', userId: free[0].user.id, start: '11:30', end: '12:30', customer: { name: '甲野 太郎', address: '大阪府A' } }), rec({ id: 'B', userId: free[1].user.id, start: '11:30', end: '12:30', customer: { name: '乙川 次郎', address: '大阪府B' } })];
   const h = calendarHtml({ ...base, reservations: list, staffSel: free.map((c) => c.user.id) }); // 2人だけに絞って、ほかの人の予定とかぶらないようにする
-  const style = (name) => h.match(new RegExp(`style="([^"]*)" data-calblock="[^"]*" title="[^"]*"><b class="block truncate">${name}`))[1];
+  const style = (name) => h.match(new RegExp(`style="([^"]*)" data-calblock="[^"]*" data-caluser="[^"]*" data-caldate="[^"]*" title="[^"]*"><b class="block truncate">${name}`))[1];
   assert.ok(style('甲野 太郎').includes('left:calc(0% + 1px);width:calc(50% - 2px)'));
   assert.ok(style('乙川 次郎').includes('left:calc(50% + 1px);width:calc(50% - 2px)'));
 });
@@ -154,4 +154,18 @@ test('週の表: 鑑定士の元からの予定を押すと、詳細は出るが
   assert.ok(key);
   const h = calendarHtml({ ...base, calSel: key, weekStart: '2026-10-30', reservations: [] });
   assert.ok(text(h).includes('この予定には、受付の記録がありません') && !h.includes('data-callsave'));
+});
+
+test('詳細: 「この日だけを、鑑定士ごとに見る」は出さない。「受付を変更・取消する」は、前日確認の記録より上にある', () => {
+  const h = calendarHtml({ ...base, calSel: 'R1', reservations: [rec()] });
+  assert.ok(!text(h).includes('この日だけを、鑑定士ごとに見る') && !h.includes('>この日だけを'));
+  assert.ok(h.indexOf('data-chg="R1"') > 0 && h.indexOf('data-chg="R1"') < h.indexOf('data-callsave="R1"'));
+  assert.equal((h.match(/data-chg="R1"/g) || []).length, 1);
+});
+
+test('鑑定士の元からの予定の帯（受付の記録がないもの）も、押せる。押した人と日付を持つ（取り込みのため）', () => {
+  const wk = calendarHtml({ ...base, reservations: [] });
+  assert.ok(/data-calblock="[^"]+" data-caluser="u\d+" data-caldate="2026-1\d-\d\d"/.test(wk));
+  const day = calendarHtml({ ...base, mode: 'day', reservations: [] });
+  assert.ok(/<button[^>]*data-calblock="[^"]+" data-caluser="u\d+" data-caldate="2026-10-30"/.test(day));
 });
