@@ -1,5 +1,6 @@
 // 配車係の画面（ダミー）。オペレーターが仮確定した訪問の、担当鑑定士を確認・変更して、確定する。主に翌々日の予定を、毎日確定していく。
 // 確定した訪問だけが、鑑定士のタブレットの予定に出る。
+import { modalBadgeHtml } from '../src/screenIds.js';
 import { visitFieldsHtml } from './calendarView.js';
 import { boardBlockStyle, staffHeadStyle, RANK_COLORS, UNRANKED } from '../src/rankColor.js';
 import { esc } from '../src/format.js';
@@ -33,7 +34,7 @@ export function staffModalHtml({ userId, date, reservations, now }) {
   const box = (title, body) => `<section class="space-y-1 rounded-lg border bg-slate-50 p-2"><h3 class="text-xs font-bold text-slate-500">${title}</h3>${body}</section>`;
   const plans = d.blocks.length ? d.blocks.map((b) => `<div class="flex items-start gap-1.5 text-xs"><b class="w-24 shrink-0">${hhmm(b.start)}–${hhmm(b.end)}</b><span class="min-w-0"><span class="mr-1 rounded px-1 text-[10px] font-bold text-white ${blockCls(b)}">${blockMark(b).trim()}</span>${esc(b.label)}${b.place ? `<span class="block truncate text-slate-500">${esc(b.place)}</span>` : ''}</span></div>`).join('') : '<div class="text-xs text-slate-500">予定なし</div>';
   return `<div class="fixed inset-0 z-[60] flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/40" data-staffclose></div>
-    <div class="relative z-10 max-h-[90vh] w-[40rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">
+    <div class="relative z-10 max-h-[90vh] w-[40rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">${modalBadgeHtml('CC-M03')}
       <div class="flex items-start justify-between gap-3">
         <div class="flex items-center gap-3">${avatarHtml(user, 72)}<div class="space-y-0.5">
           <div class="text-lg font-bold">${esc(user.name)} ${rankBadge(d.rank)}${isLeader(user) ? '<span class="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[11px]">リーダー</span>' : ''}</div>
@@ -107,7 +108,7 @@ export function customerModalHtml({ rid, reservations, now }) {
       ${d.visits.length > RECENT ? `<details class="rounded border border-dashed bg-white"><summary class="cursor-pointer px-1.5 py-1 text-xs font-bold text-slate-700">さらに以前の ${d.visits.length - RECENT}回分を表示</summary><div class="max-h-64 space-y-1 overflow-y-auto p-1">${d.visits.slice(RECENT).map((v) => visitHtml(v, false)).join('')}</div></details>` : ''}</div>` : '<div class="text-xs text-slate-500">買取の実績はありません（新規のお客様）</div>';
   const calls = callHistory(phones, reservations).slice(0, 5);
   return `<div class="fixed inset-0 z-[60] flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/40" data-custclose></div>
-    <div data-custmodal class="relative z-10 max-h-[92vh] w-[48rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">
+    <div data-custmodal class="relative z-10 max-h-[92vh] w-[48rem] max-w-full space-y-3 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl">${modalBadgeHtml('CC-M02')}
       <div class="flex items-start justify-between gap-3">
         <div class="space-y-1"><div class="text-lg font-bold">${esc(r.customer.name)} 様 <span class="text-sm font-normal text-slate-500">${esc(r.customer.kana ?? '')}</span>${r.customer.customerId ? `<span class="ml-2 text-xs font-normal text-slate-500">顧客ID ${esc(r.customer.customerId)}</span>` : ''}</div>
           <div class="flex flex-wrap items-center gap-1.5">${custRankBadge(p)}${troubleBadge(p)}${cooloffBadge(p)}${h.profile ? `<span class="text-xs ${String(h.profile).includes('未確認') ? 'text-slate-400' : 'text-slate-700'}" title="受電時に聞き取った、お客様の性別・年齢（聞けずに声から推測した場合は「推測」と付きます）">性別・年齢：${esc(h.profile)}</span>` : ''}</div>

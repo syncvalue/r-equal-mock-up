@@ -1,4 +1,5 @@
 // GMOサイン管理画面（ダミー）。実サービスとは無関係のモックです。
+import { setScreenBadge, gmoScreenId, modalBadgeHtml } from '../src/screenIds.js';
 import { RESET_CONFIRM, clearTransactions, loadContracts, upsertContract } from '../src/store.js';
 import { ID_TYPES } from '../src/data.js';
 import { buildKyc, kycPhotos } from '../src/kyc.js';
@@ -102,7 +103,8 @@ let previewOpen = false;
 
 const previewView = (c) => `
   <div class="fixed inset-0 z-50 bg-slate-700/90 overflow-auto p-4">
-    <div class="sticky top-0 z-10 flex justify-end gap-2 mb-3">
+    <div class="sticky top-0 z-10 flex items-center justify-end gap-2 mb-3">
+      ${modalBadgeHtml('GMO-M01')}
       <button class="b b-pri" data-act="print">印刷／PDF保存</button><button class="b b-sec" data-act="close-preview">閉じる</button></div>
     <div class="flex flex-col items-center gap-4">${contractFormHtml(c, COPIES)}</div>
   </div>`;
@@ -114,6 +116,8 @@ function render() {
   const c = loadContracts().find((x) => x.id === id);
   $('#root').innerHTML = (route === 'login' ? loginView() : route === 'detail' ? detailView(c) : listView()) + (previewOpen && c?.kyc ? previewView(c) : '');
   $('#print-area').innerHTML = c?.kyc ? contractFormHtml(c, COPIES) : '';
+  $('#print-area').dataset.screenId = 'GMO-P01'; // 印刷用の契約書の画面ID（画面には出ない。印刷にも、IDは入れない）
+  setScreenBadge(gmoScreenId(route)); // 画面の隅の、画面ID
 }
 
 const current = () => loadContracts().find((x) => x.id === location.hash.split('/')[1]);

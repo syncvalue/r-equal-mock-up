@@ -1,3 +1,4 @@
+import { setScreenBadge, tabletScreenId } from './screenIds.js';
 import { PRODUCTS } from './data.js';
 import { loadRecent, pushRecent } from './search.js';
 import { estimateByPhotos, RECEIPT_SAMPLES, receiptSampleFor } from './ai.js';
@@ -238,7 +239,7 @@ function readOpenThread() {
 
 const BASE_TITLE = document.title;
 function render() {
-  if (!state.user) { $('#app').innerHTML = V.authView(state); return; } // 未ログイン
+  if (!state.user) { $('#app').innerHTML = V.authView(state); setScreenBadge(tabletScreenId(state)); return; } // 未ログイン
   const day = loadDay(state.user);
   const phase = phaseOf(day);
   // 経費精算の修正の画面を開いている間は、経理部のメッセージを読んだことにする
@@ -272,6 +273,7 @@ function render() {
     V.outcomeModalView(state) +
     V.scanView(state) +
     V.menuView(state);
+  setScreenBadge(tabletScreenId(state)); // 画面の隅の、画面ID
   document.querySelectorAll('[data-scroll]').forEach((e) => { e.scrollTop = scrolls[e.dataset.scroll] ?? 0; });
   document.querySelectorAll('[data-chat]').forEach((e) => { e.scrollTop = e.scrollHeight; }); // チャットは、いちばん新しい発言が見えるように
   document.querySelectorAll('[data-msgs]').forEach((e) => e.dispatchEvent(new Event('scroll', { bubbles: true }))); // 「他○件あります」の表示を、スクロール位置に合わせる

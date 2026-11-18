@@ -1,4 +1,5 @@
 // 経費の修正（鑑定士タブレット）。営業サポートが「差戻し」にした日・まだチェックしていない日の経費を、鑑定士が直せる。チェック済みの日は直せない。
+import { modalBadgeHtml } from './screenIds.js';
 import { esc, yen, fmtTime } from './format.js';
 import { moneyInputHtml } from './moneyInput.js';
 import { EXPENSE_TYPES, typeOf, expenseReady, summaryOf } from './workday.js';
@@ -62,6 +63,7 @@ export function reviseModalView(s) {
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl w-full max-w-5xl p-4 max-h-[96dvh] flex flex-col gap-3">
+      <div>${modalBadgeHtml('TAB-M17')}</div>
       <div class="flex justify-between items-center"><h2 class="text-xl font-bold">経費の修正　${mdw(date)}の提出分</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
       ${locked ? '<div class="rounded-lg bg-slate-100 border p-2 text-sm font-bold">この日は、営業サポートの確認が済んでいるため、直せません。</div>'
         : row.status === 'returned' ? `<div class="rounded-lg bg-rose-50 border-2 border-rose-300 p-2 text-sm"><b class="text-rose-700">営業サポートからの差戻し理由</b><div class="text-rose-700">${esc(row.review?.reason)}</div></div>`

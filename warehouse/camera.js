@@ -1,5 +1,6 @@
 // カメラでのQR読み取り（モック）。鑑定士のタブレットのシール読取と同じ見せ方で、カメラが起動して、シールのQRを読み取ったように見せる。
 // 実際のカメラは使わない。読み取る商品は、pickNext() が返すシールNo.（なければ、読み取る商品がない）。
+import { modalBadgeHtml } from '../src/screenIds.js';
 import { fakeQr } from '../src/fakeQr.js';
 import { esc } from '../src/format.js';
 
@@ -9,7 +10,7 @@ const FOUND_MS = 1000; // 読み取れてから、次へ進むまで
 const CORNERS = ['top:0;left:0;border-top-width:6px;border-left-width:6px;border-top-left-radius:14px', 'top:0;right:0;border-top-width:6px;border-right-width:6px;border-top-right-radius:14px',
   'bottom:0;left:0;border-bottom-width:6px;border-left-width:6px;border-bottom-left-radius:14px', 'bottom:0;right:0;border-bottom-width:6px;border-right-width:6px;border-bottom-right-radius:14px'];
 
-function overlayHtml({ title, subtitle, status, code, message }) {
+function overlayHtml({ screenId, title, subtitle, status, code, message }) {
   const found = status === 'found';
   const col = found ? '#22c55e' : '#fff';
   return `<div class="flex items-center justify-between px-5 py-3 bg-black/70 z-10">
@@ -17,6 +18,7 @@ function overlayHtml({ title, subtitle, status, code, message }) {
     <div class="text-center leading-tight"><div class="font-bold">${esc(title)}</div><div class="text-xs text-slate-300">${esc(subtitle)}</div></div>
     <button class="rounded-xl border-2 border-white/50 px-5 min-h-[44px] font-bold" data-cam-close>閉じる</button></div>
   <div class="relative flex-1 overflow-hidden"><div class="absolute inset-[-6%] cam-bg"></div>
+    ${screenId ? `<div class="absolute left-3 top-3 z-20">${modalBadgeHtml(screenId)}</div>` : ''}
     <div class="absolute inset-0 flex items-center justify-center"><div class="relative w-[min(60vh,70vw)] aspect-square">
       <div class="absolute inset-[12%] cam-sticker rounded-md shadow-2xl overflow-hidden">${fakeQr(found ? code : 'scanning-preview')}</div>
       ${CORNERS.map((pos) => `<span class="cam-corner" style="${pos};border-color:${col}"></span>`).join('')}
@@ -30,7 +32,7 @@ function overlayHtml({ title, subtitle, status, code, message }) {
 
 // カメラ画面（モック）を開く。onFound(code) は、読み取れたとき。continuous なら、続けて次の商品を読み取る（なくなったら終了の表示）。
 // getMessage() は、直前の処理結果の表示（入庫の結果など）。戻り値の close() で閉じる
-export function openMockCamera({ title, subtitle, pickNext, onFound, continuous = false, getMessage = () => null }) {
+export function openMockCamera({ screenId = '', title, subtitle, pickNext, onFound, continuous = false, getMessage = () => null }) {
   document.querySelector('#cam')?.remove();
   const el = document.createElement('div');
   el.id = 'cam';
@@ -38,7 +40,7 @@ export function openMockCamera({ title, subtitle, pickNext, onFound, continuous 
   document.body.appendChild(el);
   let alive = true;
   const close = () => { alive = false; el.remove(); };
-  const draw = (status, code = '') => { el.innerHTML = overlayHtml({ title, subtitle, status, code, message: getMessage() }); el.querySelector('[data-cam-close]').addEventListener('click', close); };
+  const draw = (status, code = '') => { el.innerHTML = overlayHtml({ screenId, title, subtitle, status, code, message: getMessage() }); el.querySelector('[data-cam-close]').addEventListener('click', close); };
   const step = () => {
     draw('scanning');
     setTimeout(() => {

@@ -1,4 +1,5 @@
 // 経理部デスク画面（ダミー・PC想定）。経費精算／残高・入出金管理／週間収支。（固定費の画面は、メニューから外している）
+import { setScreenBadge, accountingScreenId } from '../src/screenIds.js';
 import { WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY, ADVANCE_REQ_KEY } from '../src/store.js';
 import { USERS, userById } from '../src/dashboard.js';
 import { AREAS, areaById, areaOfUser } from '../src/dispatch.js';
@@ -77,6 +78,7 @@ function render() {
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${filter}<button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${VIEWS[st.tab](ctx)}</main>${st.menuOpen ? menuView({ tab: st.tab, badges }) : ''}${st.chatModal ? chatModalView(ctx) : ''}${st.zoom ? zoomView(st.zoom) : ''}</div>`;
+  setScreenBadge(accountingScreenId(st.tab)); // 画面の隅の、画面ID
   document.querySelectorAll('[data-chat]').forEach((e) => { e.scrollTop = e.scrollHeight; }); // チャットは、いちばん新しい発言が見えるように
 }
 

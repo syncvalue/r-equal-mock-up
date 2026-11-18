@@ -1,4 +1,5 @@
 // 発送（配送業者・サイズ）の定義と、発送伝票・明細・CSVの出力。すべて純粋関数（画面は、結果を印刷・ダウンロードする）。
+import { screenLabel } from './screenIds.js';
 import { esc, yen } from './format.js';
 import { sealColorOf } from './stock.js';
 
@@ -84,7 +85,7 @@ export const csvFileName = (carrierKey, now = Date.now()) => `${carrierOf(carrie
 // ---- 印刷用のページ（新しいウィンドウに書き出して、印刷する）
 const PAGE_CSS = 'body{font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0 0 8px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:6px 8px;font-size:13px;text-align:left;vertical-align:top}th{background:#eee}.r{text-align:right}.mono{font-family:monospace}.meta{display:flex;gap:24px;margin:8px 0;font-size:13px}.box{border:1px solid #444;padding:8px 12px;flex:1}.sign{margin-top:24px;display:flex;gap:24px;font-size:13px}.sign div{flex:1;border-bottom:1px solid #444;padding-bottom:28px}.label{border:2px solid #111;padding:14px;margin:0 0 16px;page-break-after:always;width:520px}.label h2{font-size:15px;margin:0 0 6px}.big{font-size:18px;font-weight:bold}.no-print{margin-bottom:12px}@media print{.no-print{display:none}body{margin:8mm}}';
 const PRINT_JS = '<script>window.addEventListener("load",function(){window.print()})</script>';
-const page = (title, body) => `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${PAGE_CSS}</style></head><body><div class="no-print"><button onclick="window.print()">印刷する</button></div>${body}${PRINT_JS}</body></html>`;
+const page = (title, body, screenId = '') => `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${PAGE_CSS}</style></head><body><div class="no-print"><button onclick="window.print()">印刷する</button>${screenId ? ` <span data-screen-id="${screenId}" style="font-size:11px;font-weight:700;color:#475569">${esc(screenLabel(screenId))}</span>` : ''}</div>${body}${PRINT_JS}</body></html>`;
 
 // 送付明細。パックの番号・送り元と送り先・商品の一覧・合計・受領の確認欄。
 // 業者への委託の明細（委託明細）は、業者に渡すので、希望価格を出し、原価（買取額）とお客様の情報は出さない。
@@ -121,7 +122,7 @@ export function packingListHtml(pack, units, master, { now = Date.now() } = {}) 
   ${list.map((u) => `<tr>${row(u)}</tr>`).join('')}
   <tr><td colspan="${cols}" class="r"><b>合計 ${count}点</b></td><td class="r"><b>${yen(sum)}</b></td></tr></tbody></table>
   ${pack.note ? `<p>メモ: ${esc(pack.note)}</p>` : ''}
-  ${sign}`);
+  ${sign}`, 'WH-P01');
 }
 
 // 発送伝票（送り状の控え）。個口ごとに1枚。実際の送り状は、配送業者のシステムに、CSVを取り込んで出力する
@@ -137,5 +138,5 @@ export function shippingLabelHtml(pack, units, master, { now = Date.now() } = {}
     <div class="box" style="margin-top:8px"><b>ご依頼主</b><br>〒${esc(from.zip)} ${esc(from.address)}<br>${esc(from.name)}　TEL ${esc(from.phone)}</div>
     <p>品名: ${esc(describe(pack.codes.length))}　出荷日: ${ymd(pack.sentAt ?? now, '/')}<br>お問い合わせ番号: <b class="mono">${esc(pack.tracking || '')}</b><br>管理番号: <span class="mono">${esc(boxes > 1 ? `${pack.id}-${i + 1}` : pack.id)}</span>${pack.note ? `<br>記事: ${esc(pack.note)}` : ''}</p>
   </section>`).join('');
-  return page(`発送伝票 ${pack.id}`, labels);
+  return page(`発送伝票 ${pack.id}`, labels, 'WH-P02');
 }

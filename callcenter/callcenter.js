@@ -21,6 +21,7 @@ import { pastVisitRows } from './phoneTimeline.js';
 import { buildIdIndex, idOfPhones, issueCustomerId } from './customerId.js';
 import { buildRecordFields, formFromRecord, diffRecords } from './record.js';
 import { reservationFromBlock } from './adopt.js';
+import { setScreenBadge, ccScreenId } from '../src/screenIds.js';
 import { autoAddress, fetchZip, zipLookedUp, normalizeZip } from '../src/zipAddress.js';
 import { mountPinMap, searchAddress } from './mapPane.js';
 import { pinLabel, roundPin } from './pin.js';
@@ -323,6 +324,7 @@ function renderDispatch() {
   const el = $('#dispatch');
   if (!el) return;
   if (done) mapAddress = '';
+  showScreenId();
   if (mapAddress) { if (!el.querySelector('#pin-map')) openPinMap(el); renderHint(); updateChecklist(); return; } // 地図のあいだは、入力のたびに描き直さない
   closePinMap();
   el.innerHTML = done ? doneHtml(done) : dispatchHtml(compute());
@@ -423,6 +425,8 @@ const menuAlert = () => Object.values(menuBadges()).some((b) => b.length);
 // 配車係が動かして取り込んだ元の予定は、元の位置に出さない
 const syncHidden = () => { hiddenBlocks.clear(); loadMovedIds().forEach((id) => hiddenBlocks.add(id)); };
 
+const showScreenId = () => setScreenBadge(ccScreenId({ tab, bodyStage, editId, done, mapAddress, cvMode })); // 画面の隅の、画面ID
+
 function render() {
   syncHidden();
   const ops = operators();
@@ -445,6 +449,7 @@ function render() {
   ${cancelId ? cancelModalHtml(loadReservations().find((r) => r.id === cancelId), cancelReason) : ''}
   ${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white rounded-lg px-4 py-2 shadow-lg">${esc(toast)}</div>` : ''}`;
   if (tab === 'new') { renderDispatch(); renderTranscript(); }
+  showScreenId();
   if (tab === 'calendar' && calSel) document.querySelector(`[data-calrow="${calSel}"]`)?.scrollIntoView({ block: 'start' }); // 日別: 選んだ訪問の詳細まで、右の一覧をスクロールする
 }
 
@@ -609,6 +614,7 @@ function syncBody() {
   const next = stageNow();
   if (!el || next === bodyStage) return;
   bodyStage = next;
+  showScreenId();
   el.innerHTML = formHtml(form, ymdOf(new Date()), hearingChecklist(form), { stage: next, part: 'body' });
 }
 

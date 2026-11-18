@@ -1,4 +1,5 @@
 // マスタ管理画面の表示（画面に依存しない純関数）。マスタの切り替え（社員・営業所・倉庫・委託先）と、各パネルの組み立て。
+import { modalBadgeHtml } from '../src/screenIds.js';
 import { icon } from '../src/icons.js';
 import { employeesPanelHtml, EMPLOYEE_REASON_TEXT } from './employeesPanel.js';
 import { departmentsPanelHtml } from './departmentsPanel.js';
@@ -29,6 +30,7 @@ export function menuHtml(tab) {
         <button class="w-12 h-12 rounded-xl text-2xl hover:bg-white/10" data-menu-close aria-label="メニューを閉じる">✕</button>
       </div>
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
+        <div>${modalBadgeHtml('MST-M01')}</div>
         ${MASTERS.map((m) => `<button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === m.key ? 'bg-teal-700' : 'hover:bg-white/10 active:bg-white/20'}" data-master="${m.key}">
           <span class="text-3xl">${icon(m.icon, 28)}</span><span class="flex-1"><span class="block font-bold text-lg leading-tight">${m.label}</span><span class="text-xs text-slate-300">${m.sub}</span></span>
         </button>`).join('')}

@@ -1,3 +1,4 @@
+import { modalBadgeHtml, TAB_MODAL_IDS } from './screenIds.js';
 import { icon } from './icons.js';
 import { recordingsOf, loadRecordings, fmtDuration, recordingReady } from './recording.js';
 import { PRODUCTS, RANKS } from './data.js';
@@ -135,6 +136,7 @@ export function menuView(s) {
         <button class="w-12 h-12 rounded-xl text-2xl hover:bg-white/10" data-action="close-menu" aria-label="メニューを閉じる">✕</button>
       </div>
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
+        <div>${modalBadgeHtml('TAB-M01')}</div>
         ${MENU.map((m) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[68px] ${isActive(s, m) ? 'bg-teal-600' : 'hover:bg-white/10 active:bg-white/20'} ${isDisabled(s, m) ? 'opacity-40' : ''}" data-action="nav" data-value="${viewOf(m)}" data-menu="${m.key}" ${isDisabled(s, m) ? 'disabled' : ''}>
           <span>${icon(m.icon, 28)}</span>
@@ -540,6 +542,7 @@ export function scanView(s) {
       <button class="rounded-xl border-2 border-white/50 px-5 min-h-[44px] font-bold" data-action="scan-cancel">${stock ? '完了' : 'キャンセル'}</button>
     </div>
     <div class="relative flex-1 overflow-hidden">
+      <div class="absolute left-3 top-3 z-20">${modalBadgeHtml('TAB-M19')}</div>
       <div class="absolute inset-[-6%] cam-bg"></div>
       <div class="absolute inset-0 flex items-center justify-center">
         <div class="relative w-[min(60vh,70vw)] aspect-square">
@@ -737,9 +740,11 @@ export function endView(s) {
   </section>`;
 }
 
+let shellId = ''; // いま組み立てているモーダルの画面ID（modalView が決める）
 const modalShell = (title, body, { wide = false, right = null } = {}) => `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl w-full ${wide ? 'max-w-3xl p-4 gap-2' : 'max-w-2xl p-5 gap-3'} max-h-[96dvh] flex flex-col">
+      ${shellId ? `<div>${modalBadgeHtml(shellId)}</div>` : ''}
       <div class="flex justify-between items-center gap-2"><h2 class="${wide ? 'text-lg' : 'text-xl'} font-bold leading-tight">${title}</h2>
         ${right ?? '<button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button>'}</div>
       <div class="overflow-y-auto min-h-0 flex-1 ${wide ? 'space-y-2' : 'space-y-3'}" data-scroll="modal">${body}</div>
@@ -813,6 +818,7 @@ export function rangeView(item) {
 export function modalView(s) {
   const m = s.modal;
   if (!m) return '';
+  shellId = TAB_MODAL_IDS[m.type] ?? '';
   if (m.type === 'ai') return modalShell('AIカメラで商品候補を探す', `<div id="ai" class="space-y-3">${aiView(s)}</div>`);
   if (m.type === 'finish-confirm') {
     return modalShell(

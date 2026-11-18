@@ -1,4 +1,5 @@
 // 店舗の画面（ダミー・PC／タブレット想定）。お客様が持ち込む買取希望品を、来店の受付から買取の完了まで扱う。
+import { setScreenBadge, storeScreenId } from '../src/screenIds.js';
 import { STORE_VISITS_KEY, STORE_DRAFT_KEY, STOCK_KEY, RESET_CONFIRM, clearTransactions, upsertContract, newContractId, GMO_URL } from '../src/store.js';
 import { EMPLOYEES_KEY, loadEmployees, storeStaffOf } from '../src/employees.js';
 import { STORES_KEY, loadStores, storeById, activeStores } from '../src/stores.js';
@@ -77,7 +78,7 @@ function purchaseCtx() {
 function render() {
   const employees = loadEmployees();
   staff = staff ? loadSession(employees) : null; // 無効になった店舗スタッフは、ログアウトになる
-  if (!staff) { $('#root').innerHTML = loginView(loginError, storeStaffOf(employees), loadStores()); return; }
+  if (!staff) { $('#root').innerHTML = loginView(loginError, storeStaffOf(employees), loadStores()); setScreenBadge(storeScreenId({ staff })); return; }
   const store = storeOf();
   if (!store) { clearSession(); staff = null; loginError = '所属の店舗が見つかりません'; render(); return; }
   const list = loadStoreVisits();
@@ -88,6 +89,7 @@ function render() {
     ? purchaseHtml(purchaseCtx())
     : `${boardHtml({ board: boardOf(list, store.id, today()), walk, profileOf })}<div class="px-4 pb-6 text-center"><button class="demo-only" data-reset>データ初期化</button></div>`;
   $('#root').innerHTML = `${head}${body}${toast ? `<div class="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-slate-900 text-white px-4 py-2 text-sm shadow-lg" role="status">${esc(toast)}</div>` : ''}`;
+  setScreenBadge(storeScreenId({ staff, view, draft })); // 画面の隅の、画面ID
   const sc = document.querySelector('[data-scroll]');
   if (sc) sc.scrollTop = scroll;
 }

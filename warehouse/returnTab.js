@@ -1,4 +1,5 @@
 // ↩ クーリングオフ返品: コールセンターが受電して作った依頼の、一覧（検索・状態・未対応の目印）と、詳細（モーダル。やり取りのチャットと、回答・返送・完了の操作）。
+import { modalBadgeHtml } from '../src/screenIds.js';
 import { reasonOf, isOpenReturn, returnSteps, returnAlerts, returnTimeline, searchReturns, returnCounts } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
 import { badge, mdTime } from './ui.js';
@@ -70,6 +71,7 @@ function modalHtml(r, unitsByCode, draft) {
   return `<div class="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="クーリングオフ依頼の詳細">
     <button class="absolute inset-0 bg-black/50 cursor-default" data-ret-close aria-label="閉じる"></button>
     <div class="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[92vh] flex flex-col">
+      <div class="px-4 pt-3">${modalBadgeHtml('WH-M02')}</div>
       <div class="flex flex-wrap items-center gap-2 px-4 py-3 border-b"><b class="text-lg">${esc(r.customerName)} 様</b>${badge(cls, label)}${alertBadges(r)}<span class="text-xs text-slate-500">依頼 ${esc(r.id)}${r.phone ? `／${esc(r.phone)}` : ''}</span><button class="ml-auto w-9 h-9 rounded-lg text-xl hover:bg-slate-100" data-ret-close aria-label="閉じる">✕</button></div>
       <div class="px-4 py-3 space-y-3 overflow-y-auto">
         ${stepsHtml(r)}

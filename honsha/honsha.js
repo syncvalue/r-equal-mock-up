@@ -1,4 +1,5 @@
 // 査定部デスク画面（ダミー・PC想定）。鑑定士の買取明細をリアルタイムで見て、依頼への回答や提案を行う。
+import { setScreenBadge, hqScreenId, modalBadgeHtml } from '../src/screenIds.js';
 import {
   AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, LIVE_KEY, loadAppraisals, loadComments, loadLive, newAppraisalId,
   newCommentId, upsertAppraisal, upsertComment,
@@ -254,6 +255,7 @@ function composeModal() {
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4" data-compose-backdrop>
     <div class="bg-white rounded-2xl w-full max-w-xl p-5 space-y-3">
+      <div>${modalBadgeHtml('HQ-M01')}</div>
       <div class="flex justify-between items-center"><h2 class="text-xl font-bold">鑑定士へのお知らせを送る${helpIcon('鑑定士のダッシュボードの「本社からのメッセージ」に表示されます。')}</h2>
         <button class="px-3 py-1 rounded border font-bold" data-compose-close>閉じる</button></div>
             <label class="block font-bold text-sm">タイトル<input class="w-full border rounded px-3 py-2 mt-1 font-normal" data-m="title" value="${esc(compose.title)}" placeholder="例: 今月の買取強化商材について" /></label>
@@ -312,6 +314,7 @@ function render() {
     </main>
     <aside class="bg-slate-50 border-l p-4 overflow-y-auto">${detailPanel(v, aps, cs, approvals)}</aside>
   </div>${composeModal()}`;
+  setScreenBadge(hqScreenId(sel)); // 画面の隅の、画面ID
   dirty = false;
 }
 

@@ -1,4 +1,5 @@
 // コールセンター「クーリングオフ」タブの表示。クーリングオフ専用の番号を受けたオペレーターが、商品を探して状態を確認し、依頼を作って、進捗を管理する。
+import { modalBadgeHtml } from '../src/screenIds.js';
 import { RETURN_REASONS, reasonOf, isOpenReturn } from '../src/warehouse.js';
 import { yen, esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
@@ -62,7 +63,7 @@ export function zoomHtml(contract, row) {
   const u = row.unit;
   return `<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <button class="absolute inset-0 bg-black/60 cursor-default" data-co-zoomclose aria-label="閉じる"></button>
-    <div class="relative bg-white rounded-xl p-4 max-w-xl w-full space-y-2 shadow-xl">
+    <div class="relative bg-white rounded-xl p-4 max-w-xl w-full space-y-2 shadow-xl">${modalBadgeHtml('CC-M05')}
       <img src="${photoOf(u)}" alt="${esc(u.name)}" class="w-full max-h-[60vh] object-contain rounded bg-slate-100" />
       <div class="font-bold text-lg">${esc(u.name)}</div>
       <div class="text-sm text-slate-700">${esc(u.category)}　${yen(u.price)}　${esc(contract.customerName)} 様${contract.phones?.length ? `（${contract.phones.map(esc).join(' ／ ')}）` : ''}　${mdw(contract.date)}買取　<span class="font-mono">${esc(u.code)}</span></div>

@@ -1,4 +1,5 @@
 // マスタ管理画面（ダミー・PC想定）。社員・営業所・倉庫・委託先の一覧、登録・変更、有効/無効。
+import { setScreenBadge, masterScreenId } from '../src/screenIds.js';
 import { EMPLOYEES_KEY, DEFAULT_EMPLOYEES, loadEmployees, saveEmployees, saveEmployee, setEmployeeActive, isReadOnlyRole } from '../src/employees.js';
 import { DEPARTMENTS_KEY, DEFAULT_DEPARTMENTS, loadDepartments, saveDepartments, saveDepartment, setDepartmentActive, activeDepartments, defaultDepartmentOf } from '../src/departments.js';
 import { OFFICES_KEY, DEFAULT_OFFICES, loadOffices, saveOffices, saveOffice, setOfficeActive } from '../src/offices.js';
@@ -40,7 +41,7 @@ const ctx = () => {
   const wmaster = loadMaster();
   return { tab, menuOpen, employees, departments, offices, trips, stores, storeStaffCount: storeStaffCount(), salesUsers: USERS.map(({ id, name }) => ({ id, name })), today: ymdOf(new Date()), wmaster, holding: holdingByWarehouse(loadState(), wmaster), ui, themeHtml: themeToggleHtml() };
 };
-const render = () => { $('#root').innerHTML = masterHtml(ctx()); };
+const render = () => { $('#root').innerHTML = masterHtml(ctx()); setScreenBadge(masterScreenId(tab)); }; // 画面の隅に、画面ID
 const renderList = () => { const el = $('[data-list]'); if (el) el.innerHTML = listHtml({ employees, departments, warehouses: loadMaster().warehouses, stores, ui: ui.employees }); };
 const warn = (reason) => alert(REASON_TEXT[reason] ?? '保存できませんでした');
 const commitWh = (next) => { if (!saveMaster(next)) alert('保存できませんでした（容量超過）'); };

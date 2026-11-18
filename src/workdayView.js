@@ -1,4 +1,5 @@
 // 始業（点検）・終業（日報）・経費管理の画面。
+import { modalBadgeHtml } from './screenIds.js';
 import { esc, yen, fmtTime } from './format.js';
 import { helpIcon } from './help.js';
 import { moneyInputHtml } from './moneyInput.js';
@@ -379,6 +380,7 @@ export function outcomeModalView(s) {
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl w-full max-w-2xl p-5 max-h-[96dvh] flex flex-col gap-3">
+      <div>${modalBadgeHtml('TAB-M15')}</div>
       <div class="flex justify-between items-center"><h2 class="text-xl font-bold">訪問できなかった場合の記録${helpIcon('訪問実績として記録します。鑑定士の責任ではないため、業績には影響しません。')}</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
       <div class="overflow-y-auto min-h-0 flex-1 space-y-3" data-scroll="outcome">
         <div class="grid grid-cols-2 gap-2">${VISIT_OUTCOMES.map((o) => `
@@ -422,6 +424,7 @@ export function receiptModalView(s) {
   return `
   <div class="fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl p-4 max-w-xl w-full max-h-[96dvh] flex flex-col gap-2">
+      <div>${modalBadgeHtml('TAB-M16')}</div>
       <div class="flex justify-between items-center"><h3 class="font-bold text-lg">${t.label}　${yen(e.amount)}</h3><button class="btn btn-secondary !min-h-[44px] !py-1" data-action="close-modal">閉じる</button></div>
       <div class="text-sm text-slate-500">${fmtTime(e.at)}　${esc(e.memo)}</div>
       <img src="${e.photo}" alt="レシート" class="rounded-lg border min-h-0 object-contain" />

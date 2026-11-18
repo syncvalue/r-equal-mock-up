@@ -1,4 +1,5 @@
 // 左側の開閉式メニュー（鑑定士のタブレットと同じ。☰ で開き、項目を選ぶか、外側・✕で閉じる）
+import { modalBadgeHtml } from '../src/screenIds.js';
 import { icon } from '../src/icons.js';
 import { esc } from '../src/format.js';
 
@@ -24,6 +25,7 @@ export function menuView({ tab, badges, staff, warehouseName }) {
         <button class="w-12 h-12 rounded-xl text-2xl hover:bg-white/10" data-menu-close aria-label="メニューを閉じる">✕</button>
       </div>
       <div class="flex-1 overflow-y-auto p-3 space-y-2">
+        <div>${modalBadgeHtml('WH-M01')}</div>
         ${TABS.map((t) => `
         <button class="w-full text-left flex items-center gap-4 rounded-xl px-4 py-3 min-h-[64px] ${tab === t.key ? 'bg-slate-700' : 'hover:bg-white/10 active:bg-white/20'}" data-tab="${t.key}">
           <span class="text-3xl">${icon(t.icon, 28)}</span>

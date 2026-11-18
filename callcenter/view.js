@@ -1,4 +1,5 @@
 // コールセンター画面の描画（状態 → HTML）。イベント処理は callcenter.js。
+import { modalBadgeHtml } from '../src/screenIds.js';
 import { esc, yen } from '../src/format.js';
 import { validPin, pinLabel } from './pin.js';
 import { helpIcon } from '../src/help.js';
@@ -79,7 +80,7 @@ export function travelStripHtml(col, f) {
 // ---- 通話の文字起こし（デモ） -----------------------------------------------------------
 export const demoWindowHtml = (pos) => `<div id="demo-win" class="fixed z-50 w-[26rem] max-w-[calc(100vw-1rem)] rounded-lg bg-white shadow-2xl border-2 border-amber-400" style="left:${pos.x}px;top:${pos.y}px">
   <div class="flex items-center justify-between bg-slate-200 text-slate-600 rounded-t px-3 py-1.5 cursor-move select-none" data-drag><b class="text-sm">デモ｜音声入力（文字起こし）</b><button class="text-lg leading-none px-1" data-demo="close" title="閉じる">✕</button></div>
-  <div id="transcript" class="p-3"></div></div>`;
+  <div class="px-3 pt-2">${modalBadgeHtml('CC-M06')}</div><div id="transcript" class="p-3"></div></div>`;
 
 export function transcriptHtml({ lines, playing, finished, pos, total }) {
   const bubble = (l) => l.who === 'sys'
@@ -508,7 +509,7 @@ export function editBannerHtml(r, by = '') {
 
 // 取消の確認（理由を選ぶ）
 export function cancelModalHtml(r, reason) {
-  return `<div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"><div class="w-[28rem] max-w-[calc(100vw-2rem)] space-y-3 rounded-lg bg-white p-4 shadow-2xl">
+  return `<div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"><div class="w-[28rem] max-w-[calc(100vw-2rem)] space-y-3 rounded-lg bg-white p-4 shadow-2xl">${modalBadgeHtml('CC-M04')}
     <b>受付を取り消します</b>
     <div class="text-sm"><b>${esc(r.customer.name)}</b> 様　${dateLabel(r.date)} ${esc(r.start)}〜${esc(r.end)}　担当${isTentative(r) ? '（仮）' : ''}${esc(USERS.find((u) => u.id === r.userId)?.name ?? '')}</div>
     ${isTentative(r) ? '' : '<p class="rounded bg-rose-50 px-2 py-1 text-xs text-rose-700">配車係が確定済みです。鑑定士のタブレットの予定からも消えます。担当鑑定士への連絡が必要な場合があります。</p>'}

@@ -1,4 +1,5 @@
 // 倉庫・物流デスク画面（ダミー・PC想定）。商品の管理、販売（出品）、売上管理、クーリングオフによる返品の対応。
+import { setScreenBadge, whScreenId } from '../src/screenIds.js';
 import { STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY } from '../src/store.js';
 import {
   MASTER_KEY, loadMaster, destinationProblem, receiveProblem, warehouseById, warehouseIdOf,
@@ -31,6 +32,7 @@ import { packingListHtml, shippingLabelHtml, shippingCsv, csvFileName, addressPr
 import { openPrintWindow, downloadText } from './output.js';
 import { loginView } from './loginView.js';
 import { openMockCamera } from './camera.js';
+import { openPackOf } from './packUi.js';
 
 const $ = (s) => document.querySelector(s);
 const blankList = () => ({ code: '', channel: 'mercari', price: 0, vendor: '' });
@@ -69,7 +71,7 @@ const scopeSelect = () => `<label class="text-xs">対象の倉庫 <select class=
 function render() {
   master = loadMaster();
   staff = staff ? loadSession(master) : null; // マスタで無効になった倉庫担当は、ログアウトになる
-  if (!staff) { $('#root').innerHTML = loginView(loginError, master); return; }
+  if (!staff) { $('#root').innerHTML = loginView(loginError, master); setScreenBadge(whScreenId({ staff })); return; }
   if (ui.scope !== 'all' && !warehouseById(master, ui.scope)) ui.scope = 'all';
   const wh = myWarehouse();
   if (!wh.locations.includes(ui.rc.location)) ui.rc = { ...ui.rc, location: wh.locations[0] };
@@ -88,6 +90,8 @@ function render() {
     <div class="text-sm flex flex-wrap items-center gap-x-3 gap-y-1">${tab === 'stock' ? scopeSelect() : ''}<span>入庫待ち <b class="text-lg">${full.units.filter((u) => u.status !== 'stored').length}</b>点 ／ 出品中 <b class="text-lg">${rows.filter((r) => r.stage === 'listed').length}</b>点 ／ 返品対応中 <b class="text-lg">${state.returns.filter(isOpenReturn).length}</b>件 ／ 受け取り待ち <b class="text-lg">${incoming(full, staff.warehouseId).length}</b>件</span><span>${esc(staff.name)}（${esc(wh.name)}）</span> <button class="text-xs underline text-white/70" data-sample>サンプルデータを入れ直す</button> ${themeToggleHtml()}</div>
   </header>
   <main class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">${tabBody(full, now)}</main>${menuOpen ? menuView({ tab, badges, staff, warehouseName: wh.name }) : ''}</div>`;
+  const packOpen = tab === 'transfer' ? Boolean(openPackOf(full, ui.pk, 'transfer')) : tab === 'list' && (Boolean(openPackOf(full, ui.pk, 'consign')) || Boolean(openPackOf(full, ui.pk, 'sale')));
+  setScreenBadge(whScreenId({ staff, tab, packOpen, scan: Boolean(ui.scan.raw), lot: ui.view === 'lot' })); // 画面の隅の、画面ID
   const chat = $('#ret-chat');
   if (chat) chat.scrollTop = chat.scrollHeight; // 最新のやり取りが見えるように
 }
@@ -194,7 +198,7 @@ function openCamera(mode) {
   if (mode === 'search') {
     const units = loadUnits();
     closeCamera = openMockCamera({
-      title: '商品を探す', subtitle: 'シールのQRコードを読み取ります',
+      screenId: 'WH-M03', title: '商品を探す', subtitle: 'シールのQRコードを読み取ります',
       pickNext: () => units[Math.floor(Math.random() * units.length)]?.code ?? '', // モック: 登録済みの商品から1点
       onFound: (code) => { scanCode(code); render(); },
     });
@@ -202,7 +206,7 @@ function openCamera(mode) {
   }
   if (mode === 'pack') {
     closeCamera = openMockCamera({
-      title: '読み取って、パックに入れる', subtitle: `送り元: ${myWarehouse().name}`, continuous: true,
+      screenId: 'WH-M05', title: '読み取って、パックに入れる', subtitle: `送り元: ${myWarehouse().name}`, continuous: true,
       // モック: 自分の倉庫の在庫から、まだパックに入れていない商品を順に読み取る
       pickNext: () => {
         const state = loadState();
@@ -216,7 +220,7 @@ function openCamera(mode) {
     return;
   }
   closeCamera = openMockCamera({
-    title: '読み取って入庫', subtitle: `入庫先: ${myWarehouse().name}／クーリングオフ保管棚`, continuous: true,
+    screenId: 'WH-M04', title: '読み取って入庫', subtitle: `入庫先: ${myWarehouse().name}／クーリングオフ保管棚`, continuous: true,
     pickNext: () => loadUnits().find((u) => u.status !== 'stored' && !receiveProblem(master, staff.warehouseId))?.code ?? '', // モック: 入庫待ちの商品を、順に読み取る
     onFound: (code) => { storeCode(code); render(); },
     getMessage: () => ui.rc.last,

@@ -1,4 +1,5 @@
 // 補充の依頼（鑑定士タブレット・経費管理）。画面にはボタンだけを置き、押すと、依頼と、経理部とのやり取り（チャット）の画面が開く。
+import { modalBadgeHtml } from './screenIds.js';
 import { esc, yen, fmtTime } from './format.js';
 import { moneyInputHtml } from './moneyInput.js';
 import { requestReady, REQUEST_STATUS, advThread, advUnread } from './advanceRequest.js';
@@ -32,6 +33,7 @@ export function advanceModalView(s) {
   return `
   <div class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-3" data-action="close-backdrop">
     <div class="bg-white rounded-2xl w-full max-w-4xl p-4 max-h-[96dvh] flex flex-col gap-3">
+      <div>${modalBadgeHtml('TAB-M18')}</div>
       <div class="flex justify-between items-center"><h2 class="text-xl font-bold">補充の依頼</h2><button class="btn btn-secondary !py-1 !min-h-[40px] !px-4" data-action="close-modal">閉じる</button></div>
       <div class="flex-1 min-h-0 overflow-y-auto grid md:grid-cols-[2fr_3fr] gap-3 items-start" data-scroll="advance">
         <div class="space-y-2">
