@@ -19,17 +19,32 @@ export function addConfirmCall(r, { result, memo, by, at }) {
   return { ok: true, fields: { confirmCalls: [...(r.confirmCalls ?? []), call] } };
 }
 
-// 前日確認の状態。一度でもつながれば連絡済み（そのあとの不通があっても）
+// 前日確認の状態。一度でもつながれば連絡済み（そのあとの不通があっても）。
+// 不通のまま前日確認を終えた訪問（confirmClosed）は、key は不通のまま（内部では未連絡と区別する）で、closed を立てる
 export function confirmStatus(r) {
   const calls = r.confirmCalls ?? [];
   const last = calls.at(-1) ?? null;
-  if (calls.some((c) => c.result === 'reached')) return { key: 'reached', label: '連絡済み', count: calls.length, last };
-  if (calls.length) return { key: 'noanswer', label: `不通 ${calls.length}回`, count: calls.length, last };
-  return { key: 'none', label: '未連絡', count: 0, last };
+  if (calls.some((c) => c.result === 'reached')) return { key: 'reached', label: '連絡済み', count: calls.length, last, closed: false };
+  if (calls.length) {
+    const closed = Boolean(r.confirmClosed);
+    return { key: 'noanswer', label: closed ? `不通のまま終了（${calls.length}回）` : `不通 ${calls.length}回`, count: calls.length, last, closed };
+  }
+  return { key: 'none', label: '未連絡', count: 0, last, closed: false };
 }
 
-// 今日が前日確認の日（＝訪問が明日）で、まだつながっていない訪問
-export const confirmPending = (list, today) => list.filter((r) => isLive(r) && confirmDateOf(r.date) === today && confirmStatus(r).key !== 'reached');
+// 何回かけてもつながらないとき、不通のまま、前日確認を終える。不通の記録が1回以上あり、つながっていない訪問だけ。元の記録は変えず、保存する項目を返す
+export function closeConfirm(r, { by, at }) {
+  if (!isLive(r)) return { ok: false, reason: '取消した受付には記録できません' };
+  if (confirmStatus(r).key !== 'noanswer') return { ok: false, reason: '不通の記録がある訪問だけ、不通のまま終了できます' };
+  if (!String(by ?? '').trim()) return { ok: false, reason: '記録するオペレーターを選んでください' };
+  return { ok: true, fields: { confirmClosed: { by: String(by).trim(), at: (at ?? new Date()).getTime() } } };
+}
+
+// まだ電話する必要がある訪問（つながっておらず、不通のまま終了もしていない）
+const needsCall = (r) => { const s = confirmStatus(r); return s.key !== 'reached' && !s.closed; };
+
+// 今日が前日確認の日（＝訪問が明日）で、まだ電話する必要がある訪問
+export const confirmPending = (list, today) => list.filter((r) => isLive(r) && confirmDateOf(r.date) === today && needsCall(r));
 
 // 受付で聞いた「前日確認の連絡時間」（例「17:00〜19:00」「〜19:00」「指定なし」「未確認」）の、始まりの時刻（分）。
 // 時間を指定している人は時刻の順、指定なしと未確認は、そのあとに並べる（rank: 0=時間あり・1=指定なし・2=未確認）
@@ -50,5 +65,5 @@ export const sortByContactTime = (list) => [...list].sort((a, b) => {
   return x.rank - y.rank || x.start - y.start || x.end - y.end || String(a.start).localeCompare(String(b.start));
 });
 
-// まだつながっていない訪問（未連絡・不通）だけ
-export const notYetReached = (list) => list.filter((r) => confirmStatus(r).key !== 'reached');
+// まだ電話する必要がある訪問（未連絡・不通。不通のまま終了したものは除く）だけ
+export const notYetReached = (list) => list.filter(needsCall);

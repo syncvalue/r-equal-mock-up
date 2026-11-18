@@ -22,7 +22,8 @@ const topOf = (m) => ((m - WORK_START) / SLOT_STEP) * DAY_ROW;
 const toMin = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
 
 export const statusChip = (r) => { const s = confirmStatus(r); return `<span class="rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_CLS[s.key]}">${s.label}</span>`; };
-const miniMark = (r) => ({ none: '・未連絡', noanswer: '△不通', reached: '✔連絡済み' })[confirmStatus(r).key];
+// 帯の中に出す状態の文字は「不通」だけ（連絡済み／まだは、実線／点線で分かる。未連絡と不通は、線では同じ扱い）
+const failMark = (r) => (confirmStatus(r ?? {}).key === 'noanswer' ? '<span class="mr-0.5 rounded bg-white px-1 font-bold text-slate-900">不通</span>' : '');
 // 訪問の帯の見た目: 鑑定士ごとの色。前日確認が済んでいれば塗りつぶし、まだ（未連絡・不通）なら点線の枠
 const callLook = (userId, r) => visitBlockStyle(userId, confirmStatus(r ?? {}).key === 'reached');
 const staffDot = (id) => `<i class="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style="background:${staffColor(id).solid}"></i>`;
@@ -72,7 +73,7 @@ function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], 
       const tip = `${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.name} 様　${b.place}　担当：${USERS.find((u) => u.id === b.userId)?.name ?? ''}　前日確認：${confirmStatus(r ?? {}).label}（押すと、右に詳細）`;
       const sel = blockKey(b) === calSel;
       const look = callLook(b.userId, r);
-      return `<button class="absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[10px] leading-tight ${look.cls} ${sel ? 'z-20 ring-2 ring-amber-300' : ''}" style="${style};${look.css}" data-calblock="${esc(blockKey(b))}" data-caluser="${b.userId}" data-caldate="${d.date}" title="${esc(tip)}"><b class="block truncate">${esc(b.name)}</b><span class="block truncate opacity-95">${esc(Array.from(b.place).slice(0, 10).join(''))}</span></button>`;
+      return `<button class="absolute z-10 overflow-hidden rounded px-1 py-0.5 text-left text-[10px] leading-tight ${look.cls} ${sel ? 'z-20 ring-2 ring-amber-300' : ''}" style="${style};${look.css}" data-calblock="${esc(blockKey(b))}" data-caluser="${b.userId}" data-caldate="${d.date}" title="${esc(tip)}"><b class="block truncate">${failMark(r)}${esc(b.name)}</b><span class="block truncate opacity-95">${esc(Array.from(b.place).slice(0, 10).join(''))}</span></button>`;
     }).join('');
     return `<div class="relative border-l" style="height:${h}px">${bg}${blocks}</div>`;
   }).join('');
@@ -126,7 +127,7 @@ function dayGridHtml({ cols, date, calSel }) {
       const style = `top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px`;
       const r = b.rid ? c.reservationOf?.(b.rid) : null;
       return b.rid
-        ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, r).cls} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style};${callLook(c.user.id, r).css}" data-callopen="${b.rid}" title="前日確認：${confirmStatus(r ?? {}).label}（押して記録）">${inner}</button>`
+        ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, r).cls} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style};${callLook(c.user.id, r).css}" data-callopen="${b.rid}" title="前日確認：${confirmStatus(r ?? {}).label}（押して記録）">${failMark(r)}${inner}</button>`
         : `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, null).cls}" style="${style};${callLook(c.user.id, null).css}" data-calblock="${esc(blockKey(b))}" data-caluser="${c.user.id}" data-caldate="${date}" title="${esc(b.label)}（押すと、受付として取り込んで、前日確認・変更ができる）">${inner}</button>`;
     }).join('');
     const away = c.absent ? '<div class="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-2"><span class="rounded bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">欠勤</span></div>' : '';
@@ -134,6 +135,14 @@ function dayGridHtml({ cols, date, calSel }) {
   }).join('');
   return `<div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>
     <div class="mt-1">${callLegendHtml()}</div></div>`;
+}
+
+// 何回かけてもつながらないとき、不通のまま、前日確認を終える（不通の記録が1回以上あるとき）
+function closeHtml(r) {
+  const st = confirmStatus(r);
+  if (st.key !== 'noanswer') return '';
+  if (st.closed) return `<span class="rounded bg-amber-100 px-2 py-1 font-bold text-amber-900">不通のまま終了（${esc(r.confirmClosed.by)}・${stamp(r.confirmClosed.at)}）</span>`;
+  return `<button class="b b-sec" data-callclose="${r.id}" title="何回かけてもつながらないとき、不通のまま、前日確認を終えます（あとでつながったら、記録できます）">不通のまま終了する</button>`;
 }
 
 // 連絡の記録（これまでの履歴と、新しく記録する入力）
@@ -148,7 +157,8 @@ function callPanelHtml(r, draft) {
       <div class="flex gap-1">${Object.entries(CALL_RESULTS).map(([k, v]) => `<button class="chip ${draft.result === k ? 'on' : ''}" data-callresult="${k}">${v}</button>`).join('')}</div>
       <textarea class="inp" rows="3" data-callmemo placeholder="お客様から告げられたこと（時間の変更・同席者・駐車場・キャンセルの意向など）">${esc(draft.memo)}</textarea>
       <div class="flex flex-wrap items-center gap-2"><button class="b b-pri" data-callsave="${r.id}">記録する</button>
-        ${helpIcon('つながらなかったときも「つながらなかった」を記録します（再連絡のたびに足せます）。日時の変更・取消を告げられたら、メモに残したうえで、「受付を変更・取消する」で受付を直します。')}</div></div></div>`;
+        ${closeHtml(r)}
+        ${helpIcon('つながらなかったときも「つながらなかった」を記録します（再連絡のたびに足せます）。何回かけてもつながらないときは、「不通のまま終了する」で、前日確認を終えられます（カレンダーの枠には「不通」と出ます）。日時の変更・取消を告げられたら、メモに残したうえで、「受付を変更・取消する」で受付を直します。')}</div></div></div>`;
 }
 
 // 右の一覧: その日の、このエリアの訪問（受付）。ひとりずつ前日確認を記録する

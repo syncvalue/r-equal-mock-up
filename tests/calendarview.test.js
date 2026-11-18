@@ -65,7 +65,7 @@ test('日別: 受付の帯と、鑑定士の元からの予定の帯は、同じ
   assert.ok(h.includes(`data-caluser="${withPlan.user.id}"`) && h.includes(staffColor(withPlan.user.id).solid) && !h.includes('bg-slate-500'));
 });
 
-test('日別: 前日確認が済んだ帯は鑑定士の色で塗りつぶし、まだ（未連絡・不通）は点線。帯の中に状態の文字は出さない（実線・点線だけで表す）。凡例も出す', () => {
+test('日別: 前日確認が済んだ帯は鑑定士の色で塗りつぶし、まだ（未連絡・不通）は点線。帯の中の状態の文字は「不通」だけ（連絡済み・未連絡は実線・点線だけで表す）。凡例も出す', () => {
   const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
   const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
   const call = (result) => [{ result, memo: '', by: '佐藤', at: 1 }];
@@ -73,7 +73,7 @@ test('日別: 前日確認が済んだ帯は鑑定士の色で塗りつぶし、
   const btn = (h) => h.match(/<button class="absolute[^>]*data-callopen="R1"[^>]*>[\s\S]*?<\/button>/)[0];
   const seen = (h) => btn(h).replace(/title="[^"]*"/g, '').replace(/<[^>]+>/g, ' '); // 画面に見える文字（吹き出しは除く）
   assert.ok(btn(html(call('reached'))).includes('border:2px solid') && !/連絡済み|不通|未連絡|[・△✔]/.test(seen(html(call('reached')))));
-  assert.ok(btn(html(call('noanswer'))).includes('border:2px dashed') && !/連絡済み|不通|未連絡|[・△✔]/.test(seen(html(call('noanswer')))));
+  assert.ok(btn(html(call('noanswer'))).includes('border:2px dashed') && /不通/.test(seen(html(call('noanswer')))) && !/連絡済み|未連絡|[・△✔]/.test(seen(html(call('noanswer')))));
   assert.ok(btn(html(undefined)).includes('border:2px dashed') && !/連絡済み|不通|未連絡|[・△✔]/.test(seen(html(undefined))));
   assert.ok(btn(html(undefined)).includes('前日確認：未連絡')); // 吹き出しには状態を残す
   assert.ok(btn(html(undefined)).includes(staffColor(u.id).solid)); // 鑑定士の色
@@ -218,4 +218,26 @@ test('希望連絡時間帯順のときは、行の先頭に「📞 連絡 ○�
   const t = (sortBy) => { const x = text(calendarHtml({ ...base, mode: 'day', reservations: list, sortBy })); return x.slice(x.indexOf('の受付 ')); };
   assert.ok(t('contact').includes('📞 連絡 17:00〜19:00') && t('contact').includes('訪問 10:30〜12:00'));
   assert.ok(!t('visit').includes('📞 連絡') && t('visit').includes('前日確認の連絡時間 17:00〜19:00'));
+});
+
+test('枠に「不通」と出すのは、不通の訪問だけ（日別・週の表とも）。未連絡と不通は、線ではどちらも点線', () => {
+  const no = [{ result: 'noanswer', memo: '', by: '佐藤', at: 1 }];
+  const cols = dayColumns({ areaId: 'osaka', date: '2026-10-30', reservations: [], now: NOW });
+  const u = cols.find((c) => !c.absent && c.att.kind === 'present').user;
+  for (const mode of ['day', 'week']) {
+    const blk = (confirmCalls) => { const h = calendarHtml({ ...base, mode, reservations: [rec({ userId: u.id, confirmCalls })] }); return h.match(/<button class="absolute[^>]*(?:data-callopen|data-calblock)="R1"[^>]*>[\s\S]*?<\/button>/)[0]; };
+    assert.ok(blk(no).includes('>不通</span>') && blk(no).includes('dashed'), mode);
+    assert.ok(!blk(undefined).includes('>不通</span>') && blk(undefined).includes('dashed'), mode);
+    assert.ok(!blk([{ result: 'reached', memo: '', by: 'x', at: 1 }]).includes('>不通</span>'), mode);
+  }
+});
+
+test('「不通のまま終了する」は、不通の記録があるときだけ出る。終えたあとは、終了の表示になる', () => {
+  const no = [{ result: 'noanswer', memo: '', by: '佐藤', at: new Date(2026, 9, 29, 9, 0).getTime() }];
+  const h = (r) => calendarHtml({ ...base, mode: 'day', calSel: 'R1', reservations: [rec(r)] });
+  assert.ok(h({ confirmCalls: no }).includes('data-callclose="R1"'));
+  assert.ok(!h({}).includes('data-callclose'));
+  assert.ok(!h({ confirmCalls: [{ result: 'reached', memo: '', by: 'x', at: 1 }] }).includes('data-callclose'));
+  const closed = h({ confirmCalls: no, confirmClosed: { by: '佐藤', at: new Date(2026, 9, 29, 10, 0).getTime() } });
+  assert.ok(!closed.includes('data-callclose') && text(closed).includes('不通のまま終了（佐藤'));
 });

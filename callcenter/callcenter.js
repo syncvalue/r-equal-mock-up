@@ -31,7 +31,7 @@ import { RETURN_KEY, STOCK_KEY, WAREHOUSE_KEY, STORE_VISITS_KEY } from '../src/s
 import { createStoreTab } from './storeTab.js';
 import { tabLabel, menuView } from './menu.js';
 import { calendarHtml } from './calendarView.js';
-import { addConfirmCall, confirmPending } from '../src/confirmCall.js';
+import { addConfirmCall, closeConfirm, confirmPending } from '../src/confirmCall.js';
 import { loadState as loadWarehouse, saveState as saveWarehouse, requestReturn, addReturnMessage, cooloffContracts, purchaseDays } from '../src/warehouse.js';
 import { loadMaster } from '../src/warehouseMaster.js';
 import { loadCurrentTrips, tripAreas } from '../src/trips.js';
@@ -707,6 +707,13 @@ document.addEventListener('click', (e) => {
     updateReservation(r.id, res.fields);
     callDraft = { result: 'reached', memo: '' };
     flash(`${r.customer.name} 様の前日確認を記録しました`);
+  }
+  else if (d.callclose) { // 何回かけてもつながらない: 不通のまま、前日確認を終える
+    const r = loadReservations().find((x) => x.id === d.callclose);
+    const res = r ? closeConfirm(r, { by: operator, at: new Date() }) : { ok: false, reason: '受付が見つかりません' };
+    if (!res.ok) { flash(res.reason); return; }
+    updateReservation(r.id, res.fields);
+    flash(`${r.customer.name} 様の前日確認を、不通のまま終了しました`);
   }
   else if ('editcancel' in d) { editId = null; forceNew = false; form = blankForm(); weekStart = addDays(0); render(); }
   else if ('saveedit' in d) saveEdit();

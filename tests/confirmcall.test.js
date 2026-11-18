@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CALL_RESULTS, confirmDateOf, addConfirmCall, confirmStatus, confirmPending } from '../src/confirmCall.js';
+import { CALL_RESULTS, confirmDateOf, addConfirmCall, confirmStatus, confirmPending, closeConfirm, notYetReached } from '../src/confirmCall.js';
 
 const visit = (o = {}) => ({ id: 'R1', date: '2026-10-30', status: 'confirmed', ...o });
 const at = new Date(2026, 9, 29, 10, 5);
@@ -52,4 +52,33 @@ test('今日連絡する訪問（明日の訪問で、まだつながってい�
   ];
   assert.deepEqual(confirmPending(list, '2026-10-29').map((r) => r.id), ['a', 'c', 'f']);
   assert.deepEqual(confirmPending(list, '2026-10-30').map((r) => r.id), ['e']);
+});
+
+const NO = [{ result: 'noanswer', memo: '', by: '佐藤', at: 1 }];
+
+test('不通のまま、前日確認を終える。終えても、内部では「不通」のまま（未連絡とは区別する）', () => {
+  const r = visit({ confirmCalls: NO });
+  const res = closeConfirm(r, { by: '佐藤', at });
+  assert.equal(res.ok, true);
+  assert.deepEqual(res.fields.confirmClosed, { by: '佐藤', at: at.getTime() });
+  assert.equal(r.confirmClosed, undefined); // 元は変えない
+  const closed = { ...r, ...res.fields };
+  assert.deepEqual([confirmStatus(closed).key, confirmStatus(closed).closed], ['noanswer', true]);
+  assert.equal(confirmStatus(closed).label, '不通のまま終了（1回）');
+  assert.equal(confirmStatus(r).closed, false);
+});
+
+test('終えられるのは、不通の記録が1回以上あり、つながっていない訪問だけ。記録者は必須', () => {
+  assert.equal(closeConfirm(visit(), { by: '佐藤', at }).ok, false); // 未連絡のまま終えることはできない
+  assert.equal(closeConfirm(visit({ confirmCalls: [{ result: 'reached', memo: '', by: 'x', at: 1 }] }), { by: '佐藤', at }).ok, false);
+  assert.equal(closeConfirm(visit({ confirmCalls: NO, status: 'cancelled' }), { by: '佐藤', at }).ok, false);
+  assert.equal(closeConfirm(visit({ confirmCalls: NO }), { by: ' ', at }).ok, false);
+});
+
+test('不通のまま終えた訪問は、「前日確認 未N」・「まだだけ」の対象から外れる。あとでつながれば連絡済みになる', () => {
+  const closed = visit({ id: 'c', confirmCalls: NO, confirmClosed: { by: '佐藤', at: 2 } });
+  assert.deepEqual(confirmPending([visit({ id: 'a' }), closed], '2026-10-29').map((r) => r.id), ['a']);
+  assert.deepEqual(notYetReached([visit({ id: 'a' }), closed]).map((r) => r.id), ['a']);
+  const later = { ...closed, confirmCalls: [...NO, { result: 'reached', memo: '', by: '佐藤', at: 3 }] };
+  assert.deepEqual([confirmStatus(later).key, confirmStatus(later).closed], ['reached', false]);
 });
