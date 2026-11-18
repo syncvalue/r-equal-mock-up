@@ -4,7 +4,7 @@ import { esc, yen } from "./format.js";
 import { helpIcon } from "./help.js";
 import { rankBadgeStyle } from "./rankColor.js";
 
-// 顧客ランクの札は、鑑定士のランクと同じ色（SSは紫・Sは青・Aは緑・Bは灰）。「顧客S」のように出す。厄介度は、ランクとは別の軸（注意＝橙、要注意＝赤）
+// 顧客ランクの札は、鑑定士のランクと同じ色（SSは赤・Sは橙・Aは緑・Bは青）。「顧客S」のように出す。厄介度は、ランクとは別の軸（注意＝橙、要注意＝赤）
 export const dateYmd = (ms) => {
   const d = new Date(ms);
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;

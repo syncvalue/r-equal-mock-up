@@ -36,8 +36,8 @@ export const legendHtml = ({ want = true } = {}) => `<span class="font-normal te
   ${want ? '<span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-teal-600 bg-teal-400/25 align-middle"></i> 緑：希望時間帯（空き）</span><span><i class="inline-block w-3 h-2.5 rounded-sm border-2 border-rose-500 bg-rose-400/25 align-middle"></i> 赤：予定と重なる</span>' : ''}</span>`;
 
 // 鑑定士のランク（SS が最上位。SS・S・A・B）
-import { rankBadgeStyle } from '../src/rankColor.js';
-export const rankBadge = (rank) => (rank ? `<span class="inline-block rounded px-1.5 text-[10px] font-bold leading-4 " style="${rankBadgeStyle(rank)}" title="鑑定士のランク">${esc(rank)}</span>` : '');
+import { rankBadgeStyle, rankBadgeInverse } from '../src/rankColor.js';
+export const rankBadge = (rank, { inverse = false } = {}) => (rank ? `<span class="inline-block rounded px-1.5 text-[10px] font-bold leading-4 " style="${inverse ? rankBadgeInverse(rank) : rankBadgeStyle(rank)}" title="鑑定士のランク">${esc(rank)}</span>` : '');
 
 // 前後の訪問から、今回のお客様の住所までの距離（概算）。prev=直前の訪問（なければ営業所から）／next=直後の訪問。short=鑑定士ごとの列の見出し用の短い表記
 const distText = (l) => `${l.km}km・約${l.min}分`;

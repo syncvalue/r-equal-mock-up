@@ -59,7 +59,7 @@ test('配車確定: 帯の色は顧客ランク、見出しの色は鑑定士ラ
   const { RANK_COLORS } = await import('../src/rankColor.js');
   const { rankOfUser } = await import('../src/dispatch.js');
   const h = page(null, [rec({ id: 'T', status: 'tentative' }), rec({ id: 'C', status: 'confirmed', userId: 'u02', start: '10:00', end: '11:00' }), rec({ id: 'V', status: 'tentative', everConfirmed: true, userId: 'u03', start: '16:00', end: '17:00' })]);
-  assert.ok(h.includes('border:3px dashed') && h.includes('border:3px solid') && h.includes('border:4px double #d97706'));
-  assert.ok(h.includes(`border-top:4px solid ${RANK_COLORS[rankOfUser('u01')].fill}`)); // 鑑定士の見出し
-  assert.ok(/色＝ランク/.test(h) && /枠線＝状態/.test(h) && h.includes('橙の二重線'));
+  assert.ok(h.includes('border:3px dashed') && h.includes('border:3px solid') && h.includes('border:4px double #0f172a'));
+  assert.ok(h.includes(`background:${RANK_COLORS[rankOfUser('u01')].fill};color:${RANK_COLORS[rankOfUser('u01')].text}`)); // 鑑定士の見出し
+  assert.ok(/色＝ランク/.test(h) && /枠線＝状態/.test(h) && h.includes('黒の二重線'));
 });
