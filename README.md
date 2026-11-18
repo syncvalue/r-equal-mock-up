@@ -3,7 +3,7 @@
 出張買取の鑑定士がタブレットで使う業務アプリのモックです。Vite + vanilla JS + Tailwind CSS（CDN）。
 データはブラウザの localStorage に保存され、外部へは送信されません。
 
-機能ごとの仕様と、業務上の前提・決定の経緯は [docs/SPEC.md](docs/SPEC.md) にまとめています（引き継ぎ・仕様追加の前に読んでください）。 全画面に**画面ID**を振っています（画面の左下に表示。一覧は [docs/SCREEN_IDS.md](docs/SCREEN_IDS.md)）。
+機能ごとの仕様と、業務上の前提・決定の経緯は [docs/SPEC.md](docs/SPEC.md) にまとめています（引き継ぎ・仕様追加の前に読んでください）。 全画面に**画面ID**を振っています（画面の左下に表示。一覧は [docs/SCREEN_IDS.md](docs/SCREEN_IDS.md)）。 文書の全体の案内は [docs/INDEX.md](docs/INDEX.md)（どこに何が書いてあるかの索引）。
 
 ## 起動
 
