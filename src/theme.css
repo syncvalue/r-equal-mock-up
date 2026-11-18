@@ -13,7 +13,9 @@ html.dark .card { background: #172236; box-shadow: none; }
 html.dark .field { background: #0f172a; color: #e2e8f0; border-color: #2f405a; }
 html.dark .field::placeholder, html.dark .inp::placeholder, html.dark textarea::placeholder { color: #475569; }
 /* 入力例（プレースホルダー）は、入力済みの文字と見間違えないよう、薄くする */
-input::placeholder, textarea::placeholder { color: #b8c2d0; opacity: 1; }
+/* TailwindのCDN（あとから読まれる）の初期値より優先させるため、!important を付ける */
+html input::placeholder, html textarea::placeholder { color: #c5cdd9 !important; opacity: 1 !important; }
+html.dark input::placeholder, html.dark textarea::placeholder { color: #475569 !important; }
 html.dark .btn-secondary, html.dark .chip { background: #1e2b42; color: #e2e8f0; border-color: #2f405a; }
 html.dark .chip.active { background: #0d9488; border-color: #0d9488; color: #fff; }
 html.dark .inp, html.dark .b-sec { background: #0f172a; color: #e2e8f0; border-color: #2f405a; }
