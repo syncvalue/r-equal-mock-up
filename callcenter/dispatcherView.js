@@ -1,6 +1,7 @@
 // 配車係の画面（ダミー）。オペレーターが仮確定した訪問の、担当鑑定士を確認・変更して、確定する。主に翌々日の予定を、毎日確定していく。
 // 確定した訪問だけが、鑑定士のタブレットの予定に出る。
 import { visitFieldsHtml } from './calendarView.js';
+import { boardBlockStyle, staffHeadStyle, RANK_COLORS, UNRANKED } from '../src/rankColor.js';
 import { esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
 import { USERS, isLeader } from '../src/dashboard.js';
@@ -161,17 +162,24 @@ const GENDER_MARK = { f: ['♀', 'bg-rose-100 text-rose-700', '女性のお客�
 export const genderMark = (g) => (GENDER_MARK[g] ? `<i class="ml-0.5 rounded px-1 text-[10px] font-bold not-italic ${GENDER_MARK[g][1]}" title="${GENDER_MARK[g][2]}">${GENDER_MARK[g][0]}</i>` : '');
 export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white px-1 text-[10px] font-bold not-italic text-slate-900" title="顧客ランク（資産・売却の見込み）">顧客${esc(p.rank)}</i>` : p?.known === false ? '<i class="ml-0.5 rounded bg-white/80 px-1 text-[10px] font-bold not-italic text-slate-700" title="買取の実績がありません">新規</i>' : '');
 
+// 帯の色＝顧客ランク、鑑定士の見出しの色＝鑑定士ランク（同じ色）。状態は枠線
+const swatch = (c, label) => `<span class="inline-flex items-center gap-0.5"><i class="inline-block h-2.5 w-4 rounded-sm" style="background:${c.fill};border:1px solid ${c.edge}"></i>${label}</span>`;
+const edgeSwatch = (border, label) => `<span class="inline-flex items-center gap-0.5"><i class="inline-block h-2.5 w-4 rounded-sm bg-slate-100" style="border:${border}"></i>${label}</span>`;
+export const boardLegendHtml = () => `<span class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-700">
+  <b class="font-bold">色＝ランク（帯＝顧客・見出し＝鑑定士）</b>${Object.entries(RANK_COLORS).map(([k, c]) => swatch(c, k)).join('')}${swatch(UNRANKED, '新規・不明')}
+  <b class="font-bold">枠線＝状態</b>${edgeSwatch('3px solid #475569', '実線：確定済み')}${edgeSwatch('3px dashed #475569', '点線：仮確定（未確定）')}${edgeSwatch('4px double #d97706', '橙の二重線：確定から仮確定に戻った')}</span>`;
+
 function blockHtml(b, selId, byId, att) {
   const off = att && inOffTime(att, b.start, b.end); // 休みと重なっている予定（あとから休みになった場合など）。配車係が動かして直す
   const offCls = off ? 'outline outline-2 outline-dashed outline-rose-500' : '';
   const top = topOf(b.start);
   const height = topOf(b.end) - top - 1;
   if (b.source !== 'reservation') { // 鑑定士のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
-    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls}" style="top:${top}px;height:${height}px" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の鑑定士・時間に動かせます`)}"><b>確 ${esc(b.label)}</b>${customerMarks(profileOf(b.ev?.customer))} ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
+    return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] ${offCls}" style="top:${top}px;height:${height}px;${boardBlockStyle(profileOf(b.ev?.customer)?.rank, 'confirmed')}" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の鑑定士・時間に動かせます`)}"><b>確 ${esc(b.label)}</b>${customerMarks(profileOf(b.ev?.customer))} ${hhmm(b.start)}–${hhmm(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
-  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)} ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
+  return `<div class="absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1 text-[10px] leading-[1.15] ${offCls} ${selId === b.rid ? 'ring-2 ring-amber-300' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(profileOf(r?.customer)?.rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${hhmm(b.start)}–${hhmm(b.end)} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
     <b>${off ? '⚠休み ' : ''}${blockMark(b)}${esc(b.label)}</b>${genderMark(r?.gender)}${custRankMark(profileOf(r?.customer))}${customerMarks(profileOf(r?.customer), { rank: false })} ${hhmm(b.start)}–${hhmm(b.end)}${r ? `<br /><span class="opacity-90">${esc(r.customer.address)}</span>` : ''}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-slate-900" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
@@ -183,7 +191,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(7.5rem,1fr));min-width:${2.25 + cols.length * 7.5}rem`;
   const head = cols.map((c) => {
     const t = c.mine.filter(isTentative).length;
-    return `<div class="border-b bg-slate-50 px-1 py-0.5 text-center"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id))}
+    return `<div class="border-b px-1 py-0.5 text-center" style="${staffHeadStyle(rankOfUser(c.user.id))}"><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(rankOfUser(c.user.id))}
       ${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] text-slate-500">${c.absent ? '0件' : `${c.mine.length}件${t ? `（仮${t}）` : ''}`}</div>${c.travel.legs.length ? `<div class="text-[10px] ${c.travel.km >= 40 ? 'font-bold text-amber-800' : 'text-slate-700'}" title="その日の訪問から訪問への移動の合計（概算）">移動距離・時間：${c.travel.km}km・約${c.travel.min}分</div>` : ''}</div>`;
   }).join('');
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
@@ -239,7 +247,7 @@ export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka',
         <button class="b b-pri ml-auto" data-fixall ${tent ? '' : 'disabled'}>この日の仮確定 ${tent}件を、すべて確定</button></div>
       <div class="border-t px-3 py-1.5 flex flex-wrap items-center gap-2"><span class="text-xs font-bold text-slate-500">エリア</span>
         ${[...AREAS.map((a) => [a.id, a.name]), ['all', '全エリア']].map(([k, t]) => { const n = rows.filter((r) => !isCancelled(r) && (k === 'all' || r.areaId === k)).length; return `<button class="chip ${area === k ? 'on' : ''}" data-barea="${k}">${esc(t)}${n ? `<span class="ml-1 rounded-full bg-slate-500 px-1.5 text-[11px] text-white">${n}</span>` : ''}</button>`; }).join('')}
-        <span class="ml-2">${legendHtml({ want: false })}</span>${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</div>
+        <span class="ml-2">${boardLegendHtml()}</span>${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</div>
       <div class="flex items-start gap-3 px-3 pb-3"><div class="min-w-0 flex-1">${boardHtml({ date, reservations, now, area, selId })}</div>
         ${selId && reservations.some((r) => r.id === selId) ? `<div class="sticky top-0 max-h-[calc(100vh-7rem)] w-[min(26rem,40%)] shrink-0 overflow-y-auto">${boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now)}</div>` : ''}</div>
     </section>

@@ -54,3 +54,12 @@ test('配車確定の帯: お客様の性別の記号（♀・♂）と顧客ラ
   const html = page(null, [rec({ gender: 'f' }), rec({ id: 'R2', userId: 'u02', gender: 'm', start: '10:00', end: '11:00', customer: { name: '佐藤 一郎', phone: '', address: 'x' } })]);
   assert.ok(html.includes('>♀<') && html.includes('>♂<'));
 });
+
+test('配車確定: 帯の色は顧客ランク、見出しの色は鑑定士ランク。状態は枠線。凡例も出す（鑑定士ごとの色分けはしない）', async () => {
+  const { RANK_COLORS } = await import('../src/rankColor.js');
+  const { rankOfUser } = await import('../src/dispatch.js');
+  const h = page(null, [rec({ id: 'T', status: 'tentative' }), rec({ id: 'C', status: 'confirmed', userId: 'u02', start: '10:00', end: '11:00' }), rec({ id: 'V', status: 'tentative', everConfirmed: true, userId: 'u03', start: '16:00', end: '17:00' })]);
+  assert.ok(h.includes('border:3px dashed') && h.includes('border:3px solid') && h.includes('border:4px double #d97706'));
+  assert.ok(h.includes(`border-top:4px solid ${RANK_COLORS[rankOfUser('u01')].fill}`)); // 鑑定士の見出し
+  assert.ok(/色＝ランク/.test(h) && /枠線＝状態/.test(h) && h.includes('橙の二重線'));
+});
