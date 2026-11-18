@@ -166,6 +166,8 @@ export const genderMark = (g) => (GENDER_MARK[g] ? `<i class="ml-0.5 rounded px-
 export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white px-1 text-[10px] font-bold not-italic text-slate-900" title="顧客ランク（資産・売却の見込み）。新規かリピーターかとは別">${esc(p.rank)}</i>` : '<i class="ml-0.5 rounded bg-white/80 px-1 text-[10px] font-bold not-italic text-slate-700" title="顧客ランクが決まっていません">未設定</i>');
 // 新規かリピーターか（ランクとは別の軸）。受付の記録（apType）か、買取の実績で分かる
 export const kindOfRes = (r, p) => (r?.apType === '再' || p?.purchase?.count > 0 ? 'repeat' : 'new');
+// 鑑定士指名（お客様が鑑定士を指名している）。配車確定でも、鑑定士は変えられない
+export const nomMark = (r) => (r?.nominated ? '<i class="ml-0.5 rounded bg-slate-900 px-1 text-[10px] font-bold not-italic text-white" title="鑑定士指名。鑑定士は変えられません（時間は変えられます）">指名</i>' : '');
 export const kindMark = (kind) => `<i class="ml-0.5 rounded border border-white/70 px-1 text-[10px] font-bold not-italic" title="${kind === 'repeat' ? '買取の実績があるお客様' : '買取の実績がない、初めてのお客様'}">${kind === 'repeat' ? '再訪' : '新規'}</i>`;
 
 // 帯の色＝顧客ランク、鑑定士の見出しの色＝鑑定士ランク（同じ色）。状態は枠線
@@ -195,7 +197,7 @@ function blockHtml(b, selId, byId, att) {
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
   const p = profileOfRes(r);
-  const marks = `${genderMark(r?.gender)}${custRankMark(p)}${kindMark(kindOfRes(r, p))}${customerMarks(profileOf(r?.customer), { rank: false })}`;
+  const marks = `${genderMark(r?.gender)}${custRankMark(p)}${kindMark(kindOfRes(r, p))}${nomMark(r)}${customerMarks(profileOf(r?.customer), { rank: false })}`;
   return `<div class="${base} ${offCls} ${selId === b.rid ? 'z-20 outline outline-4 outline-slate-900 ring-4 ring-amber-300 shadow-2xl' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(p.rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${time} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
     ${blockBody({ mark: `${off ? '⚠休み ' : ''}${blockMark(b)}`, name: b.label, marks, time, place: r?.customer.address, pr: tent ? 'pr-9' : '' })}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-slate-900" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
@@ -245,7 +247,7 @@ function boardDetailHtml(r, reservations, now) {
     ${visitFieldsHtml({ userId: r.userId, date: r.date, start: minOf(r.start), end: minOf(r.end), name: r.customer.name, place: r.customer.address }, r, { staff: false })}
     ${detailSection('お客様の実績・評価', `<div class="space-y-1">${customerProfileHtml({ ...profileOfRes(r), purchase: { ...profileOfRes(r).purchase, count: kindOfRes(r, profileOfRes(r)) === 'repeat' ? Math.max(1, profileOfRes(r).purchase.count) : 0 } }, { advice: true })}
       <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">お客様の詳細（買取履歴・評価・これまでの担当）</button></div></div>`)}
-    ${detailSection('担当と移動', `<div class="space-y-1"><div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}</div>
+    ${detailSection('担当と移動', `<div class="space-y-1"><div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}${nomMark(r)}</div>${r.nominated ? '<div class="text-[11px] text-slate-600">お客様の鑑定士指名のため、鑑定士は変えられません（時間は変えられます）</div>' : ''}
       ${travel ? `<div class="text-[11px] leading-tight text-slate-700">${legHtml(travel.prev, 'prev')}${travel.next ? `<br />${legHtml(travel.next, 'next')}` : ''}</div>` : ''}</div>`)}
     ${revertedHtml(r)}</div>`;
 }

@@ -145,7 +145,9 @@ function compute() {
   const confirmed = form.areaId && form.areaAddr === form.address.trim() ? areaById(form.areaId, extraAreas) : null;
   const area = confirmed ?? proposal;
   const here = form.pin ?? (area?.lat != null ? locateAddress(form.address, area) : null); // 今回のお客様の住所の位置（概算）。前の訪問からの距離に使う
-  const full = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here, extraAreas });
+  const full0 = rankCandidates({ gender: form.gender, areaId: area?.id ?? null, date: form.date, start: form.start, dur: form.dur, reservations, here, extraAreas });
+  const nominee = editId ? loadReservations().find((r) => r.id === editId && r.nominated)?.userId ?? null : null; // 鑑定士指名の予約の変更は、同じ鑑定士のまま（時間だけ変えられる）
+  const full = nominee ? { inArea: full0.inArea.filter((c) => c.user.id === nominee), others: full0.others.filter((c) => c.user.id === nominee) } : full0;
   // 鑑定士の絞り込み。絞ったときは、表示している鑑定士の中で、おすすめ（担当が最も少ない人）を決め直す
   const staffSel = calStaff.filter((id) => full.inArea.some((c) => c.user.id === id));
   const shownIn = full.inArea.filter((c) => !staffSel.length || staffSel.includes(c.user.id)).map((c) => ({ ...c, recommended: false }));
@@ -669,6 +671,7 @@ document.addEventListener('click', (e) => {
   else if ('genderest' in d) { form = { ...form, genderEst: !form.genderEst }; refresh(); }
   else if (d.chirashi) { form = { ...form, chirashi: Number(d.chirashi), flyerId: '' }; refresh(); }
   else if (d.cat) { form = { ...form, cats: form.cats.includes(d.cat) ? form.cats.filter((c) => c !== d.cat) : [...form.cats, d.cat] }; refresh(); }
+  else if ('nom' in d) { form = { ...form, nominated: !form.nominated }; render(); }
   else if (d.yn) { const [k, v] = d.yn.split('|'); const on = form[k] !== v; form = { ...form, [k]: on ? v : '', ...(k === 'companion' && !(on && v === 'あり') ? { companionNote: '' } : {}) }; refresh(); }
   else if (d.dur) { form = { ...form, dur: Number(d.dur) }; refresh(); }
   else if (d.cell) { const [date, start] = d.cell.split('|'); form = { ...form, date, start: Number(start), whenAsked: true }; refresh(); }

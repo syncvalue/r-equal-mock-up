@@ -335,6 +335,7 @@ export function salesDetail({ userId, date, start, dur, reservations, here = nul
 
 // 配車係が、予約を別の鑑定士・別の時刻に動かせるか。動かす予約自身は、重なりに数えない。同じ日の中で動かす
 export function canPlace(rec, userId, start, reservations, now = new Date()) {
+  if (rec.nominated && rec.userId && userId !== rec.userId) return { ok: false, reason: '鑑定士指名のため、鑑定士は変えられません（時間は変えられます）' }; // お客様が鑑定士を指名している予約
   const end = start + (toMin(rec.end) - toMin(rec.start));
   if (start < WORK_START || end > WORK_END) return { ok: false, reason: '営業時間外' };
   const att = attendanceOf(userId, rec.date, now);

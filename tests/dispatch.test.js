@@ -372,3 +372,18 @@ test('ダミーの訪問先は、実在する場所（駅・城・市役所な�
     for (const b of busyBlocks(u, '2026-10-22', [], new Date(2026, 9, 21, 9, 0)).filter((x) => x.source === 'dummy')) assert.ok(names.some((n) => b.place.startsWith(n)), `${b.place} は実在の場所の住所ではない`);
   }
 });
+
+test('鑑定士指名の予約: 同じ鑑定士で時間を変えるのは可。別の鑑定士へは動かせない。指名でなければ、どちらも可', () => {
+  const day = '2026-10-26';
+  const now = new Date(2026, 9, 21, 9, 0);
+  const mk = (o) => ({ id: 'N1', date: day, start: '10:00', end: '11:00', ...o });
+  const slot = (u) => [600, 660, 720, 780, 840, 900].find((s) => canPlace(mk({ userId: u }), u, s, [], now).ok);
+  const ids = USERS.map((u) => u.id).filter((id) => slot(id) != null);
+  assert.ok(ids.length >= 2, '空いている鑑定士が2人いない');
+  const [a, b] = ids;
+  assert.equal(canPlace(mk({ userId: a, nominated: true }), a, slot(a), [], now).ok, true); // 同じ鑑定士で時間を変える
+  const moved = canPlace(mk({ userId: a, nominated: true }), b, slot(b), [], now);
+  assert.equal(moved.ok, false);
+  assert.match(moved.reason, /指名/);
+  assert.equal(canPlace(mk({ userId: a }), b, slot(b), [], now).ok, true); // 指名でなければ、別の鑑定士へ動かせる
+});

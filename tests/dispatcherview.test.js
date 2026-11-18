@@ -129,3 +129,9 @@ test('配車確定: 訪問が1件だけの日も、走行距離（0km）を出�
   assert.ok(html(one[0]).includes(`data-routemap="${one[0].id}"`) && /走行距離：0km/.test(html(one[0]).replace(/<[^>]+>/g, '')));
   assert.ok(!html(none[0]).includes(`data-routemap="${none[0].id}"`));
 });
+
+test('配車確定: 鑑定士指名の予約は、帯と詳細に「指名」の印と、鑑定士を変えられない旨を出す。指名でなければ出さない', () => {
+  assert.ok(page(null, [rec({ nominated: true })]).includes('>指名<'));
+  assert.ok(page('R1', [rec({ nominated: true })]).includes('鑑定士は変えられません（時間は変えられます）'));
+  assert.ok(!page('R1', [rec()]).includes('>指名<'));
+});

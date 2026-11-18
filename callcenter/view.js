@@ -213,6 +213,7 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
     ${restHtml}
     <div class="grid grid-cols-3 items-end gap-2">${yn('companion', 'ご同席者', '立ち会う人のほかに、同席する人がいるか')}${yn('parking', '駐車スペース')}${yn('nameplate', '表札')}</div>
     ${f.companion === 'あり' ? inp('companionNote', f.companionNote, { ph: 'ご同席者は誰ですか？（例: ご主人、娘様）' }) : ''}
+    <div><button class="chip ${f.nominated ? 'on' : ''}" data-nom title="お客様が、担当の鑑定士を指名しているとき。選んだ鑑定士で固定され、配車確定でも鑑定士を変えられません（時間は変えられます）">${f.nominated ? '✔ ' : ''}鑑定士指名</button>${f.nominated ? '<span class="ml-1.5 text-[11px] text-slate-600">右のカレンダーで、指名の鑑定士を選んでください（配車確定では変えられません）</span>' : ''}</div>
     <div><div class="text-xs font-bold">前日確認の連絡時間${b('contact')}</div><div class="flex items-center gap-1.5 mt-0.5">${time('contactFrom')}<span>〜</span>${time('contactTo')}</div></div>`);
   const entry = `<section class="bg-white rounded-lg shadow p-3 space-y-2"><div class="grid grid-cols-[1fr_8rem] gap-2">${lbl(`電話番号${b('phone')}`, inp('phone', f.phone, { type: 'tel', ph: '090-0000-0000', extra: 'autofocus' }), { req: true })}${lbl(`顧客ID${helpIcon('お客様を1人に決める番号で、システムが自動で付けます（入力はできません）。\n知っているお客様は、電話番号から自動で出ます。新しいお客様は、受付を確定するときに採番されます。')}`, `<input class="inp mt-0.5 bg-slate-100 text-slate-700" value="${esc(f.customerId)}" placeholder="新規（自動）" readonly tabindex="-1" data-customer-id />`)}</div>${f.phone ? '' : demoPhonesHtml()}<div id="hint" class="empty:hidden space-y-2"></div></section>`;
   const body = stage === 'new' ? `${flyerSec}${wantsSec}${customer}${when}${notes}`

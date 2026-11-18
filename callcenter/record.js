@@ -13,6 +13,7 @@ export function buildRecordFields(form, { area, pos }) {
   return {
     date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur),
     customerRank: ['SS', 'S', 'A', 'B'].includes(form.customerRank) ? form.customerRank : null, // 受付で付けた顧客ランク（推測）。登録・買取の実績から決まるランクがあれば、そちらを優先する
+    nominated: Boolean(form.nominated), // 鑑定士指名（お客様が鑑定士を指名している。配車確定で、鑑定士は変えられない）
     gender: form.gender, areaId: area?.id ?? null, lat: (pos ?? area)?.lat ?? 0, lng: (pos ?? area)?.lng ?? 0,
     flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyer),
     hearing: {
@@ -53,7 +54,7 @@ export function formFromRecord(r, blank) {
       };
     })();
   return {
-    ...base, address: r.customer.address, gender: r.gender, areaId: r.areaId, areaAddr: r.customer.address, userId: r.userId,
+    ...base, address: r.customer.address, gender: r.gender, areaId: r.areaId, areaAddr: r.customer.address, userId: r.userId, ...(r.nominated ? { nominated: true } : {}),
     date: r.date, start: toMin(r.start), dur: toMin(r.end) - toMin(r.start), whenAsked: true,
   };
 }
