@@ -1,4 +1,6 @@
 // マスタ管理画面（ダミー・PC想定）。社員・営業所・倉庫・委託先の一覧、登録・変更、有効/無効。
+import { setStaffRank, clearStaffRanks } from '../src/staffRank.js';
+import { rankOfUser } from '../src/dispatch.js';
 import { setScreenBadge, masterScreenId } from '../src/screenIds.js';
 import { EMPLOYEES_KEY, DEFAULT_EMPLOYEES, loadEmployees, saveEmployees, saveEmployee, setEmployeeActive, isReadOnlyRole } from '../src/employees.js';
 import { DEPARTMENTS_KEY, DEFAULT_DEPARTMENTS, loadDepartments, saveDepartments, saveDepartment, setDepartmentActive, activeDepartments, defaultDepartmentOf } from '../src/departments.js';
@@ -176,6 +178,11 @@ const CLICK = {
   new: () => setUi('employees', { form: blankForm(ui.employees.role && !isReadOnlyRole(ui.employees.role) ? ui.employees.role : 'operator') }),
   edit: (v) => setUi('employees', { form: formFromEmployee(employees.find((u) => u.id === v)) }),
   toggle: toggleUser,
+  rankSave: (id) => { // 鑑定士のランクを変更する（変更のたびに、変遷を残す）
+    const rank = document.querySelector(`[data-rank-sel="${id}"]`)?.value;
+    const r = setStaffRank(id, rank, { by: 'マスタ管理', base: rankOfUser(id) });
+    if (!r.ok) alert(r.reason);
+  },
   save: saveUserForm,
   cancel: () => setUi('employees', { form: null }),
   mdSave: saveDepartmentForm,
@@ -209,6 +216,7 @@ const CLICK = {
     saveDepartments(DEFAULT_DEPARTMENTS); departments = DEFAULT_DEPARTMENTS;
     saveOffices(DEFAULT_OFFICES); offices = DEFAULT_OFFICES;
     saveStores(DEFAULT_STORES); stores = DEFAULT_STORES;
+    clearStaffRanks();
     try { localStorage.removeItem('rq-mock-trips'); } catch { /* 消せなくても動作は継続（モック） */ }
     trips = loadCurrentTrips();
     commitWh({ ...DEFAULT_MASTER, staff: undefined });

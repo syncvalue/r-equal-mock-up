@@ -21,3 +21,12 @@ test('メニューのバッジは、項目名・説明の下に、折り返し�
   assert.ok(!html.includes('flex flex-col items-end gap-1'));
   assert.match(html, /<span class="flex-1 min-w-0"><span class="block font-bold text-lg leading-tight">訪問カレンダー<\/span><span class="text-xs text-slate-300">[^<]*<\/span><span class="flex flex-wrap gap-1 mt-1\.5">.*前日確認 未10.*変更 2/);
 });
+
+test('受付の入力欄に、顧客ランク（推測）の選択がある。SS・S・A・Bと未設定', async () => {
+  const { blankForm } = await import('../callcenter/form.js');
+  assert.equal(blankForm().customerRank, '');
+  const { formHtml } = await import('../callcenter/view.js');
+  const html = formHtml({ ...blankForm(), phone: '09012345678' }, '2026-10-26', [], { stage: 'new' });
+  assert.match(html, /data-f="customerRank"/);
+  for (const r of ['SS', 'S', 'A', 'B']) assert.ok(html.includes(`<option value="${r}"`), r);
+});

@@ -171,6 +171,9 @@ export function formHtml(f, today, list = [], { stage = 'new', part = 'all' } = 
       <input class="inp !w-16" data-f="age" value="${esc(f.age)}" placeholder="62" inputmode="numeric" /><span class="text-xs">歳</span>
       <span class="text-xs text-slate-500 ml-1" title="年齢を聞けない場合は、声から推測した年代を選びます">推測</span>
       <select class="inp !w-auto" data-f="ageEst" title="年齢を聞けない場合は、声から推測した年代を選びます"><option value="">（年代を選ぶ）</option>${AGE_BANDS.map((a) => `<option ${f.ageEst === a ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
+    <div class="flex items-center gap-2" title="お客様の資産・売却の見込み。実績のない新規のお客様でも、住所や話し方から推測して入れます。配車係があとから直せます">
+      <span class="text-xs font-bold shrink-0">顧客ランク<span class="font-normal text-slate-500">（推測）</span></span>
+      <select class="inp !w-auto" data-f="customerRank"><option value="" ${f.customerRank ? '' : 'selected'}>（未設定）</option>${['SS', 'S', 'A', 'B'].map((r) => `<option value="${r}" ${f.customerRank === r ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
     <div class="grid grid-cols-3 gap-2">
       ${lbl(`郵便番号${b('zip')}`, inp('zip', f.zip, { ph: '545-6016' }))}
       ${lbl(`訪問先の住所${b('address')}`, `<div class="flex gap-1">${inp('address', f.address, { ph: '大阪府大阪市阿倍野区…' })}<button class="b b-sec mt-0.5 shrink-0 !px-2" data-mapview title="右の画面を、地図に切り替える">地図</button></div>`, { req: true, cls: 'col-span-2' })}

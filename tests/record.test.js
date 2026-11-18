@@ -75,3 +75,15 @@ test('顧客ID: 記録に残り、変更用の入力に戻る。IDのない古�
   const old = { id: 'o', userId: 'u02', date: '2026-10-26', start: '10:00', end: '11:30', gender: 'm', areaId: 'osaka', hearing: {}, customer: { name: '田中 太郎', kana: 'タナカ タロウ', phone: '090-0000-1111', address: '大阪府堺市1-1', zip: '' } };
   assert.equal(formFromRecord(old, blank()).customerId, '');
 });
+
+test('受付で付けた顧客ランク（推測）: SS・S・A・Bだけを記録に残す。入れなければ null。ランクの変更は、日時の変更として数えない', () => {
+  assert.equal(rec({ ...filled, customerRank: 'SS' }).customerRank, 'SS');
+  assert.equal(rec({ ...filled, customerRank: 'B' }).customerRank, 'B');
+  assert.equal(rec(filled).customerRank, null); // 入れていない
+  assert.equal(rec({ ...filled, customerRank: '' }).customerRank, null);
+  assert.equal(rec({ ...filled, customerRank: 'C' }).customerRank, null); // 古いランクの値は、受け付けない
+  const before = rec({ ...filled, customerRank: 'A' });
+  const after = rec({ ...filled, customerRank: 'SS' });
+  assert.deepEqual(diffRecords(before, { ...before, ...after }), []); // ランクを直しても、確定の訪問を、仮確定に戻さない
+  assert.equal(formFromRecord(before, blank()).customerRank, 'A'); // 変更のとき、入力欄に戻る
+});

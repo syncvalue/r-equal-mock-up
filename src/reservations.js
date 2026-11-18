@@ -97,6 +97,7 @@ export function reservationToEvent(r, now = new Date()) {
     id: r.id, userId: r.userId, day: dayOffset(r.date, now), start: r.start, end: r.end,
     receptionNo: r.receptionNo, receivedAt: r.receivedAt, operator: r.operator, apType: r.apType,
     items: r.hearing.wants, memo: r.hearing.notes, lat: r.lat, lng: r.lng, hearing: r.hearing,
+    confirmCalls: r.confirmCalls ?? [], confirmClosed: r.confirmClosed ?? null, // 前日確認の記録（お客様から告げられたことを、鑑定士が訪問前に読めるように。読むだけ）
     customer: { name: r.customer.name, kana: r.customer.kana, phone: r.customer.phone, phone2: r.customer.phone2 ?? '', zip: r.customer.zip, address: r.customer.address, occupation: '', birth: '' },
   };
 }

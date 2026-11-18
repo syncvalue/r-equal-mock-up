@@ -12,6 +12,7 @@ export function buildRecordFields(form, { area, pos }) {
   const flyer = flyerOf(form.flyerId)?.id;
   return {
     date: form.date, start: minToHHMM(form.start), end: minToHHMM(form.start + form.dur),
+    customerRank: ['SS', 'S', 'A', 'B'].includes(form.customerRank) ? form.customerRank : null, // 受付で付けた顧客ランク（推測）。登録・買取の実績から決まるランクがあれば、そちらを優先する
     gender: form.gender, areaId: area?.id ?? null, lat: (pos ?? area)?.lat ?? 0, lng: (pos ?? area)?.lng ?? 0,
     flyerId: form.flyerId ? normalizeFlyerId(form.flyerId) : null, chirashi: triggerText(form.chirashi, flyer),
     hearing: {

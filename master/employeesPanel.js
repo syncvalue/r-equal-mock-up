@@ -2,7 +2,9 @@
 import { ROLES, roleLabel, isReadOnlyRole, filterEmployees, countByRole } from '../src/employees.js';
 import { departmentName, defaultDepartmentOf, COMPANY } from '../src/departments.js';
 import { GROUPS } from '../src/dashboard.js';
-import { areaById, areaOfUser } from '../src/dispatch.js';
+import { areaById, areaOfUser, rankOfUser } from '../src/dispatch.js';
+import { RANK_VALUES, staffRankHistoryText } from '../src/staffRank.js';
+import { rankBadgeStyle } from '../src/rankColor.js';
 import { esc } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
 import { storeLabel, storeNameOf } from '../src/stores.js';
@@ -20,9 +22,12 @@ const groupName = (id) => GROUPS.find((g) => g.id === id)?.name ?? id;
 const officeShort = (userId) => areaById(areaOfUser(userId))?.name.replace('エリア', '') ?? '所属不明';
 const badge = (cls, label) => `<span class="rounded-full px-2 py-0.5 text-xs font-bold ${cls}">${esc(label)}</span>`;
 
+// 鑑定士のランクの札（ランクの色。鑑定士・顧客とも同じ色）
+const rankMark = (userId) => { const r = rankOfUser(userId); return r ? `<span class="rounded px-1.5 py-0.5 text-xs font-bold" style="${rankBadgeStyle(r)}" title="鑑定士のランク">${esc(r)}</span>` : ''; };
+
 // 役割ごとの、所属・担当の表示
 function belongs(u, warehouses, stores) {
-  if (u.role === 'sales') return `${esc(groupName(u.groups?.[0]))} ／ ${esc(officeShort(u.id))}営業所${u.leader ? ` ${badge('bg-slate-100 text-slate-900', 'グループリーダー')}` : ''}`;
+  if (u.role === 'sales') return `${esc(groupName(u.groups?.[0]))} ／ ${esc(officeShort(u.id))}営業所${u.leader ? ` ${badge('bg-slate-100 text-slate-900', 'グループリーダー')}` : ''} ${rankMark(u.id)}${staffRankHistoryText(u.id) ? `<div class="text-[11px] text-slate-500">ランクの変遷：${esc(staffRankHistoryText(u.id))}</div>` : ''}`;
   if (u.role === 'warehouse') return esc(warehouses.find((w) => w.id === u.warehouseId)?.name ?? '（所属不明）');
   if (u.role === 'store') return esc(storeNameOf(u.storeId, stores) || '（所属不明）');
   if (u.role === 'appraiser') return `担当 ${(u.groups ?? []).map((g) => esc(groupName(g))).join('・')}`;
@@ -31,8 +36,9 @@ function belongs(u, warehouses, stores) {
 
 function row(u, warehouses, departments, stores) {
   const readOnly = isReadOnlyRole(u.role);
+  const rankOps = u.role === 'sales' ? `<span class="inline-flex items-center gap-1"><select class="inp !w-auto !py-0.5 text-xs" data-rank-sel="${esc(u.id)}" aria-label="ランク">${RANK_VALUES.map((r) => `<option ${r === rankOfUser(u.id) ? 'selected' : ''}>${r}</option>`).join('')}</select><button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-rank-save="${esc(u.id)}" title="鑑定士のランクを変更します。変更のたびに、日付つきで、変遷が残ります">ランクを変更</button></span> ` : '';
   const ops = readOnly
-    ? '<span class="text-xs text-slate-400">参照のみ</span>'
+    ? `${rankOps}<span class="text-xs text-slate-400">${u.role === 'sales' ? 'ほかは参照のみ' : '参照のみ'}</span>`
     : `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-edit="${esc(u.id)}">編集</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-toggle="${esc(u.id)}">${u.active ? '無効にする' : '有効にする'}</button>`;
   return `<tr class="border-b ${u.active ? '' : 'text-slate-400'}"><td class="font-bold">${esc(u.name)}</td><td class="font-mono text-xs">${esc(u.loginId)}</td><td>${esc(departmentName(u.departmentId, departments))}</td><td>${esc(roleLabel(u.role))}</td>
     <td class="!whitespace-normal text-xs">${belongs(u, warehouses, stores)}</td><td>${u.active ? badge('bg-teal-100 text-teal-700', '有効') : badge('bg-slate-200 text-slate-700', '無効')}</td><td>${ops}</td></tr>`;

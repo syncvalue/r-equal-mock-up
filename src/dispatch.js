@@ -1,5 +1,6 @@
 // コールセンターの配車ロジック（画面に依存しない純関数）。
 // 訪問先の住所 → 担当エリア → そのエリアの鑑定士のうち、希望日時に空いている人 → 女性のお客様の担当が偏らないように選ぶ。
+import { RANK_VALUES, currentStaffRank } from './staffRank.js';
 import { USERS, stats, monthProgress, rangeOf } from './dashboard.js';
 import { EVENTS, toMin } from './schedule.js';
 import { dayOffset, minToHHMM, ymdOf, isReverted } from './reservations.js';
@@ -66,8 +67,8 @@ export function dummyCustomerRank(key) {
 
 // 鑑定士ごとのランク（ダミー。SS が最上位。SS・S・A・B の4段階、仮の設定）
 const USER_RANK = { u01: 'A', u02: 'SS', u03: 'S', u04: 'B', u05: 'A', u06: 'SS', u07: 'A', u08: 'B', u09: 'S', u10: 'A', u11: 'S', u12: 'A', u13: 'B', u14: 'A', u15: 'S', u16: 'B' };
-export const RANKS = ['SS', 'S', 'A', 'B'];
-export const rankOfUser = (userId) => USER_RANK[userId] ?? null;
+export const RANKS = RANK_VALUES;
+export const rankOfUser = (userId) => currentStaffRank(userId) ?? USER_RANK[userId] ?? null; // 変更していなければ、見本のランク（変更は、マスタ管理の社員。src/staffRank.js）
 
 // ---- 出勤状況 ------------------------------------------------------------------------
 // 全員が1日中出勤しているとは限らない。休み（終日）の鑑定士は担当に選べない。

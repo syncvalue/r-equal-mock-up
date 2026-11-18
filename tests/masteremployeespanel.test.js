@@ -98,3 +98,13 @@ test('パネル: 描画できる。役割ごとの使う画面の説明がある
   const t = text(usersHtml(base));
   assert.ok(t.includes('社員') && t.includes('鑑定士タブレット') && t.includes('査定部') && t.includes('倉庫・物流'));
 });
+
+test('社員の一覧: 鑑定士の行に、ランクの札と、ランクを変更する操作（選択とボタン）が出る。変遷があれば、変遷も出る。ほかの役割には出ない', async () => {
+  const { listHtml } = await import('../master/employeesPanel.js');
+  const { DEFAULT_EMPLOYEES } = await import('../src/employees.js');
+  const html = listHtml({ employees: DEFAULT_EMPLOYEES, warehouses: [], departments: [], stores: [], ui: { role: '', q: '', status: '', departmentId: '' } });
+  assert.ok((html.match(/data-rank-save="/g) || []).length >= 16); // 鑑定士16名
+  assert.ok(html.includes('data-rank-sel="u01"') && html.includes('ランクを変更') && html.includes('ほかは参照のみ'));
+  const op = DEFAULT_EMPLOYEES.find((u) => u.role === 'operator');
+  assert.ok(!html.includes(`data-rank-save="${op.id}"`));
+});

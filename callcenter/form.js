@@ -5,7 +5,7 @@ import { ymdOf } from '../src/reservations.js';
 export function blankForm(now = new Date()) {
   const tomorrow = ymdOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
   return {
-    customerId: '', phone: '', phone2: '', phone2None: false, name: '', kana: '', gender: '', genderEst: false, age: '', ageEst: '', zip: '', address: '', areaId: null, areaAddr: '',
+    customerId: '', phone: '', phone2: '', phone2None: false, name: '', kana: '', gender: '', genderEst: false, age: '', ageEst: '', customerRank: '', zip: '', address: '', areaId: null, areaAddr: '',
     inquiryType: '電話', adType: '', chirashi: null, flyerId: '', cats: [], mainItems: blankMain(), wants: '', attendee: '', whenAsked: false, large: '', notes: '', companion: '', companionNote: '', parking: '', nameplate: '',
     pin: null, pinAuto: false, contactFrom: '', contactTo: '', date: tomorrow, start: 10 * 60, dur: 90, userId: null,
   };

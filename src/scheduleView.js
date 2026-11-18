@@ -9,7 +9,7 @@ import { legsOf, mapEmbedUrl, mapOpenUrl } from './route.js';
 import { historyOf, customerProfile, declinedList } from './customerHistory.js';
 import { salesCustomerCard, salesDeclinedCard, customerMarks } from './customerProfileView.js';
 import { repeatBadge, pastEvalView } from './customerHistoryView.js';
-import { hearingRows, hearingMeta } from './hearingView.js';
+import { hearingRows, hearingMeta, confirmCallsHtml } from './hearingView.js';
 import { evalOfVisit, evalStatus, pendingEvalCount } from './visitEval.js';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
@@ -127,6 +127,7 @@ function detailPanel(s, evals) {
     </dl>
     <div class="rounded-xl border p-2.5"><div class="font-bold text-sm">受電時のヒアリング</div><div class="text-[11px] text-slate-400">${hearingMeta(e)}</div>
       <dl class="text-sm divide-y">${hearingRows(e, { stack: true })}</dl></div>
+    ${confirmCallsHtml(e)}
     ${visiting && s.visitEventId === e.id
       ? '<button class="btn btn-primary w-full !py-3" data-action="nav" data-value="visit">▶ 訪問に戻る</button>'
       : `${visiting ? '<p class="text-xs text-amber-800 font-bold">別の訪問中です。終了後に開始できます。</p>' : ''}
