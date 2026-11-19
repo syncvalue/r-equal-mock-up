@@ -464,6 +464,20 @@ function mountRoute() {
   }).catch((err) => { const note = $('#route-note'); if (note) note.textContent = `地図を表示できませんでした（${err.message}）`; console.error(err); });
 }
 
+// 配車確定の表が、画面に収まらないとき、右に隠れている鑑定士の人数を、右端に出す
+function updateBoardHint() {
+  const sc = document.querySelector('[data-boardscroll]');
+  const hint = document.querySelector('[data-boardhint]');
+  if (!sc || !hint) return;
+  const col = sc.querySelector('[data-bcol]')?.offsetWidth || 0;
+  const rest = sc.scrollWidth - sc.clientWidth - sc.scrollLeft;
+  const n = col ? Math.ceil(rest / col - 0.1) : 0;
+  hint.hidden = n < 1;
+  if (n >= 1) hint.querySelector('[data-hintn]').textContent = String(n);
+}
+document.addEventListener('scroll', (e) => { if (e.target?.matches?.('[data-boardscroll]')) updateBoardHint(); }, true);
+window.addEventListener('resize', updateBoardHint);
+
 function render() {
   syncHidden();
   const ops = operators();
@@ -489,6 +503,7 @@ function render() {
   if (tab === 'new') { renderDispatch(); renderTranscript(); }
   mountRoute();
   showScreenId();
+  updateBoardHint();
   if (tab === 'calendar' && calSel) document.querySelector(`[data-calrow="${calSel}"]`)?.scrollIntoView({ block: 'start' }); // 日別: 選んだ訪問の詳細まで、右の一覧をスクロールする
 }
 

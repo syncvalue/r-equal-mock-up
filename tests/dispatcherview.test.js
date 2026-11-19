@@ -28,7 +28,7 @@ test('配車確定: 帯を選ぶと、詳細は画面の右側（表の横）に
   assert.ok(sel.includes('data-bclose') && sel.includes('data-fix="R1"') && sel.includes('data-chg="R1"') && sel.includes('data-cancelres="R1"'));
   // 表と詳細は、同じ横並びの行に入っている（表のあとに、詳細。下の段の border-t ではない）
   assert.ok(sel.indexOf('data-bcol') < sel.indexOf('data-bclose'));
-  assert.ok(sel.includes('w-[min(26rem,40%)]') && !sel.includes('<div class="border-t"><div class="space-y-2'));
+  assert.ok(sel.includes('w-[min(22rem,36%)]') && !sel.includes('<div class="border-t"><div class="space-y-2'));
   assert.ok(!page('NOPE').includes('data-bclose')); // 見つからない予約は出さない
 });
 
@@ -91,11 +91,11 @@ test('ダミーのランクは、顧客も鑑定士も、SS・S・A・Bに分か
 
 test('配車確定: 右の詳細エリアは、はじめから確保する。何も選んでいないときは、案内の文を出す（選んだときに、カレンダーが縮まない）', () => {
   const none = page(null);
-  assert.ok(none.includes('w-[min(26rem,40%)]') && none.includes('data-detail-empty'));
+  assert.ok(none.includes('w-[min(22rem,36%)]') && none.includes('data-detail-empty'));
   assert.ok(none.replace(/<[^>]+>/g, ' ').includes('カレンダーの枠をクリックすると、詳細が表示されます'));
   const sel = page('R1');
-  assert.ok(sel.includes('w-[min(26rem,40%)]') && !sel.includes('data-detail-empty')); // 選ぶと、同じ場所に詳細が入る
-  const width = (h) => h.match(/class="sticky top-0[^"]*w-\[min\(26rem,40%\)\][^"]*"/)[0];
+  assert.ok(sel.includes('w-[min(22rem,36%)]') && !sel.includes('data-detail-empty')); // 選ぶと、同じ場所に詳細が入る
+  const width = (h) => h.match(/class="sticky top-0[^"]*w-\[min\(22rem,36%\)\][^"]*"/)[0];
   assert.equal(width(none), width(sel)); // エリアの大きさは、変わらない
 });
 
@@ -159,4 +159,12 @@ test('配車確定: 売りたいものに貴金属がある予約は、帯に「
 test('配車確定の帯: 設定されていない情報（顧客ランク）は、「未設定」と書かず、出さない', () => {
   const html = page(null, [rec({ customerRank: null })]);
   assert.ok(!html.slice(html.indexOf('data-rid')).includes('未設定'));
+});
+
+test('配車確定の表: 列は最小8.5rem（1920×1080で10人が横スクロールなしで収まる幅）。収まらないときの「あと○名」の印を持つ', () => {
+  const html = page(null);
+  assert.match(html, /grid-template-columns:2\.25rem repeat\(\d+,minmax\(8\.5rem,1fr\)\)/);
+  assert.ok(html.includes('data-boardscroll') && html.includes('data-boardhint') && html.includes('data-hintn'));
+  const n = Number(html.match(/repeat\((\d+),minmax/)[1]);
+  assert.match(html, new RegExp(`min-width:${2.25 + n * 8.5}rem`));
 });

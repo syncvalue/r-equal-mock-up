@@ -203,7 +203,7 @@ function blockHtml(b, selId, byId, att) {
   const tent = b.status === 'tentative';
   const p = profileOfRes(r);
   const marks = `${genderMark(r?.gender)}${custRankMark(p)}${kindMark(kindOfRes(r, p))}${metalMark(wantsPreciousMetal(r?.hearing?.wants))}${nomMark(r)}${customerMarks(profileOf(r?.customer), { rank: false })}`;
-  return `<div class="${base} ${offCls} ${selId === b.rid ? 'z-20 outline outline-4 outline-slate-900 ring-4 ring-amber-300 shadow-2xl' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(p.rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${time} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
+  return `<div class="${base} ${offCls} ${selId === b.rid ? 'z-20 outline outline-[3px] outline-offset-[-3px] outline-slate-900 ring-[6px] ring-inset ring-amber-300 shadow-2xl' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(p.rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${time} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
     ${blockBody({ mark: `${off ? '⚠休み ' : ''}${blockMark(b)}`, name: b.label, marks, place: r?.customer.address, pr: tent ? 'pr-9' : '' })}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-slate-900" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
@@ -212,7 +212,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const cols = boardColumns(date, reservations, now, area);
   const byId = Object.fromEntries(reservations.map((r) => [r.id, r]));
   const h = SLOTS * BOARD_ROW;
-  const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(9.5rem,1fr));min-width:${2.25 + cols.length * 9.5}rem`;
+  const grid = `grid-template-columns:2.25rem repeat(${cols.length},minmax(8.5rem,1fr));min-width:${2.25 + cols.length * 8.5}rem`;
   const head = cols.map((c) => {
     return `<div class="flex flex-col border-b px-1 py-0.5 text-center" style="${staffHeadStyle(rankOfUser(c.user.id))}"><div><button class="rounded-full hover:ring-2 hover:ring-teal-400" data-staffinfo="${c.user.id}" title="${esc(c.user.name)}の詳細を見る">${avatarHtml(c.user, 26)}</button><b class="ml-2 mr-1.5 text-xs">${esc(String(c.user.name).trim().split(/[\s　]+/)[0])}</b> ${rankBadge(rankOfUser(c.user.id), { inverse: true })}</div>
       ${c.trips.length ? `<div>${tripTag(c.trips)}</div>` : ''}${c.travel.count >= 1 ? `<div class="mt-auto"><button class="mx-auto mt-0.5 block w-fit rounded bg-white/90 px-1 text-[10px] hover:ring-2 hover:ring-teal-400 ${c.travel.km >= 40 ? 'font-bold text-amber-800' : 'text-slate-700'}" data-routemap="${c.user.id}" title="その日の訪問から訪問への移動の合計（概算）。押すと、訪問の順番とルートを地図で見られます">走行距離：${c.travel.km}km 🗺</button></div>` : ''}</div>`;
@@ -221,7 +221,9 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const body = cols.map((c) => `<div class="relative border-l" data-bcol="${c.user.id}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,rgba(148,163,184,.45) 0,rgba(148,163,184,.45) 6px,rgba(241,245,249,.7) 6px,rgba(241,245,249,.7) 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW}px)`}">
     ${c.blocks.map((b) => blockHtml(b, selId, byId, c.att)).join('')}${legsHtml(c.travel.legs)}${attShade(c.att, BOARD_ROW)}
     ${c.absent ? '<div class="pointer-events-none absolute inset-x-0 top-1 z-20 text-center"><span class="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">休み</span></div>' : ''}</div>`).join('');
-  return `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axis}${body}</div></div>`;
+  // 1920×1080で、10人が横スクロールなしで収まる幅（列8.5rem）。収まらないときは、右端に「あと○名」を出す（callcenter.js の updateBoardHint が、出し入れする）
+  return `<div class="relative"><div class="overflow-x-auto" data-boardscroll><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axis}${body}</div></div>
+    <div hidden data-boardhint class="pointer-events-none absolute bottom-3 right-0 top-0 z-40 w-10 bg-gradient-to-l from-slate-900/25 to-transparent"><span class="absolute right-1 top-24 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-white">あと<span data-hintn></span>名 ▶</span></div></div>`;
 }
 
 // 選んだ予約の詳細と操作（確定・仮に戻す・詳細変更・取消）。前後の訪問からの距離も出す
@@ -272,7 +274,7 @@ export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka',
         ${[...AREAS.map((a) => [a.id, a.name]), ['all', '全エリア']].map(([k, t]) => { const n = rows.filter((r) => !isCancelled(r) && (k === 'all' || r.areaId === k)).length; return `<button class="chip ${area === k ? 'on' : ''}" data-barea="${k}">${esc(t)}${n ? `<span class="ml-1 rounded-full bg-slate-500 px-1.5 text-[11px] text-white">${n}</span>` : ''}</button>`; }).join('')}
         <span class="ml-2">${boardLegendHtml()}</span>${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</div>
       <div class="flex items-start gap-3 px-3 pb-3"><div class="min-w-0 flex-1">${boardHtml({ date, reservations, now, area, selId })}</div>
-        <div class="sticky top-0 max-h-[calc(100vh-7rem)] w-[min(26rem,40%)] shrink-0 overflow-y-auto">${selId && reservations.some((r) => r.id === selId) ? boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now) : detailPlaceholderHtml()}</div></div>
+        <div class="sticky top-0 max-h-[calc(100vh-7rem)] w-[min(22rem,36%)] shrink-0 overflow-y-auto">${selId && reservations.some((r) => r.id === selId) ? boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now) : detailPlaceholderHtml()}</div></div>
     </section>
   </div>`;
 }
