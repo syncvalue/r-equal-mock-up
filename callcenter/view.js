@@ -318,7 +318,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
       ${c.trips?.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] font-bold ${c.absent ? 'text-slate-700' : c.free ? 'text-teal-700' : 'text-rose-700'}">${c.absent ? '休み' : `${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}`}</div></${tag}>`;
   }).join('');
   const axisCol = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: DAY_SLOTS / 2 }, (_, i) => `<span class="absolute right-1 text-[10px] text-slate-400 -translate-y-1/2" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
-  const body = cols.map((c) => {
+  const body = cols.map((c, i) => {
     const slots = Array.from({ length: DAY_SLOTS }, (_, i) => {
       const m = WORK_START + i * SLOT_STEP;
       const free = !c.absent && m + form.dur <= WORK_END && !conflictOf(c.blocks, m, m + form.dur, c.att);
@@ -328,7 +328,9 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
     const sel = c.user.id === selectedId;
     const away = c.absent ? '<div class="absolute inset-0 z-20 flex items-start justify-center pt-1 pointer-events-none"><span class="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">休み</span></div>' : '';
     const want = sel && !c.absent ? `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${c.free ? 'border-teal-600 bg-teal-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"><span class="absolute -top-px right-0 rounded-bl bg-white/80 px-1 text-[9px] font-bold ${c.free ? 'text-teal-700' : 'text-rose-700'}">希望 ${minToHHMM(form.start)}〜</span></div>` : '';
-    return `<div class="relative border-l ${sel ? 'bg-teal-50/60' : ''}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,rgba(148,163,184,.45) 0,rgba(148,163,184,.45) 6px,rgba(241,245,249,.7) 6px,rgba(241,245,249,.7) 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)`}">${slots}${blocks}${attShade(c.att, DAY_ROW)}${away}${want}</div>`;
+    // 担当の鑑定士を選んでいなくて、希望の時間だけ聞いたとき。全鑑定士の列をまたぐ1本の帯にする（誰かの列には出さない）
+    const wide = !selectedId && form.whenAsked ? `<div class="absolute inset-x-0 z-20 pointer-events-none border-y-2 border-dashed border-sky-600 bg-sky-400/20 ${i === 0 ? 'border-l-2' : ''} ${i === cols.length - 1 ? 'border-r-2' : ''}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px">${i === 0 ? `<span class="absolute -top-px left-0 rounded-br bg-white/80 px-1 text-[9px] font-bold text-sky-700 whitespace-nowrap">希望 ${minToHHMM(form.start)}〜（担当未定）</span>` : ''}</div>` : '';
+    return `<div class="relative border-l ${sel ? 'bg-teal-50/60' : ''}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,rgba(148,163,184,.45) 0,rgba(148,163,184,.45) 6px,rgba(241,245,249,.7) 6px,rgba(241,245,249,.7) 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)`}">${slots}${blocks}${attShade(c.att, DAY_ROW)}${away}${want}${wide}</div>`;
   }).join('');
   return `<div class="rounded-lg border bg-white p-1.5">
     <div class="flex items-center justify-between gap-2 mb-1">
