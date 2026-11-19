@@ -1,10 +1,13 @@
 // マーケティング部の画面（ダミー・PC想定）。チラシの登録と、反響管理（どのチラシが効果的だったか）。
 import { setScreenBadge, mktScreenId } from '../src/screenIds.js';
-import { loadFlyers, saveFlyers, saveFlyer, setFlyerActive, flyersOnDay, receptionResult, demoResult } from '../src/flyers.js';
+import { loadFlyers, saveFlyers, saveFlyer, setFlyerActive, advanceFlyer, flyersOnDay, receptionResult, demoResult } from '../src/flyers.js';
+import { dueFlyers } from '../src/flyerDashboard.js';
 import { loadLive } from '../src/store.js';
 import { loadReservations, addReservation, ymdOf } from '../src/reservations.js';
 import { sampleReservations } from '../callcenter/samples.js';
-import { loadEmployees } from '../src/employees.js';
+import { loadEmployees, marketingStaffOf } from '../src/employees.js';
+import { login, loadSession, saveSession, clearSession } from '../src/marketingSession.js';
+import { loginView } from './loginView.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { initHelp } from '../src/help.js';
 import { esc } from '../src/format.js';
@@ -12,6 +15,7 @@ import { tabLabel, menuView } from './menu.js';
 import { flyersTab, blankFlyer, formFromFlyer, REASON_TEXT } from './flyersTab.js';
 import { responseTab } from './responseTab.js';
 import { calendarTab } from './calendarTab.js';
+import { dashboardTab } from './dashboardTab.js';
 import { shiftMonth } from '../src/flyerCalendar.js';
 
 const $ = (s) => document.querySelector(s);
@@ -19,10 +23,11 @@ const today = () => ymdOf(new Date());
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 保存できなくても動作は継続（モック） */ } };
 
-const staff = () => loadEmployees().filter((u) => u.role === 'marketing' && u.active);
-let staffId = pref('rq-mock-mkt-staff', staff()[0]?.id ?? '');
+let me = loadSession(loadEmployees()); // ログインしているマーケティング担当（なければ、ログイン画面）
+let loginError = '';
 let flyers = loadFlyers(today());
-let tab = ['flyers', 'calendar', 'response'].includes(pref('rq-mock-mkt-tab', '')) ? pref('rq-mock-mkt-tab', '') : 'flyers';
+let tab = ['dashboard', 'flyers', 'calendar', 'response'].includes(pref('rq-mock-mkt-tab', '')) ? pref('rq-mock-mkt-tab', '') : 'dashboard';
+let topLimit = 5; // ダッシュボードの、直近3か月の反響の上位の件数
 let menuOpen = false;
 let form = blankFlyer(today());
 let selId = null; // 反響管理で、日ごとの受付を見ているチラシ
@@ -43,18 +48,21 @@ function resultsOf(receptions, visits) {
 }
 
 function render() {
+  me = me ? loadSession(loadEmployees()) : null; // 無効になった人は、ログアウトになる
+  if (!me) { $('#root').innerHTML = loginView(loginError, marketingStaffOf(loadEmployees())); setScreenBadge(mktScreenId({ staff: null })); return; }
   const onToday = flyersOnDay(flyers, today()).length;
-  const body = tab === 'flyers' ? flyersTab({ flyers, form, today: today() }) : tab === 'calendar' ? calendarTab({ flyers, month: calMonth, today: today(), selDay: calDay }) : responseTab({ flyers, receptions: loadReservations(), visits: Object.values(loadLive()), results: resultsOf(loadReservations(), Object.values(loadLive())), selId, mediaFilter, sortBy });
-  const me = staff().find((u) => u.id === staffId) ?? staff()[0];
+  const due = dueFlyers(flyers, today());
+  const dueNow = due.overdue.length + due.today.length; // 本日中に入稿するチラシ（期限切れを含む）
+  const body = tab === 'dashboard' ? dashboardTab({ flyers, receptions: loadReservations(), results: resultsOf(loadReservations(), Object.values(loadLive())), today: today(), topLimit }) : tab === 'flyers' ? flyersTab({ flyers, form, today: today() }) : tab === 'calendar' ? calendarTab({ flyers, month: calMonth, today: today(), selDay: calDay }) : responseTab({ flyers, receptions: loadReservations(), visits: Object.values(loadLive()), results: resultsOf(loadReservations(), Object.values(loadLive())), selId, mediaFilter, sortBy });
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
   <header class="bg-slate-800 text-white px-4 py-2 flex justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰</button>
       <span class="font-bold text-xl">マーケティング部</span><span class="text-slate-500">›</span><span class="font-bold">${tabLabel(tab)}</span></div>
     <div class="text-sm"><span class="text-white/80">今日配布 <b class="text-base text-white">${onToday}</b>件</span>
-      <label class="ml-3 text-xs text-white/80">マーケティング担当 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-staff>${staff().map((u) => `<option class="text-slate-900" value="${esc(u.id)}" ${u.id === me?.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label> ${themeToggleHtml()}</div>
+      <span class="ml-3">${esc(me.name)}</span> ${themeToggleHtml()} <button class="underline text-white/80 text-xs ml-2" data-logout>ログアウト</button></div>
   </header>
-  <main class="flex-1 min-h-0 overflow-y-auto">${body}</main>${menuOpen ? menuView({ tab, badges: { flyers: onToday } }) : ''}</div>`;
-  setScreenBadge(mktScreenId({ tab, selId }));
+  <main class="flex-1 min-h-0 overflow-y-auto">${body}</main>${menuOpen ? menuView({ tab, badges: { dashboard: dueNow, flyers: onToday } }) : ''}</div>`;
+  setScreenBadge(mktScreenId({ staff: me, tab, selId }));
 }
 
 function commit(next) {
@@ -70,6 +78,15 @@ function submitForm() {
   render();
 }
 
+function doLogin() {
+  const r = login(document.querySelector('[data-login-id]').value, document.querySelector('[data-login-pw]').value, loadEmployees());
+  if (!r.ok) { loginError = r.error; return render(); }
+  loginError = '';
+  saveSession(r.staff.id);
+  me = r.staff;
+  render();
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-login-id],[data-login-pw]')) doLogin(); });
 document.addEventListener('input', (e) => {
   const k = e.target.dataset?.f;
   if (k) form = { ...form, [k]: e.target.value }; // 入力中は、画面を作り直さない（入力欄の文字・カーソルを壊さない）
@@ -85,16 +102,19 @@ function readFile(file) {
 document.addEventListener('change', (e) => {
   if (e.target.matches('[data-f="media"]')) { form = { ...form, media: e.target.value }; render(); return; } // 配布方法で、次のIDが変わる
   if (e.target.matches('[data-flyer-file]')) { readFile(e.target.files?.[0]); return; }
-  if (e.target.matches('[data-staff]')) { staffId = e.target.value; setPref('rq-mock-mkt-staff', staffId); }
 });
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button, [data-response-row]');
   if (!t) return;
   const d = t.dataset;
+  if ('login' in d) return doLogin();
+  if ('logout' in d) { clearSession(); me = null; menuOpen = false; return render(); }
   if ('menuOpen' in d) { menuOpen = true; return render(); }
   if ('menuClose' in d) { menuOpen = false; return render(); }
   if (d.tab) { tab = d.tab; menuOpen = false; setPref('rq-mock-mkt-tab', tab); return render(); }
   if ('flyerSave' in d) return submitForm();
+  if (d.flyerAdvance || d.flyerBack) { const id = d.flyerAdvance ?? d.flyerBack; const r = advanceFlyer(flyers, id, d.flyerAdvance ? 1 : -1, today()); if (r.ok) commit(r.flyers); return render(); }
+  if (d.dashTop) { topLimit = Number(d.dashTop); return render(); }
   if (d.calDay) { calDay = d.calDay; return render(); }
   if (d.calMove !== undefined) { calMonth = d.calMove === '0' ? today().slice(0, 7) : shiftMonth(calMonth, Number(d.calMove)); if (d.calMove === '0') calDay = today(); return render(); }
   if ('flyerFileClear' in d) { form = { ...form, file: null }; return render(); }

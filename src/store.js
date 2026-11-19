@@ -121,6 +121,7 @@ export const TRANSFER_KEY = 'rq-mock-transfers';
 export const STORE_VISITS_KEY = 'rq-mock-store-visits';
 export const STORE_DRAFT_KEY = 'rq-mock-store-drafts';
 export const STORE_SESSION_KEY = 'rq-mock-store-session';
+export const MARKETING_SESSION_KEY = 'rq-mock-marketing-session';
 // 店舗のお客様画面（デュアルモニタの2枚目）に、いま出している内容。店舗スタッフが「お客様画面へ反映」を押したときに書く
 export const STORE_CUSTOMER_VIEW_KEY = 'rq-mock-store-customer-view';
 
@@ -132,6 +133,7 @@ export const clearTransactions = () => {
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
   sessionStorage.removeItem('rq-mock-wh-session'); // 倉庫担当のログイン状態も
+  sessionStorage.removeItem(MARKETING_SESSION_KEY);
   sessionStorage.removeItem(STORE_SESSION_KEY); // 店舗スタッフのログイン状態も
 };
 

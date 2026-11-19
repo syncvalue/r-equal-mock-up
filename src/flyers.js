@@ -11,6 +11,18 @@ export const MEDIA = [
 ];
 export const mediaOf = (key) => MEDIA.find((m) => m.key === key) ?? null;
 
+// 進捗（あらかじめ登録して、1件ずつ配布まで進める）。未着手 → 制作中（デザイン）→ 入稿済み → 配布済み
+export const STAGES = [
+  { key: 'plan', label: '未着手' },
+  { key: 'design', label: '制作中' },
+  { key: 'submitted', label: '入稿済み' },
+  { key: 'distributed', label: '配布済み' },
+];
+export const stageLabel = (key) => STAGES.find((x) => x.key === key)?.label ?? '';
+const isStage = (k) => STAGES.some((x) => x.key === k);
+// 進捗がない古い保存は、配布のおわりが過ぎていれば配布済み、そうでなければ入稿済みとして読む
+export const stageOf = (f, today) => (isStage(f.stage) ? f.stage : f.to < today ? 'distributed' : 'submitted');
+
 const pad2 = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 export const shiftDay = (day, n) => {
@@ -21,14 +33,18 @@ const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // 初期値（ダミー）。受付で使っているチラシID（N1012・N1019・P1015・D1001）と、今日配布のチラシ
 export function defaultFlyers(today) {
-  const f = (id, media, name, adType, area, from, to, quantity, cost) => ({ id, name, media, adType, area, from, to, quantity, cost, note: '', active: true });
+  const f = (id, media, name, adType, area, from, to, quantity, cost, stage = 'distributed', deadline = '') => ({ id, name, media, adType, area, from, to, quantity, cost, note: '', stage, deadline, file: null, active: true });
   return [
     f('N1012', 'newspaper', '10/12号 背広・婦人服', '背広', '大阪府（北摂・大阪市）', shiftDay(today, -38), shiftDay(today, -38), 32000, 160000),
     f('N1019', 'newspaper', '10/19号 ブランドバッグ・貴金属', '婦人ふく', '大阪府（大阪市・堺市）', shiftDay(today, -31), shiftDay(today, -31), 30000, 150000),
     f('P1015', 'posting', '10月 ポスティング（西宮・芦屋）', '婦人くつ', '兵庫県（西宮市・芦屋市）', shiftDay(today, -35), shiftDay(today, -33), 6000, 36000),
     f('D1001', 'dm', '再訪のお客様へのはがき', '', '大阪府（過去のお客様）', shiftDay(today, -20), shiftDay(today, -20), 800, 48000),
-    f('N1020', 'newspaper', '今月の折込 着物・骨董', '背広', '大阪府（吹田市・豊中市・箕面市）', today, today, 28000, 140000),
-    f('P1016', 'posting', '京都ポスティング（北区・上京区）', '婦人くつ', '京都府（京都市北区・上京区）', shiftDay(today, -1), shiftDay(today, 1), 5000, 30000),
+    f('N1020', 'newspaper', '今月の折込 着物・骨董', '背広', '大阪府（吹田市・豊中市・箕面市）', today, today, 28000, 140000, 'submitted', shiftDay(today, -4)),
+    f('P1016', 'posting', '京都ポスティング（北区・上京区）', '婦人くつ', '京都府（京都市北区・上京区）', shiftDay(today, -1), shiftDay(today, 1), 5000, 30000, 'submitted', shiftDay(today, -6)),
+    f('N1021', 'newspaper', '来週の折込 貴金属・ブランド', '婦人ふく', '兵庫県（西宮市・尼崎市）', shiftDay(today, 6), shiftDay(today, 6), 26000, 130000, 'design', today), // 入稿期限が今日
+    f('P1017', 'posting', '神戸ポスティング（東灘・灘）', '婦人くつ', '兵庫県（神戸市東灘区・灘区）', shiftDay(today, 4), shiftDay(today, 5), 4500, 27000, 'design', shiftDay(today, -1)), // 入稿期限が過ぎている
+    f('D1002', 'dm', '年末のご案内はがき', '', '大阪府（過去のお客様）', shiftDay(today, 12), shiftDay(today, 12), 900, 54000, 'plan', shiftDay(today, 2)),
+    f('N1022', 'newspaper', '再来週の折込 背広・婦人服', '背広', '大阪府（大阪市・堺市）', shiftDay(today, 13), shiftDay(today, 13), 30000, 150000, 'plan', shiftDay(today, 7)),
   ];
 }
 
@@ -73,7 +89,7 @@ const fileProblem = (f) => (!f || !FILE_TYPES.includes(f.type) || !String(f.data
 
 const fail = (flyers, reason) => ({ ok: false, flyers, reason });
 
-// 登録・更新（id があれば更新）。デザインデータ（file）は、指定しなければ、いまのものを残し、null で外す。reason: noName／dupName／badMedia／noArea／badDate／dateOrder／badQuantity／badCost／badFile／bigFile／notFound／mediaLocked
+// 登録・更新（id があれば更新）。デザインデータ（file）は、指定しなければ、いまのものを残し、null で外す。reason: noName／dupName／badMedia／noArea／badDate／dateOrder／badQuantity／badCost／badDeadline／deadlineOrder／badFile／bigFile／notFound／mediaLocked
 export function saveFlyer(flyers, input) {
   const { id, media, adType, from, to, note } = input;
   const old = id ? flyers.find((f) => f.id === id) : null;
@@ -87,6 +103,9 @@ export function saveFlyer(flyers, input) {
   if (!area) return fail(flyers, 'noArea');
   if (!DAY_RE.test(from ?? '') || !DAY_RE.test(to ?? '')) return fail(flyers, 'badDate');
   if (from > to) return fail(flyers, 'dateOrder');
+  const deadline = String(input.deadline ?? '').trim();
+  if (deadline && !DAY_RE.test(deadline)) return fail(flyers, 'badDeadline');
+  if (deadline && deadline > from) return fail(flyers, 'deadlineOrder');
   const quantity = toInt(input.quantity, NaN);
   if (!Number.isInteger(quantity) || quantity < 1) return fail(flyers, 'badQuantity');
   const cost = toInt(input.cost, 0);
@@ -94,8 +113,18 @@ export function saveFlyer(flyers, input) {
   const file = input.file === undefined ? (old?.file ?? null) : input.file;
   const problem = file && fileProblem(file);
   if (problem) return fail(flyers, problem);
-  const item = { id: id ?? nextFlyerId(flyers, media), name, media, adType: String(adType ?? ''), area, from, to, quantity, cost, note: String(note ?? '').trim(), file: file ? { name: String(file.name ?? ''), type: file.type, size: file.size, dataUrl: file.dataUrl } : null, active: old?.active ?? true };
+  const item = { id: id ?? nextFlyerId(flyers, media), name, media, adType: String(adType ?? ''), area, from, to, quantity, cost, note: String(note ?? '').trim(), deadline, stage: isStage(input.stage) ? input.stage : old?.stage ?? 'plan', file: file ? { name: String(file.name ?? ''), type: file.type, size: file.size, dataUrl: file.dataUrl } : null, active: old?.active ?? true };
   return { ok: true, flyers: old ? flyers.map((f) => (f.id === id ? item : f)) : [...flyers, item] };
+}
+
+// 進捗を1つ進める（dir=1）・戻す（dir=-1）。両端では動かない
+export function advanceFlyer(flyers, id, dir = 1, today = '') {
+  const f = flyers.find((x) => x.id === id);
+  if (!f) return fail(flyers, 'notFound');
+  const i = STAGES.findIndex((x) => x.key === stageOf(f, today));
+  const next = STAGES[i + dir];
+  if (!next) return fail(flyers, 'noMove');
+  return { ok: true, flyers: flyers.map((x) => (x.id === id ? { ...x, stage: next.key } : x)) };
 }
 
 export function setFlyerActive(flyers, id, active) {

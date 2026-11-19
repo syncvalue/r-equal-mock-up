@@ -97,7 +97,7 @@ test('店舗の画面は、描画できる。ログイン前はログイン画�
 test('マーケティング部の画面は、描画できる（チラシの登録・一覧）。反響管理の画面も、見本の受付で描画できる', async () => {
   root.innerHTML = '';
   await import('../marketing/marketing.js');
-  assert.ok(root.innerHTML.includes('マーケティング部') && root.innerHTML.includes('チラシの登録') && root.innerHTML.includes('チラシの一覧') && root.innerHTML.includes('今日配布'));
+  assert.ok(root.innerHTML.includes('マーケティング部') && root.innerHTML.includes('data-login-id') && !root.innerHTML.includes('チラシの登録')); // ログインしていなければ、ログイン画面
   const { responseTab } = await import('../marketing/responseTab.js');
   const { loadFlyers } = await import('../src/flyers.js');
   const { sampleReservations } = await import('../callcenter/samples.js');
@@ -113,4 +113,26 @@ test('マーケティング部の配布カレンダーは、描画できる。�
   const html = calendarTab({ flyers: defaultFlyers('2026-11-19'), month: '2026-11', today: '2026-11-19', selDay: '2026-11-19' });
   assert.ok(html.includes('2026年11月の配布') && html.includes('data-cal-grid') && html.includes('data-cal-day="2026-11-19"') && html.includes('N1020') && html.includes('この日に配布') === false);
   assert.ok(html.includes('2026-11-19 に配布するチラシ') && html.includes('P1016')); // 11/18〜11/20 のポスティング
+});
+
+test('マーケティング部のダッシュボードは、描画できる。本日配布・本日中に入稿・直近3か月の反響の上位・今月・進捗が出る', async () => {
+  const { dashboardTab } = await import('../marketing/dashboardTab.js');
+  const { defaultFlyers } = await import('../src/flyers.js');
+  const { sampleReservations } = await import('../callcenter/samples.js');
+  const flyers = defaultFlyers('2026-11-19');
+  const html = dashboardTab({ flyers, receptions: sampleReservations(new Date(2026, 10, 19)), results: {}, today: '2026-11-19', topLimit: 3 });
+  for (const k of ['data-tile="today"', 'data-tile="due"', 'data-tile="calls"', 'data-tile="profit"', 'data-today-list', 'data-due', 'data-top', 'data-stages', '直近3か月の反響 上位3件']) assert.ok(html.includes(k), k);
+  assert.ok(html.includes('N1021') && html.includes('P1017')); // 本日が期限のチラシと、期限が過ぎたチラシ
+  assert.ok(html.includes('data-flyer-advance="N1021"') && html.includes('期限切れ'));
+});
+
+test('マーケティング部のダッシュボードは、描画できる。本日配布・本日中に入稿・直近3か月の反響の上位・今月・進捗が出る', async () => {
+  const { dashboardTab } = await import('../marketing/dashboardTab.js');
+  const { defaultFlyers } = await import('../src/flyers.js');
+  const { sampleReservations } = await import('../callcenter/samples.js');
+  const flyers = defaultFlyers('2026-11-19');
+  const html = dashboardTab({ flyers, receptions: sampleReservations(new Date(2026, 10, 19)), results: {}, today: '2026-11-19', topLimit: 3 });
+  for (const k of ['data-tile="today"', 'data-tile="due"', 'data-tile="calls"', 'data-tile="profit"', 'data-today-list', 'data-due', 'data-top', 'data-stages', '直近3か月の反響 上位3件']) assert.ok(html.includes(k), k);
+  assert.ok(html.includes('N1021') && html.includes('P1017')); // 本日が期限のチラシと、期限が過ぎたチラシ
+  assert.ok(html.includes('data-flyer-advance="N1021"') && html.includes('期限切れ'));
 });

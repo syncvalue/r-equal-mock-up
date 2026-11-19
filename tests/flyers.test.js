@@ -24,7 +24,7 @@ test('登録: ID（頭文字＋4桁）はシステムが採番する。配布方
   const posting = make({ media: 'posting', name: 'ポスティング' }, second.flyers);
   assert.equal(posting.flyers.at(-1).id, 'P1001');
   const seeded = F.defaultFlyers(TODAY);
-  assert.equal(F.nextFlyerId(seeded, 'newspaper'), 'N1021'); // 見本に N1012・N1019・N1020 がある
+  assert.equal(F.nextFlyerId(seeded, 'newspaper'), 'N1023'); // 見本に N1012・N1019・N1020・N1021・N1022 がある
 });
 
 test('登録: 理由つきで失敗する（名前・配布方法・エリア・期間・部数・費用）', () => {
@@ -138,12 +138,12 @@ test('受付との連動: マーケティング部が登録したチラシのID�
   mem.clear();
   F.saveFlyers(make({ name: '11/26号 着物・骨董' }, F.defaultFlyers(TODAY)).flyers);
   const { flyerOf, triggerText, flyerChoices } = await import('../callcenter/master.js');
-  const hit = flyerOf(' ｎ-1021 ');
-  assert.deepEqual([hit.id, hit.name, hit.chirashi], ['N1021', '11/26号 着物・骨董', 0]);
-  assert.equal(triggerText(hit.chirashi, 'N1021'), '11/26号 着物・骨董（ID: N1021）');
+  const hit = flyerOf(' ｎ-1023 ');
+  assert.deepEqual([hit.id, hit.name, hit.chirashi], ['N1023', '11/26号 着物・骨董', 0]);
+  assert.equal(triggerText(hit.chirashi, 'N1023'), '11/26号 着物・骨董（ID: N1023）');
   assert.equal(flyerOf('N1019').name, '新聞折込チラシ（10/19号）'); // これまでのチラシ（固定の4つ）は、変わらない
   assert.equal(flyerOf('N9999'), null);
-  assert.ok(flyerChoices().some((c) => c.id === 'N1021'));
+  assert.ok(flyerChoices().some((c) => c.id === 'N1023'));
 });
 
 // ---- 買取金額・粗利で測る ----
@@ -224,4 +224,50 @@ test('チラシ→アポ→買取した商品: チラシのIDの受付ごとに�
   const d = F.receptionDetails('N1001', r, v);
   assert.deepEqual(d.map((x) => [x.receptionNo, x.customer, x.items, x.amount]), [['CC-1', '山田 花子', ['ヴィトン バッグ'], 80000], ['CC-2', '佐藤', [], 0]]);
   assert.deepEqual(F.receptionDetails('D1001', r, v), []);
+});
+
+// ---- 進捗（あらかじめ登録して、1件ずつ配布まで進める）----
+test('進捗: 未着手 → 制作中 → 入稿済み → 配布済みの4段階。新しく登録すると、未着手', () => {
+  assert.deepEqual(F.STAGES.map((x) => [x.key, x.label]), [['plan', '未着手'], ['design', '制作中'], ['submitted', '入稿済み'], ['distributed', '配布済み']]);
+  assert.equal(make().flyers[0].stage, 'plan');
+  assert.equal(make({ stage: 'design' }).flyers[0].stage, 'design'); // すでに進んでいるものを登録してもよい
+  assert.equal(make({ stage: 'nope' }).flyers[0].stage, 'plan');
+});
+
+test('進捗: 更新のとき、指定しなければ、いまの進捗を残す', () => {
+  const base = make({ stage: 'design' }).flyers;
+  assert.equal(F.saveFlyer(base, { ...input, id: 'N1001' }).flyers[0].stage, 'design');
+  assert.equal(F.saveFlyer(base, { ...input, id: 'N1001', stage: 'submitted' }).flyers[0].stage, 'submitted');
+});
+
+test('進捗: 1つ進める・1つ戻す。両端では動かない。元の配列は変えない', () => {
+  const base = make().flyers;
+  const a = F.advanceFlyer(base, 'N1001', 1);
+  assert.deepEqual([a.ok, a.flyers[0].stage, base[0].stage], [true, 'design', 'plan']);
+  assert.equal(F.advanceFlyer(a.flyers, 'N1001', -1).flyers[0].stage, 'plan');
+  assert.equal(F.advanceFlyer(base, 'N1001', -1).reason, 'noMove');
+  const end = [{ ...base[0], stage: 'distributed' }];
+  assert.equal(F.advanceFlyer(end, 'N1001', 1).reason, 'noMove');
+  assert.equal(F.advanceFlyer(base, 'X', 1).reason, 'notFound');
+});
+
+test('進捗: 古い保存（進捗なし）は、配布のおわりが過ぎていれば配布済み、そうでなければ入稿済みとして読む', () => {
+  assert.equal(F.stageOf({ ...input, to: '2026-11-18' }, TODAY), 'distributed');
+  assert.equal(F.stageOf({ ...input, to: '2026-11-19' }, TODAY), 'submitted');
+  assert.equal(F.stageOf({ ...input, stage: 'design', to: '2026-11-01' }, TODAY), 'design'); // 進捗があれば、そのまま
+});
+
+test('入稿期限: 任意。日付の形で、配布のはじめの日より後にはできない', () => {
+  assert.equal(make({ deadline: '2026-11-17' }).flyers[0].deadline, '2026-11-17');
+  assert.equal(make({ deadline: '' }).flyers[0].deadline, '');
+  assert.equal(make({ deadline: '11/17' }).reason, 'badDeadline');
+  assert.equal(make({ deadline: '2026-11-20' }).reason, 'deadlineOrder'); // 配布は 11/19
+});
+
+test('見本: 配布前の予定（未着手・制作中）と、入稿期限が今日・過ぎているものがある', () => {
+  const l = F.defaultFlyers(TODAY);
+  assert.ok(l.some((f) => f.stage === 'plan') && l.some((f) => f.stage === 'design'));
+  assert.ok(l.some((f) => f.deadline === TODAY && ['plan', 'design'].includes(f.stage)));
+  assert.ok(l.some((f) => f.deadline && f.deadline < TODAY && ['plan', 'design'].includes(f.stage)));
+  assert.ok(l.every((f) => !f.deadline || f.deadline <= f.from));
 });
