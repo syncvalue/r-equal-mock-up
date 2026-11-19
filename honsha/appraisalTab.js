@@ -18,21 +18,22 @@ const statusBadge = (s) => `<span class="rounded px-2 py-0.5 text-xs font-bold w
 const changeText = (c) => `${FIELD_LABEL[c.field]}: ${c.field === 'price' ? `${yen(c.from)} → ${yen(c.to)}` : `${esc(c.from)} → ${esc(c.to)}`}`;
 
 // 左: 査定の一覧（査定待ち／確定済み）。選ぶと、読み取ったのと同じ確認の画面が開く
-function listPane({ units, master, filter, code }) {
-  const rows = appraisalQueue(units, master, filter);
+function listPane({ units, master, filter, code, q }) {
+  const rows = appraisalQueue(units, master, filter, q);
   const count = (f) => appraisalQueue(units, master, f).length;
   return `
   <aside class="bg-white border-r overflow-y-auto">
     <div class="p-3 border-b bg-slate-50 space-y-2">
       <div class="flex items-center justify-between"><b>査定の一覧</b>${helpIcon('紫・赤のシールの商品が対象です。鑑定士（一般）が登録した内容を、査定員が確認して確定します。')}</div>
       <div class="flex gap-1">${AP_FILTERS.map(([k, l]) => `<button class="flex-1 rounded border px-2 py-1 text-sm font-bold ${filter === k ? 'bg-teal-700 text-white border-teal-700' : 'bg-white'}" data-ap-filter="${k}">${l} ${count(k)}</button>`).join('')}</div>
+      <input class="inp !py-1.5 text-sm" data-ap-q value="${esc(q)}" placeholder="商品名・シールNo.・お客様で検索" autocomplete="off" />
     </div>
     ${rows.length ? rows.map((u) => `
     <button class="w-full text-left p-3 border-b hover:bg-slate-50 ${u.code === code ? 'bg-slate-100' : ''}" data-ap-open="${esc(u.code)}">
       <div class="flex justify-between items-center gap-2"><b class="truncate">${esc(u.name)}</b>${sealBadge(u)}</div>
       <div class="text-xs text-slate-500">${esc(u.customerName)} 様 ／ 鑑定士 ${esc(staffName(u))} ／ ${esc(u.category)}</div>
       <div class="flex justify-between items-center text-sm mt-1"><span class="font-mono text-xs">${esc(u.code)}</span><span class="font-bold">${yen(u.price)}</span></div>
-    </button>`).join('') : `<div class="p-6 text-slate-400 text-sm space-y-3"><p>${filter === 'pending' ? '査定待ちの商品はありません' : '確定済みの商品はまだありません'}</p>${filter === 'pending' ? '<button class="demo-only" data-ap-demo>デモ用の査定待ちを入れる</button>' : ''}</div>`}
+    </button>`).join('') : `<div class="p-6 text-slate-400 text-sm space-y-3"><p>${q.trim() ? '該当する商品が見つかりません' : filter === 'pending' ? '査定待ちの商品はありません' : '確定済みの商品はまだありません'}</p>${filter === 'pending' && !q.trim() ? '<button class="demo-only" data-ap-demo>デモ用の査定待ちを入れる</button>' : ''}</div>`}
   </aside>`;
 }
 
@@ -82,11 +83,11 @@ function checkPane({ unit, master, ap }) {
   </div>`;
 }
 
-export function appraisalTab({ units, master, filter, ap }) {
+export function appraisalTab({ units, master, filter, ap, q = '' }) {
   const unit = ap.code ? units.find((u) => u.code === ap.code) : null;
   return `
   <div class="grid grid-cols-[22rem_1fr] h-full min-h-0">
-    ${listPane({ units, master, filter, code: ap.code })}
+    ${listPane({ units, master, filter, code: ap.code, q })}
     <main class="p-5 overflow-y-auto space-y-4">
       ${scanPane({ ap })}
       ${unit ? checkPane({ unit, master, ap }) : '<p class="text-slate-400 p-10 text-center">シールを読み取るか、左の一覧から商品を選んでください</p>'}

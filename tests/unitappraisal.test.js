@@ -83,3 +83,19 @@ test('デモ用: 査定待ちの高額品（紫・赤）を足す。二度足し
   assert.ok(added.every((u) => appraisalStatus(u, master) === 'pending'));
   assert.equal(demoAppraisalUnits(once, 'u01', new Date(2026, 10, 19, 12, 0)).length, once.length);
 });
+
+test('一覧の検索: 商品名・シールNo.・お客様の名前で絞り込む（空白は無視、大文字小文字は区別しない）', () => {
+  const l = [unit('RQ-P1', 'purple', { customerName: '中村 恵子' }), unit('RQ-R1', 'red', { name: 'ロレックス', customerName: '小林 正志', at: 500 })];
+  assert.deepEqual(appraisalQueue(l, master, 'pending', 'ロレ').map((u) => u.code), ['RQ-R1']);
+  assert.deepEqual(appraisalQueue(l, master, 'pending', 'rq-p').map((u) => u.code), ['RQ-P1']);
+  assert.deepEqual(appraisalQueue(l, master, 'pending', '中村恵子').map((u) => u.code), ['RQ-P1']);
+  assert.equal(appraisalQueue(l, master, 'pending', '  ').length, 2);
+  assert.equal(appraisalQueue(l, master, 'pending', 'なし').length, 0);
+});
+
+test('デモ用の高額品は、8点前後。鑑定士・お客様がばらける', async () => {
+  const { demoAppraisalUnits } = await import('../src/unitAppraisal.js');
+  const d = demoAppraisalUnits([], 'u01', new Date(2026, 10, 19, 12, 0));
+  assert.ok(d.length >= 8);
+  assert.ok(new Set(d.map((u) => u.customerName)).size >= 4);
+});

@@ -12,9 +12,12 @@ export function appraisalStatus(unit, master) {
 }
 
 // 査定の一覧。filter: 'pending'｜'confirmed'｜'all'（対象外は含めない）。買取の古い順
-export const appraisalQueue = (units, master, filter = 'pending') =>
+// q: 商品名・シールNo.・お客様の名前での絞り込み（空白は無視）
+const squash = (v) => String(v ?? '').replace(/\s+/g, '').toUpperCase();
+export const appraisalQueue = (units, master, filter = 'pending', q = '') =>
   units
     .filter((u) => { const s = appraisalStatus(u, master); return s !== 'none' && (filter === 'all' || s === filter); })
+    .filter((u) => !squash(q) || [u.name, u.code, u.customerName].some((v) => squash(v).includes(squash(q))))
     .sort((a, b) => a.at - b.at);
 
 const normalize = (raw) => String(raw ?? '').trim().toUpperCase();
@@ -74,11 +77,18 @@ const DEMO = [
   { code: 'RQ-RDEMO001', color: 'red', customerName: '小林 正志', item: { id: 'ap-demo-2', name: 'K18 ネックレス（約20g）', category: 'ジュエリー・貴金属', rank: 'B', price: 96000, qty: 1 } },
   { code: 'RQ-RDEMO002', color: 'red', customerName: '小林 正志', item: { id: 'ap-demo-3', name: 'ロレックス デイトジャスト', category: '腕時計', rank: 'B', price: 420000, qty: 1 } },
   { code: 'RQ-PDEMO002', color: 'purple', customerName: '山口 光男', item: { id: 'ap-demo-4', name: '純金 インゴット 100g', category: 'ジュエリー・貴金属', rank: 'S', price: 1280000, qty: 1 } },
+  { code: 'RQ-RDEMO003', color: 'red', customerName: '山口 光男', item: { id: 'ap-demo-5', name: 'K18 ブレスレット（約15g）', category: 'ジュエリー・貴金属', rank: 'A', price: 72000, qty: 1 } },
+  { code: 'RQ-PDEMO003', color: 'purple', customerName: '佐藤 由美', item: { id: 'ap-demo-6', name: 'ミキモト パールネックレス', category: 'ジュエリー・貴金属', rank: 'A', price: 150000, qty: 1 } },
+  { code: 'RQ-RDEMO004', color: 'red', customerName: '佐藤 由美', item: { id: 'ap-demo-7', name: 'オメガ シーマスター', category: '腕時計', rank: 'B', price: 185000, qty: 1 } },
+  { code: 'RQ-RDEMO005', color: 'red', customerName: '高橋 健一', item: { id: 'ap-demo-8', name: 'Pt900 マリッジリング', category: 'ジュエリー・貴金属', rank: 'B', price: 64000, qty: 1 } },
+  { code: 'RQ-PDEMO004', color: 'purple', customerName: '高橋 健一', item: { id: 'ap-demo-9', name: 'カルティエ タンク ソロ', category: '腕時計', rank: 'S', price: 330000, qty: 1 } },
 ];
+// userId: 鑑定士のID（配列なら、順に割り当てる）
 export function demoAppraisalUnits(existing, userId, now = new Date()) {
+  const ids = [].concat(userId);
   const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 16, 30).getTime();
-  return addUnits(existing, DEMO.flatMap((d) => unitsFromVisit({
-    visitId: `V-DEMO-AP-${d.code}`, userId, customerName: d.customerName, at,
+  return addUnits(existing, DEMO.flatMap((d, i) => unitsFromVisit({
+    visitId: `V-DEMO-AP-${d.code}`, userId: ids[i % ids.length], customerName: d.customerName, at,
     slots: [{ key: `${d.item.id}-1`, item: d.item, n: 1 }], labels: { [`${d.item.id}-1`]: d.code }, colors: { [`${d.item.id}-1`]: d.color },
   })));
 }

@@ -33,6 +33,7 @@ const appraiser = () => appraisers().find((a) => a.id === appraiserId) ?? apprai
 const scopeUsers = () => USERS.filter((u) => appraiser().groups.includes(u.group));
 let tab = 'support'; // support（鑑定士サポート）／appraisal（査定）
 let menuOpen = false;
+let apQuery = ''; // 査定の一覧の検索
 let apFilter = 'pending'; // 査定の一覧: pending（査定待ち）／confirmed（確定済み）
 const blankAp = () => ({ raw: '', code: null, name: '', rank: 'A', price: 0, message: null }); // 査定: 読み取った商品と、確認中の内容
 let ap = blankAp();
@@ -337,7 +338,7 @@ function render() {
       <span class="font-bold text-xl">査定部</span><span class="text-slate-500">›</span><span class="font-bold">${tabLabel(tab)}</span></div>
     <div class="text-sm">${supportBar}<label class="ml-3 text-xs text-white/80">査定員 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${appraisers().map((a) => `<option class="text-slate-900" value="${esc(a.id)}" ${a.id === appraiser().id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="demo-only ml-2" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
-  ${tab === 'appraisal' ? `<div class="flex-1 min-h-0">${appraisalTab({ units: loadUnits(), master: loadMaster(), filter: apFilter, ap })}</div>` : supportBody(v, visits, aps, cs, approvals)}${menuOpen ? menuView({ tab, badges }) : ''}${composeModal()}</div>`;
+  ${tab === 'appraisal' ? `<div class="flex-1 min-h-0">${appraisalTab({ units: loadUnits(), master: loadMaster(), filter: apFilter, q: apQuery, ap })}</div>` : supportBody(v, visits, aps, cs, approvals)}${menuOpen ? menuView({ tab, badges }) : ''}${composeModal()}</div>`;
   setScreenBadge(hqScreenId(tab === 'appraisal' ? (ap.code ? { code: ap.code } : null) : sel, tab)); // 画面の隅の、画面ID
   dirty = false;
 }
@@ -418,7 +419,7 @@ function handleAppraisalClick(t) {
   if (t.dataset.apOpen) { openAppraisal(t.dataset.apOpen); return true; }
   if ('apScan' in t.dataset) { openAppraisal(ap.raw); return true; }
   if ('apCam' in t.dataset) { openCamera(); return false; }
-  if ('apDemo' in t.dataset) { if (!saveUnits(demoAppraisalUnits(loadUnits(), USERS[0].id))) alert('保存できませんでした（容量超過）'); return true; }
+  if ('apDemo' in t.dataset) { if (!saveUnits(demoAppraisalUnits(loadUnits(), USERS.map((u) => u.id)))) alert('保存できませんでした（容量超過）'); return true; }
   if ('apConfirm' in t.dataset) { confirmCurrent(); return true; }
   return false;
 }
@@ -473,6 +474,14 @@ document.addEventListener('change', (e) => {
   if (compose && e.target.dataset.m === 'target') compose = { ...compose, target: e.target.value };
 });
 document.addEventListener('input', (e) => {
+  if ('apQ' in e.target.dataset) { // 検索は入力のたびに絞り込む（入力位置は保つ）
+    apQuery = e.target.value;
+    render();
+    const el = document.querySelector('[data-ap-q]');
+    el?.focus();
+    el?.setSelectionRange?.(el.value.length, el.value.length);
+    return;
+  }
   if (e.target.dataset.ap === 'price') { ap = { ...ap, price: formatMoneyInput(e.target) }; return; }
   if (e.target.dataset.ap) { ap = { ...ap, [e.target.dataset.ap]: e.target.value }; return; }
   if (compose && e.target.dataset.m && e.target.dataset.m !== 'target') { compose = { ...compose, [e.target.dataset.m]: e.target.value }; return; }
@@ -488,7 +497,7 @@ window.addEventListener('storage', (e) => {
   if (isEditing()) dirty = true;
   else render();
 });
-const isEditing = () => Boolean(document.activeElement?.dataset?.f || document.activeElement?.dataset?.m || document.activeElement?.dataset?.ap);
+const isEditing = () => Boolean(document.activeElement?.dataset?.f || document.activeElement?.dataset?.m || document.activeElement?.dataset?.ap || document.activeElement?.dataset?.apQ !== undefined);
 document.addEventListener('focusout', () => { if (dirty) setTimeout(() => !isEditing() && render(), 0); });
 
 setInterval(() => {
@@ -497,6 +506,9 @@ setInterval(() => {
   });
 }, 1000);
 
+// 初めて開いたとき、査定待ちの商品が1点もなければ、ダミーを入れる（入れたあとは、確定して空になっても、入れ直さない）
+const AP_SEEDED_KEY = 'rq-mock-hq-ap-seeded';
+if (pref(AP_SEEDED_KEY, '') !== '1' && !appraisalQueue(loadUnits(), loadMaster(), 'all').length && saveUnits(demoAppraisalUnits(loadUnits(), USERS.map((u) => u.id)))) setPref(AP_SEEDED_KEY, '1');
 initTheme();
 initHelp();
 render();
