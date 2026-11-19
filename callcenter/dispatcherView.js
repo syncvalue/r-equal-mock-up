@@ -4,6 +4,7 @@ import { modalBadgeHtml } from '../src/screenIds.js';
 import { visitFieldsHtml, detailSection } from './calendarView.js';
 import { boardBlockStyle, staffHeadStyle, RANK_COLORS, UNRANKED } from '../src/rankColor.js';
 import { esc } from '../src/format.js';
+import { wantsPreciousMetal, PRECIOUS_ADVICE } from '../src/preciousMetal.js';
 import { helpIcon } from '../src/help.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { dayTravel, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, attendanceOf, inOffTime, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
@@ -168,6 +169,8 @@ export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white
 export const kindOfRes = (r, p) => (r?.apType === '再' || p?.purchase?.count > 0 ? 'repeat' : 'new');
 // 鑑定士指名（お客様が鑑定士を指名している）。配車確定でも、鑑定士は変えられない
 export const nomMark = (r) => (r?.nominated ? '<i class="ml-0.5 rounded bg-slate-900 px-1 text-[10px] font-bold not-italic text-white" title="鑑定士指名。鑑定士は変えられません（時間は変えられます）">指名</i>' : '');
+// 売りたいものに貴金属がある（配車係が、ランクの高い鑑定士を当てる判断の材料）
+export const metalMark = (on) => (on ? '<i class="ml-0.5 rounded bg-amber-200 px-1 text-[10px] font-bold not-italic text-amber-900" title="売りたいものに貴金属があります。1円でも高く買い取るため、ランクの高い鑑定士をおすすめします">貴金属</i>' : '');
 export const kindMark = (kind) => `<i class="ml-0.5 rounded border border-white/70 px-1 text-[10px] font-bold not-italic" title="${kind === 'repeat' ? '買取の実績があるお客様' : '買取の実績がない、初めてのお客様'}">${kind === 'repeat' ? '再訪' : '新規'}</i>`;
 
 // 帯の色＝顧客ランク、鑑定士の見出しの色＝鑑定士ランク（同じ色）。状態は枠線
@@ -175,6 +178,7 @@ const swatch = (c, label) => `<span class="inline-flex items-center gap-0.5"><i 
 const edgeSwatch = (border, label) => `<span class="inline-flex items-center gap-0.5"><i class="inline-block h-2.5 w-4 rounded-sm bg-slate-100" style="border:${border}"></i>${label}</span>`;
 export const boardLegendHtml = () => `<span class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-700">
   <b class="font-bold">色＝ランク（帯＝顧客・見出し＝鑑定士）</b>${Object.entries(RANK_COLORS).map(([k, c]) => swatch(c, k)).join('')}${swatch(UNRANKED, '新規・不明')}
+  <b class="font-bold">印</b>${metalMark(true).replace('ml-0.5 ', '')}<span>＝売りたいものに貴金属</span>
   <b class="font-bold">枠線＝状態</b>${edgeSwatch('3px solid #475569', '実線：確定済み')}${edgeSwatch('3px dashed #475569', '点線：仮確定（未確定）')}${edgeSwatch('4px double #0f172a', '黒の二重線：確定から仮確定に戻った')}</span>`;
 
 // 帯の中身は、3段（見やすいように、段ごとに役割を分ける）: ①名前 ②印（性別・ランク・新規／再訪） ③住所（1行）。時間は、左の時間軸で分かるので出さない（ホバーのタイトルには入れる）。1時間の帯（通常）で、3段が見切れない高さにしてある
@@ -191,13 +195,13 @@ function blockHtml(b, selId, byId, att) {
   const base = 'absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1.5 py-px text-[10px]';
   if (b.source !== 'reservation') { // 鑑定士のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
     const prof = profileOf(b.ev?.customer);
-    const marks = `${genderMark(b.gender)}${custRankMark({ rank: prof?.rank ?? b.custRank })}${customerMarks(prof, { rank: false })}`;
+    const marks = `${genderMark(b.gender)}${custRankMark({ rank: prof?.rank ?? b.custRank })}${metalMark(wantsPreciousMetal(b.ev?.items))}${customerMarks(prof, { rank: false })}`;
     return `<div class="${base} ${offCls}" style="top:${top}px;height:${height}px;${boardBlockStyle(prof?.rank ?? b.custRank, 'confirmed')}" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${time} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の鑑定士・時間に動かせます`)}">${blockBody({ mark: '確 ', name: b.label, marks, place: b.place })}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
   const p = profileOfRes(r);
-  const marks = `${genderMark(r?.gender)}${custRankMark(p)}${kindMark(kindOfRes(r, p))}${nomMark(r)}${customerMarks(profileOf(r?.customer), { rank: false })}`;
+  const marks = `${genderMark(r?.gender)}${custRankMark(p)}${kindMark(kindOfRes(r, p))}${metalMark(wantsPreciousMetal(r?.hearing?.wants))}${nomMark(r)}${customerMarks(profileOf(r?.customer), { rank: false })}`;
   return `<div class="${base} ${offCls} ${selId === b.rid ? 'z-20 outline outline-4 outline-slate-900 ring-4 ring-amber-300 shadow-2xl' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(p.rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${time} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
     ${blockBody({ mark: `${off ? '⚠休み ' : ''}${blockMark(b)}`, name: b.label, marks, place: r?.customer.address, pr: tent ? 'pr-9' : '' })}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-slate-900" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
@@ -244,6 +248,7 @@ function boardDetailHtml(r, reservations, now) {
     <div class="flex items-start gap-2"><div class="min-w-0 flex-1"><b class="text-base">${esc(r.customer.name)}</b> 様${genderParen(r.gender)} ${statusBadge(r)}</div>
       <button class="shrink-0 text-lg leading-none text-slate-500 hover:text-slate-900" data-bclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
     ${actions}
+    ${wantsPreciousMetal(r.hearing?.wants) ? `<div data-metal-advice class="rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-900">${metalMark(true).replace('ml-0.5 ', 'mr-1 ')}${esc(PRECIOUS_ADVICE)}</div>` : ''}
     ${visitFieldsHtml({ userId: r.userId, date: r.date, start: minOf(r.start), end: minOf(r.end), name: r.customer.name, place: r.customer.address }, r, { staff: false })}
     ${detailSection('お客様の実績・評価', `<div class="space-y-1">${customerProfileHtml({ ...profileOfRes(r), purchase: { ...profileOfRes(r).purchase, count: kindOfRes(r, profileOfRes(r)) === 'repeat' ? Math.max(1, profileOfRes(r).purchase.count) : 0 } }, { advice: true })}
       <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">お客様の詳細（買取履歴・評価・これまでの担当）</button></div></div>`)}

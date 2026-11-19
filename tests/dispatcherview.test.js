@@ -143,3 +143,14 @@ test('配車確定の帯: 時間は帯の中に出さない（左の時間軸で
   const body = h.split('data-bsel="R1"')[1].split('data-bsel=')[0].replace(/title="[^"]*"/, '');
   assert.ok(!/\d{2}:\d{2}[–-]\d{2}:\d{2}/.test(body), '帯の中に時間がある');
 });
+
+test('配車確定: 売りたいものに貴金属がある予約は、帯に「貴金属」の印、詳細に案内を出す。ないときは出さない。凡例にも載せる', () => {
+  const metal = rec({ hearing: { wants: '貴金属・ジュエリー ／ 指輪 3点' } });
+  assert.ok(page(null, [metal]).includes('>貴金属<'));
+  const detail = page('R1', [metal]);
+  assert.ok(detail.includes('data-metal-advice'));
+  assert.ok(!page('R1', [rec()]).includes('data-metal-advice'));
+  const n = (h) => (h.match(/>貴金属</g) || []).length;
+  assert.equal(n(page(null, [metal])), n(page(null, [rec()])) + 1); // 帯の1つだけ増える（凡例と、元からの予定の印は、同じ）
+  assert.ok(n(page(null, [rec()])) >= 1); // 凡例
+});
