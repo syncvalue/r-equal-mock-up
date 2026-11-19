@@ -32,7 +32,7 @@ function listPane({ units, master, filter, code, q }) {
     <button class="w-full text-left p-3 border-b hover:bg-slate-50 ${u.code === code ? 'bg-slate-100' : ''}" data-ap-open="${esc(u.code)}">
       <div class="flex justify-between items-center gap-2"><b class="truncate">${esc(u.name)}</b>${sealBadge(u)}</div>
       <div class="text-xs text-slate-500">${esc(u.customerName)} 様 ／ 鑑定士 ${esc(staffName(u))} ／ ${esc(u.category)}</div>
-      <div class="flex justify-between items-center text-sm mt-1"><span class="font-mono text-xs">${esc(u.code)}</span><span class="font-bold">${yen(u.price)}</span></div>
+      <div class="flex justify-between items-center text-sm mt-1"><span class="font-mono text-xs">${esc(u.code)}<span class="ml-2 font-sans text-slate-500">買取日 ${esc(u.date)}</span></span><span class="font-bold">${yen(u.price)}</span></div>
     </button>`).join('') : `<div class="p-6 text-slate-400 text-sm space-y-3"><p>${q.trim() ? '該当する商品が見つかりません' : filter === 'pending' ? '査定待ちの商品はありません' : '確定済みの商品はまだありません'}</p>${filter === 'pending' && !q.trim() ? '<button class="demo-only" data-ap-demo>デモ用の査定待ちを入れる</button>' : ''}</div>`}
   </aside>`;
 }
