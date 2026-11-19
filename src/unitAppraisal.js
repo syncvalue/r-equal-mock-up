@@ -34,23 +34,22 @@ export function lookupForAppraisal(units, master, raw) {
   return appraisalStatus(unit, master) === 'none' ? { type: 'notTarget', code, unit } : { type: 'ok', code, unit };
 }
 
-// 訂正の入力チェック（商品名・ランク・1点あたりの金額）。問題なければ ''
-export function editProblem({ name, rank, price }) {
+// 訂正の入力チェック（商品名・ランク）。問題なければ ''。買取金額は、お客様に支払い済みなので、直せない
+export function editProblem({ name, rank }) {
   if (!String(name ?? '').trim()) return 'name';
   if (!RANKS.some((r) => r.value === rank)) return 'rank';
-  if (!Number.isInteger(price) || price < 1) return 'price';
   return '';
 }
 
-const FIELDS = ['name', 'rank', 'price'];
+const FIELDS = ['name', 'rank'];
 
-// 査定を確定する。edits は確認後の商品名・ランク・金額（訂正がなければ、いまの値のまま）。変わった項目は、前→後を記録する
+// 査定を確定する。edits は確認後の商品名・ランク（訂正がなければ、いまの値のまま。金額は変えない）。変わった項目は、前→後を記録する
 export function confirmAppraisal(units, master, raw, { by, at = Date.now(), edits }) {
   const found = lookupForAppraisal(units, master, raw);
   if (found.type !== 'ok') return { units, result: found };
   const unit = found.unit;
   if (appraisalStatus(unit, master) === 'confirmed') return { units, result: { type: 'dup', code: unit.code, unit } };
-  const next = { name: String(edits.name ?? '').trim(), rank: edits.rank, price: edits.price };
+  const next = { name: String(edits.name ?? '').trim(), rank: edits.rank };
   const problem = editProblem(next);
   if (problem) return { units, result: { type: 'bad', problem } };
   const changes = FIELDS.filter((f) => next[f] !== unit[f]).map((f) => ({ field: f, from: unit[f], to: next[f] }));
@@ -66,7 +65,7 @@ export function appraisalMessage(r) {
     case 'notTarget': return { ok: false, text: `${r.code} は、査定の対象外です（紫・赤のシールの商品が対象）` };
     case 'replaced': return { ok: false, text: `${r.code} は、貼り替え済みの古いシールです。新しいシール（${r.newCode}）を読み取ってください` };
     case 'unknown': return { ok: false, text: `${r.code} は、買取商品として登録されていません` };
-    case 'bad': return { ok: false, text: { name: '商品名を入力してください', rank: 'ランクを選んでください', price: '金額は、1円以上の整数で入力してください' }[r.problem] };
+    case 'bad': return { ok: false, text: { name: '商品名を入力してください', rank: 'ランクを選んでください' }[r.problem] };
     default: return { ok: false, text: 'シールNo.を入力してください' };
   }
 }

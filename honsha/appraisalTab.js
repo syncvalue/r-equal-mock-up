@@ -5,17 +5,16 @@ import { RANKS } from '../src/data.js';
 import { photoOf } from '../src/image.js';
 import { USERS } from '../src/dashboard.js';
 import { appraisalStatus, appraisalQueue } from '../src/unitAppraisal.js';
-import { moneyInputHtml } from '../src/moneyInput.js';
 import { helpIcon } from '../src/help.js';
 import { sealBadge } from '../warehouse/ui.js';
 
 export const AP_FILTERS = [['pending', '査定待ち'], ['confirmed', '確定済み']];
 const STATUS = { pending: ['査定待ち', 'bg-amber-100 text-amber-800'], confirmed: ['確定済み', 'bg-teal-100 text-teal-700'] };
-const FIELD_LABEL = { name: '商品名', rank: 'ランク', price: '金額（1点）' };
+const FIELD_LABEL = { name: '商品名', rank: 'ランク' };
 const staffName = (u) => USERS.find((x) => x.id === u.userId)?.name ?? '';
 const dateTime = (ms) => `${fmtTime(ms)}`;
 const statusBadge = (s) => `<span class="rounded px-2 py-0.5 text-xs font-bold whitespace-nowrap ${STATUS[s][1]}">${STATUS[s][0]}</span>`;
-const changeText = (c) => `${FIELD_LABEL[c.field]}: ${c.field === 'price' ? `${yen(c.from)} → ${yen(c.to)}` : `${esc(c.from)} → ${esc(c.to)}`}`;
+const changeText = (c) => `${FIELD_LABEL[c.field]}: ${esc(c.from)} → ${esc(c.to)}`;
 
 // 左: 査定の一覧（査定待ち／確定済み）。選ぶと、読み取ったのと同じ確認の画面が開く
 function listPane({ units, master, filter, code, q }) {
@@ -58,7 +57,7 @@ function checkPane({ unit, master, ap }) {
   const status = appraisalStatus(unit, master);
   const done = status === 'confirmed';
   const rankOptions = RANKS.map((r) => `<option value="${r.value}" ${ap.rank === r.value ? 'selected' : ''}>${esc(r.label)}</option>`).join('');
-  const changed = ap.name.trim() !== unit.name || ap.rank !== unit.rank || ap.price !== unit.price;
+  const changed = ap.name.trim() !== unit.name || ap.rank !== unit.rank;
   return `
   <div class="rounded-lg border-2 ${done ? 'border-teal-300' : 'border-amber-400'} bg-white p-4 space-y-4">
     <div class="flex items-start justify-between gap-3"><div><div class="text-xl font-bold">${esc(unit.name)}</div>
@@ -67,16 +66,15 @@ function checkPane({ unit, master, ap }) {
       <div class="flex gap-4"><img src="${photoOf(unit)}" alt="${esc(unit.name)}" class="h-28 w-28 object-cover rounded border bg-slate-100 ${unit.photo ? '' : 'opacity-60'}" />
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm flex-1">
           ${info('お客様', `${esc(unit.customerName)} 様`)}${info('鑑定士', esc(staffName(unit)))}${info('買取日', esc(unit.date))}
-          ${info('カテゴリ', esc(unit.category))}${info('ランク', esc(unit.rank))}${info('金額（1点）', yen(unit.price))}
+          ${info('カテゴリ', esc(unit.category))}${info('ランク', esc(unit.rank))}${info('買取金額（1点）', `${yen(unit.price)}<div class="text-xs font-normal text-slate-500">支払い済み・変更できません</div>`)}
         </div></div></section>
     ${done ? `<section class="rounded bg-teal-50 border border-teal-200 p-3 text-sm space-y-1">
         <div class="font-bold text-teal-800">✓ 査定を確定しました（${esc(unit.appraisal.by)}・${dateTime(unit.appraisal.at)}）</div>
         ${unit.appraisal.changes.length ? `<div class="text-slate-700">鑑定士の登録から訂正した内容<ul class="list-disc ml-5">${unit.appraisal.changes.map((c) => `<li>${changeText(c)}</li>`).join('')}</ul></div>` : '<div class="text-slate-700">登録内容のとおり、確定しました。</div>'}</section>`
-      : `<section class="space-y-3"><h3 class="text-sm font-bold text-slate-700">内容を確認して、確定する${helpIcon('実物と登録内容を見比べてください。違っていれば、ここで直します（直した内容は、記録に残ります）。')}</h3>
+      : `<section class="space-y-3"><h3 class="text-sm font-bold text-slate-700">内容を確認して、確定する${helpIcon('実物と登録内容を見比べてください。違っていれば、商品名・ランクを直します（直した内容は、記録に残ります）。買取金額は、お客様に支払い済みなので、直せません。')}</h3>
         <div class="grid sm:grid-cols-3 gap-3">
-          <label class="block text-sm font-bold sm:col-span-3">商品名<input class="inp mt-1 font-normal" data-ap="name" value="${esc(ap.name)}" /></label>
+          <label class="block text-sm font-bold sm:col-span-2">商品名<input class="inp mt-1 font-normal" data-ap="name" value="${esc(ap.name)}" /></label>
           <label class="block text-sm font-bold">ランク<select class="inp mt-1 font-normal" data-ap="rank">${rankOptions}</select></label>
-          <div class="block text-sm font-bold sm:col-span-2">金額（1点あたり）<div class="mt-1 font-normal">${moneyInputHtml({ attrs: 'data-ap="price"', value: ap.price, placeholder: '円', cls: 'inp' })}</div></div>
         </div>
         <div class="text-sm text-slate-600">${changed ? '<b class="text-amber-800">登録内容から訂正があります。</b>' : '登録内容のままです。'}　（シール1枚＝1点。数量が複数の商品は、1点ずつ確認します）</div>
         <button class="b b-pri w-full" data-ap-confirm>この内容で、査定を確定する</button></section>`}

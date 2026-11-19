@@ -35,7 +35,7 @@ let tab = 'support'; // support（鑑定士サポート）／appraisal（査定�
 let menuOpen = false;
 let apQuery = ''; // 査定の一覧の検索
 let apFilter = 'pending'; // 査定の一覧: pending（査定待ち）／confirmed（確定済み）
-const blankAp = () => ({ raw: '', code: null, name: '', rank: 'A', price: 0, message: null }); // 査定: 読み取った商品と、確認中の内容
+const blankAp = () => ({ raw: '', code: null, name: '', rank: 'A', message: null }); // 査定: 読み取った商品と、確認中の内容
 let ap = blankAp();
 let compose = null; // 鑑定士へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
@@ -395,14 +395,14 @@ function openAppraisal(raw) {
   const r = lookupForAppraisal(loadUnits(), loadMaster(), raw);
   if (r.type !== 'ok') { ap = { ...blankAp(), raw: String(raw ?? '').trim(), message: appraisalMessage(r) }; return; }
   const u = r.unit;
-  ap = { raw: u.code, code: u.code, name: u.name, rank: u.rank, price: u.price, message: null };
+  ap = { raw: u.code, code: u.code, name: u.name, rank: u.rank, message: null };
 }
 
 function confirmCurrent() {
-  const { units, result } = confirmAppraisal(loadUnits(), loadMaster(), ap.code, { by: appraiser().name, at: Date.now(), edits: { name: ap.name, rank: ap.rank, price: ap.price } });
+  const { units, result } = confirmAppraisal(loadUnits(), loadMaster(), ap.code, { by: appraiser().name, at: Date.now(), edits: { name: ap.name, rank: ap.rank } });
   if (result.type !== 'ok') { ap = { ...ap, message: appraisalMessage(result) }; return; }
   if (!saveUnits(units)) { ap = { ...ap, message: { ok: false, text: '保存できませんでした（容量超過）' } }; return; }
-  ap = { ...ap, name: result.unit.name, rank: result.unit.rank, price: result.unit.price, message: appraisalMessage(result) };
+  ap = { ...ap, name: result.unit.name, rank: result.unit.rank, message: appraisalMessage(result) };
 }
 
 // カメラで読み取る（モック）。査定待ちの商品を、順に読み取る
@@ -482,7 +482,6 @@ document.addEventListener('input', (e) => {
     el?.setSelectionRange?.(el.value.length, el.value.length);
     return;
   }
-  if (e.target.dataset.ap === 'price') { ap = { ...ap, price: formatMoneyInput(e.target) }; return; }
   if (e.target.dataset.ap) { ap = { ...ap, [e.target.dataset.ap]: e.target.value }; return; }
   if (compose && e.target.dataset.m && e.target.dataset.m !== 'target') { compose = { ...compose, [e.target.dataset.m]: e.target.value }; return; }
   if (e.target.dataset.f === 'price') {

@@ -31,12 +31,10 @@ test('読み取り: シールNo.から、査定する商品を引く。空・未
   assert.equal(r.newCode, 'RQ-R9');
 });
 
-test('訂正の入力チェック: 商品名あり・ランクは一覧のもの・金額は1円以上の整数', () => {
+test('訂正の入力チェック: 商品名あり・ランクは一覧のもの（金額は直せない）', () => {
   assert.equal(editProblem({ name: 'K18 ネックレス', rank: 'A', price: 26000 }), '');
   assert.equal(editProblem({ name: ' ', rank: 'A', price: 26000 }), 'name');
   assert.equal(editProblem({ name: 'x', rank: 'Z', price: 26000 }), 'rank');
-  assert.equal(editProblem({ name: 'x', rank: 'A', price: 0 }), 'price');
-  assert.equal(editProblem({ name: 'x', rank: 'A', price: 10.5 }), 'price');
 });
 
 test('確定: 訂正がなければそのまま確定。確定した人・日時を残し、元の配列は変えない', () => {
@@ -49,16 +47,15 @@ test('確定: 訂正がなければそのまま確定。確定した人・日時
   assert.equal(appraisalStatus(u, master), 'confirmed');
 });
 
-test('確定: 訂正（商品名・ランク・金額）は、商品に反映し、変更の記録（前→後）を残す', () => {
+test('確定: 訂正（商品名・ランク）は、商品に反映し、変更の記録（前→後）を残す。買取金額は、支払い済みなので、渡されても変えない', () => {
   const r = confirmAppraisal(list, master, 'RQ-R1', { by: '青木', at: 3000, edits: { name: 'K14 ネックレス', rank: 'B', price: 18000 } });
   const u = r.units.find((x) => x.code === 'RQ-R1');
   assert.equal(u.name, 'K14 ネックレス');
   assert.equal(u.rank, 'B');
-  assert.equal(u.price, 18000);
+  assert.equal(u.price, 26000);
   assert.deepEqual(u.appraisal.changes, [
     { field: 'name', from: 'K18 ネックレス', to: 'K14 ネックレス' },
     { field: 'rank', from: 'A', to: 'B' },
-    { field: 'price', from: 26000, to: 18000 },
   ]);
 });
 
