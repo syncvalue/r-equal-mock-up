@@ -12,7 +12,7 @@ import { esc } from '../src/format.js';
 import { todayFlyersHtml } from './todayFlyers.js';
 import { loadFlyers, weekdayTrend, areaTrend } from '../src/flyers.js';
 import { CANCEL_REASONS, blankMain, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
-import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, visitHistoryHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml, zipCandidatesHtml, mapPaneHtml } from './view.js';
+import { dispatchHtml, formHtml, hintHtml, openResHtml, visitHistoryHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml, zipCandidatesHtml, mapPaneHtml } from './view.js';
 import { dispatcherHtml, staffModalHtml, customerModalHtml, BOARD_ROW } from './dispatcherView.js';
 import { blankForm as makeBlankForm } from './form.js';
 import { sampleReservations } from './samples.js';
@@ -75,7 +75,7 @@ let menuOpen = false; // 左側のメニューの開閉
 const operators = () => operatorNames(loadEmployees()); // オペレーターは、社員管理から読み込む（有効な人だけ）
 let operator = operators().includes(pref('rq-mock-cc-operator', '')) ? pref('rq-mock-cc-operator', '') : operators()[0] ?? '';
 let form = blankForm();
-let done = null; // 確定した直後の予約（確定画面を表示している間）
+let done = null; // 仮確定した直後の予約。画面は替えず、受付の画面のまま、完了の帯を出す（通話中に、聞き足して直せるように）
 let quoted = false; // 過去のお客様情報を引用済みか
 let showOthers = false;
 let mapAddress = ''; // 空でなければ、右の画面を地図に切り替えている（その住所）
@@ -168,7 +168,7 @@ function compute() {
     detail: calMode === 'day' && selected ? salesDetail({ userId: selected.user.id, date: form.date, start: form.start, dur: form.dur, reservations, here }) : null,
     editing: editId ? loadReservations().find((r) => r.id === editId) ?? null : null, editBy,
     staff: [...full.inArea].sort((a, b) => a.user.id.localeCompare(b.user.id)), staffSel, staffOpen,
-    area, proposal, confirmed, extraAreas, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
+    done, area, proposal, confirmed, extraAreas, hasAddress: Boolean(form.address.trim()), ranking, calendar, form, selectedId: selected?.user.id ?? null, showOthers: showOthers || area?.outside,
     alt: fairerAlternative(form.gender, selected, ranking.inArea), missing, selected, reservations,
   };
 }
@@ -199,6 +199,11 @@ function saveEdit() {
   const nameOf = (id) => USERS.find((u) => u.id === id)?.name ?? id;
   const wasConfirmed = !isTentative(before) && editBy !== '配車係'; // 配車係の変更は、状態を変えない
   amendReservation(editId, fields, editBy, diffRecords(before, { ...before, ...fields }, nameOf), { byDispatcher: editBy === '配車係' }); // 配車係の変更は、状態を変えない（確定済みは確定のまま）
+  if (done) { // 通話中の仮確定の直後。画面は替えず、保存したことだけ知らせる
+    done = loadReservations().find((r) => r.id === editId) ?? done;
+    flash('変更を保存しました（仮確定のままです）');
+    return;
+  }
   dispDate = form.date;
   editId = null;
   form = blankForm();
@@ -223,6 +228,8 @@ function confirmReservation() {
   addReservation(record);
   stopDemo();
   done = record;
+  editId = record.id; // 仮確定のあとも、同じ画面で聞き足せる（保存は、その予約の変更として扱う。仮確定のまま）
+  editBy = operator;
   render();
 }
 
@@ -331,11 +338,10 @@ function renderTranscript() {
 function renderDispatch() {
   const el = $('#dispatch');
   if (!el) return;
-  if (done) mapAddress = '';
   showScreenId();
   if (mapAddress) { if (!el.querySelector('#pin-map')) openPinMap(el); renderHint(); updateChecklist(); return; } // 地図のあいだは、入力のたびに描き直さない
   closePinMap();
-  el.innerHTML = done ? doneHtml(done) : dispatchHtml(compute());
+  el.innerHTML = dispatchHtml(compute());
   renderHint();
   updateChecklist();
 }
@@ -414,7 +420,7 @@ function renderNew() {
   <div class="grid gap-3 p-3 h-[calc(100vh-52px)] grid-rows-[minmax(0,1fr)] grid-cols-[minmax(24rem,28rem)_1fr]">
     <div class="flex flex-col gap-2 overflow-y-auto pr-1 min-h-0">
       <div id="flyer-today">${flyerPanelHtml()}</div>
-      <div id="form" class="flex flex-col gap-2 ${done ? 'dim' : ''}">${formMarkup()}</div>
+      <div id="form" class="flex flex-col gap-2">${formMarkup()}</div>
     </div>
     <div class="overflow-y-auto" id="dispatch"></div>
   </div>`;
@@ -638,7 +644,7 @@ document.addEventListener('pointerup', () => { drag = null; });
 const stageNow = () => entryStage({ phone: form.phone, open: openReservationsFor(loadReservations(), [form.phone, form.phone2], ymdOf(new Date())), forceNew, editing: Boolean(editId) });
 const formMarkup = () => {
   bodyStage = stageNow();
-  return (editId ? editBannerHtml(loadReservations().find((r) => r.id === editId), editBy) : '') + formHtml(form, ymdOf(new Date()), hearingChecklist(form), { stage: bodyStage });
+  return (editId && !done ? editBannerHtml(loadReservations().find((r) => r.id === editId), editBy) : '') + formHtml(form, ymdOf(new Date()), hearingChecklist(form), { stage: bodyStage });
 };
 const refresh = () => { $('#form').innerHTML = formMarkup(); renderDispatch(); };
 // 電話番号を入力中は、欄を作り直さず、その下だけを、段階が変わったときに入れ替える
@@ -764,7 +770,7 @@ document.addEventListener('click', (e) => {
     const r = loadReservations().find((x) => x.id === cancelId);
     if (r) cancelReservation(r.id, cancelReason, tab === 'dispatch' ? '配車係' : operator);
     cancelId = null;
-    if (editId === (r?.id ?? null)) { editId = null; form = blankForm(); }
+    if (editId === (r?.id ?? null)) { editId = null; done = null; form = blankForm(); }
     if (r) flash(`${r.customer.name} 様の受付を取り消しました`); else render();
   }
   else if ('custevalSave' in d) { // 配車係が、お客様の評価を登録する（訪問ごとの評価とは別）

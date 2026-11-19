@@ -409,7 +409,7 @@ export function mapPaneHtml(address) {
 }
 
 export function dispatchHtml(x) {
-  const { area, proposal, confirmed, extraAreas, hasAddress, ranking, calendar, form, selectedId, alt, missing, showOthers, detail, staff, staffSel, staffOpen } = x;
+  const { done, area, proposal, confirmed, extraAreas, hasAddress, ranking, calendar, form, selectedId, alt, missing, showOthers, detail, staff, staffSel, staffOpen } = x;
   const card = (c) => candidateRow(c, { selectedId, gender: form.gender, form });
   const freeList = ranking.inArea.filter((c) => c.free); // 空いている鑑定士（担当が少ない順）。選んだ人が、その何番目か
   const freeCount = freeList.length;
@@ -417,6 +417,7 @@ export function dispatchHtml(x) {
   const sel = [...ranking.inArea, ...ranking.others].find((c) => c.user.id === selectedId);
   return `
   <div class="space-y-2">
+    ${done ? doneBannerHtml(done) : ''}
     ${areaBanner({ proposal, confirmed, hasAddress, extraAreas })}
     ${ranking.inArea.length ? `
       <div><div class="flex items-center justify-between mb-0.5"><div class="text-sm font-bold">空き状況（${esc(area.name)}）</div>
@@ -440,20 +441,15 @@ export function dispatchHtml(x) {
   </div>`;
 }
 
-export function doneHtml(r) {
+// 仮確定した直後の帯。画面は替えず、右の上に出す（通話中に、ヒアリングした内容を探し直さなくてよいように）
+export function doneBannerHtml(r) {
   const u = USERS.find((x) => x.id === r.userId);
-  return `
-  <div class="rounded-lg border-2 border-teal-500 bg-white p-5 space-y-3">
-    <div class="text-2xl font-bold text-teal-700">✓ 仮確定しました${helpIcon('担当鑑定士は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、鑑定士のタブレットの予定に追加されます。')}</div>
-    <dl class="text-sm grid grid-cols-[7rem_1fr] gap-y-1">
-      <dt class="text-slate-500">受付番号</dt><dd class="font-bold">${esc(r.receptionNo)}</dd>
-      ${r.customer.customerId ? `<dt class="text-slate-500">顧客ID</dt><dd class="font-bold">${esc(r.customer.customerId)}</dd>` : ''}
-      <dt class="text-slate-500">訪問日時</dt><dd class="font-bold">${esc(r.date)} ${esc(r.start)}〜${esc(r.end)}</dd>
-      <dt class="text-slate-500">お客様</dt><dd class="font-bold">${esc(r.customer.name)} 様${genderParen(r.gender)}　${esc(r.customer.phone)}${r.customer.phone2 ? ` ／ ${esc(r.customer.phone2)}` : ''}</dd>
-      <dt class="text-slate-500">訪問先</dt><dd>${esc(r.customer.address)}</dd>
-      <dt class="text-slate-500">担当鑑定士（仮）</dt><dd class="font-bold">${esc(u?.name)}（${esc(areaNameOf(r.areaId))}）</dd>
-    </dl>
-    <div class="flex gap-2"><button class="b b-pri" data-new>次の受付へ</button><button class="b b-sec" data-map>訪問先をGoogleマップで開く</button></div>
+  return `<div class="rounded-lg border-2 border-teal-500 bg-teal-50 px-3 py-2 space-y-1.5">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <b class="text-lg text-teal-700">✓ 仮確定しました${helpIcon('担当鑑定士は仮の決定のため、お名前は伝えません。\n配車係が確定すると（主に翌々日の予定を、毎日確定します）、鑑定士のタブレットの予定に追加されます。\n通話中に聞き足したことは、左の入力欄や右の枠を直して、下の「変更を保存する」で同じ予約に反映できます。')}</b>
+      <span class="text-sm">受付番号 <b>${esc(r.receptionNo)}</b>${r.customer.customerId ? `　顧客ID <b>${esc(r.customer.customerId)}</b>` : ''}</span>
+      <span class="ml-auto flex gap-2"><button class="b b-sec !min-h-0 !py-1 text-sm" data-map>訪問先をGoogleマップで開く</button><button class="b b-pri !min-h-0 !py-1 text-sm" data-new>次の受付へ</button></span></div>
+    <div class="text-sm">${esc(r.date)} ${esc(r.start)}〜${esc(r.end)}　${esc(r.customer.name)} 様${genderParen(r.gender)}　担当（仮）<b>${esc(u?.name)}</b>（${esc(areaNameOf(r.areaId))}）</div>
   </div>`;
 }
 
