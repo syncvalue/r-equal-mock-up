@@ -185,9 +185,9 @@ export const kindMark = (kind) => `<i class="ml-0.5 rounded border border-white/
 const swatch = (c, label) => `<span class="inline-flex items-center gap-0.5"><i class="inline-block h-2.5 w-4 rounded-sm" style="background:${c.fill};border:1px solid ${c.edge}"></i>${label}</span>`;
 const edgeSwatch = (border, label) => `<span class="inline-flex items-center gap-0.5"><i class="inline-block h-2.5 w-4 rounded-sm bg-slate-100" style="border:${border}"></i>${label}</span>`;
 export const boardLegendHtml = () => `<span class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-700">
-  <b class="font-bold">色＝ランク（帯＝顧客・見出し＝鑑定士）</b>${Object.entries(RANK_COLORS).map(([k, c]) => swatch(c, k)).join('')}${swatch(UNRANKED, '新規・不明')}
+  <b class="font-bold" title="帯の色＝顧客のランク、列の見出しの色＝鑑定士のランク">色＝ランク</b>${Object.entries(RANK_COLORS).map(([k, c]) => swatch(c, k)).join('')}${swatch(UNRANKED, '新規・不明')}
   <b class="font-bold">印</b>${metalMark(true).replace('ml-0.5 ', '')}<span>＝売りたいものに貴金属</span>
-  <b class="font-bold">枠線＝状態</b>${edgeSwatch('3px solid #475569', '実線：確定済み')}${edgeSwatch('3px dashed #475569', '点線：仮確定（未確定）')}${edgeSwatch('4px double #0f172a', '黒の二重線：確定から仮確定に戻った')}</span>`;
+  <b class="font-bold">枠線＝状態</b>${edgeSwatch('3px solid #475569', '実線：確定済み')}${edgeSwatch('3px dashed #475569', '点線：仮確定')}${edgeSwatch('4px double #0f172a', '黒の二重線：確定から仮確定に戻った')}</span>`;
 
 // 帯の中身は、3段（見やすいように、段ごとに役割を分ける）: ①名前 ②印（性別・ランク・新規／再訪） ③住所（1行）。時間は、左の時間軸で分かるので出さない（ホバーのタイトルには入れる）。1時間の帯（通常）で、3段が見切れない高さにしてある
 const blockBody = ({ mark, name, marks, place, pr = '' }) => `<div class="truncate text-[11px] font-bold leading-4 ${pr}">${mark}${esc(name)}</div>
@@ -271,16 +271,16 @@ export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka',
   const rows = reservations.filter((r) => r.date === date);
   const tent = rows.filter(isTentative).length;
   return `
-  <div class="p-4 space-y-3 h-[calc(100vh-52px)] overflow-y-auto">
+  <div class="px-4 py-2 h-[calc(100vh-52px)] overflow-y-auto">
     <section class="bg-white rounded-lg shadow">
-      <div class="p-3 flex items-center gap-2 flex-wrap"><b>配車確定（配車係）</b>${helpIcon('オペレーターが仮確定した訪問を、1日分を見ながら調整して確定します。\n確定した訪問だけが、鑑定士のタブレットの予定に出ます（主に翌々日の予定を、毎日確定します）。\n帯は、どれもドラッグで動かせます。', 'mr-2')}
-        ${chips.map((c) => `<button class="chip ${c.date === date ? 'on' : ''}" data-ddate="${c.date}">${esc(c.label)}　${dateLabel(c.date)}${c.tentative ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-[11px] text-amber-800">仮${c.tentative}</span>` : ''}${c.review ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-[11px] text-white">変更${c.review}</span>` : ''}</button>`).join('')}
-        <input class="inp !w-auto" type="date" value="${date}" data-ddate-input />
-        <button class="b b-pri ml-auto" data-fixall ${tent ? '' : 'disabled'}>この日の仮確定 ${tent}件を、すべて確定</button></div>
-      <div class="border-t px-3 py-1.5 flex flex-wrap items-center gap-2"><span class="text-xs font-bold text-slate-500">エリア</span>
-        ${[...AREAS.map((a) => [a.id, a.name]), ['all', '全エリア']].map(([k, t]) => { const n = rows.filter((r) => !isCancelled(r) && (k === 'all' || r.areaId === k)).length; return `<button class="chip ${area === k ? 'on' : ''}" data-barea="${k}">${esc(t)}${n ? `<span class="ml-1 rounded-full bg-slate-500 px-1.5 text-[11px] text-white">${n}</span>` : ''}</button>`; }).join('')}
-        <span class="ml-2">${boardLegendHtml()}</span>${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</div>
-      <div class="flex items-start gap-3 px-3 pb-3"><div class="min-w-0 flex-1">${boardHtml({ date, reservations, now, area, selId })}</div>
+      <div class="px-3 py-1.5 flex items-center gap-2 flex-wrap"><b>配車確定（配車係）</b>${helpIcon('オペレーターが仮確定した訪問を、1日分を見ながら調整して確定します。\n確定した訪問だけが、鑑定士のタブレットの予定に出ます（主に翌々日の予定を、毎日確定します）。\n帯は、どれもドラッグで動かせます。', 'mr-2')}
+        ${chips.map((c) => `<button class="chip !min-h-0 !py-1 text-sm ${c.date === date ? 'on' : ''}" data-ddate="${c.date}">${esc(c.label)}　${dateLabel(c.date)}${c.tentative ? `<span class="ml-1 rounded-full bg-amber-300 px-1.5 text-[11px] text-amber-800">仮${c.tentative}</span>` : ''}${c.review ? `<span class="ml-1 rounded-full bg-rose-600 px-1.5 text-[11px] text-white">変更${c.review}</span>` : ''}</button>`).join('')}
+        <input class="inp !w-auto !min-h-0 !py-1 text-sm" type="date" value="${date}" data-ddate-input />
+        <button class="b b-pri ml-auto !min-h-0 !py-1 text-sm" data-fixall ${tent ? '' : 'disabled'}>この日の仮確定 ${tent}件を、すべて確定</button></div>
+      <div class="border-t px-3 py-1 flex flex-wrap items-center gap-x-2 gap-y-1"><span class="text-xs font-bold text-slate-500">エリア</span>
+        ${[...AREAS.map((a) => [a.id, a.name]), ['all', '全エリア']].map(([k, t]) => { const n = rows.filter((r) => !isCancelled(r) && (k === 'all' || r.areaId === k)).length; return `<button class="chip !min-h-0 !py-1 text-sm ${area === k ? 'on' : ''}" data-barea="${k}">${esc(t)}${n ? `<span class="ml-1 rounded-full bg-slate-500 px-1.5 text-[11px] text-white">${n}</span>` : ''}</button>`; }).join('')}
+        <span class="ml-3">${boardLegendHtml()}</span>${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</div>
+      <div class="flex items-start gap-3 px-3 pb-1"><div class="min-w-0 flex-1">${boardHtml({ date, reservations, now, area, selId })}</div>
         <div class="sticky top-0 max-h-[calc(100vh-7rem)] w-[min(26rem,40%)] shrink-0 overflow-y-auto">${selId && reservations.some((r) => r.id === selId) ? boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now) : detailPlaceholderHtml()}</div></div>
     </section>
   </div>`;
