@@ -279,7 +279,7 @@ export function dispatcherHtml({ date, reservations, now, chips, area = 'osaka',
         <button class="b b-pri ml-auto !min-h-0 !py-1 text-sm" data-fixall ${tent ? '' : 'disabled'}>この日の仮確定 ${tent}件を、すべて確定</button></div>
       <div class="border-t px-3 py-1 flex flex-wrap items-center gap-x-2 gap-y-1"><span class="text-xs font-bold text-slate-500">エリア</span>
         ${[...AREAS.map((a) => [a.id, a.name]), ['all', '全エリア']].map(([k, t]) => { const n = rows.filter((r) => !isCancelled(r) && (k === 'all' || r.areaId === k)).length; return `<button class="chip !min-h-0 !py-1 text-sm ${area === k ? 'on' : ''}" data-barea="${k}">${esc(t)}${n ? `<span class="ml-1 rounded-full bg-slate-500 px-1.5 text-[11px] text-white">${n}</span>` : ''}</button>`; }).join('')}
-        <span class="ml-3">${boardLegendHtml()}</span>${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</div>
+        <span class="ml-3 flex min-w-0 items-center gap-1">${boardLegendHtml()}${helpIcon('帯をドラッグして、別の鑑定士・時間に動かせます（30分刻み）。\n帯の「確定」ボタンで、その予約を確定します。')}</span></div>
       <div class="flex items-start gap-3 px-3 pb-1"><div class="min-w-0 flex-1">${boardHtml({ date, reservations, now, area, selId })}</div>
         <div class="sticky top-0 max-h-[calc(100vh-7rem)] w-[min(26rem,40%)] shrink-0 overflow-y-auto">${selId && reservations.some((r) => r.id === selId) ? boardDetailHtml(reservations.find((r) => r.id === selId), reservations, now) : detailPlaceholderHtml()}</div></div>
     </section>
