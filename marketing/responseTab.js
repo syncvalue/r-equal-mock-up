@@ -1,6 +1,8 @@
 // マーケティング部「反響管理」: どのチラシが効果的だったかを、受付の件数・反響率・1件あたりの費用・買取の金額・粗利・損益で見る
 import { esc, yen } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
+import { paginate } from '../src/paging.js';
+import { pagerHtml, PAGE_SIZE } from './pager.js';
 import { flyerStats, statsByMedia, rankByEfficiency, rankByProfit, dailyCalls, receptionDetails, mediaOf } from '../src/flyers.js';
 
 const pct = (r) => `${(r * 100).toFixed(2)}%`;
@@ -29,10 +31,11 @@ function detailHtml(stats, receptions, visits) {
   </section>`;
 }
 
-export function responseTab({ flyers, receptions, visits = [], results = {}, selId, mediaFilter, sortBy = 'efficiency' }) {
+export function responseTab({ flyers, receptions, visits = [], results = {}, selId, mediaFilter, sortBy = 'efficiency', page = 1 }) {
   const all = flyerStats(flyers, receptions, results);
   const stats = mediaFilter ? all.filter((s) => s.flyer.media === mediaFilter) : all;
   const ranked = sortBy === 'profit' ? rankByProfit(stats) : rankByEfficiency(stats);
+  const pg = paginate(ranked, page, PAGE_SIZE);
   const sel = all.find((s) => s.flyer.id === selId) ?? null;
   const chip = (key, label) => `<button class="b !min-h-0 !py-1.5 !px-3 text-sm ${mediaFilter === key ? 'on' : 'b-sec'}" data-media-filter="${key}">${label}</button>`;
   const sortChip = (key, label) => `<button class="b !min-h-0 !py-1.5 !px-3 text-sm ${sortBy === key ? 'on' : 'b-sec'}" data-resp-sort="${key}">${label}</button>`;
@@ -43,11 +46,11 @@ export function responseTab({ flyers, receptions, visits = [], results = {}, sel
         <div class="flex gap-3 flex-wrap"><div class="flex gap-1">${sortChip('efficiency', '効果の順')}${sortChip('profit', '損益の順')}</div><div class="flex gap-1">${chip('', 'すべて')}${chip('newspaper', '新聞折込')}${chip('posting', 'ポスティング')}${chip('dm', 'DM・はがき')}</div></div></div>
       <div class="overflow-x-auto"><table class="w-full text-sm" data-response-list>
         <thead><tr class="text-left text-xs text-slate-500 border-b"><th>順</th><th>ID</th><th>チラシ</th><th>配布方法</th><th class="text-right">部数</th><th class="text-right">費用</th><th class="text-right">受付</th><th class="text-right">確定</th><th class="text-right">取消</th><th class="text-right">反響率</th><th class="text-right">1件あたり</th><th class="text-right">成約</th><th class="text-right">買取額</th><th class="text-right">粗利</th><th class="text-right">損益</th></tr></thead>
-        <tbody>${ranked.map((s, i) => `<tr class="border-b cursor-pointer hover:bg-slate-50 ${s.flyer.id === selId ? 'bg-teal-50' : ''} ${s.flyer.active ? '' : 'text-slate-400'}" data-response-row="${esc(s.flyer.id)}">
-          <td>${s.calls ? i + 1 : '―'}</td><td class="font-mono font-bold">${esc(s.flyer.id)}</td><td class="whitespace-normal min-w-[10rem]">${esc(s.flyer.name)}</td><td>${esc(mediaOf(s.flyer.media)?.label)}</td>
+        <tbody>${pg.items.map((s, i) => `<tr class="border-b cursor-pointer hover:bg-slate-50 ${s.flyer.id === selId ? 'bg-teal-50' : ''} ${s.flyer.active ? '' : 'text-slate-400'}" data-response-row="${esc(s.flyer.id)}">
+          <td>${s.calls ? pg.from + i : '―'}</td><td class="font-mono font-bold">${esc(s.flyer.id)}</td><td class="whitespace-normal min-w-[10rem]">${esc(s.flyer.name)}</td><td>${esc(mediaOf(s.flyer.media)?.label)}</td>
           <td class="text-right">${s.flyer.quantity.toLocaleString('ja-JP')}</td><td class="text-right">${yen(s.flyer.cost)}</td><td class="text-right font-bold">${s.calls}</td><td class="text-right">${s.confirmed}</td><td class="text-right">${s.cancelled}</td><td class="text-right">${pct(s.rate)}</td><td class="text-right">${perCall(s.costPerCall)}</td>
           <td class="text-right">${s.won}</td><td class="text-right">${yen(s.amount)}</td><td class="text-right">${yen(s.gross)}</td><td class="text-right">${signed(s.profit)}</td></tr>`).join('')}</tbody>
-      </table></div>
+      </table></div>${pagerHtml(pg, 'data-resp-page')}
     </section>
     ${detailHtml(sel, receptions, visits)}
   </div>`;

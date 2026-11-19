@@ -155,3 +155,20 @@ test('チラシの一覧は、進捗・エリア・配布方法・入稿期限�
   assert.ok(resultsHtml(flyers, '2026-11-19', { q: 'zzz' }).includes('data-flyer-empty'));
   assert.ok(resultsHtml(flyers, '2026-11-19', { due: 'overdue' }).includes('P1017'));
 });
+
+test('マーケティング部の一覧は、20件ごとにページ送りできる（チラシ一覧・反響管理）', async () => {
+  const { resultsHtml } = await import('../marketing/flyersTab.js');
+  const { responseTab } = await import('../marketing/responseTab.js');
+  const many = Array.from({ length: 45 }, (_, i) => ({ id: `N${2000 + i}`, name: `チラシ${i}`, media: 'newspaper', adType: '', area: '大阪府', from: '2026-12-01', to: '2026-12-01', quantity: 100, cost: 1000, note: '', stage: 'plan', deadline: '', file: null, active: true }));
+  const rows = (html) => (html.match(/<tr class="border-b/g) || []).length;
+  const p1 = resultsHtml(many, '2026-11-19', {}, 1);
+  assert.equal(rows(p1), 20);
+  assert.ok(p1.includes('全 <b>45</b> 件中 1–20 件を表示') && p1.includes('data-flyer-page="2"') && p1.includes('data-flyer-page="3"'));
+  assert.equal(rows(resultsHtml(many, '2026-11-19', {}, 3)), 5);
+  assert.equal(rows(resultsHtml(many, '2026-11-19', {}, 99)), 5); // 範囲外は、最後のページ
+  assert.ok(!resultsHtml(many.slice(0, 20), '2026-11-19', {}, 1).includes('data-flyer-page')); // 20件以内なら、ページ送りは出さない
+  assert.ok(resultsHtml(many, '2026-11-19', { q: 'チラシ4' }, 1).includes('（全45件）')); // 検索の結果も、ページ送りの対象
+  const resp = (page) => responseTab({ flyers: many, receptions: [], visits: [], results: {}, selId: null, mediaFilter: '', page });
+  assert.equal(rows(resp(1).split('data-response-list')[1]), 20);
+  assert.ok(resp(1).includes('data-resp-page="2"') && rows(resp(3).split('data-response-list')[1]) === 5);
+});
