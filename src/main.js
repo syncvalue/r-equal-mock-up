@@ -225,7 +225,7 @@ function publish() {
     phone: state.customer.phone,
     callInfo: state.callInfo,
     outcome: state.outcome ? { ...state.outcome, label: outcomeOf(state.outcome.type).label } : null,
-    items: state.items.map(({ id, name, category, rank, qty, price, sell, aiAppraisal }) => ({ id, name, category, rank, qty, price, sell, aiAppraisal })),
+    items: state.items.map(({ id, name, category, rank, qty, price, expectedPrice, sell, aiAppraisal }) => ({ id, name, category, rank, qty, price, expectedPrice, sell, aiAppraisal })),
     updatedAt: Date.now(),
   });
 }
@@ -1100,6 +1100,9 @@ document.addEventListener('input', (e) => {
     set({ search: el.value, mtab: 'browse', mlimit: 40 });
     $('#master').innerHTML = V.masterBodyView(state);
     $('#search-clear')?.classList.toggle('hidden', !state.search);
+  } else if (el.dataset.itemField === 'expectedPrice') {
+    updateItems(el.dataset.id, { expectedPrice: formatMoneyInput(el) });
+    publish();
   } else if (el.dataset.itemField === 'price') {
     const price = formatMoneyInput(el);
     updateItems(el.dataset.id, { price });

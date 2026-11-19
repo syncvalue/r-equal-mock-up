@@ -364,7 +364,7 @@ export function itemsListView(s) {
     <div class="flex items-center gap-2 rounded-xl border-2 border-slate-200 pl-3 pr-2 py-1">
       <div class="flex-1 min-w-0 leading-tight">
         <div class="font-bold text-[15px] line-clamp-2">${esc(i.name)}${itemWarn(s, i.id)}</div>
-        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}点${hasPhoto(i) ? `・${i.photos.length}枚` : '<span class="text-rose-700 font-bold">・写真なし</span>'}${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
+        <div class="text-xs text-slate-400 mt-0.5">ランク${i.rank}・${i.qty}点${i.expectedPrice ? `・想定販売 ${yen(i.expectedPrice)}` : ''}${hasPhoto(i) ? `・${i.photos.length}枚` : '<span class="text-rose-700 font-bold">・写真なし</span>'}${apvTag(s, i)}${apTag(s, i.id)}${sealChip(s, i)}</div>
       </div>
       ${i.price ? `<div class="font-bold text-right whitespace-nowrap">${yen(i.price)}</div>` : '<div class="font-bold text-rose-700 text-sm text-right leading-tight">金額<br>未入力</div>'}
       <button class="${btn} border-slate-300 bg-white text-slate-700" data-action="open-item" data-id="${i.id}" aria-label="詳細を編集">✎<br>編集</button>
@@ -858,6 +858,12 @@ export function modalView(s) {
             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 pointer-events-none">円</span>
           </div>
           <div class="grid grid-cols-6 gap-1">${[-100, -10, -1, 1, 10, 100].map((d) => `<button class="btn btn-secondary !px-0 !py-0 !min-h-[40px] text-base ${d < 0 ? 'text-rose-700' : 'text-teal-700'}" data-action="price-add" data-id="${i.id}" data-delta="${d}">${d > 0 ? '＋' : '−'}${Math.abs(d)}</button>`).join('')}</div>
+          <div class="font-bold text-sm">想定販売価格（円）<span class="font-normal text-xs text-slate-500">　${i.qty}点分の合計${helpIcon('お客様に売った場合の、販売の見込み額です。社内の記録で、お客様には見せません。本社の査定で直すことがあります。')}</span></div>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xl text-slate-400 pointer-events-none">¥</span>
+            <input class="field !py-2 text-right text-2xl font-bold tracking-wide pl-8 pr-10" type="text" inputmode="numeric" autocomplete="off" value="${i.expectedPrice ? i.expectedPrice.toLocaleString('ja-JP') : ''}" placeholder="想定販売価格を入力" data-item-field="expectedPrice" data-id="${i.id}" />
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 pointer-events-none">円</span>
+          </div>
           <div class="flex items-center gap-2"><span class="font-bold text-sm w-12">数量</span>
             <button class="btn btn-secondary !px-0 w-14 !min-h-[44px]" data-action="qty" data-id="${i.id}" data-delta="-1">−</button>
             <span class="text-2xl font-bold w-12 text-center">${i.qty}</span>

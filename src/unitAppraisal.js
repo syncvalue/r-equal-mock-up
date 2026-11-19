@@ -34,14 +34,15 @@ export function lookupForAppraisal(units, master, raw) {
   return appraisalStatus(unit, master) === 'none' ? { type: 'notTarget', code, unit } : { type: 'ok', code, unit };
 }
 
-// 訂正の入力チェック（商品名・ランク）。問題なければ ''。買取金額は、お客様に支払い済みなので、直せない
-export function editProblem({ name, rank }) {
+// 訂正の入力チェック（商品名・ランク・想定販売価格。0は未入力）。問題なければ ''。買取金額は、お客様に支払い済みなので、直せない
+export function editProblem({ name, rank, expectedPrice }) {
+  if (expectedPrice != null && (!Number.isInteger(expectedPrice) || expectedPrice < 0)) return 'expectedPrice';
   if (!String(name ?? '').trim()) return 'name';
   if (!RANKS.some((r) => r.value === rank)) return 'rank';
   return '';
 }
 
-const FIELDS = ['name', 'rank'];
+const FIELDS = ['name', 'rank', 'expectedPrice'];
 
 // 査定を確定する。edits は確認後の商品名・ランク（訂正がなければ、いまの値のまま。金額は変えない）。変わった項目は、前→後を記録する
 export function confirmAppraisal(units, master, raw, { by, at = Date.now(), edits }) {
@@ -49,11 +50,13 @@ export function confirmAppraisal(units, master, raw, { by, at = Date.now(), edit
   if (found.type !== 'ok') return { units, result: found };
   const unit = found.unit;
   if (appraisalStatus(unit, master) === 'confirmed') return { units, result: { type: 'dup', code: unit.code, unit } };
-  const next = { name: String(edits.name ?? '').trim(), rank: edits.rank };
+  const next = { name: String(edits.name ?? '').trim(), rank: edits.rank, expectedPrice: edits.expectedPrice ?? unit.expectedPrice ?? 0 };
   const problem = editProblem(next);
   if (problem) return { units, result: { type: 'bad', problem } };
-  const changes = FIELDS.filter((f) => next[f] !== unit[f]).map((f) => ({ field: f, from: unit[f], to: next[f] }));
-  const done = { ...unit, ...next, appraisal: { status: 'confirmed', by, at, changes } };
+  const before = { ...unit, expectedPrice: unit.expectedPrice ?? 0 };
+  const changes = FIELDS.filter((f) => next[f] !== before[f]).map((f) => ({ field: f, from: before[f], to: next[f] }));
+  const { expectedPrice, ...rest } = next; // 想定販売価格は、もともと入力がなく、今回も入れなかったときは、持たせない
+  const done = { ...unit, ...rest, ...(expectedPrice > 0 || 'expectedPrice' in unit ? { expectedPrice } : {}), appraisal: { status: 'confirmed', by, at, changes } };
   return { units: units.map((u) => (u.code === unit.code ? done : u)), result: { type: 'ok', code: unit.code, unit: done } };
 }
 
@@ -65,22 +68,22 @@ export function appraisalMessage(r) {
     case 'notTarget': return { ok: false, text: `${r.code} は、査定の対象外です（紫・赤のシールの商品が対象）` };
     case 'replaced': return { ok: false, text: `${r.code} は、貼り替え済みの古いシールです。新しいシール（${r.newCode}）を読み取ってください` };
     case 'unknown': return { ok: false, text: `${r.code} は、買取商品として登録されていません` };
-    case 'bad': return { ok: false, text: { name: '商品名を入力してください', rank: 'ランクを選んでください' }[r.problem] };
+    case 'bad': return { ok: false, text: { name: '商品名を入力してください', rank: 'ランクを選んでください', expectedPrice: '想定販売価格は、0以上の整数で入力してください' }[r.problem] };
     default: return { ok: false, text: 'シールNo.を入力してください' };
   }
 }
 
 // ---- デモ用: 査定待ちの高額品（鑑定士が登録した紫・赤のシールの商品）。シールNo.は固定（二度押しても増えない）-----------------
 const DEMO = [
-  { code: 'RQ-PDEMO001', color: 'purple', customerName: '中村 恵子', item: { id: 'ap-demo-1', name: 'プラチナ ダイヤリング 0.5ct', category: 'ジュエリー・貴金属', rank: 'A', price: 280000, qty: 1 } },
-  { code: 'RQ-RDEMO001', color: 'red', customerName: '小林 正志', item: { id: 'ap-demo-2', name: 'K18 ネックレス（約20g）', category: 'ジュエリー・貴金属', rank: 'B', price: 96000, qty: 1 } },
-  { code: 'RQ-RDEMO002', color: 'red', customerName: '小林 正志', item: { id: 'ap-demo-3', name: 'ロレックス デイトジャスト', category: '腕時計', rank: 'B', price: 420000, qty: 1 } },
-  { code: 'RQ-PDEMO002', color: 'purple', customerName: '山口 光男', item: { id: 'ap-demo-4', name: '純金 インゴット 100g', category: 'ジュエリー・貴金属', rank: 'S', price: 1280000, qty: 1 } },
-  { code: 'RQ-RDEMO003', color: 'red', customerName: '山口 光男', item: { id: 'ap-demo-5', name: 'K18 ブレスレット（約15g）', category: 'ジュエリー・貴金属', rank: 'A', price: 72000, qty: 1 } },
-  { code: 'RQ-PDEMO003', color: 'purple', customerName: '佐藤 由美', item: { id: 'ap-demo-6', name: 'ミキモト パールネックレス', category: 'ジュエリー・貴金属', rank: 'A', price: 150000, qty: 1 } },
-  { code: 'RQ-RDEMO004', color: 'red', customerName: '佐藤 由美', item: { id: 'ap-demo-7', name: 'オメガ シーマスター', category: '腕時計', rank: 'B', price: 185000, qty: 1 } },
-  { code: 'RQ-RDEMO005', color: 'red', customerName: '高橋 健一', item: { id: 'ap-demo-8', name: 'Pt900 マリッジリング', category: 'ジュエリー・貴金属', rank: 'B', price: 64000, qty: 1 } },
-  { code: 'RQ-PDEMO004', color: 'purple', customerName: '高橋 健一', item: { id: 'ap-demo-9', name: 'カルティエ タンク ソロ', category: '腕時計', rank: 'S', price: 330000, qty: 1 } },
+  { code: 'RQ-PDEMO001', color: 'purple', customerName: '中村 恵子', item: { id: 'ap-demo-1', expectedPrice: 380000, name: 'プラチナ ダイヤリング 0.5ct', category: 'ジュエリー・貴金属', rank: 'A', price: 280000, qty: 1 } },
+  { code: 'RQ-RDEMO001', color: 'red', customerName: '小林 正志', item: { id: 'ap-demo-2', expectedPrice: 130000, name: 'K18 ネックレス（約20g）', category: 'ジュエリー・貴金属', rank: 'B', price: 96000, qty: 1 } },
+  { code: 'RQ-RDEMO002', color: 'red', customerName: '小林 正志', item: { id: 'ap-demo-3', expectedPrice: 560000, name: 'ロレックス デイトジャスト', category: '腕時計', rank: 'B', price: 420000, qty: 1 } },
+  { code: 'RQ-PDEMO002', color: 'purple', customerName: '山口 光男', item: { id: 'ap-demo-4', expectedPrice: 1450000, name: '純金 インゴット 100g', category: 'ジュエリー・貴金属', rank: 'S', price: 1280000, qty: 1 } },
+  { code: 'RQ-RDEMO003', color: 'red', customerName: '山口 光男', item: { id: 'ap-demo-5', expectedPrice: 98000, name: 'K18 ブレスレット（約15g）', category: 'ジュエリー・貴金属', rank: 'A', price: 72000, qty: 1 } },
+  { code: 'RQ-PDEMO003', color: 'purple', customerName: '佐藤 由美', item: { id: 'ap-demo-6', expectedPrice: 210000, name: 'ミキモト パールネックレス', category: 'ジュエリー・貴金属', rank: 'A', price: 150000, qty: 1 } },
+  { code: 'RQ-RDEMO004', color: 'red', customerName: '佐藤 由美', item: { id: 'ap-demo-7', expectedPrice: 250000, name: 'オメガ シーマスター', category: '腕時計', rank: 'B', price: 185000, qty: 1 } },
+  { code: 'RQ-RDEMO005', color: 'red', customerName: '高橋 健一', item: { id: 'ap-demo-8', expectedPrice: 88000, name: 'Pt900 マリッジリング', category: 'ジュエリー・貴金属', rank: 'B', price: 64000, qty: 1 } },
+  { code: 'RQ-PDEMO004', color: 'purple', customerName: '高橋 健一', item: { id: 'ap-demo-9', expectedPrice: 420000, name: 'カルティエ タンク ソロ', category: '腕時計', rank: 'S', price: 330000, qty: 1 } },
 ];
 // userId: 鑑定士のID（配列なら、順に割り当てる）
 export function demoAppraisalUnits(existing, userId, now = new Date()) {

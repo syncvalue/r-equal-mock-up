@@ -61,6 +61,7 @@ export function unitsFromVisit({ visitId, userId, customerName, slots, labels, c
       itemId: x.item.id, name: x.item.name, category: x.item.category, rank: x.item.rank,
       n: x.n, qty: x.item.qty, price: x.item.qty ? Math.round(x.item.price / x.item.qty) : x.item.price,
       sealColor: colors[x.key] ?? null, // シールの色（紫・赤は本社管理の高額品）
+      ...(x.item.expectedPrice > 0 ? { expectedPrice: x.item.qty ? Math.round(x.item.expectedPrice / x.item.qty) : x.item.expectedPrice } : {}), // 想定販売価格（1点あたり。鑑定士が登録し、査定部が直すことがある）
       phones: phones.map((p) => String(p ?? '').trim()).filter(Boolean),
       ...(channel ? { channel, storeId } : {}),
       ...(photos[x.item.id] ? { photo: photos[x.item.id] } : {}),

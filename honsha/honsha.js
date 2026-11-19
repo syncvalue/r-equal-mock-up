@@ -35,7 +35,7 @@ let tab = 'support'; // support（鑑定士サポート）／appraisal（査定�
 let menuOpen = false;
 let apQuery = ''; // 査定の一覧の検索
 let apFilter = 'pending'; // 査定の一覧: pending（査定待ち）／confirmed（確定済み）
-const blankAp = () => ({ raw: '', code: null, name: '', rank: 'A', message: null }); // 査定: 読み取った商品と、確認中の内容
+const blankAp = () => ({ raw: '', code: null, name: '', rank: 'A', expectedPrice: 0, message: null }); // 査定: 読み取った商品と、確認中の内容
 let ap = blankAp();
 let compose = null; // 鑑定士へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
@@ -140,6 +140,7 @@ function itemsTable(v, aps, cs, approvals) {
       <td class="p-2 ${i.sell ? '' : 'text-slate-400 line-through'}"><b>${esc(i.name)}</b><div class="text-xs text-slate-500 no-underline">${esc(i.category)}</div></td>
       <td class="text-center ${i.sell ? '' : 'text-slate-400'}">${i.rank} ×${i.qty}</td>
       <td class="text-right ${i.sell ? 'font-bold' : 'text-slate-400 line-through'}">${yen(i.price)}</td>
+      <td class="text-right ${i.sell ? '' : 'text-slate-400'}">${i.expectedPrice ? yen(i.expectedPrice) : '<span class="text-slate-300">-</span>'}</td>
       <td class="text-center ${i.sell ? '' : 'text-slate-400'}">${i.sell ? '売る' : '売らない'}</td>
       <td class="text-center">${apv}</td>
       <td class="text-center">${apStatus(t)}${t && hasUnread(t, 'hq') ? '<div class="mt-0.5 text-xs font-bold text-rose-700">未読あり</div>' : ''}</td>
@@ -149,8 +150,8 @@ function itemsTable(v, aps, cs, approvals) {
   return `
   <div class="bg-white rounded-lg shadow overflow-hidden">
     <table class="w-full text-left text-sm"><thead class="bg-slate-100 text-slate-700"><tr>
-      <th class="p-2">商品名</th><th>ランク×数</th><th class="text-right">小計</th><th>売却</th><th>承認</th><th>査定依頼</th><th>コメント</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="7" class="p-6 text-center text-slate-400">まだ商品が追加されていません</td></tr>'}</tbody></table>
+      <th class="p-2">商品名</th><th>ランク×数</th><th class="text-right">買取金額</th><th class="text-right">想定販売価格</th><th>売却</th><th>承認</th><th>査定依頼</th><th>コメント</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="8" class="p-6 text-center text-slate-400">まだ商品が追加されていません</td></tr>'}</tbody></table>
   </div>
   ${orphans.length ? `<h3 class="font-bold mt-4 mb-1">明細に入っていない査定依頼</h3>
     <div class="bg-white rounded-lg shadow">${orphans.map((a) => `<button class="w-full text-left p-3 border-t first:border-0 hover:bg-slate-50 flex justify-between ${sel?.type === 'req' && sel.id === a.id ? 'bg-slate-100' : ''}" data-req="${a.id}"><span class="font-bold">${esc(a.name)}</span>${apStatus(a)}</button>`).join('')}</div>` : ''}`;
@@ -253,7 +254,7 @@ function detailPanel(v, aps, cs, approvals) {
   <div class="space-y-3">
     ${item ? approvalBlock(v, item, approvals, aps) : ''}
     <div><div class="text-xl font-bold">${esc(item?.name ?? orphan?.name ?? '')}</div>
-      ${item ? `<div class="text-sm text-slate-500">ランク${item.rank} ／ ${item.qty}点 ／ 鑑定士の査定（合計） ${yen(item.price)}</div>` : ''}</div>
+      ${item ? `<div class="text-sm text-slate-500">ランク${item.rank} ／ ${item.qty}点 ／ 鑑定士の査定（合計） ${yen(item.price)}${item.expectedPrice ? ` ／ 想定販売価格（合計） ${yen(item.expectedPrice)}` : ''}</div>` : ''}</div>
     ${t ? chatPanel(t) : ''}
     ${item ? aiCard(item) : ''}
     ${t ? sendForm(item?.id ?? t.itemId, item, true) : ''}
@@ -395,14 +396,14 @@ function openAppraisal(raw) {
   const r = lookupForAppraisal(loadUnits(), loadMaster(), raw);
   if (r.type !== 'ok') { ap = { ...blankAp(), raw: String(raw ?? '').trim(), message: appraisalMessage(r) }; return; }
   const u = r.unit;
-  ap = { raw: u.code, code: u.code, name: u.name, rank: u.rank, message: null };
+  ap = { raw: u.code, code: u.code, name: u.name, rank: u.rank, expectedPrice: u.expectedPrice ?? 0, message: null };
 }
 
 function confirmCurrent() {
-  const { units, result } = confirmAppraisal(loadUnits(), loadMaster(), ap.code, { by: appraiser().name, at: Date.now(), edits: { name: ap.name, rank: ap.rank } });
+  const { units, result } = confirmAppraisal(loadUnits(), loadMaster(), ap.code, { by: appraiser().name, at: Date.now(), edits: { name: ap.name, rank: ap.rank, expectedPrice: ap.expectedPrice } });
   if (result.type !== 'ok') { ap = { ...ap, message: appraisalMessage(result) }; return; }
   if (!saveUnits(units)) { ap = { ...ap, message: { ok: false, text: '保存できませんでした（容量超過）' } }; return; }
-  ap = { ...ap, name: result.unit.name, rank: result.unit.rank, message: appraisalMessage(result) };
+  ap = { ...ap, name: result.unit.name, rank: result.unit.rank, expectedPrice: result.unit.expectedPrice ?? 0, message: appraisalMessage(result) };
 }
 
 // カメラで読み取る（モック）。査定待ちの商品を、順に読み取る
@@ -474,6 +475,7 @@ document.addEventListener('change', (e) => {
   if (compose && e.target.dataset.m === 'target') compose = { ...compose, target: e.target.value };
 });
 document.addEventListener('input', (e) => {
+  if (e.target.dataset.ap === 'expectedPrice') { ap = { ...ap, expectedPrice: formatMoneyInput(e.target) }; return; }
   if ('apQ' in e.target.dataset) { // 検索は入力のたびに絞り込む（入力位置は保つ）
     apQuery = e.target.value;
     render();
