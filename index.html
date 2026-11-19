@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>出張買取 モック｜画面一覧</title>
   <style>
-    :root { --bg: #f1f5f9; --card: #fff; --text: #1e293b; --sub: #64748b; --line: #e2e8f0; --accent: #0f766e; --accent-soft: #ccfbf1; }
-    @media (prefers-color-scheme: dark) { :root { --bg: #0b1220; --card: #111c30; --text: #e2e8f0; --sub: #94a3b8; --line: #2f405a; --accent: #2dd4bf; --accent-soft: #134e4a; } }
+    :root { --bg: #f1f5f9; --card: #fff; --text: #1e293b; --sub: #64748b; --line: #e2e8f0; --accent: #0f766e; --accent-soft: #ccfbf1; --glass: #94a3b8; --water: #14b8a6; --water-top: #5eead4; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0b1220; --card: #111c30; --text: #e2e8f0; --sub: #94a3b8; --line: #2f405a; --accent: #2dd4bf; --accent-soft: #134e4a; --glass: #64748b; --water: #0d9488; --water-top: #2dd4bf; } }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; line-height: 1.6; }
     main { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
@@ -23,6 +23,23 @@
     .desc { color: var(--sub); font-size: .85rem; }
     .who { align-self: flex-start; font-size: .75rem; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 1px 10px; }
     .card.disabled { opacity: .55; border-style: dashed; cursor: not-allowed; }
+    /* 進捗のビーカー。水位＝画面の完成度の目安（％は設計者の感覚値）。値は、各カードの style="--p:75" と、数字を直す */
+    .card { display: grid; grid-template-columns: 1fr auto; column-gap: 14px; row-gap: 6px; align-content: start; }
+    .card > :not(.beaker) { grid-column: 1; }
+    .beaker { grid-column: 2; grid-row: 1 / span 3; align-self: center; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .beaker .glass { position: relative; width: 46px; height: 58px; border: 2px solid var(--glass); border-top: 0; border-radius: 0 0 12px 12px; overflow: hidden; background: color-mix(in srgb, var(--card) 70%, transparent); }
+    .beaker .glass::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 9px; background: repeating-linear-gradient(to bottom, transparent 0 10px, var(--glass) 10px 11px); opacity: .7; }
+    .beaker .water { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--p) * 1%); background: linear-gradient(to bottom, var(--water-top), var(--water)); }
+    .beaker .water::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; height: 6px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='6' viewBox='0 0 24 6'%3E%3Cpath d='M0 6V3q3-3 6 0t6 0 6 0 6 0v3z' fill='%235eead4'/%3E%3C/svg%3E") repeat-x; background-size: 24px 6px; }
+    .beaker .water[style="--p:0"]::before { display: none; }
+    .beaker .pct { font-size: .75rem; font-weight: 700; color: var(--accent); line-height: 1; }
+    .card.disabled .beaker .pct { color: var(--sub); }
+    @media (prefers-reduced-motion: no-preference) {
+      .beaker .water { animation: fill .9s ease-out; }
+      .beaker .water::before { animation: wave 2.4s linear infinite; }
+    }
+    @keyframes fill { from { height: 0; } }
+    @keyframes wave { to { background-position-x: 24px; } }
     footer { margin-top: 28px; font-size: .8rem; color: var(--sub); }
   </style>
 </head>
@@ -37,51 +54,61 @@
       <span class="who">オペレーター</span>
       <b>コールセンター（オペレーター）</b>
       <span class="desc">受電・ヒアリング・訪問の仮確定</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:85"></span></span><span class="pct">85%</span></span>
     </a>
     <a class="card" href="/callcenter/?tab=dispatch" target="_blank" rel="noopener">
       <span class="who">配車係</span>
       <b>コールセンター（配車係）</b>
       <span class="desc">訪問の調整・確定</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:80"></span></span><span class="pct">80%</span></span>
     </a>
     <a class="card" href="/tablet/" target="_blank" rel="noopener">
       <span class="who">鑑定士</span>
       <b>鑑定士タブレット</b>
       <span class="desc">訪問・買取・経費・日報（ログイン: sales01〜sales16）</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:80"></span></span><span class="pct">80%</span></span>
     </a>
     <a class="card" href="/store/" target="_blank" rel="noopener">
       <span class="who">店舗スタッフ</span>
       <b>店舗（店頭買取）</b>
       <span class="desc">来店の受付・買取・お支払い（ログイン: st01〜st03）</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:60"></span></span><span class="pct">60%</span></span>
     </a>
     <a class="card" href="/honsha/" target="_blank" rel="noopener">
       <span class="who">査定部</span>
       <b>査定部</b>
       <span class="desc">査定の承認・提案、お知らせ</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:60"></span></span><span class="pct">60%</span></span>
     </a>
     <a class="card" href="/accounting/" target="_blank" rel="noopener">
       <span class="who">経理部</span>
       <b>経理部</b>
       <span class="desc">現金・入金・経費の管理</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:55"></span></span><span class="pct">55%</span></span>
     </a>
     <a class="card" href="/warehouse/" target="_blank" rel="noopener">
       <span class="who">倉庫・物流</span>
       <b>倉庫・物流</b>
       <span class="desc">在庫・販売・クーリングオフの返品</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:65"></span></span><span class="pct">65%</span></span>
     </a>
     <a class="card" href="/marketing/" target="_blank" rel="noopener">
       <span class="who">マーケティング担当</span>
       <b>マーケティング部</b>
       <span class="desc">チラシの登録・反響管理（ログイン: mk01・mk02）</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:75"></span></span><span class="pct">75%</span></span>
     </a>
     <a class="card" href="/master/" target="_blank" rel="noopener">
       <span class="who">管理</span>
       <b>マスタ管理</b>
       <span class="desc">社員・部署・営業所・出張・店舗・倉庫・委託先</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:70"></span></span><span class="pct">70%</span></span>
     </a>
     <div class="card disabled" aria-disabled="true">
       <span class="who">データ分析</span>
       <b>データ分析</b>
       <span class="desc">準備中</span>
+      <span class="beaker" title="進捗の目安"><span class="glass"><span class="water" style="--p:0"></span></span><span class="pct">0%</span></span>
     </div>
   </div>
 

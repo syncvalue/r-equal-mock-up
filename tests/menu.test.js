@@ -40,3 +40,15 @@ test('画面一覧（トップ）: すべてのリンクは、別のタブで開
   assert.equal(links.length, 10);
   assert.ok(links.every((l) => l.includes('target="_blank"') && l.includes('rel="noopener"')), links.join('\n'));
 });
+
+test('画面一覧（トップ）: 本システムの画面には、進捗のビーカー（水位＝感覚値の％）がある。準備中のデータ分析は0%', () => {
+  const cards = [...html.matchAll(/<(?:a|div) class="card(?: disabled)?"[^>]*>[^]*?<\/(?:a|div)>/g)].map((m) => m[0]);
+  assert.equal(cards.length, 10);
+  cards.forEach((c) => {
+    const m = c.match(/class="water" style="--p:(\d+)"[^]*?class="pct">(\d+)%</);
+    assert.ok(m, 'ビーカーがない');
+    assert.equal(m[1], m[2]);
+    assert.ok(Number(m[1]) >= 0 && Number(m[1]) <= 100);
+  });
+  assert.match(cards.find((c) => c.includes('準備中')), /--p:0"/);
+});
