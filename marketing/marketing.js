@@ -33,6 +33,7 @@ let form = blankFlyer(today());
 let selId = null; // 反響管理で、日ごとの受付を見ているチラシ
 let mediaFilter = '';
 let calMonth = today().slice(0, 7); // 配布カレンダーの月
+let calArea = ''; // 配布カレンダーの、エリアの絞り込み（'' ＝ すべて）
 let calDay = today(); // 配布カレンダーで選んでいる日
 let sortBy = 'efficiency'; // 反響管理の並び: efficiency（1件あたりの費用）／profit（損益）
 
@@ -53,7 +54,7 @@ function render() {
   const onToday = flyersOnDay(flyers, today()).length;
   const due = dueFlyers(flyers, today());
   const dueNow = due.overdue.length + due.today.length; // 本日中に入稿するチラシ（期限切れを含む）
-  const body = tab === 'dashboard' ? dashboardTab({ flyers, receptions: loadReservations(), results: resultsOf(loadReservations(), Object.values(loadLive())), today: today(), topLimit }) : tab === 'flyers' ? flyersTab({ flyers, form, today: today() }) : tab === 'calendar' ? calendarTab({ flyers, month: calMonth, today: today(), selDay: calDay }) : responseTab({ flyers, receptions: loadReservations(), visits: Object.values(loadLive()), results: resultsOf(loadReservations(), Object.values(loadLive())), selId, mediaFilter, sortBy });
+  const body = tab === 'dashboard' ? dashboardTab({ flyers, receptions: loadReservations(), results: resultsOf(loadReservations(), Object.values(loadLive())), today: today(), topLimit }) : tab === 'flyers' ? flyersTab({ flyers, form, today: today() }) : tab === 'calendar' ? calendarTab({ flyers, month: calMonth, today: today(), selDay: calDay, area: calArea }) : responseTab({ flyers, receptions: loadReservations(), visits: Object.values(loadLive()), results: resultsOf(loadReservations(), Object.values(loadLive())), selId, mediaFilter, sortBy });
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
   <header class="bg-slate-800 text-white px-4 py-2 flex justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰</button>
@@ -84,6 +85,9 @@ function doLogin() {
   loginError = '';
   saveSession(r.staff.id);
   me = r.staff;
+  tab = 'dashboard'; // ログイン後は、いつも、ダッシュボードから（前回開いていたタブは、引き継がない）
+  menuOpen = false;
+  setPref('rq-mock-mkt-tab', tab);
   render();
 }
 document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-login-id],[data-login-pw]')) doLogin(); });
@@ -115,6 +119,7 @@ document.addEventListener('click', (e) => {
   if ('flyerSave' in d) return submitForm();
   if (d.flyerAdvance || d.flyerBack) { const id = d.flyerAdvance ?? d.flyerBack; const r = advanceFlyer(flyers, id, d.flyerAdvance ? 1 : -1, today()); if (r.ok) commit(r.flyers); return render(); }
   if (d.dashTop) { topLimit = Number(d.dashTop); return render(); }
+  if (d.calArea !== undefined) { calArea = d.calArea; return render(); }
   if (d.calDay) { calDay = d.calDay; return render(); }
   if (d.calMove !== undefined) { calMonth = d.calMove === '0' ? today().slice(0, 7) : shiftMonth(calMonth, Number(d.calMove)); if (d.calMove === '0') calDay = today(); return render(); }
   if ('flyerFileClear' in d) { form = { ...form, file: null }; return render(); }

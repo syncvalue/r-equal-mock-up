@@ -3,7 +3,7 @@ import { modalBadgeHtml } from '../src/screenIds.js';
 import { icon } from '../src/icons.js';
 
 export const TABS = [
-  { key: 'dashboard', icon: 'grid', label: 'ダッシュボード', sub: '本日配布・本日入稿・直近3か月の反響の上位・今月のまとめ・進捗' },
+  { key: 'dashboard', icon: 'grid', label: 'ダッシュボード', sub: '本日配布・本日入稿・直近3か月の反響の上位・今月のまとめ' },
   { key: 'flyers', icon: 'inbox', label: 'チラシ', sub: 'チラシの登録（ID・配布方法・エリア・期間・部数・費用・デザインデータ）' },
   { key: 'calendar', icon: 'calendar', label: '配布カレンダー', sub: '日ごとに、どのチラシを配るかを、月の表で見る' },
   { key: 'response', icon: 'chart', label: '反響管理', sub: 'どのチラシが効果的だったか（受付の件数・反響率・1件あたりの費用）' },

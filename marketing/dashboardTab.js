@@ -1,8 +1,8 @@
-// マーケティング部「ダッシュボード」: 追いたい数字を、ひと目で。今日配布・今日入稿・直近3か月の反響の上位・今月のまとめ・進捗
+// マーケティング部「ダッシュボード」: 追いたい数字を、ひと目で。今日配布・今日入稿・直近3か月の反響の上位・今月のまとめ
 import { esc, yen } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
-import { flyersOnDay, mediaOf, stageLabel, STAGES } from '../src/flyers.js';
-import { dueFlyers, topFlyersByCalls, stageCounts, monthSummary } from '../src/flyerDashboard.js';
+import { flyersOnDay, mediaOf, stageLabel } from '../src/flyers.js';
+import { dueFlyers, topFlyersByCalls, monthSummary } from '../src/flyerDashboard.js';
 
 export const TOP_LIMITS = [3, 5, 10];
 const pct = (r) => `${(r * 100).toFixed(2)}%`;
@@ -27,10 +27,6 @@ function topCard(top, limit) {
   { help: '直近3か月（今日から3か月前の同じ日まで）に、コールセンターが受けた受付の件数が多いチラシです（取消も数えます）。', attr: 'data-top' });
 }
 
-function stageCard(counts) {
-  return card('進捗', `<div class="grid grid-cols-4 gap-2 text-center">${STAGES.map((s) => `<div class="rounded border border-slate-200 p-2"><div class="text-[11px] text-slate-500">${s.label}</div><b class="text-2xl">${counts[s.key]}</b></div>`).join('')}</div>`, { attr: 'data-stages', help: '有効なチラシを、進捗ごとに数えた件数です。' });
-}
-
 export function dashboardTab({ flyers, receptions, results, today, topLimit = 5 }) {
   const now = flyersOnDay(flyers, today);
   const due = dueFlyers(flyers, today);
@@ -48,7 +44,6 @@ export function dashboardTab({ flyers, receptions, results, today, topLimit = 5 
       ${card('本日配布のチラシ', now.length ? `<ul class="divide-y">${now.map((f) => flyerLine(f, `<span class="text-xs text-slate-600">${esc(f.area)}</span><span class="text-xs text-slate-500">${f.quantity.toLocaleString('ja-JP')}部</span>`)).join('')}</ul>` : empty('本日配布のチラシは、ありません'), { attr: 'data-today-list' })}
       ${dueCard(due, today)}
       ${topCard(topFlyersByCalls(flyers, receptions, today, { limit: topLimit }), topLimit)}
-      ${stageCard(stageCounts(flyers, today))}
     </div>
   </div>`;
 }

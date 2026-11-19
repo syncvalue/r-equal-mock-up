@@ -143,7 +143,7 @@
 | 12.1 | [features/marketing-flyers](features/marketing-flyers/spec.md) | チラシ（登録・一覧）: 項目、IDの採番、進捗（あらかじめ登録して、1件ずつ配布まで進める）、入稿期限、受付との連動 |
 | 12.2 | [features/marketing-flyers](features/marketing-flyers/spec.md) | 反響管理: 受付の件数・反響率・1件あたりの費用、買取の金額・粗利・損益、アポごとの買取、配布方法ごと、日ごとの受付 |
 | 12.3 | [features/marketing-flyers](features/marketing-flyers/spec.md) | オペレーターへの「今日配布のチラシ」（受電の画面）。明日の予定、過去の傾向 |
-| 12.6 | [features/marketing-flyers](features/marketing-flyers/spec.md) | ダッシュボード（本日配布・本日中に入稿・直近3か月の反響の上位・今月のまとめ・進捗） |
+| 12.6 | [features/marketing-flyers](features/marketing-flyers/spec.md) | ダッシュボード（本日配布・本日中に入稿・直近3か月の反響の上位・今月のまとめ） |
 | 12.5 | [features/marketing-flyers](features/marketing-flyers/spec.md) | 配布カレンダー（月の表。日ごとの配布。日を押すと詳細） |
 | 12.4 | [features/marketing-flyers](features/marketing-flyers/spec.md) | モックの限界・確認が要ること |
 

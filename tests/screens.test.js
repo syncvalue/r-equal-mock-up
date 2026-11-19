@@ -115,24 +115,27 @@ test('マーケティング部の配布カレンダーは、描画できる。�
   assert.ok(html.includes('2026-11-19 に配布するチラシ') && html.includes('P1016')); // 11/18〜11/20 のポスティング
 });
 
-test('マーケティング部のダッシュボードは、描画できる。本日配布・本日中に入稿・直近3か月の反響の上位・今月・進捗が出る', async () => {
+test('マーケティング部のダッシュボードは、描画できる。本日配布・本日中に入稿・直近3か月の反響の上位・今月が出る', async () => {
   const { dashboardTab } = await import('../marketing/dashboardTab.js');
   const { defaultFlyers } = await import('../src/flyers.js');
   const { sampleReservations } = await import('../callcenter/samples.js');
   const flyers = defaultFlyers('2026-11-19');
   const html = dashboardTab({ flyers, receptions: sampleReservations(new Date(2026, 10, 19)), results: {}, today: '2026-11-19', topLimit: 3 });
-  for (const k of ['data-tile="today"', 'data-tile="due"', 'data-tile="calls"', 'data-tile="profit"', 'data-today-list', 'data-due', 'data-top', 'data-stages', '直近3か月の反響 上位3件']) assert.ok(html.includes(k), k);
+  for (const k of ['data-tile="today"', 'data-tile="due"', 'data-tile="calls"', 'data-tile="profit"', 'data-today-list', 'data-due', 'data-top', '直近3か月の反響 上位3件']) assert.ok(html.includes(k), k);
+  assert.ok(!html.includes('data-stages')); // 進捗の件数のカードは出さない
   assert.ok(html.includes('N1021') && html.includes('P1017')); // 本日が期限のチラシと、期限が過ぎたチラシ
   assert.ok(html.includes('data-flyer-advance="N1021"') && html.includes('期限切れ'));
 });
 
-test('マーケティング部のダッシュボードは、描画できる。本日配布・本日中に入稿・直近3か月の反響の上位・今月・進捗が出る', async () => {
-  const { dashboardTab } = await import('../marketing/dashboardTab.js');
+test('配布カレンダーは、エリアごとに色分けし、エリアで絞り込める', async () => {
+  const { calendarTab } = await import('../marketing/calendarTab.js');
   const { defaultFlyers } = await import('../src/flyers.js');
-  const { sampleReservations } = await import('../callcenter/samples.js');
+  const { areaColor } = await import('../src/areaColor.js');
   const flyers = defaultFlyers('2026-11-19');
-  const html = dashboardTab({ flyers, receptions: sampleReservations(new Date(2026, 10, 19)), results: {}, today: '2026-11-19', topLimit: 3 });
-  for (const k of ['data-tile="today"', 'data-tile="due"', 'data-tile="calls"', 'data-tile="profit"', 'data-today-list', 'data-due', 'data-top', 'data-stages', '直近3か月の反響 上位3件']) assert.ok(html.includes(k), k);
-  assert.ok(html.includes('N1021') && html.includes('P1017')); // 本日が期限のチラシと、期限が過ぎたチラシ
-  assert.ok(html.includes('data-flyer-advance="N1021"') && html.includes('期限切れ'));
+  const all = calendarTab({ flyers, month: '2026-11', today: '2026-11-19', selDay: '2026-11-19', area: '' });
+  assert.ok(all.includes('data-cal-areas') && all.includes('data-cal-area="大阪府"') && all.includes('data-cal-area="京都府"') && all.includes('data-cal-area="兵庫県"'));
+  assert.ok(all.includes(areaColor('大阪府').solid) && all.includes(areaColor('京都府').solid)); // 帯の色
+  const osaka = calendarTab({ flyers, month: '2026-11', today: '2026-11-19', selDay: '2026-11-19', area: '大阪府' });
+  assert.ok(osaka.includes('N1020') && !osaka.includes('P1016')); // 大阪府のチラシだけ（P1016 は京都府）
+  assert.ok(osaka.includes('2026-11-19 に配布するチラシ') && osaka.includes('1件'));
 });
