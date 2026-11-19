@@ -14,7 +14,7 @@ const toM = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 const ymd = (off) => { const d = new Date(2026, 9, 24 + off); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 test('サンプルの受付: 今日から3日後までの見本が、全種類そろう', () => {
-  assert.equal(list.length, 16); // 今日から3日後までの12件と、同じ番号の予約・過去の訪問の見本4件
+  assert.equal(list.length, 21); // 今日から3日後までの17件（鑑定士指名・貴金属の見本4件を含む）と、同じ番号の予約・過去の訪問の見本4件
   assert.ok(list.some((r) => r.date === ymd(2) && isTentative(r) && !needsReview(r))); // 翌々日の仮確定
   assert.ok(list.some((r) => r.status === 'confirmed')); // 確定済み
   assert.ok(list.some(needsReview)); // 確定済みが変更されて仮確定に戻った
@@ -83,4 +83,22 @@ test('明日の訪問に、前日確認の連絡の見本（連絡済み・不�
   const keys = tomorrow.map((r) => confirmStatus(r).key).sort();
   assert.deepEqual(keys, ['noanswer', 'reached']);
   assert.ok(list.filter((r) => r.date === ymd(2)).every((r) => confirmStatus(r).key === 'none'));
+});
+
+test('サンプルの受付: 鑑定士指名と、売りたいものに貴金属がある見本が、それぞれ複数ある（配車確定の印の確認用）', async () => {
+  const { wantsPreciousMetal } = await import('../src/preciousMetal.js');
+  assert.ok(list.filter((r) => r.nominated).length >= 5);
+  assert.ok(list.filter((r) => wantsPreciousMetal(r.hearing.wants)).length >= 4);
+  assert.ok(list.some((r) => r.nominated && wantsPreciousMetal(r.hearing.wants))); // 両方の印が付く予約
+});
+
+test('サンプルの受付: 配車確定の帯の札が、すべて付く見本がある（性別・ランク・再訪・貴金属・指名・要注意・CO歴有・見送）', async () => {
+  const { wantsPreciousMetal } = await import('../src/preciousMetal.js');
+  const { customerProfile } = await import('../src/customerHistory.js');
+  const all = list.find((r) => {
+    const p = customerProfile([r.customer.phone]);
+    return r.gender && r.nominated && wantsPreciousMetal(r.hearing.wants) && p.rank && p.purchase.count > 0 && p.trouble.level === 'alert' && p.cooloff.length > 0 && p.declined > 0;
+  });
+  assert.ok(all);
+  assert.equal(all.date, ymd(2)); // 配車係が確定する日（翌々日）
 });

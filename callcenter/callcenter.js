@@ -906,7 +906,7 @@ window.addEventListener('storage', (e) => {
 });
 
 // 最初に開いたときと、データ初期化のあとに、サンプルの受付を入れる（配車確定の画面などを、すぐ見られるように）
-const SAMPLE_KEY = 'rq-mock-cc-samples-v3'; // v3: 一度確定して仮確定に戻った見本を追加。v2: 休みの時間に予定が入らないように作り直した（古いサンプルは入れ替える）
+const SAMPLE_KEY = 'rq-mock-cc-samples-v5'; // v5: すべての札が付く見本を追加。v4: 鑑定士指名・貴金属の見本を追加。v3: 一度確定して仮確定に戻った見本を追加。v2: 休みの時間に予定が入らないように作り直した（古いサンプルは入れ替える）
 function seedSamples() {
   if (pref(SAMPLE_KEY, '')) return;
   setPref(SAMPLE_KEY, '1');

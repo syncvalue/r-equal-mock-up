@@ -164,7 +164,8 @@ const profileOfRes = (r) => { const p = customerProfile([r?.customer?.phone, r?.
 // 配車の判断に要る2つ: お客様の性別（記号）と、顧客ランク。鑑定士のランクは、列の見出しに出ている（高いランクのお客様には、高いランクの鑑定士を当てる）
 const GENDER_MARK = { f: ['♀', 'bg-rose-100 text-rose-700', '女性のお客様'], m: ['♂', 'bg-sky-100 text-sky-700', '男性のお客様'] };
 export const genderMark = (g) => (GENDER_MARK[g] ? `<i class="ml-0.5 rounded px-1 text-[10px] font-bold not-italic ${GENDER_MARK[g][1]}" title="${GENDER_MARK[g][2]}">${GENDER_MARK[g][0]}</i>` : '');
-export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white px-1 text-[10px] font-bold not-italic text-slate-900" title="顧客ランク（資産・売却の見込み）。新規かリピーターかとは別">${esc(p.rank)}</i>` : '<i class="ml-0.5 rounded bg-white/80 px-1 text-[10px] font-bold not-italic text-slate-700" title="顧客ランクが決まっていません">未設定</i>');
+// 顧客ランク。決まっていなければ、何も出さない（「未設定」とは書かない。設定されていれば出し、なければ出さない）
+export const custRankMark = (p) => (p?.rank ? `<i class="ml-0.5 rounded bg-white px-1 text-[10px] font-bold not-italic text-slate-900" title="顧客ランク（資産・売却の見込み）。新規かリピーターかとは別">${esc(p.rank)}</i>` : '');
 // 新規かリピーターか（ランクとは別の軸）。受付の記録（apType）か、買取の実績で分かる
 export const kindOfRes = (r, p) => (r?.apType === '再' || p?.purchase?.count > 0 ? 'repeat' : 'new');
 // 鑑定士指名（お客様が鑑定士を指名している）。配車確定でも、鑑定士は変えられない

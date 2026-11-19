@@ -49,7 +49,8 @@ test('配車確定の帯: お客様の性別の記号（♀・♂）と顧客ラ
   assert.equal(genderMark(''), '');
   assert.equal(genderMark(undefined), '');
   assert.match(custRankMark({ rank: 'S', known: true }), />S</);
-  assert.match(custRankMark({ rank: null, known: false }), />未設定</); // ランクと、新規かどうかは別。新規でも、ランクがあれば出す
+  assert.equal(custRankMark({ rank: null, known: false }), ''); // ランクがなければ、「未設定」とも書かず、何も出さない
+  assert.equal(custRankMark(undefined), '');
   assert.match(custRankMark({ rank: 'SS', known: false }), />SS</);
   const html = page(null, [rec({ gender: 'f' }), rec({ id: 'R2', userId: 'u02', gender: 'm', start: '10:00', end: '11:00', customer: { name: '佐藤 一郎', phone: '', address: 'x' } })]);
   assert.ok(html.includes('>♀<') && html.includes('>♂<'));
@@ -153,4 +154,9 @@ test('配車確定: 売りたいものに貴金属がある予約は、帯に「
   const n = (h) => (h.match(/>貴金属</g) || []).length;
   assert.equal(n(page(null, [metal])), n(page(null, [rec()])) + 1); // 帯の1つだけ増える（凡例と、元からの予定の印は、同じ）
   assert.ok(n(page(null, [rec()])) >= 1); // 凡例
+});
+
+test('配車確定の帯: 設定されていない情報（顧客ランク）は、「未設定」と書かず、出さない', () => {
+  const html = page(null, [rec({ customerRank: null })]);
+  assert.ok(!html.slice(html.indexOf('data-rid')).includes('未設定'));
 });
