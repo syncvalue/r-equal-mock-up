@@ -213,10 +213,11 @@ export function busyBlocks(userId, date, reservations, now = new Date(), extraHi
 }
 
 // null なら空き。kind: hours=営業時間外 / overlap=予定と重なる / buffer=予定との間に移動時間が足りない
-export function conflictOf(blocks, start, end, att = null) {
+// buffer: 予定の前後に確保する移動時間（分）。受付の空き確認は、既定の30分。配車係の移動は 0（仮置きがあるため、移動時間は見ない）
+export function conflictOf(blocks, start, end, att = null, { buffer = TRAVEL_BUFFER } = {}) {
   if (att && att.kind !== 'present' && (start < att.from || end > att.to)) return { kind: att.kind === 'absent' ? 'absent' : 'shift', block: null, att }; // 休み・出勤する時間の外
   if (start < WORK_START || end > WORK_END) return { kind: 'hours', block: null };
-  const hit = blocks.find((b) => start < b.end + TRAVEL_BUFFER && b.start < end + TRAVEL_BUFFER);
+  const hit = blocks.find((b) => start < b.end + buffer && b.start < end + buffer);
   if (!hit) return null;
   return { kind: start < hit.end && hit.start < end ? 'overlap' : 'buffer', block: hit };
 }
@@ -333,14 +334,15 @@ export function salesDetail({ userId, date, start, dur, reservations, here = nul
   };
 }
 
-// 配車係が、予約を別の鑑定士・別の時刻に動かせるか。動かす予約自身は、重なりに数えない。同じ日の中で動かす
+// 配車係が、予約を別の鑑定士・別の時刻に動かせるか。動かす予約自身は、重なりに数えない。同じ日の中で動かす。
+// 前後の予定との移動時間は見ない（仮置きをする場合があるため）。重なり・休み・営業時間外だけを止める
 export function canPlace(rec, userId, start, reservations, now = new Date()) {
   if (rec.nominated && rec.userId && userId !== rec.userId) return { ok: false, reason: '鑑定士指名のため、鑑定士は変えられません（時間は変えられます）' }; // お客様が鑑定士を指名している予約
   const end = start + (toMin(rec.end) - toMin(rec.start));
   if (start < WORK_START || end > WORK_END) return { ok: false, reason: '営業時間外' };
   const att = attendanceOf(userId, rec.date, now);
   const others = reservations.filter((r) => r.id !== rec.id);
-  const conflict = conflictOf(busyBlocks(userId, rec.date, others, now, rec.gid ? [rec.gid] : null), start, end, att); // 取り込む前の予定を動かすときは、その予定自身を除く
+  const conflict = conflictOf(busyBlocks(userId, rec.date, others, now, rec.gid ? [rec.gid] : null), start, end, att, { buffer: 0 }); // 取り込む前の予定を動かすときは、その予定自身を除く
   return conflict ? { ok: false, reason: conflictText(conflict) } : { ok: true, reason: '', start, end };
 }
 

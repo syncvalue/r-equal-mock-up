@@ -394,3 +394,15 @@ test('ダミーのお客様は、性別を聴取している前提で、すべ�
   const { sampleReservations } = await import('../callcenter/samples.js').catch(() => ({}));
   if (sampleReservations) for (const r of sampleReservations(new Date(2026, 9, 21, 9, 0))) assert.ok(['f', 'm'].includes(r.gender), `${r.id} の性別がない`);
 });
+
+test('配車係の移動: 前後の予定との移動時間（30分）は考慮しない（仮置きがあるため）。重なりだけは置けない', () => {
+  const a = res({ id: 'a', userId: 'u09', date: '2026-10-28', start: '13:00', end: '14:00', areaId: 'osaka', status: 'tentative' });
+  const b = res({ id: 'b', userId: 'u11', date: '2026-10-28', start: '10:00', end: '11:00', areaId: 'osaka', status: 'tentative' });
+  const all = [a, b];
+  assert.equal(canPlace(a, 'u11', 11 * 60, all, NOW).ok, true); // b の終了ちょうどから始める（移動の隙間なし）
+  assert.equal(canPlace(a, 'u11', 11 * 60 + 10, all, NOW).ok, true); // 終了の10分後でもよい
+  assert.equal(canPlace(a, 'u11', 9 * 60, all, NOW).ok, true); // b の開始ちょうどに終わる
+  assert.equal(canPlace(a, 'u11', 10 * 60 + 30, all, NOW).ok, false); // 重なりは、置けない
+  assert.match(canPlace(a, 'u11', 10 * 60 + 30, all, NOW).reason, /予定と重なる/);
+  assert.equal(conflictOf([{ start: 600, end: 660, label: 'x', source: 'event' }], 670, 730).kind, 'buffer'); // 受付の空き確認は、これまでどおり移動時間を見る
+});
