@@ -11,6 +11,7 @@ export const APPS = {
   WH: '倉庫・物流',
   HQ: '査定部',
   ACC: '経理部',
+  MKT: 'マーケティング部',
   MST: 'マスタ管理',
   GMO: 'GMOサイン（ダミー）',
 };
@@ -96,6 +97,13 @@ export const SCREENS = [
     ['05', '買取 3 買取明細', 'step'],
     ['06', '買取 4 シール', 'step'],
     ['07', '買取 5 確認・支払い', 'step'],
+    ['08', 'お客様画面（いらっしゃいませ）', 'page'],
+    ['08-1', 'お客様画面 ご本人情報のご確認', 'step'],
+    ['08-2', 'お客様画面 ご説明事項', 'step'],
+    ['08-3', 'お客様画面 買取内容（明細）', 'step'],
+    ['08-4', 'お客様画面 商品の準備中', 'step'],
+    ['08-5', 'お客様画面 お支払い', 'step'],
+    ['08-6', 'お客様画面 ありがとうございました', 'step'],
   ]),
 
   ...T('WH', [
@@ -140,6 +148,13 @@ export const SCREENS = [
     ['M03', '画像の拡大（領収書・写真）', 'modal'],
   ]),
 
+  ...T('MKT', [
+    ['01', 'チラシ（登録・一覧）', 'tab'],
+    ['02', '反響管理（チラシごとの受付・効果）', 'tab'],
+    ['02-1', '反響管理（選んだチラシの、日ごとの受付）', 'mode'],
+    ['M01', 'メニュー', 'overlay'],
+  ]),
+
   ...T('MST', [
     ['01', '社員', 'tab'],
     ['02', '部署', 'tab'],
@@ -182,6 +197,8 @@ export function ccScreenId({ tab, bodyStage, editId, done, mapAddress, cvMode } 
 }
 
 export const masterScreenId = (tab) => ({ employees: 'MST-01', departments: 'MST-02', offices: 'MST-03', trips: 'MST-04', stores: 'MST-05', warehouses: 'MST-06', vendors: 'MST-07' })[tab] ?? 'MST-01';
+// マーケティング部。tab=flyers|response。反響管理で、チラシを選んでいるときは、日ごとの受付の状態
+export const mktScreenId = ({ tab, selId } = {}) => (tab === 'response' ? (selId ? 'MKT-02-1' : 'MKT-02') : 'MKT-01');
 export const accountingScreenId = (tab) => ({ claims: 'ACC-01', balance: 'ACC-02', weekly: 'ACC-03', fixed: 'ACC-04' })[tab] ?? 'ACC-01';
 
 // 鑑定士タブレット（state: user・auth.screen・view・phase・step・sched.tab・outcome・showStaff）

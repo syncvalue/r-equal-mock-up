@@ -9,6 +9,8 @@ import { RESET_CONFIRM, clearTransactions } from '../src/store.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { initHelp } from '../src/help.js';
 import { esc } from '../src/format.js';
+import { todayFlyersHtml } from './todayFlyers.js';
+import { loadFlyers, weekdayTrend, areaTrend } from '../src/flyers.js';
 import { CANCEL_REASONS, blankMain, flyerOf, isFlyerIndex, normalizeFlyerId, triggerText, contactText } from './master.js';
 import { dispatchHtml, doneHtml, formHtml, hintHtml, openResHtml, visitHistoryHtml, callLogHtml, editBannerHtml, cancelModalHtml, mapUrl, genderLabel, dateLabel, transcriptHtml, demoWindowHtml, checklistHtml, badgeHtml, flyerResultHtml, zipCandidatesHtml, mapPaneHtml } from './view.js';
 import { dispatcherHtml, staffModalHtml, customerModalHtml, BOARD_ROW } from './dispatcherView.js';
@@ -400,10 +402,20 @@ function renderHint() {
 }
 
 // 左に入力欄（①お客様 → ②日時 → ③ヒアリングを縦一列）、右に配車。それぞれ、はみ出す場合だけ縦にスクロールする
+// 受電の「今日配布のチラシ」。開いているときは、明日の予定と、過去の反響の傾向（曜日・エリア）も出す
+const flyerPanelHtml = () => {
+  const flyers = loadFlyers(ymdOf(new Date()));
+  const trend = flyerPanelOpen ? { weekday: weekdayTrend(loadReservations()), area: areaTrend(flyers, loadReservations()) } : null;
+  return todayFlyersHtml({ flyers, today: ymdOf(new Date()), open: flyerPanelOpen, trend });
+};
+let flyerPanelOpen = pref('rq-mock-cc-flyer-panel', '1') === '1'; // 今日配布のチラシの開閉（受電のたびに、開いたままにするか）
 function renderNew() {
   return `
   <div class="grid gap-3 p-3 h-[calc(100vh-52px)] grid-rows-[minmax(0,1fr)] grid-cols-[minmax(24rem,28rem)_1fr]">
-    <div id="form" class="flex flex-col gap-2 overflow-y-auto pr-1 ${done ? 'dim' : ''}">${formMarkup()}</div>
+    <div class="flex flex-col gap-2 overflow-y-auto pr-1 min-h-0">
+      <div id="flyer-today">${flyerPanelHtml()}</div>
+      <div id="form" class="flex flex-col gap-2 ${done ? 'dim' : ''}">${formMarkup()}</div>
+    </div>
     <div class="overflow-y-auto" id="dispatch"></div>
   </div>`;
 }
@@ -652,6 +664,7 @@ document.addEventListener('click', (e) => {
   const d = t.dataset;
   if (d.demo) { ({ start: startDemo, stop: () => { stopDemo(); renderTranscript(); }, reset: resetDemo, step: stepDemo, finish: finishDemo, toggle: toggleDemo, close: toggleDemo })[d.demo](); return; }
   if (d.tab) { stopDemo(); tab = d.tab; menuOpen = false; render(); }
+  else if ('flyerPanel' in d) { flyerPanelOpen = !flyerPanelOpen; setPref('rq-mock-cc-flyer-panel', flyerPanelOpen ? '1' : '0'); const el = $('#flyer-today'); if (el) el.innerHTML = flyerPanelHtml(); }
   else if ('menuOpen' in d) { menuOpen = true; render(); }
   else if ('menuClose' in d) { menuOpen = false; render(); }
   else if (storeTab.click(d, t)) { /* 来店予約（店舗） */ }

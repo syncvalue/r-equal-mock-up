@@ -1,5 +1,7 @@
 // コールセンターの受付で使う選択肢（ダミー）。オペレーターは、マスタ管理の社員から読み込む
 
+import { loadFlyers } from '../src/flyers.js';
+
 // 来電のきっかけ（どの広告を見て電話してきたか）。チラシは号・配布方法まで記録して、反響の集計に使う
 export const CHIRASHI = [
   '新聞折込チラシ（10/12号）', '新聞折込チラシ（10/19号）', 'ポスティングチラシ', 'DM・はがき',
@@ -20,10 +22,21 @@ export const FLYERS = [
 ];
 // 入力されたIDを正規化（全角・小文字・ハイフン・空白を吸収）して、チラシを探す
 export const normalizeFlyerId = (s) => String(s ?? '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[\s\-ー−－]/g, '').toUpperCase();
-export const flyerOf = (input) => FLYERS.find((f) => f.id === normalizeFlyerId(input)) ?? null;
+// マーケティング部が登録したチラシも、IDで特定できる（chirashi は、配布方法に近い「きっかけ」の番号。名前は、登録したチラシの名前）
+const MEDIA_CHIRASHI = { newspaper: 0, posting: 2, dm: 3 };
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+export const flyerOf = (input) => {
+  const id = normalizeFlyerId(input);
+  const fixed = FLYERS.find((f) => f.id === id);
+  if (fixed) return { ...fixed, name: CHIRASHI[fixed.chirashi] };
+  const reg = id ? loadFlyers(todayKey()).find((f) => f.id === id) : null;
+  return reg ? { id: reg.id, chirashi: MEDIA_CHIRASHI[reg.media], name: reg.name } : null;
+};
+// IDの入力欄の候補（登録されているチラシ。新しい順）
+export const flyerChoices = () => [...loadFlyers(todayKey())].sort((a, b) => b.from.localeCompare(a.from) || a.id.localeCompare(b.id)).map((f) => ({ id: f.id, name: f.name }));
 export const isFlyerIndex = (i) => FLYERS.some((f) => f.chirashi === i);
 // 来電のきっかけの記録用の文字（チラシはIDも残す）
-export const triggerText = (chirashi, flyerId) => (chirashi === null ? '' : flyerId ? `${CHIRASHI[chirashi]}（ID: ${flyerId}）` : CHIRASHI[chirashi]);
+export const triggerText = (chirashi, flyerId) => (chirashi === null ? '' : flyerId ? `${flyerOf(flyerId)?.name ?? CHIRASHI[chirashi]}（ID: ${flyerId}）` : CHIRASHI[chirashi]);
 
 // メイン商材（数量を選んで入力）。数量は範囲で選ぶ。値は範囲の下限（1, 6, 11 …）で持つ。0 は未選択
 export const MAIN_ITEMS = ['背広', '婦人服', '婦人靴', '紳士靴'];

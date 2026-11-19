@@ -16,6 +16,7 @@ export const ROLES = [
   { key: 'accountant', label: '経理担当', where: '経理部' },
   { key: 'warehouse', label: '倉庫担当', where: '倉庫・物流' },
   { key: 'store', label: '店舗スタッフ', where: '店舗' },
+  { key: 'marketing', label: 'マーケティング担当', where: 'マーケティング部' },
 ];
 export const roleLabel = (role) => ROLES.find((r) => r.key === role)?.label ?? '';
 
@@ -40,10 +41,12 @@ export const DEFAULT_EMPLOYEES = [
   { id: 'st01', loginId: 'st01', name: '田中 美咲', role: 'store', active: true, storeId: 'S-NAMBA' },
   { id: 'st02', loginId: 'st02', name: '石田 翔', role: 'store', active: true, storeId: 'S-NAMBA' },
   { id: 'st03', loginId: 'st03', name: '松井 彩花', role: 'store', active: true, storeId: 'S-SHINJUKU' },
+  { id: 'mk01', loginId: 'mk01', name: '宮田 彩', role: 'marketing', active: true },
+  { id: 'mk02', loginId: 'mk02', name: '長谷川 健', role: 'marketing', active: true },
 ].map(withDept);
 
 // 店舗スタッフがいない古い保存は、見本の店舗スタッフを足す（店舗の画面にログインできる人がいなくならないように）
-const withStoreStaff = (list) => (list.some((u) => u.role === 'store') ? list : [...list, ...DEFAULT_EMPLOYEES.filter((u) => u.role === 'store')]);
+const withStoreStaff = (list) => ['store', 'marketing'].reduce((l, role) => (l.some((u) => u.role === role) ? l : [...l, ...DEFAULT_EMPLOYEES.filter((u) => u.role === role)]), list);
 
 const validList = (v) => Array.isArray(v) && v.length > 0 && v.every((u) => u && u.id && u.loginId && u.name && ROLES.some((r) => r.key === u.role));
 const readJson = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };

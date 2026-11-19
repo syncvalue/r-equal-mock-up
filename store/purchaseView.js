@@ -74,7 +74,7 @@ function payStep(d) {
   const left = leaveRemaining(d);
   return `<div class="grid lg:grid-cols-2 gap-4">
     <section class="rounded-xl border-2 border-slate-300 bg-white p-4 space-y-2">
-      <h3 class="font-bold text-lg">買取内容（お客様にお見せください）</h3>
+      <h3 class="font-bold text-lg">買取内容（お客様画面にも、反映して出します）</h3>
       <table class="w-full">${sell.map((i) => `<tr class="border-t"><td class="py-1.5">${esc(i.name)}</td><td class="w-12 text-right text-slate-500">${i.qty > 1 ? `×${i.qty}` : ''}</td><td class="w-28 text-right font-bold">${yen(i.price * i.qty)}</td></tr>`).join('')}</table>
       <div class="flex justify-between items-baseline border-t-2 pt-2"><span class="font-bold">お支払い金額</span><b class="text-3xl">${yen(totalOf(d.items))}</b></div></section>
     <section class="space-y-3">
@@ -97,6 +97,11 @@ export function purchaseHtml(ctx) {
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-back-board>← 来店の一覧へ</button>
       <b class="ml-2">${esc(d.customer.name)} 様</b>
       <ol class="flex gap-1 ml-4 text-xs">${STEPS.map((s, i) => `<li class="rounded-full px-3 py-1 font-bold ${i === d.step ? 'bg-slate-700 text-white' : i < d.step ? 'bg-slate-100 text-slate-900' : 'bg-slate-200 text-slate-500'}">${i + 1}. ${esc(s)}</li>`).join('')}</ol>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="text-sm font-bold ${ctx.synced ? 'text-teal-700' : 'text-amber-700'}" role="status">${ctx.synced ? '✔ お客様画面に反映済み' : 'お客様画面に未反映の変更があります'}</span>
+        <button class="b ${ctx.synced ? 'b-sec' : 'b-pri'} !min-h-0 !py-1 text-sm" data-reflect>お客様画面へ反映</button>
+        ${helpIcon('お客様に向けた2枚目の画面（「お客様画面を開く」）に、いまの手順の内容を出します。押したときだけ更新されます（入力の途中の内容は、お客様に見えません）。お客様確認では、お名前・住所などの入力内容、説明事項では説明の文言、買取明細・お支払いでは商品と金額が出ます。顧客ランク・厄介度・過去の見送り品・シールNo.は、出ません。')}
+      </div>
     </div>
     <div class="flex-1 min-h-0 overflow-y-auto p-4" data-scroll="body">${body}</div>
     <footer class="px-4 py-2 bg-white border-t flex items-center gap-3">

@@ -1,6 +1,6 @@
 // 店舗の画面（ダミー・PC／タブレット想定）。お客様が持ち込む買取希望品を、来店の受付から買取の完了まで扱う。
 import { setScreenBadge, storeScreenId } from '../src/screenIds.js';
-import { STORE_VISITS_KEY, STORE_DRAFT_KEY, STOCK_KEY, RESET_CONFIRM, clearTransactions, upsertContract, newContractId, GMO_URL } from '../src/store.js';
+import { STORE_VISITS_KEY, STORE_DRAFT_KEY, STORE_CUSTOMER_VIEW_KEY, STOCK_KEY, RESET_CONFIRM, clearTransactions, upsertContract, newContractId, GMO_URL } from '../src/store.js';
 import { EMPLOYEES_KEY, loadEmployees, storeStaffOf } from '../src/employees.js';
 import { STORES_KEY, loadStores, storeById, activeStores } from '../src/stores.js';
 import { login, loadSession, saveSession, clearSession } from '../src/storeSession.js';
@@ -13,6 +13,7 @@ import {
 } from '../src/storeDraft.js';
 import { buildContract, buildPurchase, buildDeclined } from '../src/storePurchase.js';
 import { historyOf, customerProfile, declinedList } from '../src/customerHistory.js';
+import { customerViewOf, welcomeView, thanksView, loadCustomerView, saveCustomerView, isSynced } from '../src/storeCustomerView.js';
 import { recordDeclined } from '../src/declined.js';
 import { loadUnits, saveUnits, addUnits } from '../src/stock.js';
 import { PRODUCTS } from '../src/data.js';
@@ -61,6 +62,12 @@ function commit(r) {
   return true;
 }
 
+// お客様画面（2枚目のモニタ）に出す内容を、変える。保存できなければ知らせる
+function showCustomer(view) {
+  if (!saveCustomerView(staff.storeId, view)) alert('お客様画面へ反映できませんでした（保存容量不足）');
+}
+const customerUrl = () => `/store/customer.html?store=${encodeURIComponent(staff.storeId)}`;
+
 const phonesOf = (c) => [c.phone, c.phone2].filter(Boolean);
 
 function purchaseCtx() {
@@ -68,7 +75,7 @@ function purchaseCtx() {
   const phones = phonesOf(draft.customer);
   const taken = loadUnits().flatMap((u) => [u.code, ...(u.relabels ?? []).map((r) => r.from)]);
   return {
-    draft, visit, taken, search, labelError,
+    draft, visit, taken, search, labelError, synced: isSynced(customerViewOf(draft), loadCustomerView(staff.storeId)),
     history: historyOf({ phone: draft.customer.phone }, { before: visit?.startedAt ?? Date.now() }),
     profile: customerProfile(phones), declined: declinedList(phones),
     results: (search.trim() ? searchProducts({ q: search }) : popularProducts(8)).slice(0, 8),
@@ -130,6 +137,7 @@ function finishPurchase() {
   clearDraft(visit.id);
   view = 'board';
   draft = null;
+  showCustomer(thanksView());
   showToast(`買取を完了しました（${r.result.count}点・入庫待ちに登録）`);
 }
 
@@ -143,6 +151,7 @@ function declineVisit() {
   clearDraft(visit.id);
   view = 'board';
   draft = null;
+  showCustomer(welcomeView()); // お客様の情報を、画面に残さない
 }
 
 function sendContract() {
@@ -165,7 +174,9 @@ const CLICK = {
     saveSession(r.staff.id);
     staff = r.staff;
   },
-  logout: () => { clearSession(); staff = null; view = 'board'; draft = null; },
+  logout: () => { showCustomer(welcomeView()); clearSession(); staff = null; view = 'board'; draft = null; },
+  openCustomer: () => { window.open(customerUrl(), 'rq-customer-display'); return false; },
+  reflect: () => showCustomer(customerViewOf(draft)),
   reset: () => {
     if (!confirm(RESET_CONFIRM)) return false;
     clearTransactions();
@@ -179,7 +190,7 @@ const CLICK = {
   open: (id) => openPurchase(id),
   noshow: (id) => { if (confirm('来ず（予約の時間になってもお見えにならなかった）として記録します。よろしいですか？')) commit(markNoShow(loadStoreVisits(), id, visitOpts())); },
   cancelVisit: (id) => { const reason = prompt('取消の理由（例: お客様のご都合）'); if (reason !== null) commit(cancelVisit(loadStoreVisits(), id, reason, staff.name, visitOpts())); },
-  backBoard: () => { view = 'board'; draft = null; },
+  backBoard: () => { view = 'board'; draft = null; showCustomer(welcomeView()); }, // 一覧へ戻ったら、お客様の情報を、画面に残さない
   cok: () => patchDraft({ customerOk: !draft.customerOk }),
   ex: (k) => patchDraft({ explain: { ...draft.explain, [k]: !draft.explain[k] } }),
   propose: (v) => patchDraft({ propose: v }),
@@ -232,7 +243,7 @@ document.addEventListener('keydown', (e) => {
 
 // 別のタブ（コールセンターの来店予約・マスタ管理・GMOサイン）での変更に追従する。入力中の欄は壊さない
 window.addEventListener('storage', (e) => {
-  if (![STORE_VISITS_KEY, STORES_KEY, EMPLOYEES_KEY, STOCK_KEY, STORE_DRAFT_KEY].includes(e.key)) return;
+  if (![STORE_VISITS_KEY, STORES_KEY, EMPLOYEES_KEY, STOCK_KEY, STORE_DRAFT_KEY, STORE_CUSTOMER_VIEW_KEY].includes(e.key)) return;
   if (document.activeElement?.matches?.('input,textarea,select')) return;
   render();
 });

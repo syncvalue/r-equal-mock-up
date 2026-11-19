@@ -11,7 +11,7 @@
 |---|---|
 | [docs/INDEX.md](INDEX.md) | **入口**。文書の一覧、章番号から機能のファイルを引く索引、逆引き |
 | [docs/shared/](shared/) | 機能をまたぐ共通の文書: [用語集](shared/glossary.md)・[全体像](shared/overview.md)（0章）・[画面共通のルール](shared/ui-rules.md)（0.3.1〜0.3.4・8章）・[テストと開発ルール](shared/development.md)（9章）・[本実装に向けた課題](shared/production-gaps.md)（10章） |
-| [docs/features/](features/) | **機能別の仕様**。1機能＝1フォルダ（`spec.md`）。1章（鑑定士タブレット）・2章（コールセンター）・3章（査定部）・4章（経理部）・5章（倉庫・物流）・6章（GMOサイン）・7章（マスタ管理）・11章（店舗）を、機能ごとに分けた |
+| [docs/features/](features/) | **機能別の仕様**。1機能＝1フォルダ（`spec.md`）。1章（鑑定士タブレット）・2章（コールセンター）・3章（査定部）・4章（経理部）・5章（倉庫・物流）・6章（GMOサイン）・7章（マスタ管理）・11章（店舗）・12章（マーケティング部）を、機能ごとに分けた |
 | [docs/FUTURE_REQUIREMENTS.md](FUTURE_REQUIREMENTS.md) | 今後の要件（区分つき） |
 | [docs/SCREEN_IDS.md](SCREEN_IDS.md) | 画面ID一覧 |
 

@@ -16,8 +16,9 @@ const opts = { warehouseIds: WH, storeIds: ST, departmentIds: DEPTS.map((d) => d
 const save = (list, input, o = opts) => U.saveEmployee(list, { departmentId: defaultDepartmentOf(input.role), ...input }, o);
 const roleCount = (list, role) => list.filter((u) => u.role === role).length;
 
-test('役割: 鑑定士・オペレーター・配車係・査定員・経理担当・倉庫担当・店舗スタッフの7つ。表示名は用語集のとおり', () => {
-  assert.deepEqual(U.ROLES.map((r) => r.label), ['鑑定士', 'オペレーター', '配車係', '査定員', '経理担当', '倉庫担当', '店舗スタッフ']);
+test('役割: 鑑定士・オペレーター・配車係・査定員・経理担当・倉庫担当・店舗スタッフ・マーケティング担当の8つ。表示名は用語集のとおり', () => {
+  assert.deepEqual(U.ROLES.map((r) => r.label), ['鑑定士', 'オペレーター', '配車係', '査定員', '経理担当', '倉庫担当', '店舗スタッフ', 'マーケティング担当']);
+  assert.equal(U.roleLabel('marketing'), 'マーケティング担当');
   assert.equal(U.roleLabel('appraiser'), '査定員');
   assert.equal(U.roleLabel('nope'), '');
 });

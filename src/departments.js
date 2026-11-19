@@ -12,16 +12,18 @@ export const DEFAULT_DEPARTMENTS = [
   { id: 'D-ACCOUNTING', name: '経理部', active: true },
   { id: 'D-LOGISTICS', name: '物流部', active: true },
   { id: 'D-STORE', name: '店舗部', active: true },
+  { id: 'D-MARKETING', name: 'マーケティング部', active: true },
 ].map((d) => ({ ...d, companyId: COMPANY.id }));
 
 // 役割ごとの、初期の所属部署（社員を登録するときの初期値。役割と部署は、独立した項目）
-const ROLE_DEPARTMENT = { sales: 'D-SALES', operator: 'D-CALLCENTER', dispatcher: 'D-CALLCENTER', appraiser: 'D-APPRAISAL', accountant: 'D-ACCOUNTING', warehouse: 'D-LOGISTICS', store: 'D-STORE' };
+const ROLE_DEPARTMENT = { sales: 'D-SALES', operator: 'D-CALLCENTER', dispatcher: 'D-CALLCENTER', appraiser: 'D-APPRAISAL', accountant: 'D-ACCOUNTING', warehouse: 'D-LOGISTICS', store: 'D-STORE', marketing: 'D-MARKETING' };
 export const defaultDepartmentOf = (role) => ROLE_DEPARTMENT[role] ?? '';
 
 const valid = (v) => Array.isArray(v) && v.length > 0 && v.every((d) => d && d.id && d.name);
 
 // 店舗部がない古い保存は、店舗部を足す（店舗スタッフの所属先がなくならないように）
-const withStoreDept = (list) => (list.some((d) => d.id === 'D-STORE') ? list : [...list, DEFAULT_DEPARTMENTS.find((d) => d.id === 'D-STORE')]);
+// マーケティング部がない古い保存は、マーケティング部を足す（マーケティング担当の所属先がなくならないように）
+const withStoreDept = (list) => ['D-STORE', 'D-MARKETING'].reduce((l, id) => (l.some((d) => d.id === id) ? l : [...l, DEFAULT_DEPARTMENTS.find((d) => d.id === id)]), list);
 
 export function loadDepartments() {
   try {

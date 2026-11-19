@@ -93,3 +93,16 @@ test('店舗の画面は、描画できる。ログイン前はログイン画�
   assert.ok(JSON.parse(mem.get('rq-mock-store-visits')).length >= 8); // サンプルの来店が入る
 });
 
+
+test('マーケティング部の画面は、描画できる（チラシの登録・一覧）。反響管理の画面も、見本の受付で描画できる', async () => {
+  root.innerHTML = '';
+  await import('../marketing/marketing.js');
+  assert.ok(root.innerHTML.includes('マーケティング部') && root.innerHTML.includes('チラシの登録') && root.innerHTML.includes('チラシの一覧') && root.innerHTML.includes('今日配布'));
+  const { responseTab } = await import('../marketing/responseTab.js');
+  const { loadFlyers } = await import('../src/flyers.js');
+  const { sampleReservations } = await import('../callcenter/samples.js');
+  const flyers = loadFlyers('2026-11-19');
+  const html = responseTab({ flyers, receptions: sampleReservations(), selId: 'N1019', mediaFilter: '' });
+  assert.ok(html.includes('チラシごとの反響') && html.includes('data-response-row="N1019"') && html.includes('日ごとの受付') && html.includes('1件あたり'));
+  assert.ok(responseTab({ flyers, receptions: [], selId: null, mediaFilter: 'dm' }).includes('data-media="dm"'));
+});

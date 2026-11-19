@@ -121,12 +121,14 @@ export const TRANSFER_KEY = 'rq-mock-transfers';
 export const STORE_VISITS_KEY = 'rq-mock-store-visits';
 export const STORE_DRAFT_KEY = 'rq-mock-store-drafts';
 export const STORE_SESSION_KEY = 'rq-mock-store-session';
+// 店舗のお客様画面（デュアルモニタの2枚目）に、いま出している内容。店舗スタッフが「お客様画面へ反映」を押したときに書く
+export const STORE_CUSTOMER_VIEW_KEY = 'rq-mock-store-customer-view';
 
 export { RESERVATION_KEY };
 
 // デモ用: マスタ以外のトランザクションデータ（契約・査定依頼・コメント・訪問状況）をすべて消す
 export const clearTransactions = () => {
-  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY, ADVANCE_REQ_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY, STORE_VISITS_KEY, STORE_DRAFT_KEY].forEach((k) => localStorage.removeItem(k));
+  [KEY, AP_KEY, COMMENT_KEY, LIVE_KEY, APPROVAL_KEY, EVAL_KEY, MSG_KEY, READ_KEY, WORKDAY_KEY, DEPOSIT_KEY, CUSTOMER_PAY_KEY, LEDGER_KEY, FIXED_KEY, DAILY_CHECK_KEY, ITEM_CHECK_KEY, CHAT_KEY, ADVANCE_REQ_KEY, STOCK_KEY, WAREHOUSE_KEY, RETURN_KEY, TRANSFER_KEY, RESERVATION_KEY, MOVED_KEY, DECLINED_KEY, STORE_VISITS_KEY, STORE_DRAFT_KEY, STORE_CUSTOMER_VIEW_KEY].forEach((k) => localStorage.removeItem(k));
   sessionStorage.removeItem('gmo-auth');
   sessionStorage.removeItem(SESSION_KEY); // ログイン状態も破棄する
   sessionStorage.removeItem('rq-mock-wh-session'); // 倉庫担当のログイン状態も
