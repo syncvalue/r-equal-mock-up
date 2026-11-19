@@ -20,6 +20,6 @@ test('鑑定士のタブレット: 要注意・クーリングオフ2回以上�
 
 test('予定表の帯に出す小さな印: ランク・注意・クーリングオフ回数。新規は出さない', () => {
   const t = text(customerMarks(profile({ cooloff: [{ at: 1, items: 'a' }, { at: 2, items: 'b' }] })));
-  assert.deepEqual(['顧A', '注意', 'CO2'].map((k) => t.includes(k)), [true, true, true]);
+  assert.deepEqual(['顧A', '注意', 'CO歴有'].map((k) => t.includes(k)), [true, true, true]);
   assert.equal(customerMarks({ known: false }), '');
 });
