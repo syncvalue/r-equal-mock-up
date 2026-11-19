@@ -158,7 +158,7 @@ function compute() {
   const ranking = { inArea: shownIn, others: full.others };
   const all = [...ranking.inArea, ...ranking.others];
   const manual = all.find((c) => c.user.id === form.userId && c.free);
-  const selected = manual ?? ranking.inArea.find((c) => c.recommended) ?? null; // 手動で選ばなければ、おすすめを自動で選ぶ
+  const selected = manual ?? null; // 担当は、オペレーターが選んだ人だけ。おすすめの人を、勝手に担当にはしない（「誰でもいい」で、おすすめの人に流れないように）
   const today = ymdOf(new Date());
   const calendar = ranking.inArea.length
     ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today, mode: calMode, hasHere: Boolean(here), onlyFree: calOnlyFree }
@@ -408,7 +408,7 @@ const flyerPanelHtml = () => {
   const trend = flyerPanelOpen ? { weekday: weekdayTrend(loadReservations()), area: areaTrend(flyers, loadReservations()) } : null;
   return todayFlyersHtml({ flyers, today: ymdOf(new Date()), open: flyerPanelOpen, trend });
 };
-let flyerPanelOpen = pref('rq-mock-cc-flyer-panel', '1') === '1'; // 今日配布のチラシの開閉（受電のたびに、開いたままにするか）
+let flyerPanelOpen = pref('rq-mock-cc-flyer-panel', '0') === '1'; // 今日配布のチラシの開閉（初期は閉じる。開いたら、次の受電でも開いたままにする）
 function renderNew() {
   return `
   <div class="grid gap-3 p-3 h-[calc(100vh-52px)] grid-rows-[minmax(0,1fr)] grid-cols-[minmax(24rem,28rem)_1fr]">
