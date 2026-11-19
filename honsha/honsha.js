@@ -7,7 +7,7 @@ import {
 import { threadFor, messagesOf, addMessage, closeThread, canApprove, hasUnread, markRead, hasProposal } from '../src/appraisalThread.js';
 import { USERS } from '../src/dashboard.js';
 import { loadEmployees, appraisersOf } from '../src/employees.js';
-import { eventsOfDay } from '../src/schedule.js';
+import { eventsOfDay, eventById } from '../src/schedule.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { initHelp, helpIcon } from '../src/help.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
@@ -18,6 +18,7 @@ import { appraisalQueue, lookupForAppraisal, confirmAppraisal, appraisalMessage,
 import { openMockCamera } from '../warehouse/camera.js';
 import { tabLabel, menuView } from './menu.js';
 import { appraisalTab } from './appraisalTab.js';
+import { previewModalHtml } from './visitPreview.js';
 import { yen, fmtTime, fmtElapsed, esc } from '../src/format.js';
 
 const $ = (s) => document.querySelector(s);
@@ -37,6 +38,7 @@ let apQuery = ''; // 査定の一覧の検索
 let apFilter = 'pending'; // 査定の一覧: pending（査定待ち）／confirmed（確定済み）
 const blankAp = () => ({ raw: '', code: null, name: '', rank: 'A', expectedPrice: 0, message: null }); // 査定: 読み取った商品と、確認中の内容
 let ap = blankAp();
+let preview = null; // 事前確認で開いている予定のID（見るだけ）
 let compose = null; // 鑑定士へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
@@ -104,7 +106,8 @@ function sidebar(visits, aps, approvals) {
     const nowCls = now ? 'bg-teal-100 border-l-8 border-l-teal-600' : done ? 'bg-slate-100 border-l-8 border-l-slate-500' : 'border-l-8 border-l-transparent';
     return v
       ? `<button class="w-full text-left p-3 border-b ${nowCls} ${now ? 'hover:bg-teal-200' : done ? 'hover:bg-slate-200' : 'hover:bg-slate-50'} ${v.visitId === visitId ? (now ? 'ring-2 ring-inset ring-slate-500' : done ? 'ring-2 ring-inset ring-slate-400' : 'bg-slate-50') : ''}" data-visit="${v.visitId}">${inner}</button>`
-      : `<div class="p-3 border-b ${nowCls} ${done ? 'opacity-80' : ''}">${inner}</div>`;
+      : e.dummy || eventById(e.id) ? `<button class="w-full text-left p-3 border-b ${nowCls} ${done ? 'opacity-80' : ''} hover:bg-slate-50" data-preview="${esc(e.id)}" title="お客様の情報を確認する">${inner}</button>`
+        : `<div class="p-3 border-b ${nowCls} ${done ? 'opacity-80' : ''}">${inner}</div>`;
   };
   const extra = extras.filter((v) => !(hideDone && v.endedAt)).map((v) => row({ e: { start: fmtTime(v.startedAt).slice(0, 5), end: '', customer: { name: v.customerName }, userId: v.userId ?? 'u01', items: '予定外・別日の訪問' }, v, key: v.endedAt ? 'done' : 'visiting', label: v.outcome ? v.outcome.label : v.endedAt ? '完了' : '訪問中' }));
   if (!shown.length && !extra.length) return `<p class="p-6 text-slate-400">${rows.length ? '表示する予定はありません（完了分を隠しています）' : '担当する鑑定士の、今日の予定はありません'}</p>`;
@@ -344,7 +347,7 @@ function render() {
       <span class="font-bold text-xl">査定部</span><span class="text-slate-500">›</span><span class="font-bold">${tabLabel(tab)}</span></div>
     <div class="text-sm">${supportBar}<label class="ml-3 text-xs text-white/80">査定員 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${appraisers().map((a) => `<option class="text-slate-900" value="${esc(a.id)}" ${a.id === appraiser().id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="demo-only ml-2" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
-  ${tab === 'appraisal' ? `<div class="flex-1 min-h-0">${appraisalTab({ units: loadUnits(), master: loadMaster(), filter: apFilter, q: apQuery, ap })}</div>` : supportBody(v, visits, aps, cs, approvals)}${menuOpen ? menuView({ tab, badges }) : ''}${composeModal()}</div>`;
+  ${tab === 'appraisal' ? `<div class="flex-1 min-h-0">${appraisalTab({ units: loadUnits(), master: loadMaster(), filter: apFilter, q: apQuery, ap })}</div>` : supportBody(v, visits, aps, cs, approvals)}${menuOpen ? menuView({ tab, badges }) : ''}${composeModal()}${preview ? previewModalHtml(eventById(preview)) : ''}</div>`;
   setScreenBadge(hqScreenId(tab === 'appraisal' ? (ap.code ? { code: ap.code } : null) : sel, tab)); // 画面の隅の、画面ID
   dirty = false;
 }
@@ -432,6 +435,9 @@ function handleAppraisalClick(t) {
 }
 
 document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-preview-close]')) { preview = null; render(); return; }
+  const pv = e.target.closest('[data-preview]');
+  if (pv) { preview = pv.dataset.preview; render(); return; }
   if (e.target.closest('[data-compose-backdrop]') && e.target.matches('[data-compose-backdrop]')) { compose = null; render(); return; }
   const t = e.target.closest('button, tr[data-item]');
   if (!t) return;
@@ -467,6 +473,7 @@ document.addEventListener('click', (e) => {
   render();
 });
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && preview) { preview = null; render(); return; }
   if (e.key === 'Enter' && !e.isComposing && e.target.dataset?.ap === 'raw') { openAppraisal(e.target.value); render(); return; } // 日本語入力の確定のEnterでは進まない
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.dataset?.f === 'text') {
     e.preventDefault();
