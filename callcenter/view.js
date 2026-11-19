@@ -339,7 +339,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
       <button class="b b-sec !min-h-0 !py-1 text-sm" data-day="1" title="次の日">▶</button>
       <button class="chip ${onlyFree ? 'on' : ''}" data-onlyfree title="希望の時間に空いている鑑定士だけを表示">空きのみ</button></div>
  ${travelStripHtml(cols.find((c) => c.user.id === selectedId && !c.absent), form)}
-    ${cols.length ? `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axisCol}${body}</div></div>` : '<div class="py-6 text-center text-sm text-slate-400">この時間に空いている鑑定士がいません</div>'}
+    ${cols.length ? `<div class="overflow-x-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 bg-white"></div>${head}${axisCol}${body}</div></div>` : '<div class="py-6 text-center text-sm text-slate-400">この時間に空いている鑑定士がいません</div>'}
     <div class="mt-0.5">${legendHtml()}</div>
   </div>`;
 }

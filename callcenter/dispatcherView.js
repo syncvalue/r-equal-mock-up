@@ -229,7 +229,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
     ${c.blocks.map((b) => blockHtml(b, selId, byId, c.att)).join('')}${legsHtml(c.travel.legs)}${attShade(c.att, BOARD_ROW)}
     ${c.absent ? `<div class="pointer-events-none absolute inset-x-0 top-1 z-20 text-center"><span class="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">${c.awayName ? `出張中（${esc(c.awayName)}）` : '休み'}</span></div>` : ''}</div>`).join('');
   // 列は最小9.5rem（1920×1080で8人が収まる）。収まらないときは、右端に「あと○名」を出す（callcenter.js の updateBoardHint が、出し入れする）
-  return `<div class="relative"><div class="overflow-x-auto" data-boardscroll><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axis}${body}</div></div>
+  return `<div class="relative"><div class="overflow-x-auto" data-boardscroll><div class="grid" style="${grid}"><div class="sticky left-0 z-30 bg-white"></div>${head}${axis}${body}</div></div>
     <div hidden data-boardhint class="pointer-events-none absolute bottom-3 right-0 top-0 z-40 w-10 bg-gradient-to-l from-slate-900/25 to-transparent"><span class="absolute right-1 top-24 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-white">あと<span data-hintn></span>名 ▶</span></div></div>`;
 }
 
