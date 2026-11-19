@@ -183,7 +183,7 @@ export const boardLegendHtml = () => `<span class="flex flex-wrap items-center g
 
 // 帯の中身は、3段（見やすいように、段ごとに役割を分ける）: ①名前 ②印（性別・ランク・新規／再訪） ③住所（1行）。時間は、左の時間軸で分かるので出さない（ホバーのタイトルには入れる）。1時間の帯（通常）で、3段が見切れない高さにしてある
 const blockBody = ({ mark, name, marks, place, pr = '' }) => `<div class="truncate text-[11px] font-bold leading-4 ${pr}">${mark}${esc(name)}</div>
-    <div class="mt-0.5 flex items-center gap-x-1 overflow-hidden leading-4">${marks}</div>
+    <div class="mt-0.5 flex items-center gap-x-1 overflow-hidden whitespace-nowrap leading-4 [&>*]:shrink-0 [&>*]:whitespace-nowrap">${marks}</div>
     ${place ? `<div class="truncate opacity-90 leading-4">${esc(place)}</div>` : ''}`;
 
 function blockHtml(b, selId, byId, att) {
