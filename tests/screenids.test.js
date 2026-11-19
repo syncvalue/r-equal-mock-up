@@ -37,12 +37,12 @@ test('コールセンター: 状態からIDが決まる', () => {
 test('マスタ・経理・査定部・GMOサイン・店舗・倉庫: 状態からIDが決まる', () => {
   for (const t of ['employees', 'departments', 'offices', 'trips', 'stores', 'warehouses', 'vendors']) seen(masterScreenId(t));
   for (const t of ['claims', 'balance', 'weekly', 'fixed']) seen(accountingScreenId(t));
-  for (const tab of ['dashboard', 'flyers', 'calendar', 'response']) for (const selId of [null, 'N1001']) seen(mktScreenId({ tab, selId }));
-  assert.equal(mktScreenId({ tab: 'response', selId: 'N1001' }), 'MKT-02-1');
+  for (const tab of ['dashboard', 'flyers', 'calendar', 'response']) seen(mktScreenId({ tab }));
+  assert.equal(mktScreenId({ tab: 'response', selId: 'N1001' }), 'MKT-02'); // チラシの詳細は、モーダル（MKT-M02）。ページのIDは変わらない
+  assert.equal(mktScreenId({ tab: 'dashboard' }), 'MKT-05');
   assert.equal(mktScreenId({ tab: 'calendar' }), 'MKT-03');
   seen(mktScreenId({ staff: null }));
   assert.equal(mktScreenId({ staff: null, tab: 'response' }), 'MKT-04'); // ログインしていなければ、どのタブでも、ログイン画面
-  assert.equal(mktScreenId({ tab: 'flyers', selId: 'N1001' }), 'MKT-01'); // チラシの登録の画面では、反響管理の選択は関係ない
   for (const sel of [null, { type: 'item' }, { type: 'req' }]) seen(hqScreenId(sel));
   for (const sel of [null, { code: 'RQ-P1' }]) seen(hqScreenId(sel, 'appraisal')); // 査定（読み取り前・読み取り後）
   assert.equal(hqScreenId(null, 'support'), 'HQ-01');

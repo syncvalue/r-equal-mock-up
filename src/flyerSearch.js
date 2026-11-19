@@ -1,6 +1,7 @@
 // チラシの検索（進捗・エリア・配布方法・入稿期限・フリーワード）。デザイナーなど、やるべき作業を確認するため。画面から独立した純関数
 import { stageOf, stageLabel, mediaOf, shiftDay } from './flyers.js';
 import { areaOf } from './areaColor.js';
+import { windowStart } from './flyerDashboard.js';
 
 export const DUE_OPTIONS = [
   { key: 'overdue', label: '期限切れ' },
@@ -51,4 +52,19 @@ export function stageCountsForFilter(flyers, today) {
     if (st === 'plan' || st === 'design') c.todo += 1;
   });
   return c;
+}
+
+// ---- 反響管理の期間 ----------------------------------------------------------------------------
+// 配布した日が、期間内におさまっているチラシ（はじめ・おわりの両方が、期間の中。両端の日を含む）。from・to が空なら、その側は指定なし
+export const flyersInPeriod = (flyers, from, to) => flyers.filter((f) => (!from || f.from >= from) && (!to || f.to <= to) && (!from || !to || from <= to));
+
+const p2 = (n) => String(n).padStart(2, '0');
+const ymd = (d) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+// 期間の早見: month＝今月／lastMonth＝先月／last3＝直近3か月（今日から3か月前の同じ日まで）／all＝指定なし
+export function periodPreset(key, today) {
+  const [y, m] = today.split('-').map(Number);
+  if (key === 'month') return { from: ymd(new Date(y, m - 1, 1)), to: ymd(new Date(y, m, 0)) };
+  if (key === 'lastMonth') return { from: ymd(new Date(y, m - 2, 1)), to: ymd(new Date(y, m - 1, 0)) };
+  if (key === 'last3') return { from: windowStart(today, 3), to: today };
+  return { from: '', to: '' };
 }

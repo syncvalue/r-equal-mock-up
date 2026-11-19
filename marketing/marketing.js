@@ -2,6 +2,7 @@
 import { setScreenBadge, mktScreenId } from '../src/screenIds.js';
 import { loadFlyers, saveFlyers, saveFlyer, setFlyerActive, advanceFlyer, flyersOnDay, receptionResult, demoResult } from '../src/flyers.js';
 import { dueFlyers } from '../src/flyerDashboard.js';
+import { periodPreset } from '../src/flyerSearch.js';
 import { loadLive } from '../src/store.js';
 import { loadReservations, addReservation, ymdOf } from '../src/reservations.js';
 import { sampleReservations } from '../callcenter/samples.js';
@@ -35,9 +36,12 @@ let mediaFilter = '';
 let calMonth = today().slice(0, 7); // 配布カレンダーの月
 const blankFilter = () => ({ stage: '', area: '', media: '', due: '', q: '' });
 let flyerPage = 1; // チラシの一覧のページ（20件ごと）
+let respFrom = ''; // 反響管理の期間（配布した日がこの期間内のチラシ。'' ＝ 指定なし）
+let respTo = '';
 let respPage = 1; // 反響管理の一覧のページ
 let flyerFilter = blankFilter(); // チラシの一覧の検索条件
 let calArea = ''; // 配布カレンダーの、エリアの絞り込み（'' ＝ すべて）
+let calOpen = false; // 配布カレンダーで、日の詳細（モーダル）を開いている
 let calDay = today(); // 配布カレンダーで選んでいる日
 let sortBy = 'efficiency'; // 反響管理の並び: efficiency（1件あたりの費用）／profit（損益）
 
@@ -58,7 +62,7 @@ function render() {
   const onToday = flyersOnDay(flyers, today()).length;
   const due = dueFlyers(flyers, today());
   const dueNow = due.overdue.length + due.today.length; // 本日中に入稿するチラシ（期限切れを含む）
-  const body = tab === 'dashboard' ? dashboardTab({ flyers, receptions: loadReservations(), results: resultsOf(loadReservations(), Object.values(loadLive())), today: today(), topLimit }) : tab === 'flyers' ? flyersTab({ flyers, form, today: today(), filter: flyerFilter, page: flyerPage }) : tab === 'calendar' ? calendarTab({ flyers, month: calMonth, today: today(), selDay: calDay, area: calArea }) : responseTab({ flyers, receptions: loadReservations(), visits: Object.values(loadLive()), results: resultsOf(loadReservations(), Object.values(loadLive())), selId, mediaFilter, sortBy, page: respPage });
+  const body = tab === 'dashboard' ? dashboardTab({ flyers, receptions: loadReservations(), results: resultsOf(loadReservations(), Object.values(loadLive())), today: today(), topLimit }) : tab === 'flyers' ? flyersTab({ flyers, form, today: today(), filter: flyerFilter, page: flyerPage }) : tab === 'calendar' ? calendarTab({ flyers, month: calMonth, today: today(), selDay: calDay, area: calArea, open: calOpen }) : responseTab({ flyers, receptions: loadReservations(), visits: Object.values(loadLive()), results: resultsOf(loadReservations(), Object.values(loadLive())), selId, mediaFilter, sortBy, page: respPage, from: respFrom, to: respTo });
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
   <header class="bg-slate-800 text-white px-4 py-2 flex justify-between items-center">
     <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰</button>
@@ -94,7 +98,8 @@ function doLogin() {
   setPref('rq-mock-mkt-tab', tab);
   render();
 }
-document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-login-id],[data-login-pw]')) doLogin(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && (calOpen || selId)) { calOpen = false; selId = null; render(); return; } if (e.key === 'Enter' && e.target.matches('[data-login-id],[data-login-pw]')) doLogin(); });
 // フリーワードは、入力しながら、結果の表だけを作り直す（入力欄は、作り直さない）
 function renderResults() {
   const el = document.querySelector('[data-flyer-results]');
@@ -115,6 +120,7 @@ function readFile(file) {
 }
 document.addEventListener('change', (e) => {
   const sel = { 'data-flyer-farea': 'area', 'data-flyer-fmedia': 'media', 'data-flyer-fdue': 'due' };
+  if (e.target.matches('[data-resp-from],[data-resp-to]')) { if (e.target.hasAttribute('data-resp-from')) respFrom = e.target.value; else respTo = e.target.value; respPage = 1; selId = null; render(); return; }
   const attr = Object.keys(sel).find((a) => e.target.hasAttribute?.(a));
   if (attr) { flyerFilter = { ...flyerFilter, [sel[attr]]: e.target.value }; flyerPage = 1; render(); return; }
   if (e.target.matches('[data-f="media"]')) { form = { ...form, media: e.target.value }; render(); return; } // 配布方法で、次のIDが変わる
@@ -135,8 +141,9 @@ document.addEventListener('click', (e) => {
   if (d.flyerFstage !== undefined) { flyerFilter = { ...flyerFilter, stage: d.flyerFstage }; flyerPage = 1; return render(); }
   if ('flyerFclear' in d) { flyerFilter = blankFilter(); flyerPage = 1; return render(); }
   if (d.calArea !== undefined) { calArea = d.calArea; return render(); }
-  if (d.calDay) { calDay = d.calDay; return render(); }
-  if (d.calMove !== undefined) { calMonth = d.calMove === '0' ? today().slice(0, 7) : shiftMonth(calMonth, Number(d.calMove)); if (d.calMove === '0') calDay = today(); return render(); }
+  if (d.calDay) { calDay = d.calDay; calOpen = true; return render(); }
+  if ('mktClose' in d) { calOpen = false; selId = null; return render(); }
+  if (d.calMove !== undefined) { calOpen = false; calMonth = d.calMove === '0' ? today().slice(0, 7) : shiftMonth(calMonth, Number(d.calMove)); if (d.calMove === '0') calDay = today(); return render(); }
   if ('flyerFileClear' in d) { form = { ...form, file: null }; return render(); }
   if (d.respSort) { sortBy = d.respSort; respPage = 1; return render(); }
   if ('flyerCancel' in d) { form = blankFlyer(today()); return render(); }
@@ -144,6 +151,7 @@ document.addEventListener('click', (e) => {
   if (d.flyerToggle) { const f = flyers.find((x) => x.id === d.flyerToggle); const r = setFlyerActive(flyers, f.id, !f.active); if (r.ok) commit(r.flyers); return render(); }
   if ('mediaFilter' in d) { mediaFilter = d.mediaFilter; respPage = 1; return render(); }
   if (d.flyerPage) { flyerPage = Number(d.flyerPage); return render(); }
+  if (d.respPreset) { ({ from: respFrom, to: respTo } = periodPreset(d.respPreset, today())); respPage = 1; selId = null; return render(); }
   if (d.respPage) { respPage = Number(d.respPage); return render(); }
   if (d.responseRow) { selId = selId === d.responseRow ? null : d.responseRow; return render(); }
 });

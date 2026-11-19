@@ -104,14 +104,18 @@ test('マーケティング部の画面は、描画できる（チラシの登�
   const flyers = loadFlyers('2026-11-19');
   const html = responseTab({ flyers, receptions: sampleReservations(), selId: 'N1019', mediaFilter: '' });
   assert.ok(html.includes('チラシごとの反響') && html.includes('data-response-row="N1019"') && html.includes('日ごとの受付') && html.includes('1件あたり'));
+  assert.ok(html.includes('data-mkt-modal="MKT-M02"') && html.includes('アポごとの買取')); // チラシの詳細は、モーダル
+  assert.ok(!responseTab({ flyers, receptions: sampleReservations(), selId: null, mediaFilter: '' }).includes('data-mkt-modal')); // 選ぶまでは、出さない
   assert.ok(responseTab({ flyers, receptions: [], selId: null, mediaFilter: 'dm' }).includes('data-media="dm"'));
 });
 
 test('マーケティング部の配布カレンダーは、描画できる。複数日のチラシは、毎日に出る', async () => {
   const { calendarTab } = await import('../marketing/calendarTab.js');
   const { defaultFlyers } = await import('../src/flyers.js');
-  const html = calendarTab({ flyers: defaultFlyers('2026-11-19'), month: '2026-11', today: '2026-11-19', selDay: '2026-11-19' });
+  const html = calendarTab({ flyers: defaultFlyers('2026-11-19'), month: '2026-11', today: '2026-11-19', selDay: '2026-11-19', open: true });
   assert.ok(html.includes('2026年11月の配布') && html.includes('data-cal-grid') && html.includes('data-cal-day="2026-11-19"') && html.includes('N1020') && html.includes('この日に配布') === false);
+  assert.ok(html.includes('data-mkt-modal="MKT-M03"') && html.includes('data-mkt-close')); // その日の詳細は、モーダル
+  assert.ok(!calendarTab({ flyers: defaultFlyers('2026-11-19'), month: '2026-11', today: '2026-11-19', selDay: '2026-11-19' }).includes('data-cal-detail')); // 日を押すまでは、出さない
   assert.ok(html.includes('2026-11-19 に配布するチラシ') && html.includes('P1016')); // 11/18〜11/20 のポスティング
 });
 
@@ -132,10 +136,10 @@ test('配布カレンダーは、エリアごとに色分けし、エリアで�
   const { defaultFlyers } = await import('../src/flyers.js');
   const { areaColor } = await import('../src/areaColor.js');
   const flyers = defaultFlyers('2026-11-19');
-  const all = calendarTab({ flyers, month: '2026-11', today: '2026-11-19', selDay: '2026-11-19', area: '' });
+  const all = calendarTab({ flyers, month: '2026-11', today: '2026-11-19', selDay: '2026-11-19', area: '', open: true });
   assert.ok(all.includes('data-cal-areas') && all.includes('data-cal-area="大阪府"') && all.includes('data-cal-area="京都府"') && all.includes('data-cal-area="兵庫県"'));
   assert.ok(all.includes(areaColor('大阪府').solid) && all.includes(areaColor('京都府').solid)); // 帯の色
-  const osaka = calendarTab({ flyers, month: '2026-11', today: '2026-11-19', selDay: '2026-11-19', area: '大阪府' });
+  const osaka = calendarTab({ flyers, month: '2026-11', today: '2026-11-19', selDay: '2026-11-19', area: '大阪府', open: true });
   assert.ok(osaka.includes('N1020') && !osaka.includes('P1016')); // 大阪府のチラシだけ（P1016 は京都府）
   assert.ok(osaka.includes('2026-11-19 に配布するチラシ') && osaka.includes('1件'));
 });
@@ -170,5 +174,18 @@ test('マーケティング部の一覧は、20件ごとにページ送りでき
   assert.ok(resultsHtml(many, '2026-11-19', { q: 'チラシ4' }, 1).includes('（全45件）')); // 検索の結果も、ページ送りの対象
   const resp = (page) => responseTab({ flyers: many, receptions: [], visits: [], results: {}, selId: null, mediaFilter: '', page });
   assert.equal(rows(resp(1).split('data-response-list')[1]), 20);
+  assert.ok(resp(1).includes('data-resp-period') && resp(1).includes('data-resp-from') && resp(1).includes('data-resp-preset="last3"'));
   assert.ok(resp(1).includes('data-resp-page="2"') && rows(resp(3).split('data-response-list')[1]) === 5);
+});
+
+test('反響管理は、配布した日が期間内のチラシだけを集計する。期間内になければ、その旨を出す', async () => {
+  const { responseTab } = await import('../marketing/responseTab.js');
+  const mk = (id, from, to) => ({ id, name: id, media: 'newspaper', adType: '', area: '大阪府', from, to, quantity: 100, cost: 1000, note: '', stage: 'distributed', deadline: '', file: null, active: true });
+  const flyers = [mk('N3001', '2026-10-31', '2026-10-31'), mk('N3002', '2026-11-05', '2026-11-05'), mk('N3003', '2026-11-28', '2026-12-02')];
+  const html = responseTab({ flyers, receptions: [], visits: [], results: {}, selId: null, mediaFilter: '', from: '2026-11-01', to: '2026-11-30' });
+  assert.ok(html.includes('data-response-row="N3002"') && !html.includes('data-response-row="N3001"') && !html.includes('data-response-row="N3003"'));
+  assert.ok(html.includes('期間内のチラシ 1件（全3件）') && html.includes('期間をクリア'));
+  assert.ok(responseTab({ flyers, receptions: [], visits: [], results: {}, selId: null, mediaFilter: '', from: '2027-01-01', to: '2027-01-31' }).includes('data-resp-empty'));
+  assert.ok(responseTab({ flyers, receptions: [], visits: [], results: {}, selId: null, mediaFilter: '', from: '2026-12-01', to: '2026-11-01' }).includes('はじめの日が、おわりの日より後'));
+  assert.ok(responseTab({ flyers, receptions: [], visits: [], results: {}, selId: null, mediaFilter: '' }).includes('全3件') && !responseTab({ flyers, receptions: [], visits: [], results: {}, selId: null, mediaFilter: '' }).includes('期間をクリア'));
 });

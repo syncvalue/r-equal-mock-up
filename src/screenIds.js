@@ -156,10 +156,11 @@ export const SCREENS = [
     ['01', 'チラシ（登録・一覧）', 'tab'],
     ['03', '配布カレンダー', 'tab'],
     ['02', '反響管理（チラシごとの受付・効果）', 'tab'],
-    ['02-1', '反響管理（選んだチラシの、日ごとの受付）', 'mode'],
     ['04', 'ログイン', 'page'],
     ['05', 'ダッシュボード', 'tab'],
     ['M01', 'メニュー', 'overlay'],
+    ['M02', '反響管理・チラシの詳細（日ごとの受付・アポごとの買取）', 'modal'],
+    ['M03', '配布カレンダー・その日に配布するチラシ', 'modal'],
   ]),
 
   ...T('MST', [
@@ -204,8 +205,8 @@ export function ccScreenId({ tab, bodyStage, editId, done, mapAddress, cvMode } 
 }
 
 export const masterScreenId = (tab) => ({ employees: 'MST-01', departments: 'MST-02', offices: 'MST-03', trips: 'MST-04', stores: 'MST-05', warehouses: 'MST-06', vendors: 'MST-07' })[tab] ?? 'MST-01';
-// マーケティング部。tab=flyers|response。反響管理で、チラシを選んでいるときは、日ごとの受付の状態
-export const mktScreenId = ({ staff = true, tab, selId } = {}) => (!staff ? 'MKT-04' : tab === 'dashboard' ? 'MKT-05' : tab === 'calendar' ? 'MKT-03' : tab === 'response' ? (selId ? 'MKT-02-1' : 'MKT-02') : 'MKT-01');
+// マーケティング部。tab=dashboard|flyers|calendar|response。詳細は、モーダル（MKT-M02・M03）なので、ページのIDは変わらない
+export const mktScreenId = ({ staff = true, tab } = {}) => (!staff ? 'MKT-04' : tab === 'dashboard' ? 'MKT-05' : tab === 'calendar' ? 'MKT-03' : tab === 'response' ? 'MKT-02' : 'MKT-01');
 export const accountingScreenId = (tab) => ({ claims: 'ACC-01', balance: 'ACC-02', weekly: 'ACC-03', fixed: 'ACC-04' })[tab] ?? 'ACC-01';
 
 // 鑑定士タブレット（state: user・auth.screen・view・phase・step・sched.tab・outcome・showStaff）
