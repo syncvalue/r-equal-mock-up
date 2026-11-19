@@ -95,7 +95,8 @@ const chgButton = (r) => `<button class="b b-sec !min-h-0 !py-1 text-xs" data-ch
 // 詳細を、意味ごとのまとまり（見出し＋枠）に分けて出す。配車係の詳細でも使う
 export const detailSection = (title, body) => `<section class="rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-1.5"><h4 class="mb-1 text-[11px] font-bold tracking-wide text-teal-700">${title}</h4>${body}</section>`;
 // 受付に登録した内容を、すべて出す（週の表の右の詳細も、日別の右の一覧も、同じ項目）。受付の記録がない予定は、日時・住所・担当鑑定士だけ
-export function visitFieldsHtml(b, r, { staff: showStaff = true } = {}) {
+// compact: 見出しの行をなくし、1つの枠の中に、区切り線でまとめる（配車確定の詳細。縦スクロールを減らすため）
+export function visitFieldsHtml(b, r, { staff: showStaff = true, compact = false } = {}) {
   const staff = USERS.find((u) => u.id === b.userId)?.name ?? '未定';
   const row = (k, v) => (v ? `<div class="flex gap-2"><dt class="w-24 shrink-0 text-slate-500">${k}</dt><dd class="min-w-0 break-words whitespace-pre-wrap">${esc(v)}</dd></div>` : '');
   const h = r?.hearing ?? {};
@@ -107,6 +108,7 @@ export function visitFieldsHtml(b, r, { staff: showStaff = true } = {}) {
     ['当日の状況', [row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('訪問時の注意', h.notes)]],
     ['受付の記録', [row('受付番号', r?.receptionNo), row('受付日時', r ? [r.receivedAt, r.operator && r.operator !== '—' ? `（${r.operator}）` : ''].filter(Boolean).join(' ') : ''), row('問い合わせ', [h.inquiryType, h.adType].filter(Boolean).join(' ／ ')), row('来電のきっかけ', h.trigger ?? r?.chirashi), row('前日確認の連絡時間', h.contact)]],
   ];
+  if (compact) return `<div class="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 text-xs">${groups.filter(([, items]) => items.join('')).map(([, items]) => `<dl class="space-y-0.5 py-1">${items.join('')}</dl>`).join('')}</div>`;
   const rows = groups.map(([title, items]) => (items.join('') ? detailSection(title, `<dl class="space-y-1">${items.join('')}</dl>`) : '')).join('');
   return `<div class="space-y-2 text-xs">${rows}</div>`;
 }

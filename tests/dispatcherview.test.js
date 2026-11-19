@@ -183,3 +183,11 @@ test('配車確定の詳細: 操作は1行。確定済みは「確定解除」�
   assert.ok(!h.includes('data-bclose') && !h.includes('✕'));
   assert.ok(!/flex flex-wrap items-center gap-2">[^]{0,200}data-unfix/.test(h)); // 折り返さない
 });
+
+test('配車確定の詳細: 縦スクロールを減らすため、名前と操作は同じ行。訪問・お客様などの見出しの行はなく、1つの枠に区切り線でまとめる', () => {
+  const h = page('R1');
+  assert.match(h, /justify-between[^>]*><div class="min-w-0"><b class="text-base">山田 花子<\/b>[^]*?data-fix="R1"/);
+  assert.ok(h.includes('divide-y'));
+  assert.ok(!/<h4[^>]*>(訪問|お客様|売りたいもの|当日の状況|受付の記録)</.test(h));
+  assert.ok(h.includes('日時') && h.includes('住所') && h.includes('受付番号'));
+});

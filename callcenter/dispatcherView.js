@@ -256,11 +256,10 @@ function boardDetailHtml(r, reservations, now) {
   // 操作は1行に収める。確定／確定解除は文字、詳細の変更（鉛筆）・取消（ゴミ箱）はアイコン
   const actions = `<div class="flex items-center gap-2">${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1 whitespace-nowrap" data-fix="${r.id}">確定</button>` : `<button class="b b-sec !min-h-0 !py-1 whitespace-nowrap" data-unfix="${r.id}" title="確定を解除して、仮確定に戻します">確定解除</button>`}
       <button class="b b-sec !min-h-0 !px-2 !py-1" data-chg="${r.id}" title="詳細を変更" aria-label="詳細を変更">${icon('pencil', 18)}</button><button class="b b-sec !min-h-0 !px-2 !py-1 !text-rose-700" data-cancelres="${r.id}" title="取消" aria-label="取消">${icon('trash', 18)}</button></div>`;
-  return `<div class="space-y-2 rounded-lg border-2 border-teal-600 bg-white p-3 text-sm">
-    <div class="min-w-0"><b class="text-base">${esc(r.customer.name)}</b> 様${genderParen(r.gender)} ${statusBadge(r)}</div>
-    ${actions}
+  return `<div class="space-y-1.5 rounded-lg border-2 border-teal-600 bg-white p-2 text-sm">
+    <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1"><div class="min-w-0"><b class="text-base">${esc(r.customer.name)}</b> 様${genderParen(r.gender)} ${statusBadge(r)}</div>${actions}</div>
     ${wantsPreciousMetal(r.hearing?.wants) ? `<div data-metal-advice class="rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-900">${metalMark(true).replace('ml-0.5 ', 'mr-1 ')}${esc(PRECIOUS_ADVICE)}</div>` : ''}
-    ${visitFieldsHtml({ userId: r.userId, date: r.date, start: minOf(r.start), end: minOf(r.end), name: r.customer.name, place: r.customer.address }, r, { staff: false })}
+    ${visitFieldsHtml({ userId: r.userId, date: r.date, start: minOf(r.start), end: minOf(r.end), name: r.customer.name, place: r.customer.address }, r, { staff: false, compact: true })}
     ${detailSection('お客様の実績・評価', `<div class="space-y-1">${customerProfileHtml({ ...profileOfRes(r), purchase: { ...profileOfRes(r).purchase, count: kindOfRes(r, profileOfRes(r)) === 'repeat' ? Math.max(1, profileOfRes(r).purchase.count) : 0 } }, { advice: true })}
       <div><button class="text-xs font-bold text-slate-700 underline" data-custinfo="${r.id}">お客様の詳細（買取履歴・評価・これまでの担当）</button></div></div>`)}
     ${detailSection('担当と移動', `<div class="space-y-1"><div class="flex items-center gap-1 text-xs">担当${isTentative(r) ? '（仮）' : ''}：${user ? avatarHtml(user, 20) : ''}<b>${esc(user?.name ?? '')}</b> ${rankBadge(rankOfUser(r.userId))}${nomMark(r)}</div>${r.nominated ? '<div class="text-[11px] text-slate-600">お客様の鑑定士指名のため、鑑定士は変えられません（時間は変えられます）</div>' : ''}
