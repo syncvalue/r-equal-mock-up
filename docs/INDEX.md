@@ -93,7 +93,9 @@
 
 | 章 | ファイル | 内容 |
 |---|---|---|
-| 3 | [features/appraisal-hq](features/appraisal-hq/spec.md) | 査定部: 担当、買取明細のリアルタイム表示、査定依頼のチャット、承認・差戻し、お知らせ送信 |
+| 3 | [features/appraisal-hq](features/appraisal-hq/spec.md) | 査定部の概要: 開閉式の左メニュー（鑑定士サポート・査定の2機能） |
+| 3.1 | [features/appraisal-hq](features/appraisal-hq/spec.md) | 鑑定士サポート: 担当、買取明細のリアルタイム表示、査定依頼のチャット、承認・差戻し、お知らせ送信 |
+| 3.2 | [features/appraisal-hq](features/appraisal-hq/spec.md) | **査定**: 高額品（紫・赤のシール）の登録内容を、シールのQRを読み取って確認し、確定する（郵送で届く）。鑑定士の区分（責任者・一般）による違いは正式版の要件 |
 | 4（冒頭） | [features/accounting-balance](features/accounting-balance/spec.md) | 経理部の概要（メニュー3つ、固定費はメニューから外している） |
 | 4.1 | [features/accounting-balance](features/accounting-balance/spec.md) | 残高・入出金管理（入出金の帳簿、鑑定士への補充金、補充の依頼のやり取り、お客様への支払） |
 | 4.2 | [features/accounting-expense-check](features/accounting-expense-check/spec.md) | 経費精算（営業サポートの一次チェック、確認のポイント、1件ずつの確認、ボール＝誰の番か、経理部と鑑定士のチャット、鑑定士による修正） |
@@ -157,6 +159,7 @@
 | 経費・レシート・インボイス | [1.3](features/tablet-workday-expense/spec.md)、[4.2](features/accounting-expense-check/spec.md) |
 | 経費精算（一次チェック、差戻し、鑑定士による修正） | [用語集](shared/glossary.md)、[4.2](features/accounting-expense-check/spec.md) |
 | **シールの色・高額品・本社への移動** | [5.2](features/warehouse-receiving/spec.md)、[用語集](shared/glossary.md) |
+| **査定**（高額品の確認・確定、鑑定士の区分による違い） | [3.2](features/appraisal-hq/spec.md)、FUTURE_REQUIREMENTS R-[5](features/appraisal-hq/spec.md)、[用語集](shared/glossary.md) |
 | パック・伝票・CSV | [5.4](features/warehouse-packing/spec.md) |
 | **クーリングオフ**（保管10日、依頼、返送） | [2.5](features/callcenter-cooloff/spec.md)、[5.7](features/warehouse-cooloff/spec.md)、[用語集](shared/glossary.md) |
 | **店頭買取**（クーリング・オフの対象外） | [11章](features/store-purchase/spec.md)、[用語集](shared/glossary.md) |
@@ -180,6 +183,7 @@
 | R-2 | 電話の履歴は、オペレーターを含む他の人にも見せる（他の鑑定士の名前は伏せる）。受電履歴を配車係・査定部にも見せる | 顧客検索・受電履歴はモックで実装済み。配車係・査定部への表示は未定 |
 | R-3 | ランクは変わっていくもの。新規にも顧客ランクを付ける。受付の欄、鑑定士ランクの変更、前日確認の共有、連絡の期限なし | モックで実装済み |
 | R-4 | アクターの区分（一般・責任者）と、役員・社長・システム管理者の追加。責任者にできること・役員に見せる範囲は要確認 | 正式版の要件 |
+| R-5 | 査定の確定の流れは、鑑定士の区分で変わる（責任者＝自分で確定／一般＝査定部が確認して確定）。モックは、紫・赤をすべて査定待ちにしている | 正式版の要件（モックでは実装しない） |
 | 保留中の要件 | 経費精算の二次チェック以降、店舗系（レジ現金・査定部連動・店舗別業績・営業時間・納入先・古物台帳・契約書様式）、配車確定の過去日のランク、訪問カレンダーの濃さの区切り | 保留 |
 
 ---

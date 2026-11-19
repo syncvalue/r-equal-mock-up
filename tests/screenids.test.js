@@ -38,6 +38,9 @@ test('マスタ・経理・査定部・GMOサイン・店舗・倉庫: 状態か
   for (const t of ['employees', 'departments', 'offices', 'trips', 'stores', 'warehouses', 'vendors']) seen(masterScreenId(t));
   for (const t of ['claims', 'balance', 'weekly', 'fixed']) seen(accountingScreenId(t));
   for (const sel of [null, { type: 'item' }, { type: 'req' }]) seen(hqScreenId(sel));
+  for (const sel of [null, { code: 'RQ-P1' }]) seen(hqScreenId(sel, 'appraisal')); // 査定（読み取り前・読み取り後）
+  assert.equal(hqScreenId(null, 'support'), 'HQ-01');
+  assert.equal(hqScreenId({ code: 'RQ-P1' }, 'appraisal'), 'HQ-04-1');
   for (const r of ['login', 'list', 'detail']) seen(gmoScreenId(r));
   seen(storeScreenId({}));
   for (const step of [0, 1, 2, 3, 4]) seen(storeScreenId({ staff: {}, view: 'purchase', draft: { step } }));

@@ -11,6 +11,13 @@ import { eventsOfDay } from '../src/schedule.js';
 import { initTheme, themeToggleHtml } from '../src/theme.js';
 import { initHelp, helpIcon } from '../src/help.js';
 import { formatMoneyInput, moneyInputHtml } from '../src/moneyInput.js';
+import { STOCK_KEY } from '../src/store.js';
+import { loadUnits, saveUnits } from '../src/stock.js';
+import { loadMaster } from '../src/warehouseMaster.js';
+import { appraisalQueue, lookupForAppraisal, confirmAppraisal, appraisalMessage, demoAppraisalUnits } from '../src/unitAppraisal.js';
+import { openMockCamera } from '../warehouse/camera.js';
+import { tabLabel, menuView } from './menu.js';
+import { appraisalTab } from './appraisalTab.js';
 import { yen, fmtTime, fmtElapsed, esc } from '../src/format.js';
 
 const $ = (s) => document.querySelector(s);
@@ -24,6 +31,11 @@ let appraiserId = pref('rq-mock-hq-appraiser', appraisers()[0]?.id ?? ''); // �
 let hideDone = pref('rq-mock-hq-hidedone', '0') === '1'; // 訪問完了した予定を一覧から隠す
 const appraiser = () => appraisers().find((a) => a.id === appraiserId) ?? appraisers()[0] ?? { id: '', name: '', groups: [] };
 const scopeUsers = () => USERS.filter((u) => appraiser().groups.includes(u.group));
+let tab = 'support'; // support（鑑定士サポート）／appraisal（査定）
+let menuOpen = false;
+let apFilter = 'pending'; // 査定の一覧: pending（査定待ち）／confirmed（確定済み）
+const blankAp = () => ({ raw: '', code: null, name: '', rank: 'A', price: 0, message: null }); // 査定: 読み取った商品と、確認中の内容
+let ap = blankAp();
 let compose = null; // 鑑定士へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
@@ -273,27 +285,16 @@ function composeModal() {
 
 // 開いている商品のやり取りは、読んだことにする（鑑定士に「既読」が出る）
 function readSelected() {
-  if (!sel || !visitId) return;
+  if (tab !== 'support' || !sel || !visitId) return;
   const itemId = sel.type === 'req' ? loadAppraisals().find((x) => x.id === sel.id)?.itemId : sel.id;
   const t = threadFor(loadAppraisals(), visitId, itemId);
   if (t && hasUnread(t, 'hq')) upsertAppraisal(markRead(t, 'hq', Date.now()));
 }
 
-function render() {
-  readSelected();
-  const visits = visitsSorted();
-  const aps = loadAppraisals();
-  const cs = loadComments().filter((c) => c.visitId === visitId);
-  const approvals = loadApprovals();
-  if (!visits.some((v) => v.visitId === visitId)) { visitId = visits[0]?.visitId ?? null; sel = null; }
-  const v = visits.find((x) => x.visitId === visitId);
-  const totalPending = aps.filter((a) => a.status === '依頼中').length;
-  $('#root').innerHTML = `
-  <header class="bg-slate-800 text-white px-6 py-3 flex justify-between items-center">
-    <div class="font-bold text-xl">査定部 </div>
-    <div class="text-sm">進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>お知らせ送信</button> <label class="ml-3 text-xs text-white/80">査定員 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${appraisers().map((a) => `<option class="text-slate-900" value="${esc(a.id)}" ${a.id === appraiser().id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="demo-only ml-2" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
-  </header>
-  <div class="grid grid-cols-[19rem_1fr_26rem] h-[calc(100vh-52px)]">
+// 鑑定士サポート（これまでの査定部の画面）。左: 今日の予定・訪問状況／中央: 買取明細／右: 査定依頼のやり取り・承認
+function supportBody(v, visits, aps, cs, approvals) {
+  return `
+  <div class="grid grid-cols-[19rem_1fr_26rem] flex-1 min-h-0">
     <aside class="bg-white border-r overflow-y-auto">
       <div class="p-3 border-b bg-slate-50 space-y-1"><div class="flex justify-between items-center"><b>今日の予定・訪問状況</b><span class="text-xs text-slate-500">完了 ${scheduleRows(visits).rows.filter((r) => r.key === 'done').length} / ${scheduleRows(visits).rows.length}件</span></div>
         <div class="text-xs text-slate-500">担当：${scopeUsers().map((u) => esc(u.name)).join('、')}</div>
@@ -313,8 +314,31 @@ function render() {
       ${itemsTable(v, aps, cs, approvals)}` : '<p class="text-slate-400 p-10 text-center">左の一覧から訪問を選択してください</p>'}
     </main>
     <aside class="bg-slate-50 border-l p-4 overflow-y-auto">${detailPanel(v, aps, cs, approvals)}</aside>
-  </div>${composeModal()}`;
-  setScreenBadge(hqScreenId(sel)); // 画面の隅の、画面ID
+  </div>`;
+}
+
+function render() {
+  readSelected();
+  const visits = visitsSorted();
+  const aps = loadAppraisals();
+  const cs = loadComments().filter((c) => c.visitId === visitId);
+  const approvals = loadApprovals();
+  if (!visits.some((v) => v.visitId === visitId)) { visitId = visits[0]?.visitId ?? null; sel = null; }
+  const v = visits.find((x) => x.visitId === visitId);
+  const totalPending = aps.filter((a) => a.status === '依頼中').length;
+  const apPending = appraisalQueue(loadUnits(), loadMaster(), 'pending').length;
+  const badges = { support: totalPending, appraisal: apPending };
+  document.title = `${totalPending + apPending ? `(${totalPending + apPending}) ` : ''}査定部`; // タブを見るだけで、対応待ちに気づけるように
+  const supportBar = tab === 'support'
+    ? `進行中 ${visits.filter((x) => !x.endedAt).length}件 ／ 未回答の依頼 <b class="text-lg">${totalPending}</b>件 <span class="ml-3 inline-block w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span> LIVE <button class="ml-4 rounded bg-white/20 px-3 py-1 font-bold" data-compose-open>お知らせ送信</button> ` : '';
+  $('#root').innerHTML = `<div class="flex flex-col h-screen">
+  <header class="bg-slate-800 text-white px-4 py-2 flex justify-between items-center">
+    <div class="flex items-center gap-2"><button class="relative w-11 h-11 -ml-2 rounded-xl text-2xl leading-none hover:bg-white/10 active:bg-white/20" data-menu-open aria-label="メニューを開く">☰${Object.values(badges).some(Boolean) ? '<span class="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400"></span>' : ''}</button>
+      <span class="font-bold text-xl">査定部</span><span class="text-slate-500">›</span><span class="font-bold">${tabLabel(tab)}</span></div>
+    <div class="text-sm">${supportBar}<label class="ml-3 text-xs text-white/80">査定員 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${appraisers().map((a) => `<option class="text-slate-900" value="${esc(a.id)}" ${a.id === appraiser().id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="demo-only ml-2" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
+  </header>
+  ${tab === 'appraisal' ? `<div class="flex-1 min-h-0">${appraisalTab({ units: loadUnits(), master: loadMaster(), filter: apFilter, ap })}</div>` : supportBody(v, visits, aps, cs, approvals)}${menuOpen ? menuView({ tab, badges }) : ''}${composeModal()}</div>`;
+  setScreenBadge(hqScreenId(tab === 'appraisal' ? (ap.code ? { code: ap.code } : null) : sel, tab)); // 画面の隅の、画面ID
   dirty = false;
 }
 
@@ -363,10 +387,50 @@ function send(itemId) {
   draft = emptyDraft();
 }
 
+
+// ---- 査定（高額品の確認・確定）----------------------------------------------------------------
+// 読み取った（選んだ）商品を開く。確認の欄には、登録内容を最初から入れる
+function openAppraisal(raw) {
+  const r = lookupForAppraisal(loadUnits(), loadMaster(), raw);
+  if (r.type !== 'ok') { ap = { ...blankAp(), raw: String(raw ?? '').trim(), message: appraisalMessage(r) }; return; }
+  const u = r.unit;
+  ap = { raw: u.code, code: u.code, name: u.name, rank: u.rank, price: u.price, message: null };
+}
+
+function confirmCurrent() {
+  const { units, result } = confirmAppraisal(loadUnits(), loadMaster(), ap.code, { by: appraiser().name, at: Date.now(), edits: { name: ap.name, rank: ap.rank, price: ap.price } });
+  if (result.type !== 'ok') { ap = { ...ap, message: appraisalMessage(result) }; return; }
+  if (!saveUnits(units)) { ap = { ...ap, message: { ok: false, text: '保存できませんでした（容量超過）' } }; return; }
+  ap = { ...ap, name: result.unit.name, rank: result.unit.rank, price: result.unit.price, message: appraisalMessage(result) };
+}
+
+// カメラで読み取る（モック）。査定待ちの商品を、順に読み取る
+function openCamera() {
+  openMockCamera({
+    screenId: '', title: '査定', subtitle: 'シールのQRコードを読み取ります（モック）',
+    pickNext: () => appraisalQueue(loadUnits(), loadMaster(), 'pending').find((u) => u.code !== ap.code)?.code ?? appraisalQueue(loadUnits(), loadMaster(), 'pending')[0]?.code ?? '',
+    onFound: (code) => { openAppraisal(code); render(); },
+  });
+}
+
+function handleAppraisalClick(t) {
+  if (t.dataset.apFilter) { apFilter = t.dataset.apFilter; return true; }
+  if (t.dataset.apOpen) { openAppraisal(t.dataset.apOpen); return true; }
+  if ('apScan' in t.dataset) { openAppraisal(ap.raw); return true; }
+  if ('apCam' in t.dataset) { openCamera(); return false; }
+  if ('apDemo' in t.dataset) { if (!saveUnits(demoAppraisalUnits(loadUnits(), USERS[0].id))) alert('保存できませんでした（容量超過）'); return true; }
+  if ('apConfirm' in t.dataset) { confirmCurrent(); return true; }
+  return false;
+}
+
 document.addEventListener('click', (e) => {
   if (e.target.closest('[data-compose-backdrop]') && e.target.matches('[data-compose-backdrop]')) { compose = null; render(); return; }
   const t = e.target.closest('button, tr[data-item]');
   if (!t) return;
+  if ('menuOpen' in t.dataset) { menuOpen = true; render(); return; }
+  if ('menuClose' in t.dataset) { menuOpen = false; render(); return; }
+  if (t.dataset.tab) { tab = t.dataset.tab; menuOpen = false; render(); return; }
+  if (handleAppraisalClick(t)) { render(); return; }
   if ('composeOpen' in t.dataset) { compose = { title: '', body: '', important: false, target: 'all' }; render(); return; }
   if ('composeClose' in t.dataset) { compose = null; render(); return; }
   if ('composeSend' in t.dataset) {
@@ -395,18 +459,22 @@ document.addEventListener('click', (e) => {
   render();
 });
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing && e.target.dataset?.ap === 'raw') { openAppraisal(e.target.value); render(); return; } // 日本語入力の確定のEnterでは進まない
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.dataset?.f === 'text') {
     e.preventDefault();
     document.querySelector('[data-send]')?.click();
   }
 });
 document.addEventListener('change', (e) => {
+  if (e.target.dataset.ap === 'rank') { ap = { ...ap, rank: e.target.value }; render(); return; } // 訂正の有無の表示を更新
   if (e.target.matches('[data-hidedone]')) { hideDone = e.target.checked; setPref('rq-mock-hq-hidedone', hideDone ? '1' : '0'); render(); return; }
   if (e.target.matches('[data-appraiser]')) { appraiserId = e.target.value; setPref('rq-mock-hq-appraiser', appraiserId); visitId = null; sel = null; render(); return; }
   if (compose && e.target.matches('[data-m-important]')) compose = { ...compose, important: e.target.checked };
   if (compose && e.target.dataset.m === 'target') compose = { ...compose, target: e.target.value };
 });
 document.addEventListener('input', (e) => {
+  if (e.target.dataset.ap === 'price') { ap = { ...ap, price: formatMoneyInput(e.target) }; return; }
+  if (e.target.dataset.ap) { ap = { ...ap, [e.target.dataset.ap]: e.target.value }; return; }
   if (compose && e.target.dataset.m && e.target.dataset.m !== 'target') { compose = { ...compose, [e.target.dataset.m]: e.target.value }; return; }
   if (e.target.dataset.f === 'price') {
     // 金額は3桁区切りで表示し、内部では数字のみ保持する
@@ -416,11 +484,11 @@ document.addEventListener('input', (e) => {
 
 // 鑑定士側の更新を即時反映。入力中なら、入力欄から離れたときに反映する
 window.addEventListener('storage', (e) => {
-  if (![LIVE_KEY, AP_STORAGE_KEY, COMMENT_KEY, APPROVAL_KEY, EVAL_KEY].includes(e.key)) return;
+  if (![LIVE_KEY, AP_STORAGE_KEY, COMMENT_KEY, APPROVAL_KEY, EVAL_KEY, STOCK_KEY].includes(e.key)) return;
   if (isEditing()) dirty = true;
   else render();
 });
-const isEditing = () => Boolean(document.activeElement?.dataset?.f || document.activeElement?.dataset?.m);
+const isEditing = () => Boolean(document.activeElement?.dataset?.f || document.activeElement?.dataset?.m || document.activeElement?.dataset?.ap);
 document.addEventListener('focusout', () => { if (dirty) setTimeout(() => !isEditing() && render(), 0); });
 
 setInterval(() => {

@@ -120,10 +120,13 @@ export const SCREENS = [
   ]),
 
   ...T('HQ', [
-    ['01', '査定部（左：訪問の一覧／中央：訪問の明細／右：訪問全体のコメント）', 'page'],
-    ['02', '査定部（右：商品の査定のやり取り）', 'mode'],
-    ['03', '査定部（右：明細に入っていない査定依頼）', 'mode'],
+    ['01', '査定部・鑑定士サポート（左：訪問の一覧／中央：訪問の明細／右：訪問全体のコメント）', 'page'],
+    ['02', '査定部・鑑定士サポート（右：商品の査定のやり取り）', 'mode'],
+    ['03', '査定部・鑑定士サポート（右：明細に入っていない査定依頼）', 'mode'],
+    ['04', '査定部・査定（左：査定待ちの一覧／右：シールの読み取り）', 'page'],
+    ['04-1', '査定部・査定（右：登録内容の確認・確定）', 'mode'],
     ['M01', '鑑定士へのお知らせを送る', 'modal'],
+    ['M02', 'メニュー', 'overlay'],
   ]),
 
   ...T('ACC', [
@@ -216,7 +219,11 @@ export function whScreenId({ staff, tab, packOpen = false, scan = false, lot = f
   return scan ? 'WH-02-2' : lot ? 'WH-02-1' : 'WH-02';
 }
 
-export const hqScreenId = (sel) => (!sel ? 'HQ-01' : sel.type === 'req' ? 'HQ-03' : 'HQ-02');
+// 査定部。tab: support（鑑定士サポート）／appraisal（査定。sel は読み取って開いている商品）
+export const hqScreenId = (sel, tab = 'support') => {
+  if (tab === 'appraisal') return sel ? 'HQ-04-1' : 'HQ-04';
+  return !sel ? 'HQ-01' : sel.type === 'req' ? 'HQ-03' : 'HQ-02';
+};
 
 export const gmoScreenId = (route) => ({ login: 'GMO-01', detail: 'GMO-03' })[route] ?? 'GMO-02';
 
