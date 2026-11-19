@@ -812,6 +812,7 @@ document.addEventListener('click', (e) => {
   else if (d.ack) { acknowledgeReservation(d.ack); render(); }
   else if (d.showday) { dispDate = d.showday; render(); }
   else if (d.ddate) { dispDate = d.ddate; render(); }
+  else if (d.dshift) { const [y, m, dd] = dispDate.split('-').map(Number); dispDate = ymdOf(new Date(y, m - 1, dd + Number(d.dshift))); render(); } // 配車確定の日を、1日ずつ前後に動かす（選んだ日から。5つの日付ボタンの外でも動かせる）
   else if (d.fix) { updateReservation(d.fix, { status: 'confirmed', needsReview: false, holdNote: null, confirmedAt: new Date().toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }), confirmedBy: '配車係' }); render(); }
   else if (d.unfix) { // 配車係が、お客様に連絡して回答次第で決めたいときに、意図的に仮確定へ戻す
     const note = prompt('仮確定に戻します。理由のメモ（例：お客様に連絡して、回答待ち）', 'お客様に連絡して、回答待ち');

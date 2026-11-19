@@ -168,3 +168,9 @@ test('配車確定の表: 列は最小9.5rem（1920×1080で8人が収まる幅�
   const n = Number(html.match(/repeat\((\d+),minmax/)[1]);
   assert.match(html, new RegExp(`min-width:${2.25 + n * 9.5}rem`));
 });
+
+test('配車確定: 日付の入力の左右に、前の日・次の日に1日ずつ動かすボタンがある', () => {
+  const html = page(null);
+  assert.ok(html.includes('data-dshift="-1"') && html.includes('data-dshift="1"'));
+  assert.ok(html.indexOf('data-dshift="-1"') < html.indexOf('data-ddate-input') && html.indexOf('data-ddate-input') < html.indexOf('data-dshift="1"'));
+});
