@@ -14,6 +14,7 @@ import {
 import { buildContract, buildPurchase, buildDeclined } from '../src/storePurchase.js';
 import { historyOf, customerProfile, declinedList } from '../src/customerHistory.js';
 import { customerViewOf, welcomeView, thanksView, loadCustomerView, saveCustomerView, isSynced } from '../src/storeCustomerView.js';
+import { scanIdDocument } from '../src/idScan.js';
 import { recordDeclined } from '../src/declined.js';
 import { loadUnits, saveUnits, addUnits } from '../src/stock.js';
 import { PRODUCTS } from '../src/data.js';
@@ -177,6 +178,7 @@ const CLICK = {
   logout: () => { showCustomer(welcomeView()); clearSession(); staff = null; view = 'board'; draft = null; },
   openCustomer: () => { window.open(customerUrl(), 'rq-customer-display'); return false; },
   reflect: () => showCustomer(customerViewOf(draft)),
+  scanId: () => patchDraft({ customer: scanIdDocument(draft.customer), entered: false }), // 書類の読み取り（モック）
   reset: () => {
     if (!confirm(RESET_CONFIRM)) return false;
     clearTransactions();
@@ -244,6 +246,7 @@ document.addEventListener('keydown', (e) => {
 // 別のタブ（コールセンターの来店予約・マスタ管理・GMOサイン）での変更に追従する。入力中の欄は壊さない
 window.addEventListener('storage', (e) => {
   if (![STORE_VISITS_KEY, STORES_KEY, EMPLOYEES_KEY, STOCK_KEY, STORE_DRAFT_KEY, STORE_CUSTOMER_VIEW_KEY].includes(e.key)) return;
+  if (e.key === STORE_DRAFT_KEY && draft) draft = loadDraft(draft.visitId) ?? draft; // お客様が、お客様画面で入力した内容を取り込む（入力中の欄は壊さない）
   if (document.activeElement?.matches?.('input,textarea,select')) return;
   render();
 });

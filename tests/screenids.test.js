@@ -47,13 +47,14 @@ test('マスタ・経理・査定部・GMOサイン・店舗・倉庫: 状態か
   assert.equal(hqScreenId({ code: 'RQ-P1' }, 'appraisal'), 'HQ-04-1');
   for (const r of ['login', 'list', 'detail']) seen(gmoScreenId(r));
   seen(storeScreenId({}));
-  for (const step of [0, 1, 2, 3, 4]) seen(storeScreenId({ staff: {}, view: 'purchase', draft: { step } }));
+  for (const step of [0, 1, 2, 3, 4, 5]) seen(storeScreenId({ staff: {}, view: 'purchase', draft: { step } }));
   seen(storeScreenId({ staff: {}, view: 'board', draft: null }));
   for (const tab of ['stock', 'receive', 'transfer', 'list', 'sales', 'return']) for (const packOpen of [false, true]) for (const scan of [false, true]) for (const lot of [false, true]) seen(whScreenId({ staff: {}, tab, packOpen, scan, lot }));
   seen(whScreenId({}));
   assert.equal(whScreenId({ staff: {}, tab: 'stock', scan: true, lot: true }), 'WH-02-2');
   assert.equal(whScreenId({ staff: {}, tab: 'transfer', packOpen: true }), 'WH-04-1');
-  assert.equal(storeScreenId({ staff: {}, view: 'purchase', draft: { step: 4 } }), 'STR-07');
+  assert.equal(storeScreenId({ staff: {}, view: 'purchase', draft: { step: 5 } }), 'STR-07');
+  assert.equal(storeScreenId({ staff: {}, view: 'purchase', draft: { step: 3 } }), 'STR-05-1'); // 本人確認
 });
 
 test('鑑定士タブレット: ログイン前の5画面・メインの画面・訪問の手順・モーダルが、それぞれ別のIDになる', () => {

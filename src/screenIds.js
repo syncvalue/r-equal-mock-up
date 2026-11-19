@@ -95,6 +95,7 @@ export const SCREENS = [
     ['03', '買取 1 お客様確認', 'step'],
     ['04', '買取 2 説明事項', 'step'],
     ['05', '買取 3 買取明細', 'step'],
+    ['05-1', '買取 3-2 本人確認（お客様の入力を確認）', 'step'],
     ['06', '買取 4 シール', 'step'],
     ['07', '買取 5 確認・支払い', 'step'],
     ['08', 'お客様画面（いらっしゃいませ）', 'page'],
@@ -104,6 +105,9 @@ export const SCREENS = [
     ['08-4', 'お客様画面 商品の準備中', 'step'],
     ['08-5', 'お客様画面 お支払い', 'step'],
     ['08-6', 'お客様画面 ありがとうございました', 'step'],
+    ['08-7', 'お客様画面 来店の受付（お名前・電話番号の入力）', 'step'],
+    ['08-8', 'お客様画面 本人確認の入力（住所・生年月日など）', 'step'],
+    ['08-9', 'お客様画面 入力を受け付けました', 'step'],
   ]),
 
   ...T('WH', [
@@ -224,7 +228,7 @@ export const TAB_MODAL_IDS = {
 export const storeScreenId = ({ staff, view, draft } = {}) => {
   if (!staff) return 'STR-01';
   if (view !== 'purchase' || !draft) return 'STR-02';
-  return ['STR-03', 'STR-04', 'STR-05', 'STR-06', 'STR-07'][draft.step] ?? 'STR-03';
+  return ['STR-03', 'STR-04', 'STR-05', 'STR-05-1', 'STR-06', 'STR-07'][draft.step] ?? 'STR-03';
 };
 
 // 倉庫・物流。packOpen=パックを開いている（作業の画面）、scan=QR読取結果を出している、lot=買取日・お客様別

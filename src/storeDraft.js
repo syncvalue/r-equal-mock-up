@@ -4,12 +4,15 @@ import { STORE_DRAFT_KEY } from './store.js';
 import { sealColorOfCode, newSealNo } from './stock.js';
 import { EXPLAIN_ITEMS, LEAVE_CHECKS, slotsOf, sellItems } from './storePurchase.js';
 
-export const STEPS = ['お客様確認', '説明事項', '買取明細', 'シール', '確認・支払い'];
+// 本人確認（住所・生年月日などの詳しい情報）は、買取が決まった（買取明細の）あと、契約の前。お客様が、書類の読み取り（OCR）で入った内容を確かめて入力する
+export const STEPS = ['お客様確認', '説明事項', '買取明細', '本人確認', 'シール', '確認・支払い'];
+export const IDENTITY_STEP = 3;
+const DRAFT_VERSION = 2; // 2: 本人確認の手順を追加（手順が6つになった）
 
 export const blankDraft = (visit) => ({
-  visitId: visit.id, step: 0,
+  v: DRAFT_VERSION, visitId: visit.id, step: 0,
   customer: { name: visit.customer?.name ?? '', kana: visit.customer?.kana ?? '', phone: visit.customer?.phone ?? '', phone2: '', zip: '', address: '', occupation: '', birth: '' },
-  customerOk: false, explain: {}, propose: '', items: [], labels: {}, colors: {}, contractId: null, checks: {},
+  customerOk: false, entered: false, explain: {}, propose: '', items: [], labels: {}, colors: {}, contractId: null, checks: {},
 });
 
 export const explainRemaining = (d) => EXPLAIN_ITEMS.filter((x) => !d.explain[x.key]).length;
@@ -20,10 +23,11 @@ const filled = (v) => String(v ?? '').trim() !== '';
 // いまの手順で、次へ進める（または完了できる）か
 export function canProceed(d) {
   switch (d.step) {
-    case 0: return d.customerOk && ['name', 'phone', 'address', 'birth'].every((k) => filled(d.customer[k]));
+    case 0: return ['name', 'phone'].every((k) => filled(d.customer[k])); // 来店時に聞くのは、お名前と電話番号だけ
     case 1: return explainRemaining(d) === 0 && ['yes', 'no'].includes(d.propose);
     case 2: return sellItems(d.items).length > 0 && d.items.every((i) => i.price > 0);
-    case 3: return slotsOf(d.items).every((x) => d.labels[x.key] && d.colors[x.key]);
+    case IDENTITY_STEP: return d.customerOk && ['name', 'phone', 'address', 'birth'].every((k) => filled(d.customer[k]));
+    case 4: return slotsOf(d.items).every((x) => d.labels[x.key] && d.colors[x.key]);
     default: return Boolean(d.contractId) && leaveRemaining(d) === 0;
   }
 }
@@ -86,7 +90,9 @@ const readAll = () => {
     return {};
   }
 };
-export const loadDraft = (visitId) => readAll()[visitId] ?? null;
+// 古い作業（手順が5つのころ）は、本人確認の手順を挟んで、手順の番号を1つ後ろへ。住所・生年月日が入っていれば、お客様確認は済んだものとして扱う
+const migrate = (d) => (d.v === DRAFT_VERSION ? d : { ...d, v: DRAFT_VERSION, step: d.step >= IDENTITY_STEP ? d.step + 1 : d.step, entered: Boolean(d.customerOk) });
+export const loadDraft = (visitId) => { const d = readAll()[visitId]; return d ? migrate(d) : null; };
 export function saveDraft(d) {
   try {
     localStorage.setItem(STORE_DRAFT_KEY, JSON.stringify({ ...readAll(), [d.visitId]: d }));

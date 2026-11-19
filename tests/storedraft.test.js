@@ -11,8 +11,9 @@ const visit = { id: 'SV-1', customer: { name: '山田 花子', kana: 'ヤマダ 
 const prod = (id, name = id) => ({ id, name, category: '腕時計' });
 const full = (d) => ({ ...d, customerOk: true, customer: { ...d.customer, address: '大阪府大阪市1-1', birth: '1964-02-11' } });
 
-test('手順は、お客様確認・説明事項・買取明細・シール・確認・支払いの5つ', () => {
-  assert.deepEqual(D.STEPS, ['お客様確認', '説明事項', '買取明細', 'シール', '確認・支払い']);
+test('手順は、お客様確認・説明事項・買取明細・本人確認・シール・確認・支払いの6つ（本人確認は、買取が決まったあと、契約の前）', () => {
+  assert.deepEqual(D.STEPS, ['お客様確認', '説明事項', '買取明細', '本人確認', 'シール', '確認・支払い']);
+  assert.equal(D.IDENTITY_STEP, 3);
 });
 
 test('作業の開始: 来店のお客様の情報を引き継ぐ。古物台帳に要る住所・生年月日などは、これから入力', () => {
@@ -22,14 +23,33 @@ test('作業の開始: 来店のお客様の情報を引き継ぐ。古物台帳
   assert.equal(other.customer.phone, ''); // 電話番号は、飛び込みでは未入力のこともある
 });
 
-test('お客様確認: 氏名・電話番号・住所・生年月日がそろい、確認済みにしてから次へ（本人確認書類と照らして入力）', () => {
+test('お客様確認: 来店時に要るのは、お名前と電話番号だけ（住所・生年月日は、あとの本人確認）', () => {
   let d = D.blankDraft(visit);
+  assert.equal(D.canProceed(d), true); // 来店の情報（お名前・電話番号）が入っている
+  assert.equal(D.canProceed({ ...d, customer: { ...d.customer, phone: ' ' } }), false);
+  assert.equal(D.canProceed({ ...d, customer: { ...d.customer, name: '' } }), false);
+  assert.equal(D.canProceed({ ...D.blankDraft({ id: 'SV-9', customer: { name: 'x' } }) }), false); // 電話番号が未入力
+});
+
+test('本人確認: 住所・生年月日がそろい、書類と照らして確認済みにしてから次へ。お客様が入力済みかは、別に覚える', () => {
+  let d = { ...D.blankDraft(visit), step: 3 };
   assert.equal(D.canProceed(d), false);
+  assert.equal(d.entered, false);
   d = full(d);
   assert.equal(D.canProceed(d), true);
   assert.equal(D.canProceed({ ...d, customerOk: false }), false);
-  assert.equal(D.canProceed({ ...d, customer: { ...d.customer, phone: ' ' } }), false);
   assert.equal(D.canProceed({ ...d, customer: { ...d.customer, birth: '' } }), false);
+  assert.equal(D.canProceed({ ...d, customer: { ...d.customer, address: ' ' } }), false);
+  assert.equal(D.canProceed({ ...d, entered: false }), true); // お客様の入力でなく、スタッフの入力でもよい
+});
+
+test('古い作業（手順が5つのころ）の復元: シール以降は、手順の番号を1つ後ろへ。保存し直すと、新しい形になる', () => {
+  const old = { visitId: 'SV-OLD', step: 3, customerOk: true, customer: { name: 'x', phone: '1' }, items: [], labels: {}, colors: {}, explain: {}, checks: {} };
+  mem.set('rq-mock-store-drafts', JSON.stringify({ 'SV-OLD': old, 'SV-OLD2': { ...old, visitId: 'SV-OLD2', step: 1 } }));
+  assert.equal(D.loadDraft('SV-OLD').step, 4); // 古いシール → 新しいシール
+  assert.equal(D.loadDraft('SV-OLD2').step, 1);
+  assert.equal(D.loadDraft('SV-OLD').v, 2);
+  mem.clear();
 });
 
 test('説明事項: 5項目がすべて済み、他商品を提案してよいかの回答（はい・いいえ）がそろうと次へ', () => {
@@ -59,7 +79,7 @@ test('買取明細: 商品を足すと金額は未入力。同じ商品は数量
 });
 
 test('数量を減らす・商品を外すと、なくなった分のシールの紐づけも外れる。数量は1未満にならない', () => {
-  let d = { ...full(D.blankDraft(visit)), step: 3 };
+  let d = { ...full(D.blankDraft(visit)), step: 4 };
   d = D.addProduct(D.addProduct(D.addProduct(d, prod('p1')), prod('p1')), prod('p2'));
   d = D.updateItem(d, 'p1', { price: 100 });
   d = D.updateItem(d, 'p2', { price: 100 });
@@ -72,7 +92,7 @@ test('数量を減らす・商品を外すと、なくなった分のシール�
 });
 
 test('シール: 売る商品の1点ごとに、シールNo.と色が要る。同じシールを別の商品には使えない（入庫待ち済みのシールも）', () => {
-  let d = { ...full(D.blankDraft(visit)), step: 3 };
+  let d = { ...full(D.blankDraft(visit)), step: 4 };
   d = D.updateItem(D.addProduct(d, prod('p1')), 'p1', { price: 100, qty: 2 });
   d = D.setQty(d, 'p1', 2);
   assert.deepEqual(P.slotsOf(d.items).map((x) => x.key), ['p1-1', 'p1-2']);
@@ -100,7 +120,7 @@ test('新しいシールNo.: RQ-で始まる8桁。使用済みと重ならな�
 });
 
 test('確認・支払い: 契約をGMOサインへ送ってから、終了前の確認がすべて済むと完了できる', () => {
-  const base = { ...full(D.blankDraft(visit)), step: 4 };
+  const base = { ...full(D.blankDraft(visit)), step: 5 };
   const checks = Object.fromEntries(P.LEAVE_CHECKS.map((c) => [c.key, true]));
   assert.equal(D.canProceed({ ...base, checks }), false); // 契約を送っていない
   assert.equal(D.canProceed({ ...base, contractId: 'GS-1', checks: { ...checks, pay: false } }), false);
@@ -129,8 +149,8 @@ test('手順の進み方: 次へ・戻る。範囲の外には出ない', () => 
 });
 
 test('契約を送ったあとは、確認・支払いより前の手順には戻れない（契約書と食い違わないように）', () => {
-  const d = { ...D.blankDraft(visit), step: 4, contractId: 'GS-1' };
-  assert.equal(D.goStep(d, 2).step, 4);
+  const d = { ...D.blankDraft(visit), step: 5, contractId: 'GS-1' };
+  assert.equal(D.goStep(d, 2).step, 5);
   assert.equal(D.goStep({ ...d, contractId: null }, 2).step, 2);
 });
 

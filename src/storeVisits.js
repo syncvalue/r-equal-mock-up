@@ -53,6 +53,13 @@ export function walkIn(list, { storeId, name, kana, phone, wants, by }, { storeI
   return { ok: true, list: [...list, visit], visit };
 }
 
+// お客様ご自身が、店舗のタブレット（お客様画面）で入力する来店の受付。最初に聞くのは、お名前と電話番号だけ（詳しい情報は、買取が決まってから）。reason: noStore／noName／noPhone
+export const CHECKIN_BY = 'お客様（タブレットで入力）';
+export function checkIn(list, { storeId, name, phone }, opts = {}) {
+  if (!text(phone)) return text(name) ? fail(list, 'noPhone') : walkIn(list, { storeId, name, phone }, opts); // お名前の不足を先に知らせる
+  return walkIn(list, { storeId, name, phone, by: CHECKIN_BY }, opts);
+}
+
 // 状態を進める共通の処理。from: 進められる元の状態。reason: notFound／badStatus
 function advance(list, id, from, patch) {
   const v = list.find((x) => x.id === id);

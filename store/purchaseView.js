@@ -1,4 +1,4 @@
-// 店舗の「買取」画面。お客様確認 → 説明事項 → 買取明細 → シール → 確認・支払い の5手順。
+// 店舗の「買取」画面。お客様確認 → 説明事項 → 買取明細 → 本人確認 → シール → 確認・支払い の6手順。
 import { esc, yen } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
 import { moneyInputHtml } from '../src/moneyInput.js';
@@ -7,6 +7,7 @@ import { SEAL_COLORS } from '../src/stock.js';
 import { STEPS, canProceed, explainRemaining, leaveRemaining } from '../src/storeDraft.js';
 import { EXPLAIN_ITEMS, LEAVE_CHECKS, slotsOf, sellItems, totalOf } from '../src/storePurchase.js';
 import { repeatBadge } from '../src/customerHistoryView.js';
+import { missingIdentity } from '../src/idScan.js';
 import { salesCustomerCard, salesDeclinedCard } from '../src/customerProfileView.js';
 
 const check = (attr, checked, text) => `<label class="flex items-start gap-3 rounded-lg border bg-white px-3 py-2 min-h-[48px] cursor-pointer"><input type="checkbox" class="w-6 h-6 mt-0.5 shrink-0" ${attr} ${checked ? 'checked' : ''} /><span>${esc(text)}</span></label>`;
@@ -19,11 +20,24 @@ function customerStep(d, ctx) {
     <div class="flex flex-wrap items-center gap-2">${repeatBadge(ctx.history)}</div>
     ${salesCustomerCard(ctx.profile)}${salesDeclinedCard(ctx.declined)}
     <section class="rounded-xl border bg-white p-3 space-y-3">
-      <h3 class="font-bold">お客様の情報${helpIcon('古物営業法に基づく買取の記録（古物台帳）に必要な項目です。本人確認書類と照らして入力します。')}</h3>
+      <h3 class="font-bold">お客様の情報${helpIcon('来店時に聞くのは、お名前と電話番号だけです（お客様がタブレットで入力した内容が入っています）。住所・生年月日などの詳しい情報は、買取が決まったあと、「本人確認」の手順で、お客様に入力いただきます。')}</h3>
+      <div class="grid sm:grid-cols-3 gap-3">${field('name', 'お名前', d, { required: true })}${field('kana', 'フリガナ', d)}${field('phone', '電話番号', d, { required: true, ph: '090-0000-0000' })}</div>
+    </section></div>`;
+}
+
+// 本人確認: お客様が、お客様画面で入力する。書類の読み取り（OCR）で入った内容を、お客様が確かめて直す。スタッフは、書類と照らして確認する
+function identityStep(d) {
+  const left = missingIdentity(d.customer);
+  return `<div class="space-y-3">
+    <section class="rounded-xl border bg-white p-3 space-y-3">
+      <h3 class="font-bold">本人確認（住所・生年月日など）${helpIcon('古物営業法に基づく買取の記録（古物台帳）に必要な項目です。1) 本人確認書類を読み取る（OCR）と、読み取れた内容が入ります。2) 「お客様画面へ反映」を押すと、お客様画面に入力欄が出ます。お客様が、入った内容を確かめて、違うところを直します。3) 書類と照らして確認し、「確認した」にチェックして次へ。スタッフが直接入力してもかまいません。')}</h3>
+      <div class="flex flex-wrap items-center gap-3">
+        <button class="demo-only" data-scan-id>本人確認書類を読み取る（OCR）</button>
+        <span class="text-sm ${d.entered ? 'text-teal-700 font-bold' : 'text-slate-500'}">${d.entered ? '✔ お客様が入力しました' : 'お客様の入力を待っています（お客様画面へ反映すると、入力欄が出ます）'}</span>
+        ${left.length ? `<span class="text-sm text-rose-700">未入力: ${esc(left.join('・'))}</span>` : ''}</div>
       <div class="grid sm:grid-cols-4 gap-3">
-        ${field('name', 'お名前', d, { required: true })}${field('kana', 'フリガナ', d)}${field('phone', '電話番号', d, { required: true, ph: '090-0000-0000' })}${field('phone2', '電話番号（予備）', d)}
         ${field('zip', '郵便番号', d, { ph: '545-0052' })}<div class="sm:col-span-3">${field('address', '住所', d, { required: true })}</div>
-        ${field('occupation', '職業', d)}${field('birth', '生年月日', d, { required: true, type: 'date' })}
+        ${field('birth', '生年月日', d, { required: true, type: 'date' })}${field('occupation', '職業', d)}${field('phone2', '電話番号（予備）', d)}
       </div>
       ${check('data-cok', d.customerOk, '本人確認書類と照らして、お客様の情報を確認した')}
     </section></div>`;
@@ -84,12 +98,12 @@ function payStep(d) {
         ${LEAVE_CHECKS.map((x) => check(`data-lv="${x.key}"`, d.checks[x.key], x.text)).join('')}</div></section></div>`;
 }
 
-const HINT = ['氏名・電話番号・住所・生年月日を入力し、確認済みにしてください', '説明事項をすべて済ませ、提案の回答を選んでください', '売る商品を1点以上追加し、全商品の金額を入力してください', '全商品に、シールNo.と色が必要です', '契約を送り、終了前の確認をすべて済ませてください'];
+const HINT = ['お名前と電話番号を入力してください', '説明事項をすべて済ませ、提案の回答を選んでください', '売る商品を1点以上追加し、全商品の金額を入力してください', '住所・生年月日を入力（お客様の入力）し、書類と照らして確認済みにしてください', '全商品に、シールNo.と色が必要です', '契約を送り、終了前の確認をすべて済ませてください'];
 
 // ctx: { draft, history, profile, declined, search, results, labelError }
 export function purchaseHtml(ctx) {
   const { draft: d } = ctx;
-  const body = [customerStep, explainStep, itemsStep, sealStep, payStep][d.step](d, ctx);
+  const body = [customerStep, explainStep, itemsStep, identityStep, sealStep, payStep][d.step](d, ctx);
   const last = d.step === STEPS.length - 1;
   const ok = canProceed(d);
   return `<div class="flex flex-col h-[calc(100vh-52px)]">

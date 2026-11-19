@@ -130,10 +130,10 @@
 | 11（冒頭） | [features/store-purchase](features/store-purchase/spec.md) | 店舗（店頭買取）の概要（クーリング・オフの対象外、古物営業法） |
 | 11.1 | [features/store-purchase](features/store-purchase/spec.md) | ログインと画面の構成 |
 | 11.2 | [features/store-purchase](features/store-purchase/spec.md) | 来店（一覧）: 予約・待ち・対応中・完了・取消・来ず |
-| 11.3 | [features/store-purchase](features/store-purchase/spec.md) | 買取の流れ（5手順） |
+| 11.3 | [features/store-purchase](features/store-purchase/spec.md) | 買取の流れ（6手順。**来店時は名前・電話番号だけ、本人確認は買取が決まってから**） |
 | 11.4 | [features/store-purchase](features/store-purchase/spec.md) | 完了すると作られる記録（契約、入庫待ち、見送り品） |
 | 11.5 | [features/store-purchase](features/store-purchase/spec.md) | モックの範囲 |
-| 11.6 | [features/store-purchase](features/store-purchase/spec.md) | **お客様画面（2枚目のモニタ）**: 店舗スタッフの画面はお客様に見せない。「お客様画面へ反映」で更新、手順ごとの内容、自動で待機に戻す |
+| 11.6 | [features/store-purchase](features/store-purchase/spec.md) | **お客様画面（2枚目のモニタ）**: 店舗スタッフの画面はお客様に見せない。「お客様画面へ反映」で更新、手順ごとの内容、自動で待機に戻す。**お客様が入力する画面（来店の受付・本人確認のOCR）** |
 
 ### 12. マーケティング部
 
@@ -175,7 +175,7 @@
 | パック・伝票・CSV | [5.4](features/warehouse-packing/spec.md) |
 | **クーリングオフ**（保管10日、依頼、返送） | [2.5](features/callcenter-cooloff/spec.md)、[5.7](features/warehouse-cooloff/spec.md)、[用語集](shared/glossary.md) |
 | **店頭買取**（クーリング・オフの対象外） | [11章](features/store-purchase/spec.md)、[用語集](shared/glossary.md) |
-| **お客様画面**（店舗のデュアルモニタ、お客様に見せる専用画面、反映） | [11.6](features/store-purchase/spec.md)、FUTURE_REQUIREMENTS R-[7](features/store-purchase/spec.md) |
+| **お客様画面**（店舗のデュアルモニタ、お客様に見せる専用画面、反映）・**お客様自身の入力**（来店の受付、本人確認のOCR） | [11.6](features/store-purchase/spec.md)、FUTURE_REQUIREMENTS R-[7](features/store-purchase/spec.md) |
 | 来店予約 | [2.6](features/store-reservation/spec.md)、[11.2](features/store-purchase/spec.md) |
 | 顧客検索・電話の履歴の共有・しつこい電話の防止 | [1.9](features/tablet-customer-search/spec.md)、FUTURE_REQUIREMENTS R-[2](features/callcenter-intake/spec.md) |
 | **チラシ・反響管理**（チラシのID、どのチラシが効果的か、今日配布のチラシ） | [12章](features/marketing-flyers/spec.md)、[2.1](features/callcenter-intake/spec.md)（来電のきっかけ）、FUTURE_REQUIREMENTS R-[6](features/marketing-flyers/spec.md) |
@@ -212,7 +212,7 @@
 | 画面 | 画面とURLの一覧 |
 | 1日の流れ（始業・終業と経費） | 鑑定士の始業・所持金・経費・終業 |
 | 現地買取の流れ | 訪問買取の手順 |
-| 店頭買取（店舗） | 来店・買取の5手順 |
+| 店頭買取（店舗） | 来店・買取の6手順、お客様画面 |
 | 商品の入庫 | 鑑定士の入庫、倉庫の入庫 |
 | 倉庫・物流（商品管理・販売・返品） | 画面ごとの操作（倉庫マスタ、入庫、倉庫間移動、販売、売上、写真、クーリングオフ返品） |
 | コールセンター（受付・配車） | 受付、空き確認、配車確定、確定の反映 |
