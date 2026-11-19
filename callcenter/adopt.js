@@ -7,22 +7,25 @@ import { minToHHMM } from '../src/reservations.js';
 const stamp = (d = new Date()) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 const base = (areaId) => ({ areaId: areaId ?? null });
 const UNKNOWN = '未確認';
+const GENDER_TEXT = { f: '女性', m: '男性' };
 
 export function reservationFromBlock(block, { userId, date, now = new Date(), seq = 1 }) {
   const e = block.ev ?? null;
+  const gender = block.gender ?? e?.gender ?? ''; // 性別は、聴取しているものとして、元の予定からそのまま引き継ぐ
+  const profile = GENDER_TEXT[gender] ?? UNKNOWN;
   const areaId = areaOfUser(userId);
-  const common = { customerRank: block.custRank ?? null, id: `AD-${block.gid}`, status: 'confirmed', confirmedAt: stamp(now), confirmedBy: '（鑑定士の予定を取り込み）', userId, date, start: minToHHMM(block.start), end: minToHHMM(block.end), gender: '', lat: block.lat ?? 0, lng: block.lng ?? 0, ...base(areaId) };
+  const common = { customerRank: block.custRank ?? null, id: `AD-${block.gid}`, status: 'confirmed', confirmedAt: stamp(now), confirmedBy: '（鑑定士の予定を取り込み）', userId, date, start: minToHHMM(block.start), end: minToHHMM(block.end), gender, lat: block.lat ?? 0, lng: block.lng ?? 0, ...base(areaId) };
   if (e) {
     const h = hearingOf(e);
     return {
       ...common, receptionNo: e.receptionNo, receivedAt: e.receivedAt, receivedTs: Date.parse(String(e.receivedAt).replace(/\//g, '-')) || now.getTime(), operator: e.operator, apType: e.apType, flyerId: null, chirashi: h.trigger,
-      hearing: { trigger: h.trigger, attendee: h.attendee, wants: h.wants, large: h.large, notes: h.notes, profile: UNKNOWN, companion: UNKNOWN, parking: UNKNOWN, nameplate: UNKNOWN, contact: UNKNOWN },
+      hearing: { trigger: h.trigger, attendee: h.attendee, wants: h.wants, large: h.large, notes: h.notes, profile, companion: UNKNOWN, parking: UNKNOWN, nameplate: UNKNOWN, contact: UNKNOWN },
       customer: { name: e.customer.name, kana: e.customer.kana, phone: e.customer.phone, phone2: '', zip: e.customer.zip, address: e.customer.address },
     };
   }
   return { // ダミーの他の訪問（お客様名と住所だけ）
     ...common, receptionNo: `CC-${date.replaceAll('-', '')}-${9000 + seq}`, receivedAt: stamp(now), receivedTs: now.getTime(), operator: '—', apType: '新', flyerId: null, chirashi: UNKNOWN,
-    hearing: { trigger: UNKNOWN, attendee: UNKNOWN, wants: UNKNOWN, large: UNKNOWN, notes: UNKNOWN, profile: UNKNOWN, companion: UNKNOWN, parking: UNKNOWN, nameplate: UNKNOWN, contact: UNKNOWN },
+    hearing: { trigger: UNKNOWN, attendee: UNKNOWN, wants: UNKNOWN, large: UNKNOWN, notes: UNKNOWN, profile, companion: UNKNOWN, parking: UNKNOWN, nameplate: UNKNOWN, contact: UNKNOWN },
     customer: { name: String(block.label).replace(/\s*様$/, ''), kana: '', phone: '', phone2: '', zip: '', address: block.place ?? '' },
   };
 }

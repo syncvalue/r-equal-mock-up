@@ -62,3 +62,11 @@ test('取り込んだ予約は、元の予定のダミーの顧客ランクを�
   const rec = reservationFromBlock({ gid: 'flr:x', start: 600, end: 690, label: '田中 一郎 様', source: 'dummy', custRank: 'SS', place: '' }, { userId: 'u01', date: '2026-10-21', now: NOW });
   assert.equal(rec.customerRank, 'SS');
 });
+
+test('取り込んだ予約は、元の予定の性別を引き継ぐ（詳細の「性別・年齢」が、未確認にならない）', () => {
+  const dummy = reservationFromBlock({ gid: 'flr:y', start: 720, end: 780, label: '前田 隆 様', source: 'dummy', gender: 'm', place: '大阪府大阪市中央区難波5-1-60' }, { userId: 'u01', date: '2026-10-21', now: NOW });
+  assert.equal(dummy.gender, 'm');
+  assert.equal(dummy.hearing.profile, '男性');
+  const f = reservationFromBlock({ gid: 'flr:z', start: 720, end: 780, label: '岡田 恵子 様', source: 'dummy', gender: 'f', place: '' }, { userId: 'u01', date: '2026-10-21', now: NOW });
+  assert.equal(f.hearing.profile, '女性');
+});
