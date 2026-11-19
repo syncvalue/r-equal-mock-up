@@ -139,3 +139,19 @@ test('配布カレンダーは、エリアごとに色分けし、エリアで�
   assert.ok(osaka.includes('N1020') && !osaka.includes('P1016')); // 大阪府のチラシだけ（P1016 は京都府）
   assert.ok(osaka.includes('2026-11-19 に配布するチラシ') && osaka.includes('1件'));
 });
+
+test('チラシの一覧は、進捗・エリア・配布方法・入稿期限・フリーワードで検索できる。条件に合わなければ、その旨を出す', async () => {
+  const { flyersTab, resultsHtml, blankFlyer } = await import('../marketing/flyersTab.js');
+  const { defaultFlyers } = await import('../src/flyers.js');
+  const flyers = defaultFlyers('2026-11-19');
+  const base = { flyers, form: blankFlyer('2026-11-19'), today: '2026-11-19' };
+  const html = flyersTab({ ...base, filter: { stage: '', area: '', media: '', due: '', q: '' } });
+  for (const k of ['data-flyer-filter', 'data-flyer-q', 'data-flyer-farea', 'data-flyer-fmedia', 'data-flyer-fdue', 'data-flyer-fstage="todo"', 'data-flyer-fstage="design"', '作業が残っている']) assert.ok(html.includes(k), k);
+  assert.ok(!html.includes('data-flyer-fclear')); // 条件がなければ、クリアのボタンは出さない
+  const todo = resultsHtml(flyers, '2026-11-19', { stage: 'todo' });
+  assert.ok(todo.includes('P1017') && todo.includes('D1002') && !todo.includes('N1012') && todo.includes('（全10件）'));
+  assert.ok(flyersTab({ ...base, filter: { stage: 'todo', area: '', media: '', due: '', q: '' } }).includes('data-flyer-fclear'));
+  assert.ok(resultsHtml(flyers, '2026-11-19', { q: '兵庫 ポスティング' }).includes('P1017') && !resultsHtml(flyers, '2026-11-19', { q: '兵庫 ポスティング' }).includes('N1021'));
+  assert.ok(resultsHtml(flyers, '2026-11-19', { q: 'zzz' }).includes('data-flyer-empty'));
+  assert.ok(resultsHtml(flyers, '2026-11-19', { due: 'overdue' }).includes('P1017'));
+});

@@ -3,6 +3,8 @@ import { esc, yen } from '../src/format.js';
 import { helpIcon } from '../src/help.js';
 import { MEDIA, STAGES, mediaOf, nextFlyerId, flyersOnDay, stageOf, stageLabel } from '../src/flyers.js';
 import { AD_TYPES } from '../callcenter/master.js';
+import { areaOf, OTHER_AREA } from '../src/areaColor.js';
+import { filterFlyers, stageCountsForFilter, DUE_OPTIONS, STAGE_FILTERS } from '../src/flyerSearch.js';
 
 export const REASON_TEXT = {
   noName: 'チラシの名前を入れてください', dupName: '同じ名前のチラシがあります（号や期間を、名前に入れてください）', badMedia: '配布方法を選んでください', noArea: '配布するエリアを入れてください',
@@ -73,11 +75,29 @@ const designHtml = (f) => (!f.file ? '<span class="text-slate-400">―</span>' :
 // 並び: 進めることが残っているもの（入稿期限の早い順）→ 配布済み（新しい順）→ 無効
 const sortKey = (f, today) => (!f.active ? 2 : stageOf(f, today) === 'distributed' ? 1 : 0);
 
-export function listHtml(flyers, today) {
-  const rows = [...flyers].sort((a, b) => sortKey(a, today) - sortKey(b, today) || (sortKey(a, today) === 0 ? (a.deadline || a.from).localeCompare(b.deadline || b.from) || a.from.localeCompare(b.from) : b.from.localeCompare(a.from)) || a.id.localeCompare(b.id));
-  const onToday = flyersOnDay(flyers, today).length;
-  return `<section class="rounded-lg bg-white border border-slate-300 p-4">
-    <div class="flex items-center justify-between mb-2"><h2 class="font-bold">チラシの一覧 <span class="text-sm font-normal text-slate-500">${flyers.length}件</span>${helpIcon('進めることが残っているチラシ（入稿期限の早い順）が上に並びます。「進める」で、未着手 → 制作中 → 入稿済み → 配布済みと、1件ずつ進めます。')}</h2><span class="text-sm">今日配布 <b class="text-lg text-teal-700">${onToday}</b>件</span></div>
+// 検索の欄（進捗の札・フリーワード・エリア・配布方法・入稿期限）。入力中も作り直さないよう、結果の表とは別にしてある
+function filterBar(flyers, filter, today) {
+  const counts = stageCountsForFilter(flyers, today);
+  const chip = (x) => `<button class="b !min-h-0 !py-1 !px-2.5 text-xs ${filter.stage === x.key ? 'on' : 'b-sec'}" data-flyer-fstage="${x.key}">${x.label} <b>${x.key ? counts[x.key] : counts.all}</b></button>`;
+  const areas = [...new Set(flyers.map(areaOf))].sort((a, b) => (a === OTHER_AREA) - (b === OTHER_AREA) || a.localeCompare(b));
+  const sel = (attr, label, value, opts) => `<label class="text-xs font-bold">${label}<select class="inp !py-1 mt-0.5 font-normal" ${attr}><option value="">すべて</option>${opts.map(([k, t]) => `<option value="${esc(k)}" ${k === value ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`;
+  const active = Boolean(filter.stage || filter.area || filter.media || filter.due || filter.q);
+  return `<div class="rounded border border-slate-200 bg-slate-50 p-2 mb-2 space-y-2" data-flyer-filter>
+    <div class="flex flex-wrap gap-1">${STAGE_FILTERS.map(chip).join('')}</div>
+    <div class="flex flex-wrap items-end gap-2">
+      <label class="text-xs font-bold flex-1 min-w-[12rem]">フリーワード<input class="inp !py-1 mt-0.5 font-normal" data-flyer-q value="${esc(filter.q)}" placeholder="ID・名前・エリア・メモなど（空白で、すべてを含むもの）" autocomplete="off"></label>
+      ${sel('data-flyer-farea', 'エリア', filter.area, areas.map((a) => [a, a]))}
+      ${sel('data-flyer-fmedia', '配布方法', filter.media, MEDIA.map((m) => [m.key, m.label]))}
+      ${sel('data-flyer-fdue', '入稿期限', filter.due, DUE_OPTIONS.map((d) => [d.key, d.label]))}
+      ${active ? '<button class="b b-sec !min-h-0 !py-1 !px-2.5 text-xs" data-flyer-fclear>条件をクリア</button>' : ''}
+    </div></div>`;
+}
+
+export function resultsHtml(flyers, today, filter = {}) {
+  const shown = filterFlyers(flyers, filter, today);
+  const rows = [...shown].sort((a, b) => sortKey(a, today) - sortKey(b, today) || (sortKey(a, today) === 0 ? (a.deadline || a.from).localeCompare(b.deadline || b.from) || a.from.localeCompare(b.from) : b.from.localeCompare(a.from)) || a.id.localeCompare(b.id));
+  if (!rows.length) return `<p class="text-sm text-slate-500 py-3" data-flyer-empty>条件に合うチラシは、ありません（全${flyers.length}件）</p>`;
+  return `<div class="text-xs text-slate-500 mb-1">${rows.length}件${rows.length === flyers.length ? '' : `（全${flyers.length}件）`}</div>
     <div class="overflow-x-auto"><table class="w-full text-sm" data-flyer-list>
       <thead><tr class="text-left text-xs text-slate-500 border-b"><th>ID</th><th>進捗</th><th>チラシ</th><th>配布方法</th><th>エリア</th><th>入稿期限</th><th>配布の期間</th><th>デザイン</th><th class="text-right">部数</th><th class="text-right">費用</th><th></th></tr></thead>
       <tbody>${rows.map((f) => { const [label, cls] = badgeOf(f, today); const st = stageOf(f, today); return `<tr class="border-b ${f.active ? '' : 'text-slate-400'}">
@@ -85,8 +105,16 @@ export function listHtml(flyers, today) {
         <td class="whitespace-normal min-w-[10rem]">${esc(f.name)}${f.note ? `<div class="text-[11px] text-slate-500">${esc(f.note)}</div>` : ''}</td><td>${esc(mediaOf(f.media)?.label)}</td><td class="whitespace-normal min-w-[8rem]">${esc(f.area)}</td><td>${deadlineHtml(f, today)}</td><td>${esc(period(f))}</td><td>${designHtml(f)}</td>
         <td class="text-right">${f.quantity.toLocaleString('ja-JP')}</td><td class="text-right">${yen(f.cost)}</td>
         <td>${f.active && NEXT_LABEL[st] ? `<button class="b b-pri !min-h-0 !py-1 !px-2 text-xs" data-flyer-advance="${esc(f.id)}">${NEXT_LABEL[st]}</button> ` : ''}${f.active && st !== 'plan' ? `<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-flyer-back="${esc(f.id)}" title="進捗を1つ戻す">戻す</button> ` : ''}<button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-flyer-edit="${esc(f.id)}">変更</button> <button class="b b-sec !min-h-0 !py-1 !px-2 text-xs" data-flyer-toggle="${esc(f.id)}">${f.active ? '無効にする' : '有効にする'}</button></td></tr>`; }).join('')}</tbody>
-    </table></div>
+    </table></div>`;
+}
+
+export function listHtml(flyers, today, filter = {}) {
+  const onToday = flyersOnDay(flyers, today).length;
+  return `<section class="rounded-lg bg-white border border-slate-300 p-4">
+    <div class="flex items-center justify-between mb-2"><h2 class="font-bold">チラシの一覧${helpIcon('進めることが残っているチラシ（入稿期限の早い順）が上に並びます。「進める」で、未着手 → 制作中 → 入稿済み → 配布済みと、1件ずつ進めます。\n「作業が残っている」で絞ると、デザイナーがこれからやるべきもの（未着手・制作中）が分かります。入稿期限でも絞れます。')}</h2><span class="text-sm">今日配布 <b class="text-lg text-teal-700">${onToday}</b>件</span></div>
+    ${filterBar(flyers, filter, today)}
+    <div data-flyer-results>${resultsHtml(flyers, today, filter)}</div>
   </section>`;
 }
 
-export const flyersTab = ({ flyers, form, today }) => `<div class="grid lg:grid-cols-[26rem_1fr] gap-4 p-4 items-start">${formHtml(form, flyers)}${listHtml(flyers, today)}</div>`;
+export const flyersTab = ({ flyers, form, today, filter = {} }) => `<div class="grid lg:grid-cols-[26rem_1fr] gap-4 p-4 items-start">${formHtml(form, flyers)}${listHtml(flyers, today, filter)}</div>`;
