@@ -387,3 +387,10 @@ test('鑑定士指名の予約: 同じ鑑定士で時間を変えるのは可。
   assert.match(moved.reason, /指名/);
   assert.equal(canPlace(mk({ userId: a }), b, slot(b), [], now).ok, true); // 指名でなければ、別の鑑定士へ動かせる
 });
+
+test('ダミーのお客様は、性別を聴取している前提で、すべて男か女がセットされている（予定・見本の訪問）', async () => {
+  const { EVENTS } = await import('../src/schedule.js');
+  assert.deepEqual(EVENTS.filter((e) => !['f', 'm'].includes(e.gender)).map((e) => e.id), []);
+  const { sampleReservations } = await import('../callcenter/samples.js').catch(() => ({}));
+  if (sampleReservations) for (const r of sampleReservations(new Date(2026, 9, 21, 9, 0))) assert.ok(['f', 'm'].includes(r.gender), `${r.id} の性別がない`);
+});

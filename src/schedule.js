@@ -58,7 +58,7 @@ export const dayDate = (day, now = new Date()) => new Date(now.getFullYear(), no
 
 // 前日の予定（実績）。予定表の左側に表示する。past は訪問の結果（買取明細・不在などの結果・評価）
 const p1 = (id, start, end, n, items, lat, lng, customer, past) => ({
-  id, userId: 'u01', day: -1, start, end, receptionNo: `CC-20261019-${String(n).padStart(4, '0')}`, receivedAt: '2026/10/19 09:00', operator: '佐藤', apType: '新', items, memo: '', lat, lng, customer, past,
+  id, userId: 'u01', day: -1, start, end, receptionNo: `CC-20261019-${String(n).padStart(4, '0')}`, receivedAt: '2026/10/19 09:00', operator: '佐藤', apType: '新', items, memo: '', lat, lng, customer, past, gender: GENDER[customer.name],
 });
 EVENTS.push(
   p1('ev-m1-1', '10:00', '11:30', 31, 'ブランドバッグ', 34.6873, 135.5262, c('佐野 健', 'サノ ケン', '090-2222-3101', '540-0002', '大阪府大阪市中央区大阪城1-1（大阪城天守閣）', '会社員', '1977-03-05'), {

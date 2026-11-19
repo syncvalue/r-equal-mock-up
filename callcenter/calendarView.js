@@ -99,7 +99,7 @@ export function visitFieldsHtml(b, r, { staff: showStaff = true } = {}) {
   const c = r?.customer ?? {};
   const groups = [
     ['訪問', [row('日時', `${dateLabel(b.date)} ${minToHHMM(b.start)}〜${minToHHMM(b.end)}`), row('郵便番号', c.zip), row('住所', c.address ?? b.place), showStaff ? row('担当鑑定士', staff) : '', r?.nominated ? row('鑑定士指名', '指名あり（鑑定士は変えられません）') : '']],
-    ['お客様', [row('フリガナ', c.kana), row('性別・年齢', h.profile), row('電話番号', [c.phone, c.phone2].filter(Boolean).join(' ／ ')), row('新規・再訪', r?.apType === '再' ? '再訪' : r?.apType === '新' ? '新規' : '')]],
+    ['お客様', [row('フリガナ', c.kana), row('性別・年齢', h.profile || ({ f: '女性', m: '男性' })[b.gender ?? b.ev?.gender]), row('電話番号', [c.phone, c.phone2].filter(Boolean).join(' ／ ')), row('新規・再訪', r?.apType === '再' ? '再訪' : r?.apType === '新' ? '新規' : '')]],
     ['売りたいもの', [row('売りたいもの', h.wants === '（既存の予定）' ? '未確認' : h.wants), row('大型品・その他', h.large)]],
     ['当日の状況', [row('当日の立会い', h.attendee), row('ご同席者', h.companion), row('駐車スペース', h.parking), row('表札', h.nameplate), row('訪問時の注意', h.notes)]],
     ['受付の記録', [row('受付番号', r?.receptionNo), row('受付日時', r ? [r.receivedAt, r.operator && r.operator !== '—' ? `（${r.operator}）` : ''].filter(Boolean).join(' ') : ''), row('問い合わせ', [h.inquiryType, h.adType].filter(Boolean).join(' ／ ')), row('来電のきっかけ', h.trigger ?? r?.chirashi), row('前日確認の連絡時間', h.contact)]],
