@@ -186,7 +186,7 @@ const swatch = (c, label) => `<span class="inline-flex items-center gap-0.5"><i 
 const edgeSwatch = (border, label) => `<span class="inline-flex items-center gap-0.5"><i class="inline-block h-2.5 w-4 rounded-sm bg-slate-100" style="border:${border}"></i>${label}</span>`;
 export const boardLegendHtml = () => `<span class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-700">
   <b class="font-bold" title="帯の色＝顧客のランク、列の見出しの色＝鑑定士のランク">色＝ランク</b>${Object.entries(RANK_COLORS).map(([k, c]) => swatch(c, k)).join('')}${swatch(UNRANKED, '新規・不明')}
-  <b class="font-bold">印</b>${metalMark(true).replace('ml-0.5 ', '')}<span>＝売りたいものに貴金属</span>
+  <b class="font-bold">印</b><span title="売りたいものに貴金属がある予約">${metalMark(true).replace('ml-0.5 ', '')}</span>
   <b class="font-bold">枠線＝状態</b>${edgeSwatch('3px solid #475569', '実線：確定済み')}${edgeSwatch('3px dashed #475569', '点線：仮確定')}${edgeSwatch('4px double #0f172a', '黒の二重線：確定から仮確定に戻った')}</span>`;
 
 // 帯の中身は、3段（見やすいように、段ごとに役割を分ける）: ①名前 ②印（性別・ランク・新規／再訪） ③住所（1行）。時間は、左の時間軸で分かるので出さない（ホバーのタイトルには入れる）。1時間の帯（通常）で、3段が見切れない高さにしてある
