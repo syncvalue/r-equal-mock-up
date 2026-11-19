@@ -131,7 +131,7 @@ export function customerModalHtml({ rid, reservations, now }) {
     </div></div>`;
 }
 
-export const BOARD_ROW = 26; // 30分あたりの高さ（px）
+export const BOARD_ROW = 30; // 30分あたりの高さ（px）
 const SLOTS = (WORK_END - WORK_START) / SLOT_STEP;
 const topOf = (m) => ((m - WORK_START) / SLOT_STEP) * BOARD_ROW;
 const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
@@ -177,9 +177,9 @@ export const boardLegendHtml = () => `<span class="flex flex-wrap items-center g
   <b class="font-bold">色＝ランク（帯＝顧客・見出し＝鑑定士）</b>${Object.entries(RANK_COLORS).map(([k, c]) => swatch(c, k)).join('')}${swatch(UNRANKED, '新規・不明')}
   <b class="font-bold">枠線＝状態</b>${edgeSwatch('3px solid #475569', '実線：確定済み')}${edgeSwatch('3px dashed #475569', '点線：仮確定（未確定）')}${edgeSwatch('4px double #0f172a', '黒の二重線：確定から仮確定に戻った')}</span>`;
 
-// 帯の中身は、3段（見やすいように、段ごとに役割を分ける）: ①名前 ②印（性別・ランク・新規／再訪）と時間 ③住所（1行）
-const blockBody = ({ mark, name, marks, time, place, pr = '' }) => `<div class="truncate text-[11px] font-bold leading-4 ${pr}">${mark}${esc(name)}</div>
-    <div class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 leading-4">${marks}<span class="whitespace-nowrap font-bold">${time}</span></div>
+// 帯の中身は、3段（見やすいように、段ごとに役割を分ける）: ①名前 ②印（性別・ランク・新規／再訪） ③住所（1行）。時間は、左の時間軸で分かるので出さない（ホバーのタイトルには入れる）。1時間の帯（通常）で、3段が見切れない高さにしてある
+const blockBody = ({ mark, name, marks, place, pr = '' }) => `<div class="truncate text-[11px] font-bold leading-4 ${pr}">${mark}${esc(name)}</div>
+    <div class="mt-0.5 flex items-center gap-x-1 overflow-hidden leading-4">${marks}</div>
     ${place ? `<div class="truncate opacity-90 leading-4">${esc(place)}</div>` : ''}`;
 
 function blockHtml(b, selId, byId, att) {
@@ -188,18 +188,18 @@ function blockHtml(b, selId, byId, att) {
   const top = topOf(b.start);
   const height = topOf(b.end) - top - 1;
   const time = `${hhmm(b.start)}–${hhmm(b.end)}`;
-  const base = 'absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1.5 py-0.5 text-[10px]';
+  const base = 'absolute inset-x-0.5 z-10 cursor-grab overflow-hidden rounded px-1.5 py-px text-[10px]';
   if (b.source !== 'reservation') { // 鑑定士のスケジュールに元からある予定。確定済みの訪問と同じ見た目で出す。ドラッグすると、予約として取り込んで動かす（内部の仕組み）
     const prof = profileOf(b.ev?.customer);
     const marks = `${genderMark(b.gender)}${custRankMark({ rank: prof?.rank ?? b.custRank })}${customerMarks(prof, { rank: false })}`;
-    return `<div class="${base} ${offCls}" style="top:${top}px;height:${height}px;${boardBlockStyle(prof?.rank ?? b.custRank, 'confirmed')}" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${time} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の鑑定士・時間に動かせます`)}">${blockBody({ mark: '確 ', name: b.label, marks, time, place: b.place })}</div>`;
+    return `<div class="${base} ${offCls}" style="top:${top}px;height:${height}px;${boardBlockStyle(prof?.rank ?? b.custRank, 'confirmed')}" draggable="true" data-gid="${esc(b.gid)}" data-bsel="${esc(b.gid)}" data-mins="${b.end - b.start}" title="${esc(`${time} ${b.label}${b.place ? `（${b.place}）` : ''}　ドラッグで、別の鑑定士・時間に動かせます`)}">${blockBody({ mark: '確 ', name: b.label, marks, place: b.place })}</div>`;
   }
   const r = byId[b.rid];
   const tent = b.status === 'tentative';
   const p = profileOfRes(r);
   const marks = `${genderMark(r?.gender)}${custRankMark(p)}${kindMark(kindOfRes(r, p))}${nomMark(r)}${customerMarks(profileOf(r?.customer), { rank: false })}`;
   return `<div class="${base} ${offCls} ${selId === b.rid ? 'z-20 outline outline-4 outline-slate-900 ring-4 ring-amber-300 shadow-2xl' : ''}" style="top:${top}px;height:${height}px;${boardBlockStyle(p.rank, tent ? (b.reverted ? 'reverted' : 'tentative') : 'confirmed')}" draggable="true" data-rid="${b.rid}" data-bsel="${b.rid}" data-mins="${b.end - b.start}" title="${esc(`${time} ${b.label}（${r?.customer.address ?? ''}）　ドラッグで、別の鑑定士・時間に動かせます`)}">
-    ${blockBody({ mark: `${off ? '⚠休み ' : ''}${blockMark(b)}`, name: b.label, marks, time, place: r?.customer.address, pr: tent ? 'pr-9' : '' })}
+    ${blockBody({ mark: `${off ? '⚠休み ' : ''}${blockMark(b)}`, name: b.label, marks, place: r?.customer.address, pr: tent ? 'pr-9' : '' })}
     ${tent ? `<button class="absolute right-0.5 top-0.5 rounded bg-white/90 px-1 text-[10px] font-bold text-slate-900" data-fix="${b.rid}" title="この予約を確定する">確定</button>` : ''}</div>`;
 }
 

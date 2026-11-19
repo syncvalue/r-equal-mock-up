@@ -110,7 +110,7 @@ test('配車確定: 走行距離は、押せるボタン（訪問ルートの地
   assert.ok(routeModalHtml({ userId: 'nobody', date: html.date, reservations: [], now: NOW } ) === '');
 });
 
-test('配車確定の帯: 鑑定士の元からの予定・見本の訪問にも、性別の記号を出す。帯の中は、名前・印と時間・住所の3段', () => {
+test('配車確定の帯: 鑑定士の元からの予定・見本の訪問にも、性別の記号を出す。帯の中は、名前・印・住所の3段', () => {
   const html = ['2026-10-21', '2026-10-22', '2026-10-23', '2026-10-26'].map((date) => dispatcherHtml({ date, reservations: [], now: NOW, chips: [], area: 'osaka', selId: null })).join('');
   assert.ok(html.includes('title="女性のお客様"') && html.includes('title="男性のお客様"'));
   const blocks = html.split('data-bsel=').slice(1);
@@ -134,4 +134,12 @@ test('配車確定: 鑑定士指名の予約は、帯と詳細に「指名」の
   assert.ok(page(null, [rec({ nominated: true })]).includes('>指名<'));
   assert.ok(page('R1', [rec({ nominated: true })]).includes('鑑定士は変えられません（時間は変えられます）'));
   assert.ok(!page('R1', [rec()]).includes('>指名<'));
+});
+
+test('配車確定の帯: 時間は帯の中に出さない（左の時間軸で分かる）。1時間の帯でも、3段が入る高さ（30分あたり30px以上）', async () => {
+  const { BOARD_ROW } = await import('../callcenter/dispatcherView.js');
+  assert.ok(BOARD_ROW * 2 - 1 >= 56, '1時間の帯が低すぎて、3段が見切れる');
+  const h = page(null, [rec()]);
+  const body = h.split('data-bsel="R1"')[1].split('data-bsel=')[0].replace(/title="[^"]*"/, '');
+  assert.ok(!/\d{2}:\d{2}[–-]\d{2}:\d{2}/.test(body), '帯の中に時間がある');
 });
