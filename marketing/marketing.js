@@ -11,6 +11,8 @@ import { esc } from '../src/format.js';
 import { tabLabel, menuView } from './menu.js';
 import { flyersTab, blankFlyer, formFromFlyer, REASON_TEXT } from './flyersTab.js';
 import { responseTab } from './responseTab.js';
+import { calendarTab } from './calendarTab.js';
+import { shiftMonth } from '../src/flyerCalendar.js';
 
 const $ = (s) => document.querySelector(s);
 const today = () => ymdOf(new Date());
@@ -20,11 +22,13 @@ const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 保�
 const staff = () => loadEmployees().filter((u) => u.role === 'marketing' && u.active);
 let staffId = pref('rq-mock-mkt-staff', staff()[0]?.id ?? '');
 let flyers = loadFlyers(today());
-let tab = ['flyers', 'response'].includes(pref('rq-mock-mkt-tab', '')) ? pref('rq-mock-mkt-tab', '') : 'flyers';
+let tab = ['flyers', 'calendar', 'response'].includes(pref('rq-mock-mkt-tab', '')) ? pref('rq-mock-mkt-tab', '') : 'flyers';
 let menuOpen = false;
 let form = blankFlyer(today());
 let selId = null; // 反響管理で、日ごとの受付を見ているチラシ
 let mediaFilter = '';
+let calMonth = today().slice(0, 7); // 配布カレンダーの月
+let calDay = today(); // 配布カレンダーで選んでいる日
 let sortBy = 'efficiency'; // 反響管理の並び: efficiency（1件あたりの費用）／profit（損益）
 
 // 反響の元になる受付（コールセンターの記録）。まだ何もなければ、見本の受付を入れる（コールセンターと同じ見本）
@@ -40,7 +44,7 @@ function resultsOf(receptions, visits) {
 
 function render() {
   const onToday = flyersOnDay(flyers, today()).length;
-  const body = tab === 'flyers' ? flyersTab({ flyers, form, today: today() }) : responseTab({ flyers, receptions: loadReservations(), visits: Object.values(loadLive()), results: resultsOf(loadReservations(), Object.values(loadLive())), selId, mediaFilter, sortBy });
+  const body = tab === 'flyers' ? flyersTab({ flyers, form, today: today() }) : tab === 'calendar' ? calendarTab({ flyers, month: calMonth, today: today(), selDay: calDay }) : responseTab({ flyers, receptions: loadReservations(), visits: Object.values(loadLive()), results: resultsOf(loadReservations(), Object.values(loadLive())), selId, mediaFilter, sortBy });
   const me = staff().find((u) => u.id === staffId) ?? staff()[0];
   $('#root').innerHTML = `<div class="flex flex-col h-screen">
   <header class="bg-slate-800 text-white px-4 py-2 flex justify-between items-center">
@@ -91,6 +95,8 @@ document.addEventListener('click', (e) => {
   if ('menuClose' in d) { menuOpen = false; return render(); }
   if (d.tab) { tab = d.tab; menuOpen = false; setPref('rq-mock-mkt-tab', tab); return render(); }
   if ('flyerSave' in d) return submitForm();
+  if (d.calDay) { calDay = d.calDay; return render(); }
+  if (d.calMove !== undefined) { calMonth = d.calMove === '0' ? today().slice(0, 7) : shiftMonth(calMonth, Number(d.calMove)); if (d.calMove === '0') calDay = today(); return render(); }
   if ('flyerFileClear' in d) { form = { ...form, file: null }; return render(); }
   if (d.respSort) { sortBy = d.respSort; return render(); }
   if ('flyerCancel' in d) { form = blankFlyer(today()); return render(); }

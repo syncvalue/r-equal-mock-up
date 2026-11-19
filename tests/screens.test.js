@@ -106,3 +106,11 @@ test('マーケティング部の画面は、描画できる（チラシの登�
   assert.ok(html.includes('チラシごとの反響') && html.includes('data-response-row="N1019"') && html.includes('日ごとの受付') && html.includes('1件あたり'));
   assert.ok(responseTab({ flyers, receptions: [], selId: null, mediaFilter: 'dm' }).includes('data-media="dm"'));
 });
+
+test('マーケティング部の配布カレンダーは、描画できる。複数日のチラシは、毎日に出る', async () => {
+  const { calendarTab } = await import('../marketing/calendarTab.js');
+  const { defaultFlyers } = await import('../src/flyers.js');
+  const html = calendarTab({ flyers: defaultFlyers('2026-11-19'), month: '2026-11', today: '2026-11-19', selDay: '2026-11-19' });
+  assert.ok(html.includes('2026年11月の配布') && html.includes('data-cal-grid') && html.includes('data-cal-day="2026-11-19"') && html.includes('N1020') && html.includes('この日に配布') === false);
+  assert.ok(html.includes('2026-11-19 に配布するチラシ') && html.includes('P1016')); // 11/18〜11/20 のポスティング
+});

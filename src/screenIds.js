@@ -150,6 +150,7 @@ export const SCREENS = [
 
   ...T('MKT', [
     ['01', 'チラシ（登録・一覧）', 'tab'],
+    ['03', '配布カレンダー', 'tab'],
     ['02', '反響管理（チラシごとの受付・効果）', 'tab'],
     ['02-1', '反響管理（選んだチラシの、日ごとの受付）', 'mode'],
     ['M01', 'メニュー', 'overlay'],
@@ -198,7 +199,7 @@ export function ccScreenId({ tab, bodyStage, editId, done, mapAddress, cvMode } 
 
 export const masterScreenId = (tab) => ({ employees: 'MST-01', departments: 'MST-02', offices: 'MST-03', trips: 'MST-04', stores: 'MST-05', warehouses: 'MST-06', vendors: 'MST-07' })[tab] ?? 'MST-01';
 // マーケティング部。tab=flyers|response。反響管理で、チラシを選んでいるときは、日ごとの受付の状態
-export const mktScreenId = ({ tab, selId } = {}) => (tab === 'response' ? (selId ? 'MKT-02-1' : 'MKT-02') : 'MKT-01');
+export const mktScreenId = ({ tab, selId } = {}) => (tab === 'calendar' ? 'MKT-03' : tab === 'response' ? (selId ? 'MKT-02-1' : 'MKT-02') : 'MKT-01');
 export const accountingScreenId = (tab) => ({ claims: 'ACC-01', balance: 'ACC-02', weekly: 'ACC-03', fixed: 'ACC-04' })[tab] ?? 'ACC-01';
 
 // 鑑定士タブレット（state: user・auth.screen・view・phase・step・sched.tab・outcome・showStaff）
