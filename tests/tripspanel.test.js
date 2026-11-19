@@ -27,8 +27,8 @@ test('出張の一覧: 出張メンバーの本来の営業所は変わらず、
 test('出張のフォーム: 鑑定士を、出張メンバーとして選べる。編集では、いまの値が入る', () => {
   const html = tripsPanelHtml({ trips, users, today, ui: { mt: formFromTrip(trips[0]) } });
   assert.equal((html.match(/data-trip-member=/g) || []).length, 6);
-  assert.match(html, /data-trip-member="u01"[^>]*checked/);
-  assert.doesNotMatch(html, /data-trip-member="u03"[^>]*checked/);
+  assert.match(html, /data-trip-member="u03"[^>]*checked/);
+  assert.doesNotMatch(html, /data-trip-member="u01"[^>]*checked/);
   assert.ok(html.includes('出張の編集') && html.includes('福岡県、佐賀県') && html.includes(trips[0].start));
   assert.ok(html.includes('data-mt-save') && html.includes('data-mt-cancel'));
 });

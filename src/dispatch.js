@@ -226,6 +226,7 @@ export const conflictText = (c) => {
   if (!c) return '';
   if (c.kind === 'hours') return '営業時間外（9:00〜19:00）';
   if (c.kind === 'absent') return '休み';
+  if (c.kind === 'trip') return `出張中（${c.trip.name}）のため、このエリアは受けられません`;
   if (c.kind === 'shift') return `休み（勤務は${[c.att.from > WORK_START ? `${minToHHMM(c.att.from)}から` : '', c.att.to < WORK_END ? `${minToHHMM(c.att.to)}まで` : ''].filter(Boolean).join('・')}）`; // 勤務する時間の外
   const t = `${minToHHMM(c.block.start)}–${minToHHMM(c.block.end)} ${c.block.label}`;
   return c.kind === 'overlap' ? `${t} の予定と重なる` : `${t} の予定の前後30分（移動時間）にかかる`;
@@ -258,17 +259,21 @@ const byFairness = (gender) => (a, b) => {
   return a.stats.total - b.stats.total || b.stats.femaleShare - a.stats.femaleShare || a.user.id.localeCompare(b.user.id);
 };
 
-// extraAreas: その日の出張エリア。出張メンバーは、出張エリアの候補になり、本来の営業所のエリアにも残る（trips に、出張中の印として出張を入れる）
+// extraAreas: その日の出張エリア。出張メンバーは、出張エリアの候補になる。出張中は、出張エリア以外（本来の営業所のエリアを含む）では、休みと同じ扱い（awayName＝出張の名前）
 export function rankCandidates({ gender, areaId, date, start, dur, reservations, here = null, now = new Date(), extraAreas = [] }) {
   const stats = fairnessStats(reservations, now);
   const end = start + dur;
   const all = USERS.map((user) => {
-    const blocks = busyBlocks(user.id, date, reservations, now);
-    const att = attendanceOf(user.id, date, now);
-    const absent = att.kind === 'absent';
-    const conflict = conflictOf(blocks, start, end, att);
     const trips = extraAreas.filter((a) => a.memberIds?.includes(user.id)).map((a) => ({ id: a.id, name: a.name, start: a.start, end: a.end }));
-    return { user, areaId: areaOfUser(user.id), trips, rank: rankOfUser(user.id), blocks, att, absent, free: !conflict, conflict, travel: travelAround(blocks, start, end, here), stats: stats[user.id], recommended: false };
+    // 出張中は、本来のエリアの元からの予定・ダミーの予定は置かない。出張先（出張エリア）の訪問だけが、埋まっている時間
+    const tripRes = new Set(reservations.filter((r) => String(r.areaId).startsWith('trip:')).map((r) => r.id));
+    const all0 = busyBlocks(user.id, date, reservations, now);
+    const blocks = trips.length ? all0.filter((b) => tripRes.has(b.rid)) : all0;
+    const att = attendanceOf(user.id, date, now);
+    const away = trips.find((t) => t.id !== areaId) ?? null; // 出張中は、出張エリア以外の訪問を受けられない（本来のエリアでは、休みと同じ扱い）
+    const absent = att.kind === 'absent' || Boolean(away);
+    const conflict = away ? { kind: 'trip', block: null, trip: away } : conflictOf(blocks, start, end, att);
+    return { user, areaId: areaOfUser(user.id), trips, awayName: away?.name ?? null, rank: rankOfUser(user.id), blocks: away ? [] : blocks, att, absent, free: !conflict, conflict, travel: travelAround(blocks, start, end, here), stats: stats[user.id], recommended: false };
   });
   const tripArea = extraAreas.find((a) => a.id === areaId);
   const inArea = all.filter((c) => areaId && (tripArea ? tripArea.memberIds.includes(c.user.id) : c.areaId === areaId)).sort(byFairness(gender));
@@ -295,11 +300,12 @@ export function findSlots({ userIds, date, dur, reservations, now = new Date() }
 }
 
 // 1週間分の空き枠: 日付ごとに、30分刻みの開始時刻と、空いている鑑定士（鑑定士の id）。カレンダーで候補日を見比べるために使う
-export function findWeekSlots({ userIds, startDate, days = 7, dur, reservations, now = new Date() }) {
+// isAway(userId, date): その日、出張中で、このエリアの訪問を受けられない鑑定士は、数えない
+export function findWeekSlots({ userIds, startDate, days = 7, dur, reservations, now = new Date(), isAway = () => false }) {
   const [y, m, d] = startDate.split('-').map(Number);
   return Array.from({ length: days }, (_, i) => {
     const date = ymdOf(new Date(y, m - 1, d + i));
-    const blocks = userIds.map((id) => ({ id, att: attendanceOf(id, date, now), blocks: busyBlocks(id, date, reservations, now) })).filter((b) => b.att.kind !== 'absent'); // 休みの鑑定士は数えない
+    const blocks = userIds.map((id) => ({ id, att: attendanceOf(id, date, now), blocks: busyBlocks(id, date, reservations, now) })).filter((b) => b.att.kind !== 'absent' && !isAway(b.id, date)); // 休み・出張中の鑑定士は数えない
     const slots = [];
     for (let start = WORK_START; start + dur <= WORK_END; start += SLOT_STEP) {
       slots.push({ start, freeIds: blocks.filter((b) => !conflictOf(b.blocks, start, start + dur, b.att)).map((b) => b.id) });
@@ -336,8 +342,11 @@ export function salesDetail({ userId, date, start, dur, reservations, here = nul
 
 // 配車係が、予約を別の鑑定士・別の時刻に動かせるか。動かす予約自身は、重なりに数えない。同じ日の中で動かす。
 // 前後の予定との移動時間は見ない（仮置きをする場合があるため）。重なり・休み・営業時間外だけを止める
-export function canPlace(rec, userId, start, reservations, now = new Date()) {
+// awayOf(userId, date, areaId): 出張中で、そのエリアの訪問を受けられない鑑定士なら、その出張（なければ null）
+export function canPlace(rec, userId, start, reservations, now = new Date(), awayOf = null) {
   if (rec.nominated && rec.userId && userId !== rec.userId) return { ok: false, reason: '鑑定士指名のため、鑑定士は変えられません（時間は変えられます）' }; // お客様が鑑定士を指名している予約
+  const away = awayOf?.(userId, rec.date, rec.areaId);
+  if (away) return { ok: false, reason: conflictText({ kind: 'trip', trip: away }) };
   const end = start + (toMin(rec.end) - toMin(rec.start));
   if (start < WORK_START || end > WORK_END) return { ok: false, reason: '営業時間外' };
   const att = attendanceOf(userId, rec.date, now);

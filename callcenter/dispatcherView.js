@@ -141,10 +141,17 @@ const minOf = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + 
 function boardColumns(date, reservations, now, areaId) {
   const trips = loadCurrentTrips();
   const live = reservations.filter((r) => !isCancelled(r));
-  return USERS.filter((u) => areaId === 'all' || areaOfUser(u.id) === areaId).sort((a, b) => a.id.localeCompare(b.id)).map((user) => ({
-    user, trips: tripsOfUser(trips, user.id, date), att: attendanceOf(user.id, date, now), absent: attendanceOf(user.id, date, now).kind === 'absent', blocks: busyBlocks(user.id, date, live, now),
-    mine: live.filter((r) => r.userId === user.id && r.date === date),
-  })).map((c) => ({ ...c, travel: dayTravel(c.blocks) }));
+  const tripRes = new Set(live.filter((r) => String(r.areaId).startsWith('trip:')).map((r) => r.id)); // 出張先の訪問
+  return USERS.filter((u) => areaId === 'all' || areaOfUser(u.id) === areaId).sort((a, b) => a.id.localeCompare(b.id)).map((user) => {
+    const myTrips = tripsOfUser(trips, user.id, date);
+    const awayName = myTrips[0]?.name ?? null; // 出張中は、出張先の訪問だけを受ける。本来のエリアでは、休みと同じ扱い（元からの予定・ダミーの予定は出さない）
+    const att = attendanceOf(user.id, date, now);
+    const blocks = busyBlocks(user.id, date, live, now);
+    return {
+      user, trips: myTrips, att, awayName, absent: att.kind === 'absent' || Boolean(awayName), blocks: awayName ? blocks.filter((b) => tripRes.has(b.rid)) : blocks,
+      mine: live.filter((r) => r.userId === user.id && r.date === date),
+    };
+  }).map((c) => ({ ...c, travel: dayTravel(c.blocks) }));
 }
 
 // 訪問と訪問の間に、移動の距離と時間を出す（間隔に収まらないときは、赤で警告）
@@ -220,7 +227,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
   const axis = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: SLOTS / 2 }, (_, i) => `<span class="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style="top:${i * 2 * BOARD_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c) => `<div class="relative border-l" data-bcol="${c.user.id}" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,rgba(148,163,184,.45) 0,rgba(148,163,184,.45) 6px,rgba(241,245,249,.7) 6px,rgba(241,245,249,.7) 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW - 1}px,#e2e8f0 ${BOARD_ROW}px)`}">
     ${c.blocks.map((b) => blockHtml(b, selId, byId, c.att)).join('')}${legsHtml(c.travel.legs)}${attShade(c.att, BOARD_ROW)}
-    ${c.absent ? '<div class="pointer-events-none absolute inset-x-0 top-1 z-20 text-center"><span class="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">休み</span></div>' : ''}</div>`).join('');
+    ${c.absent ? `<div class="pointer-events-none absolute inset-x-0 top-1 z-20 text-center"><span class="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">${c.awayName ? `出張中（${esc(c.awayName)}）` : '休み'}</span></div>` : ''}</div>`).join('');
   // 列は最小9.5rem（1920×1080で8人が収まる）。収まらないときは、右端に「あと○名」を出す（callcenter.js の updateBoardHint が、出し入れする）
   return `<div class="relative"><div class="overflow-x-auto" data-boardscroll><div class="grid" style="${grid}"><div class="border-b sticky left-0 z-30 bg-white"></div>${head}${axis}${body}</div></div>
     <div hidden data-boardhint class="pointer-events-none absolute bottom-3 right-0 top-0 z-40 w-10 bg-gradient-to-l from-slate-900/25 to-transparent"><span class="absolute right-1 top-24 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-white">あと<span data-hintn></span>名 ▶</span></div></div>`;

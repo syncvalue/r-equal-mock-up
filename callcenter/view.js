@@ -261,7 +261,7 @@ function candidateRow(c, { selectedId, gender, form, showArea = false }) {
   <div class="rounded-lg border-2 px-2 py-1 ${c.absent ? 'bg-slate-100 opacity-60' : 'bg-white'} ${c.free ? 'cursor-pointer hover:border-teal-500' : c.absent ? '' : 'opacity-70'} ${on ? 'border-teal-600 ring-2 ring-teal-300' : 'border-slate-200'}" ${c.free ? `data-pick="${c.user.id}"` : ''}>
     <div class="grid grid-cols-[8rem_6rem_9.5rem_1fr] items-center gap-2 text-xs">
       <div class="flex items-center gap-1.5 truncate">${avatarHtml(c.user, 28)}<span class="truncate"><b class="text-sm">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)} ${tripTag(c.trips)}${showArea ? `<span class="ml-1 text-[10px] text-slate-500">${esc(areaById(c.areaId)?.name ?? '')}</span>` : ''}</span></div>
-      <div class="flex gap-1">${c.recommended ? tag('bg-amber-400 text-slate-900', 'おすすめ', starTitle(gender)) : ''}${c.absent ? tag('bg-slate-600 text-white', '休み', 'この日は休みのため、担当に選べません') : c.free ? tag('bg-teal-100 text-teal-700', '空き') : tag('bg-rose-100 text-rose-700', '不可')}</div>
+      <div class="flex gap-1">${c.recommended ? tag('bg-amber-400 text-slate-900', 'おすすめ', starTitle(gender)) : ''}${c.absent ? tag('bg-slate-600 text-white', c.awayName ? '出張中' : '休み', c.awayName ? `${c.awayName}のため、このエリアの担当には選べません` : 'この日は休みのため、担当に選べません') : c.free ? tag('bg-teal-100 text-teal-700', '空き') : tag('bg-rose-100 text-rose-700', '不可')}</div>
       <div class="text-slate-700">${statText(c.stats, gender)}</div>
       <div class="min-w-0 text-[11px] leading-tight text-slate-700" title="${esc(travelTitle(c.travel))}">${c.travel ? `<div class="truncate">${legHtml(c.travel.prev, 'prev')}</div>${c.travel.next ? `<div class="truncate">${legHtml(c.travel.next, 'next')}</div>` : ''}` : ''}</div>
     </div>
@@ -315,7 +315,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
     const tag = c.free ? 'button' : 'div';
     return `<${tag} class="block w-full px-1 py-0.5 text-center border-b ${c.user.id === selectedId ? 'bg-teal-100' : 'bg-slate-50'} ${c.free ? 'cursor-pointer hover:bg-teal-50' : c.absent ? 'opacity-70' : 'opacity-80'}" ${c.free ? `data-pick="${c.user.id}" title="この鑑定士を担当にする"` : `title="${esc(conflictText(c.conflict))}"`}>
       <div>${avatarHtml(c.user, 28)}</div><b class="text-xs">${esc(c.user.name)}</b> ${rankBadge(c.rank)}${leaderTag(c.user)}${c.recommended ? `<span class="ml-0.5 rounded bg-amber-400 px-1 text-[10px] font-bold" title="${esc(starTitle(form.gender))}">おすすめ</span>` : ''}
-      ${c.trips?.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] font-bold ${c.absent ? 'text-slate-700' : c.free ? 'text-teal-700' : 'text-rose-700'}">${c.absent ? '休み' : `${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}`}</div></${tag}>`;
+      ${c.trips?.length ? `<div>${tripTag(c.trips)}</div>` : ''}<div class="text-[10px] font-bold ${c.absent ? 'text-slate-700' : c.free ? 'text-teal-700' : 'text-rose-700'}">${c.absent ? (c.awayName ? '出張中' : '休み') : `${minToHHMM(form.start)}〜 ${c.free ? '空き' : '不可'}`}</div></${tag}>`;
   }).join('');
   const axisCol = `<div class="relative sticky left-0 z-30 bg-white" style="height:${h}px">${Array.from({ length: DAY_SLOTS / 2 }, (_, i) => `<span class="absolute right-1 text-[10px] text-slate-400 -translate-y-1/2" style="top:${i * 2 * DAY_ROW}px">${WORK_START / 60 + i}:00</span>`).join('')}</div>`;
   const body = cols.map((c, i) => {
@@ -326,7 +326,7 @@ export function dayViewHtml({ cols: allCols, form, selectedId, canPrev, onlyFree
     }).join('');
     const blocks = c.blocks.map((b) => `<div class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-[10px] leading-[1.15] text-white ${blockCls(b)}" style="top:${topOf(b.start)}px;height:${topOf(b.end) - topOf(b.start) - 1}px" title="${esc(`${minToHHMM(b.start)}–${minToHHMM(b.end)} ${b.label}${b.place ? `（${b.place}）` : ''}（${blockKind(b)}）`)}"><b>${blockMark(b)}${esc(b.label)}</b> ${minToHHMM(b.start)}–${minToHHMM(b.end)}${b.place ? `<br /><span class="opacity-90">${esc(b.place)}</span>` : ''}</div>`).join('');
     const sel = c.user.id === selectedId;
-    const away = c.absent ? '<div class="absolute inset-0 z-20 flex items-start justify-center pt-1 pointer-events-none"><span class="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">休み</span></div>' : '';
+    const away = c.absent ? `<div class="absolute inset-0 z-20 flex items-start justify-center pt-1 pointer-events-none"><span class="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">${c.awayName ? '出張中' : '休み'}</span></div>` : '';
     const want = sel && !c.absent ? `<div class="absolute inset-x-0 z-20 pointer-events-none rounded border-2 ${c.free ? 'border-teal-600 bg-teal-400/25' : 'border-rose-500 bg-rose-400/25'}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px"><span class="absolute -top-px right-0 rounded-bl bg-white/80 px-1 text-[9px] font-bold ${c.free ? 'text-teal-700' : 'text-rose-700'}">希望 ${minToHHMM(form.start)}〜</span></div>` : '';
     // 担当の鑑定士を選んでいなくて、希望の時間だけ聞いたとき。全鑑定士の列をまたぐ1本の帯にする（誰かの列には出さない）
     const wide = !selectedId && form.whenAsked ? `<div class="absolute inset-x-0 z-20 pointer-events-none border-y-2 border-dashed border-sky-600 bg-sky-400/20 ${i === 0 ? 'border-l-2' : ''} ${i === cols.length - 1 ? 'border-r-2' : ''}" style="top:${topOf(form.start)}px;height:${topOf(end) - topOf(form.start)}px">${i === 0 ? `<span class="absolute -top-px left-0 rounded-br bg-white/80 px-1 text-[9px] font-bold text-sky-700 whitespace-nowrap">希望 ${minToHHMM(form.start)}〜（担当未定）</span>` : ''}</div>` : '';
@@ -363,7 +363,7 @@ function staffFilterHtml({ staff, staffSel, staffOpen }) {
       <button class="chip ${staffSel.length ? 'on' : ''}" data-staffpanel>鑑定士を絞る ${staffOpen ? '▲' : '▼'}</button>
       <span class="text-xs ${staffSel.length ? 'font-bold text-teal-700' : 'text-slate-500'}">${staffSel.length ? `絞り込み中（${staffSel.length}名）：${names.map(esc).join('・')}` : `全員（${staff.length}名）を表示`}</span>
       ${staffSel.length ? '<button class="text-xs underline text-slate-500" data-staffclear>解除</button>' : ''}${helpIcon('表示したい鑑定士を選びます（複数可）。選んだ鑑定士だけが、カレンダー・担当候補に出ます。')}</div>
-    ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((c) => `<button class="chip ${staffSel.includes(c.user.id) ? 'on' : ''} ${c.absent ? 'opacity-60' : ''}" data-staff="${c.user.id}" title="${c.absent ? 'この日は休み（担当には選べません）' : ''}">${esc(c.user.name)} ${esc(c.rank ?? '')}${c.att && c.att.kind !== 'present' ? `　${c.att.label}` : ''}</button>`).join('')}</div>` : ''}
+    ${staffOpen ? `<div class="mt-1 flex flex-wrap gap-1 rounded-lg border bg-white p-1.5">${staff.map((c) => `<button class="chip ${staffSel.includes(c.user.id) ? 'on' : ''} ${c.absent ? 'opacity-60' : ''}" data-staff="${c.user.id}" title="${c.absent ? (c.awayName ? `${c.awayName}のため、このエリアの担当には選べません` : 'この日は休み（担当には選べません）') : ''}">${esc(c.user.name)} ${esc(c.rank ?? '')}${c.att && c.att.kind !== 'present' ? `　${c.att.label}` : ''}</button>`).join('')}</div>` : ''}
   </div>`;
 }
 

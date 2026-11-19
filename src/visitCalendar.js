@@ -13,10 +13,12 @@ export function areaStaff(areaId, date, reservations, now = new Date()) {
 
 // 日別の列（鑑定士ごと）。休みの鑑定士は、列は残して absent を立てる
 // userIds: 鑑定士で絞り込むときの、選んだ鑑定士（空なら全員）
-export function dayColumns({ areaId, date, reservations, now = new Date(), userIds = [] }) {
+// awayOf(userId, date, areaId): 出張中で、このエリアの訪問を受けられない鑑定士なら、出張の名前（休みと同じ扱いで、出張中と出す）
+export function dayColumns({ areaId, date, reservations, now = new Date(), userIds = [], awayOf = null }) {
   return areaStaff(areaId, date, reservations, now).filter((u) => !userIds.length || userIds.includes(u.id)).map((user) => {
     const att = attendanceOf(user.id, date, now);
-    return { user, att, absent: att.kind === 'absent', blocks: busyBlocks(user.id, date, reservations, now) };
+    const awayName = awayOf?.(user.id, date, areaId) ?? null;
+    return { user, att, awayName, absent: att.kind === 'absent' || Boolean(awayName), blocks: awayName ? [] : busyBlocks(user.id, date, reservations, now) };
   });
 }
 
@@ -48,9 +50,9 @@ export function layoutBlocks(blocks) {
 }
 
 // 週の濃さ。blocks=その日の訪問（かぶりを横に並べる位置つき）、slots の busy=その時間に訪問が入っている鑑定士の人数、total=その日に働く鑑定士の人数（休みを除く）、ratio=busy/total
-export function weekHeat({ areaId, dates, reservations, now = new Date(), userIds = [] }) {
+export function weekHeat({ areaId, dates, reservations, now = new Date(), userIds = [], awayOf = null }) {
   return dates.map((date) => {
-    const present = dayColumns({ areaId, date, reservations, now, userIds }).filter((c) => !c.absent);
+    const present = dayColumns({ areaId, date, reservations, now, userIds, awayOf }).filter((c) => !c.absent);
     const slots = slotStarts().map((start) => {
       const busy = present.filter((c) => c.blocks.some((b) => b.start < start + SLOT_STEP && b.end > start)).length;
       return { start, busy, total: present.length, ratio: present.length ? busy / present.length : 0 };

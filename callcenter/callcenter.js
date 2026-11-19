@@ -39,7 +39,9 @@ import { calendarHtml } from './calendarView.js';
 import { addConfirmCall, closeConfirm, confirmPending } from '../src/confirmCall.js';
 import { loadState as loadWarehouse, saveState as saveWarehouse, requestReturn, addReturnMessage, cooloffContracts, purchaseDays } from '../src/warehouse.js';
 import { loadMaster } from '../src/warehouseMaster.js';
-import { loadCurrentTrips, tripAreas } from '../src/trips.js';
+import { loadCurrentTrips, tripAreas, tripAwayOf } from '../src/trips.js';
+// 出張中で、そのエリアの訪問を受けられない鑑定士（受けられない理由の出張。なければ null）
+const awayTrip = (userId, date, areaId) => tripAwayOf(loadCurrentTrips(), userId, date, areaId);
 import { seedSample as seedWarehouseSample } from '../src/warehouseSample.js';
 
 const $ = (s) => document.querySelector(s);
@@ -161,7 +163,7 @@ function compute() {
   const selected = manual ?? null; // 担当は、オペレーターが選んだ人だけ。おすすめの人を、勝手に担当にはしない（「誰でもいい」で、おすすめの人に流れないように）
   const today = ymdOf(new Date());
   const calendar = ranking.inArea.length
-    ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today, mode: calMode, hasHere: Boolean(here), onlyFree: calOnlyFree }
+    ? { week: findWeekSlots({ userIds: ranking.inArea.map((c) => c.user.id), startDate: weekStart, dur: form.dur, reservations, isAway: (id, date) => Boolean(awayTrip(id, date, area?.id ?? null)) }), form, today, names: Object.fromEntries(USERS.map((u) => [u.id, u.name])), canPrev: weekStart > today, mode: calMode, hasHere: Boolean(here), onlyFree: calOnlyFree }
     : null;
   const missing = missingFields(form, { areaConfirmed: Boolean(confirmed), selected, today: ymdOf(new Date()) });
   return {
@@ -864,7 +866,7 @@ function dropTarget(e, col) {
 function showGhost(col, t) {
   document.querySelectorAll('#drop-ghost').forEach((el) => el.remove());
   if (!col) return;
-  const v = canPlace(dragging.rec, t.userId, t.start, dragging.all);
+  const v = canPlace(dragging.rec, t.userId, t.start, dragging.all, new Date(), awayTrip);
   const g = document.createElement('div');
   g.id = 'drop-ghost';
   g.className = `pointer-events-none absolute inset-x-0 z-30 rounded border-2 text-center text-[10px] font-bold ${v.ok ? 'border-teal-600 bg-teal-400/30 text-teal-700' : 'border-rose-500 bg-rose-400/30 text-rose-700'}`;
@@ -907,7 +909,7 @@ document.addEventListener('drop', (e) => {
   if (!col) return;
   e.preventDefault();
   const t = dropTarget(e, col);
-  const v = canPlace(dragging.rec, t.userId, t.start, dragging.all);
+  const v = canPlace(dragging.rec, t.userId, t.start, dragging.all, new Date(), awayTrip);
   const { rec: before, block } = dragging;
   dragging = null;
   showGhost(null);
@@ -940,7 +942,7 @@ window.addEventListener('storage', (e) => {
 });
 
 // 最初に開いたときと、データ初期化のあとに、サンプルの受付を入れる（配車確定の画面などを、すぐ見られるように）
-const SAMPLE_KEY = 'rq-mock-cc-samples-v5'; // v5: すべての札が付く見本を追加。v4: 鑑定士指名・貴金属の見本を追加。v3: 一度確定して仮確定に戻った見本を追加。v2: 休みの時間に予定が入らないように作り直した（古いサンプルは入れ替える）
+const SAMPLE_KEY = 'rq-mock-cc-samples-v6'; // v6: 出張メンバーを、鑑定士アプリの見本の予定と食い違わない人に変えた（出張中は本来のエリアの訪問を受けない）。v5: すべての札が付く見本を追加。v4: 鑑定士指名・貴金属の見本を追加。v3: 一度確定して仮確定に戻った見本を追加。v2: 休みの時間に予定が入らないように作り直した（古いサンプルは入れ替える）
 function seedSamples() {
   if (pref(SAMPLE_KEY, '')) return;
   setPref(SAMPLE_KEY, '1');

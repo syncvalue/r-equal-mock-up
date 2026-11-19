@@ -23,11 +23,12 @@ const isValid = (v) => Array.isArray(v) && v.length > 0 && v.every((t) => t && t
 export function sampleTrips(now = new Date(), userIds = []) {
   const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const at = (n) => ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n));
-  const pick = (from, n) => userIds.slice(from, from + n);
+  const pick = (...at) => (userIds.length ? [...new Set(at.map((i) => userIds[i % userIds.length]))] : []); // 番号で指す。人数が少なくても、空にならない
   return [
-    { id: 'T-SAMPLE1', name: '福岡出張', prefs: ['福岡県', '佐賀県'], start: at(-2), end: at(4), memberIds: pick(0, 2), active: true },
-    { id: 'T-SAMPLE2', name: '四国出張', prefs: ['香川県', '愛媛県'], start: at(10), end: at(16), memberIds: pick(2, 2), active: true },
-    { id: 'T-SAMPLE3', name: '北海道出張', prefs: ['北海道'], start: at(-20), end: at(-14), memberIds: pick(4, 2), active: true },
+    // メンバーは、鑑定士アプリの見本の予定（鈴木・田中ほか。src/schedule.js）が出張の期間に入っていない、大阪エリアの松田・西田にする（出張中は本来のエリアの訪問を受けないため、見本の予定と食い違わないように）
+    { id: 'T-SAMPLE1', name: '福岡出張', prefs: ['福岡県', '佐賀県'], start: at(-2), end: at(4), memberIds: pick(8, 10), active: true },
+    { id: 'T-SAMPLE2', name: '四国出張', prefs: ['香川県', '愛媛県'], start: at(10), end: at(16), memberIds: pick(12, 13), active: true },
+    { id: 'T-SAMPLE3', name: '北海道出張', prefs: ['北海道'], start: at(-20), end: at(-14), memberIds: pick(9, 14), active: true },
   ];
 }
 
@@ -87,6 +88,10 @@ export const tripsOn = (trips, date) => trips.filter((t) => t.active && t.start 
 
 // その日に、その鑑定士が出張メンバーである出張
 export const tripsOfUser = (trips, userId, date) => tripsOn(trips, date).filter((t) => t.memberIds.includes(userId));
+
+// 出張中は、出張エリア以外の訪問を受けられない（本来の営業所のエリアでは、休みと同じ扱い）。その日・そのエリアで、鑑定士が受けられない理由になる出張（なければ null）
+// areaId: 訪問のエリア。出張エリアの id（`trip:出張ID`）なら、その出張のメンバーは受けられる
+export const tripAwayOf = (trips, userId, date, areaId = null) => tripsOfUser(trips, userId, date).find((t) => `trip:${t.id}` !== areaId) ?? null;
 
 // 営業所のエリア（AREAS）と同じ形の出張エリア。date があればその日の有効な出張だけ、なければ出張すべて（過去の受付の表示用）
 export function tripAreas(trips, date = null) {

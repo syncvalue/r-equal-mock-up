@@ -5,6 +5,9 @@ import { helpIcon } from '../src/help.js';
 import { AREAS, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
 import { CALL_RESULTS, confirmStatus, confirmDateOf, confirmPending, sortByContactTime, notYetReached } from '../src/confirmCall.js';
 import { slotStarts, weekHeat, dayColumns, heatStyle, areaStaffOver } from '../src/visitCalendar.js';
+import { loadCurrentTrips, tripAwayOf } from '../src/trips.js';
+// 出張中で、そのエリアの訪問を受けられない鑑定士は、出張の名前（休みと同じ扱いで、「出張中」と出す）
+const awayOf = (userId, date, areaId) => tripAwayOf(loadCurrentTrips(), userId, date, areaId)?.name ?? null;
 import { minToHHMM } from '../src/reservations.js';
 import { dateLabel, statusBadge, attShade, blockCls, blockMark, detailPlaceholderHtml } from './view.js';
 import { avatarHtml } from './avatar.js';
@@ -58,7 +61,7 @@ const weekTop = (m) => ((m - WORK_START) / SLOT_STEP) * WEEK_ROW;
 
 function weekHtml({ areaId, weekStart, reservations, today, now, staffSel = [], calSel = null, draft }) {
   const dates = Array.from({ length: 7 }, (_, i) => shift(weekStart, i));
-  const heat = weekHeat({ areaId, dates, reservations, now, userIds: staffSel });
+  const heat = weekHeat({ areaId, dates, reservations, now, userIds: staffSel, awayOf });
   const inArea = reservations.filter((r) => r.areaId === areaId && (!staffSel.length || staffSel.includes(r.userId)));
   const pending = confirmPending(inArea, today);
   const h = ((WORK_END - WORK_START) / SLOT_STEP) * WEEK_ROW;
@@ -135,7 +138,7 @@ function dayGridHtml({ cols, date, calSel }) {
         ? `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, r).cls} ${sel ? 'ring-2 ring-amber-300' : ''}" style="${style};${callLook(c.user.id, r).css}" data-callopen="${b.rid}" title="前日確認：${confirmStatus(r ?? {}).label}（押して記録）">${failMark(r)}${inner}</button>`
         : `<button class="absolute inset-x-0.5 z-10 overflow-hidden rounded px-1 text-left text-[10px] leading-[1.15] ${callLook(c.user.id, null).cls}" style="${style};${callLook(c.user.id, null).css}" data-calblock="${esc(blockKey(b))}" data-caluser="${c.user.id}" data-caldate="${date}" title="${esc(b.label)}（押すと、受付として取り込んで、前日確認・変更ができる）">${inner}</button>`;
     }).join('');
-    const away = c.absent ? '<div class="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-1"><span class="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">休み</span></div>' : '';
+    const away = c.absent ? `<div class="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-1"><span class="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">${c.awayName ? '出張中' : '休み'}</span></div>` : '';
     return `<div class="relative border-l" style="height:${h}px;background-image:${c.absent ? 'repeating-linear-gradient(135deg,rgba(148,163,184,.45) 0,rgba(148,163,184,.45) 6px,rgba(241,245,249,.7) 6px,rgba(241,245,249,.7) 12px)' : `repeating-linear-gradient(to bottom,transparent 0,transparent ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW - 1}px,#e2e8f0 ${DAY_ROW}px)`}">${blocks}${attShade(c.att, DAY_ROW)}${away}</div>`;
   }).join('');
   return `<div class="rounded-lg border bg-white p-1.5"><div class="overflow-auto"><div class="grid" style="${grid}"><div class="sticky left-0 z-30 border-b bg-white"></div>${head}${axis}${body}</div></div>
@@ -194,7 +197,7 @@ export function calendarHtml(x0) {
   const x = { ...x0, staff: areaStaffOver(areaId, span, reservations, now) };
   const body = mode === 'week'
     ? `<div class="min-h-0 flex-1">${weekHtml({ ...x, now })}</div>`
-    : `<div class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)] gap-3"><div class="min-h-0 overflow-y-auto">${dayGridHtml({ cols: dayColumns({ areaId, date: x.date, reservations, now, userIds: x.staffSel ?? [] }).map((c) => ({ ...c, reservationOf: (id) => reservations.find((r) => r.id === id) })), date: x.date, calSel: x.calSel })}</div>
+    : `<div class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)] gap-3"><div class="min-h-0 overflow-y-auto">${dayGridHtml({ cols: dayColumns({ areaId, date: x.date, reservations, now, userIds: x.staffSel ?? [], awayOf }).map((c) => ({ ...c, reservationOf: (id) => reservations.find((r) => r.id === id) })), date: x.date, calSel: x.calSel })}</div>
       <div class="min-h-0 overflow-y-auto pr-1">${dayListHtml(x)}</div></div>`;
   return `<div class="flex h-[calc(100vh-52px)] flex-col gap-2 p-3">${barHtml(x)}${body}</div>`;
 }
