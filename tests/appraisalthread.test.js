@@ -57,3 +57,21 @@ test('未読: 相手の最後の発言が、自分の既読より新しいとき
   t = markRead(t, 'hq', 2500);
   assert.equal(hasUnread(t, 'hq'), false);
 });
+
+test('査定員の提案: 提案査定額（買取金額）と想定販売価格のどちらか、または両方。反映する内容は、入っているものだけ', async () => {
+  const { hasProposal, adoptPatch } = await import('../src/appraisalThread.js');
+  const item = { rank: 'B', price: 1000, expectedPrice: 0 };
+  assert.equal(hasProposal({ text: 'x' }), false);
+  assert.equal(hasProposal({ price: 5000 }), true);
+  assert.equal(hasProposal({ expectedPrice: 9000 }), true);
+  assert.deepEqual(adoptPatch({ price: 5000, rank: 'A' }, item), { price: 5000, rank: 'A' });
+  assert.deepEqual(adoptPatch({ expectedPrice: 9000 }, item), { expectedPrice: 9000 });
+  assert.deepEqual(adoptPatch({ price: 5000, rank: null, expectedPrice: 9000 }, item), { price: 5000, rank: 'B', expectedPrice: 9000 });
+});
+
+test('反映のボタンの文言は、提案に入っている項目で変わる', async () => {
+  const { adoptLabel } = await import('../src/appraisalThread.js');
+  assert.equal(adoptLabel({ price: 1 }), '買取金額に反映');
+  assert.equal(adoptLabel({ expectedPrice: 1 }), '想定販売価格に反映');
+  assert.equal(adoptLabel({ price: 1, expectedPrice: 1 }), '買取金額・想定販売価格に反映');
+});

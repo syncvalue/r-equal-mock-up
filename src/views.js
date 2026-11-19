@@ -7,7 +7,7 @@ import { packTargets, packProgress } from './packing.js';
 import { customersView as customersScreen, customerCallModal } from './customersView.js';
 import { masterBodyView } from './masterView.js';
 import { approvalState, latestApproval } from './store.js';
-import { threadFor, messagesOf, hasUnread } from './appraisalThread.js';
+import { threadFor, messagesOf, hasUnread, hasProposal, adoptLabel } from './appraisalThread.js';
 import { themeToggleHtml } from './theme.js';
 import { roleLabel, userById } from './dashboard.js';
 import { eventById } from './schedule.js';
@@ -925,10 +925,10 @@ function commentsModalView(s) {
             <span class="font-bold ml-2">${item ? esc(item.name) : '訪問全体'}</span></span>
           <span class="text-xs text-slate-500">${fmtTime(c.createdAt)}</span></div>
         <p class="text-lg whitespace-pre-wrap">${esc(c.text)}</p>
-        ${c.price && item
+        ${hasProposal(c) && item
           ? `<div class="rounded-lg bg-slate-50 border border-slate-200 p-2 flex items-center justify-between gap-2">
-              <span>本社の提案査定額 <b class="text-xl text-slate-900">${yen(c.price)}</b>（ランク${esc(c.rank)}）</span>
-              ${c.adopted ? '<span class="text-teal-700 font-bold">✓ 買取金額に反映済み</span>' : `<button class="btn btn-primary !py-2 !min-h-[44px]" data-action="adopt-comment" data-id="${c.id}">買取金額に反映</button>`}</div>`
+              <span>${c.price ? `本社の提案査定額 <b class="text-xl text-slate-900">${yen(c.price)}</b>（ランク${esc(c.rank)}）` : ''}${c.price && c.expectedPrice ? '　' : ''}${c.expectedPrice ? `想定販売価格 <b class="text-xl text-slate-900">${yen(c.expectedPrice)}</b>` : ''}</span>
+              ${c.adopted ? '<span class="text-teal-700 font-bold">✓ 商品に反映済み</span>' : `<button class="btn btn-primary !py-2 !min-h-[44px]" data-action="adopt-comment" data-id="${c.id}">${adoptLabel(c)}</button>`}</div>`
           : ''}
         ${item ? `<button class="underline text-sm text-teal-700" data-action="open-item" data-id="${item.id}">この商品の明細を開く</button>` : ''}
         <label class="flex items-center gap-3 text-lg font-bold min-h-[44px]">
@@ -952,9 +952,10 @@ function chatView(t) {
         ${m.tag ? `<span class="rounded px-2 py-0.5 text-xs font-bold ${TAG_CLS[m.tag] ?? TAG_CLS['その他']}">${esc(m.tag)}</span>` : ''}
         ${m.text ? `<p class="whitespace-pre-wrap">${esc(m.text)}</p>` : ''}
         ${photosHtml(m.photos)}
-        ${m.price ? `<div class="rounded-lg bg-white border border-slate-200 text-slate-900 p-2 text-sm space-y-1">
-            <div>提案査定額 <b class="text-lg text-slate-900">${yen(m.price)}</b>（ランク${esc(m.rank)}）</div>
-            ${m.adopted ? '<div class="text-teal-700 font-bold">✓ 買取金額に反映済み</div>' : `<button class="btn btn-primary !py-1 !min-h-[40px] w-full" data-action="adopt-reply" data-id="${t.id}" data-msg="${m.id}">買取金額に反映</button>`}</div>` : ''}
+        ${hasProposal(m) ? `<div class="rounded-lg bg-white border border-slate-200 text-slate-900 p-2 text-sm space-y-1">
+            ${m.price ? `<div>提案査定額 <b class="text-lg text-slate-900">${yen(m.price)}</b>（ランク${esc(m.rank)}）</div>` : ''}
+            ${m.expectedPrice ? `<div>想定販売価格 <b class="text-lg text-slate-900">${yen(m.expectedPrice)}</b></div>` : ''}
+            ${m.adopted ? '<div class="text-teal-700 font-bold">✓ 商品に反映済み</div>' : `<button class="btn btn-primary !py-1 !min-h-[40px] w-full" data-action="adopt-reply" data-id="${t.id}" data-msg="${m.id}">${adoptLabel(m)}</button>`}</div>` : ''}
       </div></div>`;
   }).join('');
   const note = t.status === '完結'

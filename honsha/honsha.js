@@ -4,7 +4,7 @@ import {
   AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, LIVE_KEY, loadAppraisals, loadComments, loadLive, newAppraisalId,
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
-import { threadFor, messagesOf, addMessage, closeThread, canApprove, hasUnread, markRead } from '../src/appraisalThread.js';
+import { threadFor, messagesOf, addMessage, closeThread, canApprove, hasUnread, markRead, hasProposal } from '../src/appraisalThread.js';
 import { USERS } from '../src/dashboard.js';
 import { loadEmployees, appraisersOf } from '../src/employees.js';
 import { eventsOfDay } from '../src/schedule.js';
@@ -23,7 +23,7 @@ import { yen, fmtTime, fmtElapsed, esc } from '../src/format.js';
 const $ = (s) => document.querySelector(s);
 let visitId = null;
 let sel = null; // { type: 'item' | 'req', id }
-let draft = { tag: '', text: '', price: '', rank: null, reason: '' }; // 鑑定士への送信内容（コメント＋任意で提案査定額）
+let draft = { tag: '', text: '', price: '', expectedPrice: '', rank: null, reason: '' }; // 鑑定士への送信内容（コメント＋任意で提案査定額）
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch { /* 保存できなくても動作は継続（モック） */ } };
 const appraisers = () => appraisersOf(loadEmployees()); // 査定員は、社員管理から読み込む（有効な人だけ）
@@ -94,16 +94,17 @@ function sidebar(visits, aps, approvals) {
   };
   const row = ({ e, v, key, label }) => {
     const now = key === 'visiting';
-    const badge = now ? 'bg-teal-600 text-white font-bold animate-pulse' : v?.outcome ? 'bg-amber-100 text-amber-800' : ST[key][1];
+    const done = key === 'done';
+    const badge = now ? 'bg-teal-600 text-white font-bold animate-pulse' : v?.outcome ? 'bg-amber-100 text-amber-800 font-bold' : done ? 'bg-slate-600 text-white font-bold' : ST[key][1];
     const inner = `
-      <div class="flex justify-between items-center gap-2"><span class="font-bold">${e.start}–${e.end}　${esc(e.customer.name)} 様</span>
-        <span class="text-xs rounded px-2 py-0.5 shrink-0 ${badge}">${now ? '● ' : ''}${esc(label)}</span></div>
+      <div class="flex justify-between items-center gap-2"><span class="font-bold ${done ? 'text-slate-500' : ''}">${e.start}–${e.end}　${esc(e.customer.name)} 様</span>
+        <span class="text-xs rounded px-2 py-0.5 shrink-0 ${badge}">${now ? '● ' : done ? '✓ ' : ''}${esc(label)}</span></div>
       <div class="text-xs text-slate-500">鑑定士 ${esc(USERS.find((u) => u.id === e.userId)?.name ?? '')} ／ ${esc(e.items)}${v ? ` ／ 開始 ${fmtTime(v.startedAt)}` : ''}</div>
       ${v ? visitCard(v) : ''}`;
-    const nowCls = now ? 'bg-teal-100 border-l-8 border-l-teal-600' : 'border-l-8 border-l-transparent';
+    const nowCls = now ? 'bg-teal-100 border-l-8 border-l-teal-600' : done ? 'bg-slate-100 border-l-8 border-l-slate-500' : 'border-l-8 border-l-transparent';
     return v
-      ? `<button class="w-full text-left p-3 border-b ${nowCls} ${now ? 'hover:bg-teal-200' : 'hover:bg-slate-50'} ${v.visitId === visitId ? (now ? 'ring-2 ring-inset ring-slate-500' : 'bg-slate-50') : ''}" data-visit="${v.visitId}">${inner}</button>`
-      : `<div class="p-3 border-b ${nowCls} ${key === 'done' ? 'opacity-60' : ''}">${inner}</div>`;
+      ? `<button class="w-full text-left p-3 border-b ${nowCls} ${now ? 'hover:bg-teal-200' : done ? 'hover:bg-slate-200' : 'hover:bg-slate-50'} ${v.visitId === visitId ? (now ? 'ring-2 ring-inset ring-slate-500' : done ? 'ring-2 ring-inset ring-slate-400' : 'bg-slate-50') : ''}" data-visit="${v.visitId}">${inner}</button>`
+      : `<div class="p-3 border-b ${nowCls} ${done ? 'opacity-80' : ''}">${inner}</div>`;
   };
   const extra = extras.filter((v) => !(hideDone && v.endedAt)).map((v) => row({ e: { start: fmtTime(v.startedAt).slice(0, 5), end: '', customer: { name: v.customerName }, userId: v.userId ?? 'u01', items: '予定外・別日の訪問' }, v, key: v.endedAt ? 'done' : 'visiting', label: v.outcome ? v.outcome.label : v.endedAt ? '完了' : '訪問中' }));
   if (!shown.length && !extra.length) return `<p class="p-6 text-slate-400">${rows.length ? '表示する予定はありません（完了分を隠しています）' : '担当する鑑定士の、今日の予定はありません'}</p>`;
@@ -157,7 +158,7 @@ function itemsTable(v, aps, cs, approvals) {
     <div class="bg-white rounded-lg shadow">${orphans.map((a) => `<button class="w-full text-left p-3 border-t first:border-0 hover:bg-slate-50 flex justify-between ${sel?.type === 'req' && sel.id === a.id ? 'bg-slate-100' : ''}" data-req="${a.id}"><span class="font-bold">${esc(a.name)}</span>${apStatus(a)}</button>`).join('')}</div>` : ''}`;
 }
 
-const emptyDraft = () => ({ tag: '', text: '', price: '', rank: null, reason: '' });
+const emptyDraft = () => ({ tag: '', text: '', price: '', expectedPrice: '', rank: null, reason: '' });
 
 // 鑑定士への送信フォーム（PC想定。タグ・定型文はなく、キーボードで入力する。Ctrl+Enter でも送信）
 // 提案査定額は任意（入れると、鑑定士が買取金額に反映できる。ランクは鑑定士の入力のまま）
@@ -166,10 +167,14 @@ function sendForm(itemId, item, hasThread = false) {
   <div class="rounded-lg border bg-white p-3 space-y-2">
     <div class="font-bold">${hasThread ? '返信' : '鑑定士へコメント'} ${itemId ? '' : `（訪問全体）${helpIcon('明細の商品を選ぶと、その商品について鑑定士とやり取りできます。')}`}</div>
     <textarea class="w-full border rounded px-3 py-2" rows="3" data-f="text" placeholder="メッセージ（Ctrl+Enter で送信）">${esc(draft.text)}</textarea>
+    ${item ? `<div class="grid grid-cols-2 gap-2">
+      <div class="text-sm font-bold space-y-1"><div>提案額・買取金額（任意）</div>
+        ${moneyInputHtml({ attrs: 'data-f="price"', value: Number(draft.price) || 0, placeholder: '円・数量分の合計', cls: 'w-full border rounded px-3 py-1.5 font-normal' })}</div>
+      <div class="text-sm font-bold space-y-1"><div>想定販売価格（任意）${helpIcon('お客様に売った場合の、販売の見込み額です。鑑定士が、商品に反映できます。買取金額とは別に、どちらか一方だけでも送れます。')}</div>
+        ${moneyInputHtml({ attrs: 'data-f="expectedPrice"', value: Number(draft.expectedPrice) || 0, placeholder: '円・数量分の合計', cls: 'w-full border rounded px-3 py-1.5 font-normal' })}</div></div>` : ''}
     <div class="flex items-center gap-2">
-      ${item ? `<div class="flex-1 text-sm font-bold flex items-center gap-2 whitespace-nowrap">提案額（任意）
-        ${moneyInputHtml({ attrs: 'data-f="price"', value: Number(draft.price) || 0, placeholder: '円・数量分の合計', cls: 'w-full border rounded px-3 py-1.5 font-normal' })}</div>` : '<div class="flex-1"></div>'}
-      <button class="bg-slate-700 text-white font-bold rounded px-6 py-2" data-send="${itemId ?? ''}">${hasThread ? '返信する' : '送信'}</button>
+      ${item ? '' : '<div class="flex-1"></div>'}
+      <button class="ml-auto bg-slate-700 text-white font-bold rounded px-6 py-2" data-send="${itemId ?? ''}">${hasThread ? '返信する' : '送信'}</button>
     </div>
   </div>`;
 }
@@ -182,7 +187,7 @@ function thread(cs, itemId) {
     <div class="text-sm rounded-lg p-2 ${c.ack ? 'bg-white border' : 'bg-rose-50 border border-rose-200'}">
       <div class="flex justify-between"><b>${c.tag ? esc(c.tag) : '査定部'}</b><span class="text-xs text-slate-500">${fmtTime(c.createdAt)}</span></div>
       <div class="whitespace-pre-wrap">${esc(c.text)}</div>
-      ${c.price ? `<div class="mt-1 font-bold text-slate-900">提案査定額 ${yen(c.price)}（ランク${c.rank}）${c.adopted ? '<span class="text-teal-700">／ 鑑定士が買取金額に反映済み</span>' : ''}</div>` : ''}
+      ${hasProposal(c) ? `<div class="mt-1 font-bold text-slate-900">${c.price ? `提案査定額 ${yen(c.price)}（ランク${c.rank}）` : ''}${c.price && c.expectedPrice ? '　' : ''}${c.expectedPrice ? `想定販売価格 ${yen(c.expectedPrice)}` : ''}${c.adopted ? '<span class="text-teal-700">／ 鑑定士が商品に反映済み</span>' : ''}</div>` : ''}
       <div class="text-xs mt-1 font-bold ${c.ack ? 'text-teal-700' : 'text-rose-700'}">${c.ack ? `✓ 鑑定士が確認済み（${fmtTime(c.ackAt)}）` : '⏳ 鑑定士は未確認'}</div>
     </div>`).join('')}</div>`;
 }
@@ -196,7 +201,7 @@ function chatPanel(t) {
       ${m.tag ? `<span class="rounded bg-white/90 text-slate-900 px-2 py-0.5 text-xs font-bold">${esc(m.tag)}</span>` : ''}
       ${m.text ? `<div class="whitespace-pre-wrap ${mine ? '' : 'font-bold'}">${esc(m.text)}</div>` : ''}
       ${m.photos?.length ? `<div class="grid grid-cols-2 gap-1">${m.photos.map((p, i) => `<img src="${p}" alt="写真${i + 1}" class="w-full rounded border" />`).join('')}</div>` : ''}
-      ${m.price ? `<div class="rounded bg-white text-slate-900 font-bold text-sm px-2 py-1">提案査定額 ${yen(m.price)}（ランク${esc(m.rank)}）${m.adopted ? '<span class="text-teal-700">／ 買取金額に反映済み</span>' : ''}</div>` : ''}
+      ${hasProposal(m) ? `<div class="rounded bg-white text-slate-900 font-bold text-sm px-2 py-1 space-y-0.5">${m.price ? `<div>提案査定額 ${yen(m.price)}（ランク${esc(m.rank)}）</div>` : ''}${m.expectedPrice ? `<div>想定販売価格 ${yen(m.expectedPrice)}</div>` : ''}${m.adopted ? '<div class="text-teal-700">鑑定士が商品に反映済み</div>' : ''}</div>` : ''}
     </div></div>`;
   }).join('');
   const done = t.status === '完結';
@@ -371,7 +376,8 @@ function decideItem(itemId, ok) {
 function send(itemId) {
   const text = draft.text.trim();
   const price = Number(draft.price) || 0;
-  if (!text && !price) return alert('コメントか査定額のどちらかを入力してください');
+  const expectedPrice = Number(draft.expectedPrice) || 0;
+  if (!text && !price && !expectedPrice) return alert('コメントか、査定額・想定販売価格のどれかを入力してください');
   const v = loadLive()[visitId];
   const item = itemId ? v.items.find((i) => i.id === itemId) : null;
   const rank = item?.rank ?? 'A';
@@ -379,11 +385,11 @@ function send(itemId) {
   const t = itemId ? threadFor(loadAppraisals(), visitId, itemId) : null;
   if (t) {
     // 鑑定士からの査定依頼があれば、そのチャットに返信する
-    upsertAppraisal(addMessage(t, { from: 'hq', tag: '', text, price: price || null, rank: price ? rank : null, at: now }));
+    upsertAppraisal(addMessage(t, { from: 'hq', tag: '', text, price: price || null, rank: price ? rank : null, expectedPrice: expectedPrice || null, at: now }));
   } else {
     upsertComment({
-      id: newCommentId(), visitId, itemId: itemId || null, tag: '', text: text || '（査定額の提案）',
-      price: price || null, rank: price ? rank : null, from: '査定部', createdAt: now, ack: false, ackAt: null,
+      id: newCommentId(), visitId, itemId: itemId || null, tag: '', text: text || '（査定額・想定販売価格の提案）',
+      price: price || null, rank: price ? rank : null, expectedPrice: expectedPrice || null, from: '査定部', createdAt: now, ack: false, ackAt: null,
     });
   }
   draft = emptyDraft();
@@ -486,9 +492,9 @@ document.addEventListener('input', (e) => {
   }
   if (e.target.dataset.ap) { ap = { ...ap, [e.target.dataset.ap]: e.target.value }; return; }
   if (compose && e.target.dataset.m && e.target.dataset.m !== 'target') { compose = { ...compose, [e.target.dataset.m]: e.target.value }; return; }
-  if (e.target.dataset.f === 'price') {
+  if (e.target.dataset.f === 'price' || e.target.dataset.f === 'expectedPrice') {
     // 金額は3桁区切りで表示し、内部では数字のみ保持する
-    draft = { ...draft, price: String(formatMoneyInput(e.target) || '') };
+    draft = { ...draft, [e.target.dataset.f]: String(formatMoneyInput(e.target) || '') };
   } else if (e.target.dataset.f) draft = { ...draft, [e.target.dataset.f]: e.target.value };
 });
 

@@ -9,7 +9,7 @@ import {
 } from './store.js';
 import { dummyPhoto, shrinkImage } from './image.js';
 import { addPhoto, removePhoto } from './itemPhotos.js';
-import { threadFor, addMessage, hasUnread, markRead as markThreadRead, messagesOf } from './appraisalThread.js';
+import { threadFor, addMessage, hasUnread, markRead as markThreadRead, messagesOf, hasProposal, adoptPatch } from './appraisalThread.js';
 import * as V from './views.js';
 import { evalTargetOf, evalTargetOfVisit } from './scheduleView.js';
 import { initTheme } from './theme.js';
@@ -678,18 +678,18 @@ const actions = {
     const t = loadAppraisals().find((x) => x.id === el.dataset.id);
     const m = t && messagesOf(t).find((x) => x.id === el.dataset.msg);
     const target = t && state.items.find((i) => i.id === t.itemId);
-    if (!m?.price || !target) return;
-    updateItems(target.id, { price: m.price, rank: m.rank ?? target.rank });
+    if (!m || !hasProposal(m) || !target) return;
+    updateItems(target.id, adoptPatch(m, target));
     upsertAppraisal({ ...t, messages: messagesOf(t).map((x) => (x.id === m.id ? { ...x, adopted: true } : x)) });
-    showToast('提案された査定額を買取金額に反映しました');
+    showToast('提案された内容を商品に反映しました');
   },
   'adopt-comment': (el) => {
     const c = loadComments().find((x) => x.id === el.dataset.id);
     const target = c && state.items.find((i) => i.id === c.itemId);
-    if (!target || !c.price) return;
-    updateItems(target.id, { price: c.price, rank: c.rank ?? target.rank });
+    if (!target || !hasProposal(c)) return;
+    updateItems(target.id, adoptPatch(c, target));
     upsertComment({ ...c, adopted: true });
-    showToast('提案された査定額を買取金額に反映しました');
+    showToast('提案された内容を商品に反映しました');
   },
   // 訪問終了は、お客様宅を出る前のチェックリストがすべて完了している場合のみ。買取代金は、経費として自動計上する
   'finish-ask': () => { if (V.leaveRemaining(state) === 0) set({ modal: { type: 'finish-confirm' } }); },

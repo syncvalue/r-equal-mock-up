@@ -42,3 +42,13 @@ export const hasUnread = (a, who) => {
 };
 
 export const markRead = (a, who, at) => ({ ...a, [`${who}ReadAt`]: at });
+
+// 査定員の提案（発言・コメント）: 提案査定額（買取金額）と、想定販売価格の、どちらか・両方。入っているものがあれば、鑑定士が商品に反映できる
+export const hasProposal = (m) => Boolean(m.price || m.expectedPrice);
+// 反映するときに、商品へ書き込む内容（入っている項目だけ。ランクは、提案査定額と一緒に）
+export const adoptPatch = (m, item) => ({
+  ...(m.price ? { price: m.price, rank: m.rank ?? item.rank } : {}),
+  ...(m.expectedPrice ? { expectedPrice: m.expectedPrice } : {}),
+});
+// 反映のボタンの文言・済みの表示（提案に入っている項目で変わる）
+export const adoptLabel = (m) => (m.price && m.expectedPrice ? '買取金額・想定販売価格に反映' : m.price ? '買取金額に反映' : '想定販売価格に反映');
