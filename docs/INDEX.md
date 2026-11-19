@@ -180,6 +180,7 @@
 | 来店予約 | [2.6](features/store-reservation/spec.md)、[11.2](features/store-purchase/spec.md) |
 | 顧客検索・電話の履歴の共有・しつこい電話の防止 | [1.9](features/tablet-customer-search/spec.md)、FUTURE_REQUIREMENTS R-[2](features/callcenter-intake/spec.md) |
 | **チラシ・反響管理**（チラシのID、どのチラシが効果的か、今日配布のチラシ） | [12章](features/marketing-flyers/spec.md)、[2.1](features/callcenter-intake/spec.md)（来電のきっかけ）、FUTURE_REQUIREMENTS R-[6](features/marketing-flyers/spec.md) |
+| **電話の仕組み**（MiiTel から自前へ。受電・架電の録音、着信時のお客様情報の表示、音声からの自動入力。クライアントへの確認事項） | FUTURE_REQUIREMENTS R-[8](features/callcenter-intake/spec.md) |
 | **情報の公開範囲**（他の鑑定士の情報を見せない） | FUTURE_REQUIREMENTS R-[1](features/tablet-auth-menu/spec.md) |
 | ダミーであるもの・モックの限界 | [0.4](shared/overview.md)、[10章](shared/production-gaps.md) |
 | まだ決まっていないこと・保留 | FUTURE_REQUIREMENTS（保留中の要件）、[2.7](features/visit-calendar/spec.md)・[4.2](features/accounting-expense-check/spec.md)・[10章](shared/production-gaps.md) |
@@ -201,6 +202,7 @@
 | R-6 | マーケティング部: 買取の金額・粗利での効果測定・デザインデータの保管・オペレーターへの明日の予定と傾向（実装済み）。配布エリアのマスタ化・責任者にだけできることは未定 | モックで実装済み（一部未定） |
 | R-5 | 査定の確定の流れは、鑑定士の区分で変わる（責任者＝自分で確定／一般＝査定部が確認して確定）。モックは、紫・赤をすべて査定待ちにしている | 正式版の要件（モックでは実装しない） |
 | R-7 | 店舗のお客様画面: 端末のサーバー経由のひもづけ、登録した端末だけが開ける、お客様に見せてよい項目だけをサーバーが返す | 正式版の要件（モックでは実装しない） |
+| R-8 | 電話の仕組み: MiiTel から自前へ（受電・架電の録音、お客様情報の表示、音声からの自動入力）。フリーダイヤルは変えない。クライアントへの確認事項つき | 正式版の要件（モックでは実装しない） |
 | 保留中の要件 | 経費精算の二次チェック以降、店舗系（レジ現金・査定部連動・店舗別業績・営業時間・納入先・古物台帳・契約書様式）、配車確定の過去日のランク、訪問カレンダーの濃さの区切り | 保留 |
 
 ---
