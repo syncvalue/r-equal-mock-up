@@ -5,6 +5,7 @@ import { visitFieldsHtml, detailSection } from './calendarView.js';
 import { boardBlockStyle, staffHeadStyle, RANK_COLORS, UNRANKED } from '../src/rankColor.js';
 import { esc } from '../src/format.js';
 import { wantsPreciousMetal, PRECIOUS_ADVICE } from '../src/preciousMetal.js';
+import { icon } from '../src/icons.js';
 import { helpIcon } from '../src/help.js';
 import { USERS, isLeader } from '../src/dashboard.js';
 import { dayTravel, salesDetail, AREAS, areaById, areaOfUser, busyBlocks, attendanceOf, inOffTime, locateAddress, rankOfUser, travelAround, WORK_START, WORK_END, SLOT_STEP } from '../src/dispatch.js';
@@ -233,7 +234,7 @@ export function boardHtml({ date, reservations, now, area, selId }) {
     <div hidden data-boardhint class="pointer-events-none absolute bottom-3 right-0 top-0 z-40 w-10 bg-gradient-to-l from-slate-900/25 to-transparent"><span class="absolute right-1 top-24 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-white">あと<span data-hintn></span>名 ▶</span></div></div>`;
 }
 
-// 選んだ予約の詳細と操作（確定・仮に戻す・詳細変更・取消）。前後の訪問からの距離も出す
+// 選んだ予約の詳細と操作（確定・確定解除・詳細変更・取消）。前後の訪問からの距離も出す
 // 一度確定したが、仮確定に戻された予約の、経緯と変更内容（カレンダーの帯を選んだときの詳細に出す）
 function revertedHtml(r) {
   if (!isReverted(r)) return '';
@@ -252,11 +253,11 @@ function boardDetailHtml(r, reservations, now) {
   const area = areaById(r.areaId, tripAreas(loadCurrentTrips())); // 出張エリアを含む
   const others = reservations.filter((x) => x.id !== r.id && !isCancelled(x));
   const travel = area ? travelAround(busyBlocks(r.userId, r.date, others, now), minOf(r.start), minOf(r.end), locateAddress(r.customer.address, area)) : null;
-  const actions = `<div class="flex flex-wrap items-center gap-2">${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1" data-fix="${r.id}">確定</button>` : `<button class="b b-sec !min-h-0 !py-1" data-unfix="${r.id}">仮に戻す</button>`}
-      <button class="b b-sec !min-h-0 !py-1 text-xs" data-chg="${r.id}">詳細を変更</button><button class="b b-sec !min-h-0 !py-1 text-xs !text-rose-700" data-cancelres="${r.id}">取消</button></div>`;
+  // 操作は1行に収める。確定／確定解除は文字、詳細の変更（鉛筆）・取消（ゴミ箱）はアイコン
+  const actions = `<div class="flex items-center gap-2">${isTentative(r) ? `<button class="b b-pri !min-h-0 !py-1 whitespace-nowrap" data-fix="${r.id}">確定</button>` : `<button class="b b-sec !min-h-0 !py-1 whitespace-nowrap" data-unfix="${r.id}" title="確定を解除して、仮確定に戻します">確定解除</button>`}
+      <button class="b b-sec !min-h-0 !px-2 !py-1" data-chg="${r.id}" title="詳細を変更" aria-label="詳細を変更">${icon('pencil', 18)}</button><button class="b b-sec !min-h-0 !px-2 !py-1 !text-rose-700" data-cancelres="${r.id}" title="取消" aria-label="取消">${icon('trash', 18)}</button></div>`;
   return `<div class="space-y-2 rounded-lg border-2 border-teal-600 bg-white p-3 text-sm">
-    <div class="flex items-start gap-2"><div class="min-w-0 flex-1"><b class="text-base">${esc(r.customer.name)}</b> 様${genderParen(r.gender)} ${statusBadge(r)}</div>
-      <button class="shrink-0 text-lg leading-none text-slate-500 hover:text-slate-900" data-bclose title="閉じる" aria-label="詳細を閉じる">✕</button></div>
+    <div class="min-w-0"><b class="text-base">${esc(r.customer.name)}</b> 様${genderParen(r.gender)} ${statusBadge(r)}</div>
     ${actions}
     ${wantsPreciousMetal(r.hearing?.wants) ? `<div data-metal-advice class="rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-900">${metalMark(true).replace('ml-0.5 ', 'mr-1 ')}${esc(PRECIOUS_ADVICE)}</div>` : ''}
     ${visitFieldsHtml({ userId: r.userId, date: r.date, start: minOf(r.start), end: minOf(r.end), name: r.customer.name, place: r.customer.address }, r, { staff: false })}

@@ -23,13 +23,13 @@ const page = (selId, reservations = [rec()]) => dispatcherHtml({ date: '2026-10-
 
 test('配車確定: 帯を選ぶと、詳細は画面の右側（表の横）に出る。下には出さない。選んでいないときは出ない', () => {
   const none = page(null);
-  assert.ok(!none.includes('data-bclose') && !none.includes('data-chg="R1"'));
+  assert.ok(!none.includes('data-chg="R1"'));
   const sel = page('R1');
-  assert.ok(sel.includes('data-bclose') && sel.includes('data-fix="R1"') && sel.includes('data-chg="R1"') && sel.includes('data-cancelres="R1"'));
+  assert.ok(!sel.includes('data-bclose') && sel.includes('data-fix="R1"') && sel.includes('data-chg="R1"') && sel.includes('data-cancelres="R1"'));
   // 表と詳細は、同じ横並びの行に入っている（表のあとに、詳細。下の段の border-t ではない）
-  assert.ok(sel.indexOf('data-bcol') < sel.indexOf('data-bclose'));
+  assert.ok(sel.indexOf('data-bcol') < sel.indexOf('data-chg="R1"'));
   assert.ok(sel.includes('w-[min(26rem,40%)]') && !sel.includes('<div class="border-t"><div class="space-y-2'));
-  assert.ok(!page('NOPE').includes('data-bclose')); // 見つからない予約は出さない
+  assert.ok(!page('NOPE').includes('data-chg=')); // 見つからない予約は出さない
 });
 
 test('配車確定の右の詳細は、受付で登録した内容をすべて出す（訪問カレンダーの詳細と同じ項目）', () => {
@@ -173,4 +173,13 @@ test('配車確定: 日付の入力の左右に、前の日・次の日に1日�
   const html = page(null);
   assert.ok(html.includes('data-dshift="-1"') && html.includes('data-dshift="1"'));
   assert.ok(html.indexOf('data-dshift="-1"') < html.indexOf('data-ddate-input') && html.indexOf('data-ddate-input') < html.indexOf('data-dshift="1"'));
+});
+
+test('配車確定の詳細: 操作は1行。確定済みは「確定解除」（文字）、詳細の変更は鉛筆、取消はゴミ箱のアイコン。右上の×はない', () => {
+  const h = page('R1', [rec({ status: 'confirmed' })]);
+  assert.ok(h.includes('data-unfix="R1"') && h.includes('確定解除') && !h.includes('仮に戻す'));
+  assert.match(h, /data-chg="R1"[^>]*aria-label="詳細を変更"[^>]*><svg/);
+  assert.match(h, /data-cancelres="R1"[^>]*aria-label="取消"[^>]*><svg/);
+  assert.ok(!h.includes('data-bclose') && !h.includes('✕'));
+  assert.ok(!/flex flex-wrap items-center gap-2">[^]{0,200}data-unfix/.test(h)); // 折り返さない
 });
