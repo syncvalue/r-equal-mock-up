@@ -858,12 +858,6 @@ export function modalView(s) {
             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 pointer-events-none">円</span>
           </div>
           <div class="grid grid-cols-6 gap-1">${[-100, -10, -1, 1, 10, 100].map((d) => `<button class="btn btn-secondary !px-0 !py-0 !min-h-[40px] text-base ${d < 0 ? 'text-rose-700' : 'text-teal-700'}" data-action="price-add" data-id="${i.id}" data-delta="${d}">${d > 0 ? '＋' : '−'}${Math.abs(d)}</button>`).join('')}</div>
-          <div class="font-bold text-sm">想定販売価格（円）<span class="font-normal text-xs text-slate-500">　${i.qty}点分の合計${helpIcon('お客様に売った場合の、販売の見込み額です。社内の記録で、お客様には見せません。本社の査定で直すことがあります。')}</span></div>
-          <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xl text-slate-400 pointer-events-none">¥</span>
-            <input class="field !py-2 text-right text-2xl font-bold tracking-wide pl-8 pr-10" type="text" inputmode="numeric" autocomplete="off" value="${i.expectedPrice ? i.expectedPrice.toLocaleString('ja-JP') : ''}" placeholder="想定販売価格を入力" data-item-field="expectedPrice" data-id="${i.id}" />
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 pointer-events-none">円</span>
-          </div>
           <div class="flex items-center gap-2"><span class="font-bold text-sm w-12">数量</span>
             <button class="btn btn-secondary !px-0 w-14 !min-h-[44px]" data-action="qty" data-id="${i.id}" data-delta="-1">−</button>
             <span class="text-2xl font-bold w-12 text-center">${i.qty}</span>

@@ -67,16 +67,16 @@ function checkPane({ unit, master, ap }) {
       <div class="flex gap-4"><img src="${photoOf(unit)}" alt="${esc(unit.name)}" class="h-28 w-28 object-cover rounded border bg-slate-100 ${unit.photo ? '' : 'opacity-60'}" />
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm flex-1">
           ${info('お客様', `${esc(unit.customerName)} 様`)}${info('鑑定士', esc(staffName(unit)))}${info('買取日', esc(unit.date))}
-          ${info('カテゴリ', esc(unit.category))}${info('ランク', esc(unit.rank))}${info('想定販売価格（1点）', unit.expectedPrice ? yen(unit.expectedPrice) : '未入力')}${info('買取金額（1点）', `${yen(unit.price)}<div class="text-xs font-normal text-slate-500">支払い済み・変更できません</div>`)}
+          ${info('カテゴリ', esc(unit.category))}${info('ランク', esc(unit.rank))}${info('買取金額（1点）', `${yen(unit.price)}<div class="text-xs font-normal text-slate-500">支払い済み・変更できません</div>`)}
         </div></div></section>
     ${done ? `<section class="rounded bg-teal-50 border border-teal-200 p-3 text-sm space-y-1">
         <div class="font-bold text-teal-800">✓ 査定を確定しました（${esc(unit.appraisal.by)}・${dateTime(unit.appraisal.at)}）</div>
         ${unit.appraisal.changes.length ? `<div class="text-slate-700">鑑定士の登録から訂正した内容<ul class="list-disc ml-5">${unit.appraisal.changes.map((c) => `<li>${changeText(c)}</li>`).join('')}</ul></div>` : '<div class="text-slate-700">登録内容のとおり、確定しました。</div>'}</section>`
-      : `<section class="space-y-3"><h3 class="text-sm font-bold text-slate-700">内容を確認して、確定する${helpIcon('実物と登録内容を見比べてください。違っていれば、商品名・ランク・想定販売価格を直します（直した内容は、記録に残ります）。買取金額は、お客様に支払い済みなので、直せません。')}</h3>
+      : `<section class="space-y-3"><h3 class="text-sm font-bold text-slate-700">内容を確認して、確定する${helpIcon('実物と登録内容を見比べてください。違っていれば、商品名・ランクを直します。想定販売価格は、必ず入力します（入れた内容・直した内容は、記録に残ります）。買取金額は、お客様に支払い済みなので、直せません。')}</h3>
         <div class="grid sm:grid-cols-3 gap-3">
           <label class="block text-sm font-bold sm:col-span-2">商品名<input class="inp mt-1 font-normal" data-ap="name" value="${esc(ap.name)}" /></label>
           <label class="block text-sm font-bold">ランク<select class="inp mt-1 font-normal" data-ap="rank">${rankOptions}</select></label>
-          <div class="block text-sm font-bold sm:col-span-3">想定販売価格（1点あたり）${helpIcon('お客様に売った場合の、販売の見込み額です。査定員の目で見て、鑑定士の登録から直すことがあります。')}<div class="mt-1 font-normal sm:w-72">${moneyInputHtml({ attrs: 'data-ap="expectedPrice"', value: ap.expectedPrice, placeholder: '円', cls: 'inp' })}</div></div>
+          <div class="block text-sm font-bold sm:col-span-3"><div class="flex items-center gap-2">想定販売価格（1点あたり）<span class="rounded bg-rose-100 text-rose-700 px-1.5 py-0.5 text-xs font-bold">必須</span>${helpIcon('お客様に売った場合の、販売の見込み額です。入力するのは査定部だけで、必ず入れます（鑑定士は入れません）。迷ったら「過去の販売実績」で、似た商品が売れた額を見られます。')}<button type="button" class="rounded border border-slate-500 text-slate-700 text-xs font-bold px-2 py-1 hover:bg-slate-100" data-ref-open="ap">過去の販売実績</button></div><div class="mt-1 font-normal sm:w-72">${moneyInputHtml({ attrs: 'data-ap="expectedPrice"', value: ap.expectedPrice, placeholder: '円', cls: `inp ${ap.expectedPrice > 0 ? '' : '!border-rose-400'}` })}</div></div>
         </div>
         <div class="text-sm text-slate-600">${changed ? '<b class="text-amber-800">登録内容から訂正があります。</b>' : '登録内容のままです。'}　（シール1枚＝1点。数量が複数の商品は、1点ずつ確認します）</div>
         <button class="b b-pri w-full" data-ap-confirm>この内容で、査定を確定する</button></section>`}

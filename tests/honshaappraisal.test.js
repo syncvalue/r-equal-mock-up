@@ -29,7 +29,7 @@ test('査定の画面: 開いた商品は、鑑定士の登録内容と、確認
 
 test('査定の画面: 確定すると、確定済みの一覧に移り、確定した人・訂正の内容が出る。確定ボタンは出ない', () => {
   const u = units[0];
-  const { units: done } = confirmAppraisal(units, master, u.code, { by: '青木', at: Date.now(), edits: { name: u.name, rank: 'B' } });
+  const { units: done } = confirmAppraisal(units, master, u.code, { by: '青木', at: Date.now(), edits: { name: u.name, rank: 'B', expectedPrice: 123000 } });
   const ap = { ...blank, code: u.code, name: u.name, rank: 'B', expectedPrice: u.expectedPrice };
   assert.ok(appraisalTab({ units: done, master, filter: 'pending', ap }).includes(`査定待ち ${units.length - 1}`));
   const html = appraisalTab({ units: done, master, filter: 'confirmed', ap });
@@ -51,13 +51,28 @@ test('査定の画面: 一覧は、検索で絞り込める（件数の表示は
   assert.ok(appraisalTab({ units, master, filter: 'pending', q: 'ZZZZ', ap: blank }).includes('見つかりません'));
 });
 
-test('査定の画面: 想定販売価格は、読み取り内容に出て、直せる（買取金額は直せない）。直した内容は確定後の記録に出る', () => {
+test('査定の画面: 想定販売価格は必須の入力欄（鑑定士の登録内容には出さない）。過去の販売実績のボタンがある。買取金額は直せない。入れた内容は確定後の記録に出る', () => {
   const u = units[0];
-  const open = { ...blank, code: u.code, name: u.name, rank: u.rank, expectedPrice: u.expectedPrice };
+  assert.equal('expectedPrice' in u, false); // 鑑定士は入れない
+  const open = { ...blank, code: u.code, name: u.name, rank: u.rank, expectedPrice: 0 };
   const html = appraisalTab({ units, master, filter: 'pending', ap: open });
-  assert.ok(html.includes('想定販売価格（1点）') && html.includes('data-ap="expectedPrice"') && !html.includes('data-ap="price"'));
-  assert.ok(appraisalTab({ units, master, filter: 'pending', ap: { ...open, expectedPrice: u.expectedPrice + 1000 } }).includes('登録内容から訂正があります'));
+  assert.ok(html.includes('data-ap="expectedPrice"') && !html.includes('data-ap="price"'));
+  assert.ok(html.includes('必須') && html.includes('data-ref-open="ap"') && html.includes('過去の販売実績'));
+  assert.ok(!html.includes('想定販売価格（1点）')); // 「鑑定士が登録した内容」には出さない
+  assert.ok(appraisalTab({ units, master, filter: 'pending', ap: { ...open, expectedPrice: 300000 } }).includes('登録内容から訂正があります'));
   const { units: done } = confirmAppraisal(units, master, u.code, { by: '青木', at: Date.now(), edits: { name: u.name, rank: u.rank, expectedPrice: 300000 } });
   const after = appraisalTab({ units: done, master, filter: 'confirmed', ap: open });
-  assert.ok(after.includes('想定販売価格: ¥380,000 → ¥300,000'));
+  assert.ok(after.includes('想定販売価格: 未入力 → ¥300,000'));
+});
+
+test('過去の販売実績のモーダル: 似た商品の実績と集計が出て、「この額を入れる」は数量をかけた額。実績がなければ案内', async () => {
+  const { salesRefModalHtml } = await import('../honsha/salesRefModal.js');
+  const { similarSales, DEMO_PAST_SALES } = await import('../src/salesReference.js');
+  const ref = { name: 'ロレックス デイトジャスト', category: '腕時計', rank: 'B', qty: 2 };
+  const rows = similarSales(DEMO_PAST_SALES, ref);
+  const html = salesRefModalHtml({ ...ref, rows });
+  assert.ok(html.includes('HQ-M04') && html.includes('過去の販売実績') && html.includes('ダミー') && html.includes('中央値'));
+  assert.ok(html.includes(`data-ref-use="${rows[0].soldPrice * 2}"`));
+  assert.ok(salesRefModalHtml({ ...ref, rows: [] }).includes('販売実績は、まだありません'));
+  assert.equal(salesRefModalHtml(null), '');
 });

@@ -4,7 +4,7 @@ import {
   AP_STORAGE_KEY, APPROVAL_KEY, sendMessage, EVAL_KEY, loadEvals, newApprovalId, approvalState, latestApproval, loadApprovals, upsertApproval, COMMENT_KEY, RESET_CONFIRM, clearTransactions, LIVE_KEY, loadAppraisals, loadComments, loadLive, newAppraisalId,
   newCommentId, upsertAppraisal, upsertComment,
 } from '../src/store.js';
-import { threadFor, messagesOf, addMessage, closeThread, canApprove, hasUnread, markRead, hasProposal } from '../src/appraisalThread.js';
+import { threadFor, messagesOf, addMessage, closeThread, canApprove, hasUnread, markRead, hasProposal, hasExpectedPrice } from '../src/appraisalThread.js';
 import { USERS } from '../src/dashboard.js';
 import { loadEmployees, appraisersOf } from '../src/employees.js';
 import { eventsOfDay, eventById } from '../src/schedule.js';
@@ -19,6 +19,9 @@ import { openMockCamera } from '../warehouse/camera.js';
 import { tabLabel, menuView } from './menu.js';
 import { appraisalTab } from './appraisalTab.js';
 import { previewModalHtml } from './visitPreview.js';
+import { salesRefModalHtml } from './salesRefModal.js';
+import { similarSales, realPastSales, DEMO_PAST_SALES } from '../src/salesReference.js';
+import { loadRecords } from '../src/warehouse.js';
 import { yen, fmtTime, fmtElapsed, esc } from '../src/format.js';
 
 const $ = (s) => document.querySelector(s);
@@ -39,6 +42,7 @@ let apFilter = 'pending'; // 査定の一覧: pending（査定待ち）／confir
 const blankAp = () => ({ raw: '', code: null, name: '', rank: 'A', expectedPrice: 0, message: null }); // 査定: 読み取った商品と、確認中の内容
 let ap = blankAp();
 let preview = null; // 事前確認で開いている予定のID（見るだけ）
+let salesRef = null; // 過去の販売実績のモーダル: { for: 'chat' | 'ap', name, category, rank, qty }
 let compose = null; // 鑑定士へのお知らせ（本社からのメッセージ）の作成中データ
 let dirty = false; // 入力中に届いた更新を、入力完了後に反映するためのフラグ
 
@@ -64,6 +68,15 @@ const pendingApprovals = (v, approvals) => v.items.filter((i) => i.sell && i.pri
 const AP_BADGE = { 依頼中: 'bg-amber-100 text-amber-800', 回答済み: 'bg-slate-100 text-slate-900', 完結: 'bg-teal-100 text-teal-700' };
 // 承認作業が必要で、かつ査定依頼の条件を満たす（依頼がない、または完結している）商品
 const approvable = (v, approvals, aps) => pendingApprovals(v, approvals).filter((i) => canApprove(aps, v.visitId, i.id).ok);
+
+// 想定販売価格が決まっているか（承認の条件。査定部だけが入れる）
+const priceSet = (v, item, aps) => hasExpectedPrice(item, v.visitId, aps, loadComments());
+const approvableNow = (v, approvals, aps) => approvable(v, approvals, aps).filter((i) => priceSet(v, i, aps));
+
+// 過去の販売実績（倉庫で売れた記録＋ダミー）から、似た商品を探す
+const refRows = (ref) => similarSales([...realPastSales({ units: loadUnits(), records: loadRecords() }), ...DEMO_PAST_SALES], ref);
+const salesRefButton = (attrs) => `<button type="button" class="rounded border border-slate-500 text-slate-700 text-xs font-bold px-2 py-1 hover:bg-slate-100 whitespace-nowrap" ${attrs}>過去の販売実績</button>`;
+const requiredBadge = '<span class="ml-1 rounded bg-rose-100 text-rose-700 px-1.5 py-0.5 text-xs font-bold">必須</span>';
 
 const apStatus = (t) => (t ? `<span class="rounded px-2 py-0.5 text-xs font-bold ${AP_BADGE[t.status]}">${t.status === '依頼中' ? '返信待ち' : t.status}</span>` : '<span class="text-slate-400">依頼なし</span>');
 // 担当する鑑定士の、今日の予定（時系列）と訪問状況。ダミーの鑑定士は、予定ごとの見本の状況（demoStatus）を使う
@@ -137,14 +150,14 @@ function itemsTable(v, aps, cs, approvals) {
     const st = apvState(v, i, approvals);
     const gate = canApprove(aps, v.visitId, i.id);
     const apv = i.price > 0
-      ? `${apvBadge(st)}${['none', 'stale'].includes(st) ? (gate.ok ? ` <button class="ml-1 rounded bg-teal-600 text-white text-xs font-bold px-2 py-1" data-approve="${i.id}">承認</button>` : ' <span class="text-xs text-slate-500">査定の完結待ち</span>') : ''}`
+      ? `${apvBadge(st)}${['none', 'stale'].includes(st) ? (!gate.ok ? ' <span class="text-xs text-slate-500">査定の完結待ち</span>' : !priceSet(v, i, aps) ? ' <span class="text-xs font-bold text-rose-700">想定販売価格が未入力</span>' : ` <button class="ml-1 rounded bg-teal-600 text-white text-xs font-bold px-2 py-1" data-approve="${i.id}">承認</button>`) : ''}`
       : '<span class="text-xs text-slate-400">金額未入力</span>';
     return `
     <tr class="border-t cursor-pointer hover:bg-slate-50 ${sel?.type === 'item' && sel.id === i.id ? 'bg-slate-100' : ''}" data-item="${i.id}">
       <td class="p-2 ${i.sell ? '' : 'text-slate-400 line-through'}"><b>${esc(i.name)}</b><div class="text-xs text-slate-500 no-underline">${esc(i.category)}</div></td>
       <td class="text-center ${i.sell ? '' : 'text-slate-400'}">${i.rank} ×${i.qty}</td>
       <td class="text-right ${i.sell ? 'font-bold' : 'text-slate-400 line-through'}">${yen(i.price)}</td>
-      <td class="text-right ${i.sell ? '' : 'text-slate-400'}">${i.expectedPrice ? yen(i.expectedPrice) : '<span class="text-slate-300">-</span>'}</td>
+      <td class="text-right ${i.sell ? '' : 'text-slate-400'}">${i.expectedPrice ? yen(i.expectedPrice) : '<span class="text-xs font-bold text-rose-700">未入力</span>'}</td>
       <td class="text-center ${i.sell ? '' : 'text-slate-400'}">${i.sell ? '売る' : '売らない'}</td>
       <td class="text-center">${apv}</td>
       <td class="text-center">${apStatus(t)}${t && hasUnread(t, 'hq') ? '<div class="mt-0.5 text-xs font-bold text-rose-700">未読あり</div>' : ''}</td>
@@ -173,8 +186,8 @@ function sendForm(itemId, item, hasThread = false) {
     ${item ? `<div class="grid grid-cols-2 gap-2">
       <div class="text-sm font-bold space-y-1"><div>提案額・買取金額（任意）</div>
         ${moneyInputHtml({ attrs: 'data-f="price"', value: Number(draft.price) || 0, placeholder: '円・数量分の合計', cls: 'w-full border rounded px-3 py-1.5 font-normal' })}</div>
-      <div class="text-sm font-bold space-y-1"><div>想定販売価格（任意）${helpIcon('お客様に売った場合の、販売の見込み額です。鑑定士が、商品に反映できます。買取金額とは別に、どちらか一方だけでも送れます。')}</div>
-        ${moneyInputHtml({ attrs: 'data-f="expectedPrice"', value: Number(draft.expectedPrice) || 0, placeholder: '円・数量分の合計', cls: 'w-full border rounded px-3 py-1.5 font-normal' })}</div></div>` : ''}
+      <div class="text-sm font-bold space-y-1"><div class="flex items-center justify-between gap-1"><span>想定販売価格${requiredBadge}${helpIcon('お客様に売った場合の、販売の見込み額です。入力するのは査定部だけで、必ず入れます（鑑定士は入れません）。買取金額とは別に、どちらか一方だけでも送れます。迷ったら「過去の販売実績」で、似た商品が売れた額を見られます。')}</span>${salesRefButton(`data-ref-open="chat" data-ref-item="${esc(item.id)}"`)}</div>
+        ${moneyInputHtml({ attrs: 'data-f="expectedPrice"', value: Number(draft.expectedPrice) || item.expectedPrice || 0, placeholder: '円・数量分の合計', cls: `w-full border rounded px-3 py-1.5 font-normal ${(Number(draft.expectedPrice) || item.expectedPrice) ? '' : '!border-rose-400'}` })}</div></div>` : ''}
     <div class="flex items-center gap-2">
       ${item ? '' : '<div class="flex-1"></div>'}
       <button class="ml-auto bg-slate-700 text-white font-bold rounded px-6 py-2" data-send="${itemId ?? ''}">${hasThread ? '返信する' : '送信'}</button>
@@ -232,6 +245,7 @@ function approvalBlock(v, item, approvals, aps) {
   const canDecide = item.price > 0 && st !== 'ok';
   // 査定依頼が続いている間は、隠さずにマスクして見せる（完結すると操作できる）
   const masked = !gate.ok;
+  const noPrice = !priceSet(v, item, aps); // 想定販売価格が未入力のうちは、承認できない（差戻しはできる）
   return `
   <div class="sticky top-0 z-10 rounded-lg border-2 ${canDecide ? 'border-amber-400' : 'border-slate-200'} bg-white shadow-md">
     <div class="p-3 space-y-2 ${masked ? 'opacity-40 pointer-events-none select-none' : ''}" ${masked ? 'aria-disabled="true"' : ''}>
@@ -240,10 +254,11 @@ function approvalBlock(v, item, approvals, aps) {
     ${st === 'stale' ? `<div class="text-sm text-amber-800 font-bold">前回の判断（${yen(rec.price)}・ランク${rec.rank}・${rec.qty}点）から変更されています。</div>` : ''}
     ${st === 'ok' ? `<div class="text-sm text-teal-700 font-bold">承認済み（${fmtTime(rec.decidedAt)}）</div>` : ''}
     ${st === 'ng' ? `<div class="text-sm text-rose-700"><b>差戻し済み：</b>${esc(rec.comment)}（鑑定士の見直しを待っています）</div>` : ''}
+    ${canDecide && noPrice ? '<div class="rounded bg-rose-50 border border-rose-300 text-rose-700 text-sm font-bold px-3 py-2">想定販売価格が未入力です。下の返信フォームで入力してから、承認してください。</div>' : ''}
     ${canDecide ? `
       <textarea class="w-full border rounded px-3 py-2 text-sm" rows="2" data-f="reason" placeholder="差戻しの場合は理由を入力（必須）">${esc(draft.reason)}</textarea>
       <div class="grid grid-cols-2 gap-2">
-        <button class="bg-teal-600 text-white font-bold rounded py-3 disabled:opacity-40 disabled:cursor-not-allowed" data-approve="${item.id}" ${masked ? 'disabled' : ''}>承認する</button>
+        <button class="bg-teal-600 text-white font-bold rounded py-3 disabled:opacity-40 disabled:cursor-not-allowed" data-approve="${item.id}" ${masked || noPrice ? 'disabled' : ''}>承認する</button>
         <button class="bg-white border-2 border-rose-500 text-rose-700 font-bold rounded py-3" data-reject="${item.id}" ${masked ? 'disabled' : ''}>差戻し</button></div>` : ''}
     </div>
     ${masked ? `<div class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-200/50 p-3 text-center text-sm font-bold text-slate-900">査定依頼のやり取り中（${esc(threadFor(aps, v.visitId, item.id).status === '依頼中' ? '返信待ち' : '回答済み')}）。完結すると承認できます</div>` : ''}
@@ -316,7 +331,7 @@ function supportBody(v, visits, aps, cs, approvals) {
       <div class="flex justify-between items-end">
         <div><h1 class="text-2xl font-bold">${esc(v.customerName)} 様 <span class="text-base font-normal text-slate-500">${esc(v.staff)}</span></h1>
           <p class="text-sm text-slate-500">受付 ${esc(v.callInfo?.receptionNo ?? '')} ／ 開始 ${fmtTime(v.startedAt)} ／ 経過 <span data-elapsed="${v.startedAt}" data-end="${v.endedAt ?? ''}">${fmtElapsed(v.startedAt, v.endedAt ?? Date.now())}</span> ／ 最終更新 ${fmtTime(v.updatedAt)}</p></div>
-        <div class="text-right">${approvable(v, approvals, aps).length ? `<button class="mr-3 bg-teal-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>承認できる${approvable(v, approvals, aps).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-700" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-slate-900">${yen(sum(v.items))}</div></div>
+        <div class="text-right">${approvableNow(v, approvals, aps).length ? `<button class="mr-3 bg-teal-600 text-white font-bold rounded px-3 py-1 text-sm" data-approve-all>承認できる${approvableNow(v, approvals, aps).length}件を一括承認</button>` : ''}<button class="text-sm underline text-rose-700" data-cvisit>訪問全体にコメント</button><div class="text-sm text-slate-500">買取金額（「売る」のみ）</div><div class="text-3xl font-bold text-slate-900">${yen(sum(v.items))}</div></div>
       </div>
       ${v.briefing?.propose ? `<div class="text-sm rounded-lg bg-slate-50 border px-3 py-1.5">査定前の説明：<b>実施済み</b> ／ 他商品の提案：<b class="${v.briefing.propose === 'yes' ? 'text-teal-700' : 'text-slate-700'}">${v.briefing.propose === 'yes' ? '提案してよい' : '提案は不要（お客様の希望）'}</b></div>` : ''}
       ${v.outcome ? `<div class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3"><b>買取に至らず：${esc(v.outcome.label)}</b>${helpIcon('訪問実績として扱い、鑑定士の業績には影響しません。')}${v.outcome.date || v.outcome.time ? `　希望日時 ${esc(v.outcome.date)} ${esc(v.outcome.time)}` : ''}${v.outcome.memo ? `<div class="text-sm whitespace-pre-wrap">${esc(v.outcome.memo)}</div>` : ''}</div>` : ''}
@@ -347,7 +362,7 @@ function render() {
       <span class="font-bold text-xl">査定部</span><span class="text-slate-500">›</span><span class="font-bold">${tabLabel(tab)}</span></div>
     <div class="text-sm">${supportBar}<label class="ml-3 text-xs text-white/80">査定員 <select class="rounded bg-white/20 text-white px-1 py-0.5 font-bold" data-appraiser>${appraisers().map((a) => `<option class="text-slate-900" value="${esc(a.id)}" ${a.id === appraiser().id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label> <button class="demo-only ml-2" data-reset>データ初期化</button> ${themeToggleHtml()}</div>
   </header>
-  ${tab === 'appraisal' ? `<div class="flex-1 min-h-0">${appraisalTab({ units: loadUnits(), master: loadMaster(), filter: apFilter, q: apQuery, ap })}</div>` : supportBody(v, visits, aps, cs, approvals)}${menuOpen ? menuView({ tab, badges }) : ''}${composeModal()}${preview ? previewModalHtml(eventById(preview)) : ''}</div>`;
+  ${tab === 'appraisal' ? `<div class="flex-1 min-h-0">${appraisalTab({ units: loadUnits(), master: loadMaster(), filter: apFilter, q: apQuery, ap })}</div>` : supportBody(v, visits, aps, cs, approvals)}${menuOpen ? menuView({ tab, badges }) : ''}${composeModal()}${preview ? previewModalHtml(eventById(preview)) : ''}${salesRef ? salesRefModalHtml({ ...salesRef, rows: refRows(salesRef) }) : ''}</div>`;
   setScreenBadge(hqScreenId(tab === 'appraisal' ? (ap.code ? { code: ap.code } : null) : sel, tab)); // 画面の隅の、画面ID
   dirty = false;
 }
@@ -360,6 +375,7 @@ function decideItem(itemId, ok) {
   if (!item || !(item.price > 0)) return false;
   const gate = canApprove(loadAppraisals(), visitId, itemId);
   if (!gate.ok) { alert(gate.reason); return false; }
+  if (ok && !priceSet(v, item, loadAppraisals())) { alert('想定販売価格が未入力です。返信フォームで入力してから、承認してください。'); return false; }
   if (!ok && !draft.reason.trim()) { alert('差戻しの理由を入力してください'); return false; }
   const now = Date.now();
   upsertApproval({
@@ -379,10 +395,12 @@ function decideItem(itemId, ok) {
 function send(itemId) {
   const text = draft.text.trim();
   const price = Number(draft.price) || 0;
-  const expectedPrice = Number(draft.expectedPrice) || 0;
-  if (!text && !price && !expectedPrice) return alert('コメントか、査定額・想定販売価格のどれかを入力してください');
   const v = loadLive()[visitId];
   const item = itemId ? v.items.find((i) => i.id === itemId) : null;
+  const typed = Number(draft.expectedPrice) || 0;
+  if (item && !typed && !priceSet(v, item, loadAppraisals())) return alert('想定販売価格を入力してください（必須）。迷うときは「過去の販売実績」を見られます。');
+  const expectedPrice = typed && typed !== (item?.expectedPrice ?? 0) ? typed : 0; // 商品に入っている額のままなら、提案としては送らない
+  if (!text && !price && !expectedPrice) return alert('コメントか、査定額・想定販売価格のどれかを入力してください');
   const rank = item?.rank ?? 'A';
   const now = Date.now();
   const t = itemId ? threadFor(loadAppraisals(), visitId, itemId) : null;
@@ -424,6 +442,26 @@ function openCamera() {
   });
 }
 
+// 過去の販売実績を開く。chat＝返信フォームの商品／ap＝査定で確認中の商品
+function openSalesRef(from, itemId) {
+  if (from === 'ap') {
+    const u = loadUnits().find((x) => x.code === ap.code);
+    if (u) salesRef = { for: 'ap', name: ap.name.trim() || u.name, category: u.category, rank: ap.rank, qty: 1 };
+  } else {
+    const item = loadLive()[visitId]?.items.find((i) => i.id === itemId);
+    if (item) salesRef = { for: 'chat', name: item.name, category: item.category, rank: item.rank, qty: item.qty };
+  }
+  render();
+}
+
+// 参考にした額を、入力欄に入れる（査定は1点あたり、返信フォームは数量分の合計。モーダル側で数量をかけてある）
+function useReferencePrice(n) {
+  if (salesRef?.for === 'ap') ap = { ...ap, expectedPrice: n };
+  else draft = { ...draft, expectedPrice: String(n) };
+  salesRef = null;
+  render();
+}
+
 function handleAppraisalClick(t) {
   if (t.dataset.apFilter) { apFilter = t.dataset.apFilter; return true; }
   if (t.dataset.apOpen) { openAppraisal(t.dataset.apOpen); return true; }
@@ -439,6 +477,11 @@ document.addEventListener('click', (e) => {
   const pv = e.target.closest('[data-preview]');
   if (pv) { preview = pv.dataset.preview; render(); return; }
   if (e.target.closest('[data-compose-backdrop]') && e.target.matches('[data-compose-backdrop]')) { compose = null; render(); return; }
+  if (e.target.closest('[data-ref-close]') || e.target.matches('[data-ref-backdrop]')) { salesRef = null; render(); return; }
+  const refUse = e.target.closest('[data-ref-use]');
+  if (refUse) { useReferencePrice(Number(refUse.dataset.refUse)); return; }
+  const refOpen = e.target.closest('[data-ref-open]');
+  if (refOpen) { openSalesRef(refOpen.dataset.refOpen, refOpen.dataset.refItem); return; }
   const t = e.target.closest('button, tr[data-item]');
   if (!t) return;
   if ('menuOpen' in t.dataset) { menuOpen = true; render(); return; }
@@ -466,13 +509,14 @@ document.addEventListener('click', (e) => {
   else if ('approveAll' in t.dataset) {
     const v = loadLive()[visitId];
     const aps = loadAppraisals();
-    pendingApprovals(v, loadApprovals()).filter((i) => canApprove(aps, visitId, i.id).ok).forEach((i) => decideItem(i.id, true));
+    pendingApprovals(v, loadApprovals()).filter((i) => canApprove(aps, visitId, i.id).ok && priceSet(v, i, aps)).forEach((i) => decideItem(i.id, true));
   }
   else if ('reset' in t.dataset) { if (!confirm(RESET_CONFIRM)) return; clearTransactions(); visitId = null; sel = null; }
   else return;
   render();
 });
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && salesRef) { salesRef = null; render(); return; }
   if (e.key === 'Escape' && preview) { preview = null; render(); return; }
   if (e.key === 'Enter' && !e.isComposing && e.target.dataset?.ap === 'raw') { openAppraisal(e.target.value); render(); return; } // 日本語入力の確定のEnterでは進まない
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.dataset?.f === 'text') {

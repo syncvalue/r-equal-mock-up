@@ -26,21 +26,24 @@ test('査定: 想定販売価格は直せる。変更の記録（前→後）を
   assert.equal(appraisalStatus(u, master), 'confirmed');
 });
 
-test('査定: 想定販売価格の入力チェック（0以上の整数。0は未入力）。入力のない商品は、未入力のまま確定できる', () => {
+test('査定: 想定販売価格は必須（1以上の整数）。未入力・0・負・小数は確定できない', () => {
   assert.equal(editProblem({ name: 'x', rank: 'A', expectedPrice: 1000 }), '');
-  assert.equal(editProblem({ name: 'x', rank: 'A', expectedPrice: 0 }), '');
-  assert.equal(editProblem({ name: 'x', rank: 'A', expectedPrice: -1 }), 'expectedPrice');
-  assert.equal(editProblem({ name: 'x', rank: 'A', expectedPrice: 10.5 }), 'expectedPrice');
-  assert.equal(editProblem({ name: 'x', rank: 'A' }), '');
+  for (const bad of [0, -1, 10.5, undefined, null]) assert.equal(editProblem({ name: 'x', rank: 'A', expectedPrice: bad }), 'expectedPrice', String(bad));
   const us = make(item({ expectedPrice: 0 }));
-  const r = confirmAppraisal(us, master, 'RQ-P1', { by: '青木', at: 1, edits: { name: us[0].name, rank: 'A', expectedPrice: 0 } });
-  assert.equal(r.result.type, 'ok');
-  assert.deepEqual(r.units[0].appraisal.changes, []);
-  const bad = confirmAppraisal(us, master, 'RQ-P1', { by: '青木', at: 1, edits: { name: us[0].name, rank: 'A', expectedPrice: -5 } });
-  assert.deepEqual(bad.result, { type: 'bad', problem: 'expectedPrice' });
+  assert.equal('expectedPrice' in us[0], false); // 鑑定士は入れない。査定部が入れるまで、持たない
+  const none = confirmAppraisal(us, master, 'RQ-P1', { by: '青木', at: 1, edits: { name: us[0].name, rank: 'A', expectedPrice: 0 } });
+  assert.deepEqual(none.result, { type: 'bad', problem: 'expectedPrice' });
+  assert.equal(appraisalStatus(none.units[0], master), 'pending');
+  const unset = confirmAppraisal(us, master, 'RQ-P1', { by: '青木', at: 1, edits: { name: us[0].name, rank: 'A' } });
+  assert.deepEqual(unset.result, { type: 'bad', problem: 'expectedPrice' });
+  const ok = confirmAppraisal(us, master, 'RQ-P1', { by: '青木', at: 1, edits: { name: us[0].name, rank: 'A', expectedPrice: 52000 } });
+  assert.equal(ok.result.type, 'ok');
+  assert.deepEqual(ok.units[0].appraisal.changes, [{ field: 'expectedPrice', from: 0, to: 52000 }]); // 入れたことも、記録に残る
+  const neg = confirmAppraisal(us, master, 'RQ-P1', { by: '青木', at: 1, edits: { name: us[0].name, rank: 'A', expectedPrice: -5 } });
+  assert.deepEqual(neg.result, { type: 'bad', problem: 'expectedPrice' });
 });
 
-test('デモの高額品には、想定販売価格が入っている（買取金額より高い）', () => {
+test('デモの高額品には、想定販売価格が入っていない（鑑定士は入れない。査定部が、確定のときに入れる）', () => {
   const d = demoAppraisalUnits([], 'u01', new Date(2026, 10, 19, 12, 0));
-  assert.ok(d.every((u) => u.expectedPrice > u.price));
+  assert.ok(d.length > 0 && d.every((u) => !('expectedPrice' in u)));
 });

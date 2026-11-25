@@ -1100,9 +1100,6 @@ document.addEventListener('input', (e) => {
     set({ search: el.value, mtab: 'browse', mlimit: 40 });
     $('#master').innerHTML = V.masterBodyView(state);
     $('#search-clear')?.classList.toggle('hidden', !state.search);
-  } else if (el.dataset.itemField === 'expectedPrice') {
-    updateItems(el.dataset.id, { expectedPrice: formatMoneyInput(el) });
-    publish();
   } else if (el.dataset.itemField === 'price') {
     const price = formatMoneyInput(el);
     updateItems(el.dataset.id, { price });

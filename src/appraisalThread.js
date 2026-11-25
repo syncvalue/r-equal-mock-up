@@ -34,6 +34,14 @@ export function canApprove(list, visitId, itemId) {
   return { ok: false, reason: `査定依頼が完結していません（${t.status}）。やり取りを完結してから承認してください。` };
 }
 
+// 想定販売価格が決まっているか（承認の条件）。商品に入っている、または、査定部の提案（返信・コメント）に入っている。
+// 想定販売価格を入れるのは査定部だけ（鑑定士は入れない）。鑑定士が提案を商品に反映する前でも、査定部は承認できる
+export function hasExpectedPrice(item, visitId, threads, comments) {
+  if (item.expectedPrice > 0) return true;
+  const sent = (threads ?? []).some((t) => t.visitId === visitId && t.itemId === item.id && messagesOf(t).some((m) => m.from === 'hq' && m.expectedPrice > 0));
+  return sent || (comments ?? []).some((c) => c.visitId === visitId && c.itemId === item.id && c.expectedPrice > 0);
+}
+
 // 相手の発言を、まだ読んでいないか。who: 'sales' | 'hq'
 export const hasUnread = (a, who) => {
   const other = who === 'sales' ? 'hq' : 'sales';

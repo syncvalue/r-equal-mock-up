@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { appraisalStatus, appraisalQueue, lookupForAppraisal, editProblem, confirmAppraisal } from '../src/unitAppraisal.js';
 
 const master = { highValue: { colors: ['purple', 'red'] } };
-const unit = (code, sealColor, extra = {}) => ({ code, sealColor, name: 'K18 ネックレス', category: 'ジュエリー・貴金属', rank: 'A', price: 26000, qty: 2, at: 1000, status: 'pending', ...extra });
+const unit = (code, sealColor, extra = {}) => ({ code, sealColor, name: 'K18 ネックレス', category: 'ジュエリー・貴金属', rank: 'A', price: 26000, expectedPrice: 40000, qty: 2, at: 1000, status: 'pending', ...extra });
 const list = [unit('RQ-P1', 'purple'), unit('RQ-R1', 'red', { at: 500 }), unit('RQ-Y1', 'yellow'), unit('RQ-R2', 'red', { appraisal: { status: 'confirmed', by: '青木', at: 2000, changes: [] } })];
 
 test('査定の状態: 紫・赤は査定待ち（確定すると確定済み）。ほかの色は査定の対象外', () => {
@@ -32,13 +32,13 @@ test('読み取り: シールNo.から、査定する商品を引く。空・未
 });
 
 test('訂正の入力チェック: 商品名あり・ランクは一覧のもの（金額は直せない）', () => {
-  assert.equal(editProblem({ name: 'K18 ネックレス', rank: 'A', price: 26000 }), '');
-  assert.equal(editProblem({ name: ' ', rank: 'A', price: 26000 }), 'name');
-  assert.equal(editProblem({ name: 'x', rank: 'Z', price: 26000 }), 'rank');
+  assert.equal(editProblem({ name: 'K18 ネックレス', rank: 'A', expectedPrice: 40000, price: 26000 }), '');
+  assert.equal(editProblem({ name: ' ', rank: 'A', expectedPrice: 40000 }), 'name');
+  assert.equal(editProblem({ name: 'x', rank: 'Z', expectedPrice: 40000 }), 'rank');
 });
 
 test('確定: 訂正がなければそのまま確定。確定した人・日時を残し、元の配列は変えない', () => {
-  const r = confirmAppraisal(list, master, 'RQ-P1', { by: '青木', at: 3000, edits: { name: 'K18 ネックレス', rank: 'A', price: 26000 } });
+  const r = confirmAppraisal(list, master, 'RQ-P1', { by: '青木', at: 3000, edits: { name: 'K18 ネックレス', rank: 'A', expectedPrice: 40000, price: 26000 } });
   assert.equal(r.result.type, 'ok');
   const u = r.units.find((x) => x.code === 'RQ-P1');
   assert.deepEqual(u.appraisal, { status: 'confirmed', by: '青木', at: 3000, changes: [] });
@@ -48,7 +48,7 @@ test('確定: 訂正がなければそのまま確定。確定した人・日時
 });
 
 test('確定: 訂正（商品名・ランク）は、商品に反映し、変更の記録（前→後）を残す。買取金額は、支払い済みなので、渡されても変えない', () => {
-  const r = confirmAppraisal(list, master, 'RQ-R1', { by: '青木', at: 3000, edits: { name: 'K14 ネックレス', rank: 'B', price: 18000 } });
+  const r = confirmAppraisal(list, master, 'RQ-R1', { by: '青木', at: 3000, edits: { name: 'K14 ネックレス', rank: 'B', expectedPrice: 40000, price: 18000 } });
   const u = r.units.find((x) => x.code === 'RQ-R1');
   assert.equal(u.name, 'K14 ネックレス');
   assert.equal(u.rank, 'B');
@@ -60,11 +60,11 @@ test('確定: 訂正（商品名・ランク）は、商品に反映し、変更
 });
 
 test('確定できないとき: 確定済み・対象外・未登録・入力の誤りは、配列を変えずに理由を返す', () => {
-  const same = { by: '青木', at: 3000, edits: { name: 'x', rank: 'A', price: 1 } };
+  const same = { by: '青木', at: 3000, edits: { name: 'x', rank: 'A', expectedPrice: 40000, price: 1 } };
   assert.equal(confirmAppraisal(list, master, 'RQ-R2', same).result.type, 'dup');
   assert.equal(confirmAppraisal(list, master, 'RQ-Y1', same).result.type, 'notTarget');
   assert.equal(confirmAppraisal(list, master, 'RQ-ZZ', same).result.type, 'unknown');
-  const bad = confirmAppraisal(list, master, 'RQ-P1', { ...same, edits: { name: '', rank: 'A', price: 1 } });
+  const bad = confirmAppraisal(list, master, 'RQ-P1', { ...same, edits: { name: '', rank: 'A', expectedPrice: 40000, price: 1 } });
   assert.deepEqual(bad.result, { type: 'bad', problem: 'name' });
   assert.equal(bad.units, list);
 });
